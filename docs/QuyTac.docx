@@ -1,0 +1,22 @@
+1. Mục tiêu dự án
+Project dùng để dự đoán Vietlott
+Có web hiển thị, AI scoring, data CSV, model JSON
+Ưu tiên ổn định hơn là refactor đẹp
+2. Quy tắc sửa code
+Không sửa khi chưa đọc tài liệu
+Không đổi path file CSV/model tùy tiện
+Không xóa file runtime/data thật
+Không sửa nhiều module cùng lúc nếu không cần
+Khi Xóa file hay folder
+3. Quy tắc cấu trúc
+ai/predictors/ chỉ chứa logic dự đoán/chấm điểm
+ai/models/ chỉ chứa model/artifact
+ai/training/ chỉ chứa code huấn luyện
+docs/ chứa luật, nhật ký, hướng dẫn
+data/ chứa CSV/DB/export
+runtime/ chứa log/cache/output tạm
+4. Quy tắc cập nhật
+Nếu có thay đổi được cho phép và thay đổi đó trở thành chuẩn mới:
+cập nhật QuyTac.md
+ghi vào NhatKyThayDoi.md
+cuối phiên hoặc khi người dùng yêu cầu, đồng bộ sang QuyTac.docx

@@ -1,0 +1,10 @@
+{
+  "type": "MAX_3D",
+  "bootstrapComplete": true,
+  "requestedStartMode": "full_history",
+  "lastSyncAt": "2026-04-02T22:42:39",
+  "lastBootstrapAt": "2026-03-21T10:08:04",
+  "effectiveEarliestKy": "1",
+  "effectiveEarliestDate": "22/04/2019",
+  "sourceLimited": false
+}

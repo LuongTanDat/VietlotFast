@@ -1,0 +1,15 @@
+{
+  "canonical.KENO.csv": "data/canonical/keno_all_day.csv",
+  "canonical.KENO.meta": "data/canonical/keno_all_day.meta.json",
+  "canonical.LOTO_5_35.csv": "data/canonical/loto_5_35_all_day.csv",
+  "canonical.LOTO_5_35.meta": "data/canonical/loto_5_35_all_day.meta.json",
+  "canonical.LOTO_6_45.csv": "data/canonical/mega_6_45_all_day.csv",
+  "canonical.LOTO_6_45.meta": "data/canonical/mega_6_45_all_day.meta.json",
+  "canonical.LOTO_6_55.csv": "data/canonical/power_6_55_all_day.csv",
+  "canonical.LOTO_6_55.meta": "data/canonical/power_6_55_all_day.meta.json",
+  "canonical.MAX_3D.csv": "data/canonical/max_3d_all_day.csv",
+  "canonical.MAX_3D.meta": "data/canonical/max_3d_all_day.meta.json",
+  "canonical.MAX_3D_PRO.csv": "data/canonical/max_3d_pro_all_day.csv",
+  "canonical.MAX_3D_PRO.meta": "data/canonical/max_3d_pro_all_day.meta.json",
+  "exports.scoring.dir": "data/exports/scoring"
+}

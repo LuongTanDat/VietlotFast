@@ -1,0 +1,2 @@
+cd "c:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto"
+.\scripts\chay_lotto_web.bat

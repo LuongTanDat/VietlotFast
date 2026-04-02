@@ -1,0 +1,14 @@
+{
+  "name": "session_2_previous",
+  "label": "Session 2 Previous",
+  "version": "legacy",
+  "status": "archive",
+  "filesDir": "files",
+  "trackedRoots": [
+    "ai",
+    "backend",
+    "frontend",
+    "data"
+  ],
+  "files": []
+}

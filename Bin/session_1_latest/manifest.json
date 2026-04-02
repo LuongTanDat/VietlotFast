@@ -1,0 +1,14 @@
+{
+  "name": "session_1_latest",
+  "label": "Session 1 Latest",
+  "version": "current",
+  "status": "active",
+  "filesDir": "files",
+  "trackedRoots": [
+    "ai",
+    "backend",
+    "frontend",
+    "data"
+  ],
+  "files": []
+}

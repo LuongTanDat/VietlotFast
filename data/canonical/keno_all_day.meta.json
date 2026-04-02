@@ -1,0 +1,10 @@
+{
+  "type": "KENO",
+  "bootstrapComplete": false,
+  "requestedStartMode": "full_history",
+  "lastSyncAt": "2026-04-02T22:42:37",
+  "lastBootstrapAt": "",
+  "effectiveEarliestKy": "273963",
+  "effectiveEarliestDate": "16/03/2026",
+  "sourceLimited": true
+}
