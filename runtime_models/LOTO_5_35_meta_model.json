@@ -1,0 +1,542 @@
+{
+  "type": "LOTO_5_35",
+  "modelVersion": "online_meta_v1_stable",
+  "historyFile": "loto_5_35_all_day.csv",
+  "historyCount": 551,
+  "latestKy": "551",
+  "latestDate": "31/03/2026",
+  "latestTime": "13:00",
+  "lastLearnedKy": "551",
+  "lastLearnedAt": "2026-03-31T16:59:29",
+  "metaState": "volatile",
+  "stabilityScore": 0.48503,
+  "driftScore": 0.55975,
+  "rankingOverlap": 0.225455,
+  "preferredEngine": "luan_so",
+  "weights": {
+    "gen_local": 0.317665,
+    "luan_so": 0.357678,
+    "both_combo": 0.324657
+  },
+  "weightShift": 0.015438,
+  "rewards": {
+    "gen_local": 0.307772,
+    "luan_so": 0.552256,
+    "both_combo": 0.404564
+  },
+  "rewardHistory": [
+    {
+      "ky": "530",
+      "learnedAt": "2026-03-21T08:11:41",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.296639,
+        "luan_so": 0.56829,
+        "both_combo": 0.426842
+      },
+      "weights": {
+        "gen_local": 0.316386,
+        "luan_so": 0.351058,
+        "both_combo": 0.332555
+      },
+      "weightShift": 0.017725
+    },
+    {
+      "ky": "531",
+      "learnedAt": "2026-03-21T19:08:23",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.315111,
+        "luan_so": 0.0,
+        "both_combo": 0.139153
+      },
+      "weights": {
+        "gen_local": 0.340237,
+        "luan_so": 0.328419,
+        "both_combo": 0.331344
+      },
+      "weightShift": 0.023851
+    },
+    {
+      "ky": "532",
+      "learnedAt": "2026-03-21T22:58:28",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.312501,
+        "luan_so": 0.570419,
+        "both_combo": 0.441107
+      },
+      "weights": {
+        "gen_local": 0.322568,
+        "luan_so": 0.345867,
+        "both_combo": 0.331565
+      },
+      "weightShift": 0.017669
+    },
+    {
+      "ky": "533",
+      "learnedAt": "2026-03-22T13:34:33",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.293901,
+        "luan_so": 0.0,
+        "both_combo": 0.129787
+      },
+      "weights": {
+        "gen_local": 0.34403,
+        "luan_so": 0.325516,
+        "both_combo": 0.330453
+      },
+      "weightShift": 0.021462
+    },
+    {
+      "ky": "534",
+      "learnedAt": "2026-03-22T22:29:21",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.301625,
+        "luan_so": 0.0,
+        "both_combo": 0.133198
+      },
+      "weights": {
+        "gen_local": 0.362509,
+        "luan_so": 0.308656,
+        "both_combo": 0.328836
+      },
+      "weightShift": 0.018478
+    },
+    {
+      "ky": "535",
+      "learnedAt": "2026-03-23T20:58:45",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.290218,
+        "luan_so": 0.570419,
+        "both_combo": 0.408489
+      },
+      "weights": {
+        "gen_local": 0.339949,
+        "luan_so": 0.331684,
+        "both_combo": 0.328366
+      },
+      "weightShift": 0.023029
+    },
+    {
+      "ky": "536",
+      "learnedAt": "2026-03-23T23:04:56",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.296681,
+        "luan_so": 0.0,
+        "both_combo": 0.131014
+      },
+      "weights": {
+        "gen_local": 0.358802,
+        "luan_so": 0.313882,
+        "both_combo": 0.327316
+      },
+      "weightShift": 0.018852
+    },
+    {
+      "ky": "539",
+      "learnedAt": "2026-03-25T17:10:09",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.300202,
+        "luan_so": 0.0,
+        "both_combo": 0.132569
+      },
+      "weights": {
+        "gen_local": 0.374722,
+        "luan_so": 0.299342,
+        "both_combo": 0.325936
+      },
+      "weightShift": 0.01592
+    },
+    {
+      "ky": "540",
+      "learnedAt": "2026-03-25T22:42:12",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.294994,
+        "luan_so": 0.55868,
+        "both_combo": 0.404335
+      },
+      "weights": {
+        "gen_local": 0.350854,
+        "luan_so": 0.322835,
+        "both_combo": 0.326311
+      },
+      "weightShift": 0.023868
+    },
+    {
+      "ky": "542",
+      "learnedAt": "2026-03-26T22:09:38",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.300593,
+        "luan_so": 0.55868,
+        "both_combo": 0.407265
+      },
+      "weights": {
+        "gen_local": 0.331944,
+        "luan_so": 0.34224,
+        "both_combo": 0.325816
+      },
+      "weightShift": 0.019405
+    },
+    {
+      "ky": "551",
+      "learnedAt": "2026-03-31T16:59:29",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.307772,
+        "luan_so": 0.552256,
+        "both_combo": 0.404564
+      },
+      "weights": {
+        "gen_local": 0.317665,
+        "luan_so": 0.357678,
+        "both_combo": 0.324657
+      },
+      "weightShift": 0.015438
+    }
+  ],
+  "snapshots": {
+    "gen_local": {
+      "confidence": 0.372574,
+      "backtest": {
+        "avgHits": 0.6042,
+        "avgHitRate": 0.120833,
+        "veryRecentAvgHitRate": 0.12,
+        "recentAvgHitRate": 0.158333,
+        "mediumRecentAvgHitRate": 0.125,
+        "samples": 96,
+        "stability": 0.714348,
+        "recentConsistency": 0.97,
+        "agreementScore": 0.7,
+        "cooldownPenalty": 0.9924,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.420876
+      },
+      "champion": {
+        "key": "hybrid_ai_lite",
+        "label": "Hybrid AI-lite",
+        "samples": 96,
+        "avgHits": 0.6042,
+        "avgHitRate": 0.120833,
+        "veryRecentAvgHitRate": 0.12,
+        "recentAvgHitRate": 0.158333,
+        "mediumRecentAvgHitRate": 0.125,
+        "stability": 0.714348,
+        "recentConsistency": 0.97,
+        "agreementScore": 0.7,
+        "sampleFactor": 1.0,
+        "cooldownPenalty": 0.9924,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.420876,
+        "learnedWeight": 0.290578,
+        "rawScore": 0.420876
+      }
+    },
+    "luan_so": {
+      "confidence": 0.58637,
+      "backtest": {
+        "avgHits": 0.0,
+        "avgHitRate": 0.58637,
+        "samples": 528,
+        "specialHitRate": null,
+        "shrinkageAdjustedConfidence": 0.195264,
+        "shrinkageAdjustedLift": 2.393116,
+        "directionalAgreementRatio": 1.0
+      },
+      "champion": {
+        "key": "luan_so_conditional",
+        "label": "Luận Số • DB->DB",
+        "direction": "forward",
+        "window": 1,
+        "relationKind": "db_db",
+        "strongPairs": 480,
+        "watchPairs": 0,
+        "topLift": 2.393116,
+        "topConfidence": 0.195264,
+        "topBaseline": 0.081594,
+        "topSupport": 45,
+        "topPairCount": 9,
+        "topShrinkFactor": 0.96,
+        "adaptiveScore": 0.521279
+      },
+      "signalSummary": {
+        "dominantDirection": "forward",
+        "dominantWindow": 1,
+        "strongPairCount": 480,
+        "watchPairCount": 0,
+        "filteredPairCount": 2001,
+        "directionalAgreementRatio": 1.0,
+        "topShrinkFactor": 0.96,
+        "topEvidence": [
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 3,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 3.174149,
+            "label": "Strong",
+            "lift": 1.5701,
+            "confidence": 0.244304,
+            "baseline": 0.155598
+          },
+          {
+            "relation_kind": "db_main",
+            "from_number": 2,
+            "to_number": 17,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 3.033664,
+            "label": "Strong",
+            "lift": 1.88386,
+            "confidence": 0.239504,
+            "baseline": 0.127135
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 9,
+            "direction": "forward",
+            "window": 5,
+            "lag": 1,
+            "strength": 2.882261,
+            "label": "Strong",
+            "lift": 1.36,
+            "confidence": 0.64,
+            "baseline": 0.470588
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 3,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.873003,
+            "label": "Strong",
+            "lift": 1.673171,
+            "confidence": 0.260342,
+            "baseline": 0.155598
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 32,
+            "to_number": 29,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.815457,
+            "label": "Strong",
+            "lift": 1.344142,
+            "confidence": 0.64529,
+            "baseline": 0.480076
+          },
+          {
+            "relation_kind": "db_db",
+            "from_number": 2,
+            "to_number": 9,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.80064,
+            "label": "Strong",
+            "lift": 2.393116,
+            "confidence": 0.195264,
+            "baseline": 0.081594
+          },
+          {
+            "relation_kind": "main_db",
+            "from_number": 15,
+            "to_number": 4,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.72055,
+            "label": "Strong",
+            "lift": 2.158432,
+            "confidence": 0.151541,
+            "baseline": 0.070209
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 20,
+            "to_number": 5,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.554947,
+            "label": "Strong",
+            "lift": 1.338896,
+            "confidence": 0.530985,
+            "baseline": 0.396584
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 9,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.545479,
+            "label": "Strong",
+            "lift": 1.361121,
+            "confidence": 0.552713,
+            "baseline": 0.406072
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 13,
+            "direction": "forward",
+            "window": 3,
+            "lag": 1,
+            "strength": 2.533479,
+            "label": "Strong",
+            "lift": 1.3792,
+            "confidence": 0.523416,
+            "baseline": 0.379507
+          },
+          {
+            "relation_kind": "db_main",
+            "from_number": 2,
+            "to_number": 17,
+            "direction": "forward",
+            "window": 3,
+            "lag": 1,
+            "strength": 2.501827,
+            "label": "Strong",
+            "lift": 1.610205,
+            "confidence": 0.54692,
+            "baseline": 0.339658
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 9,
+            "to_number": 18,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.494548,
+            "label": "Strong",
+            "lift": 1.657391,
+            "confidence": 0.217002,
+            "baseline": 0.13093
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 32,
+            "to_number": 29,
+            "direction": "forward",
+            "window": 5,
+            "lag": 1,
+            "strength": 2.490329,
+            "label": "Strong",
+            "lift": 1.266116,
+            "confidence": 0.718347,
+            "baseline": 0.567362
+          },
+          {
+            "relation_kind": "db_main",
+            "from_number": 2,
+            "to_number": 17,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.460599,
+            "label": "Strong",
+            "lift": 1.508637,
+            "confidence": 0.635517,
+            "baseline": 0.421252
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 3,
+            "direction": "forward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.434749,
+            "label": "Strong",
+            "lift": 1.673171,
+            "confidence": 0.260342,
+            "baseline": 0.155598
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 9,
+            "to_number": 12,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.428689,
+            "label": "Strong",
+            "lift": 1.350857,
+            "confidence": 0.538292,
+            "baseline": 0.398482
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 18,
+            "to_number": 9,
+            "direction": "forward",
+            "window": 3,
+            "lag": 1,
+            "strength": 2.40624,
+            "label": "Strong",
+            "lift": 1.400457,
+            "confidence": 0.465047,
+            "baseline": 0.332068
+          },
+          {
+            "relation_kind": "db_db",
+            "from_number": 2,
+            "to_number": 9,
+            "direction": "forward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.373424,
+            "label": "Strong",
+            "lift": 2.393116,
+            "confidence": 0.195264,
+            "baseline": 0.081594
+          },
+          {
+            "relation_kind": "db_main",
+            "from_number": 2,
+            "to_number": 17,
+            "direction": "backward",
+            "window": 3,
+            "lag": 1,
+            "strength": 2.346023,
+            "label": "Strong",
+            "lift": 1.610617,
+            "confidence": 0.204765,
+            "baseline": 0.127135
+          },
+          {
+            "relation_kind": "db_main",
+            "from_number": 2,
+            "to_number": 17,
+            "direction": "forward",
+            "window": 2,
+            "lag": 1,
+            "strength": 2.326925,
+            "label": "Strong",
+            "lift": 1.735323,
+            "confidence": 0.414897,
+            "baseline": 0.239089
+          }
+        ]
+      }
+    }
+  }
+}

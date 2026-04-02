@@ -1,0 +1,446 @@
+{
+  "type": "LOTO_6_55",
+  "modelVersion": "online_meta_v1_stable",
+  "historyFile": "power_6_55_all_day.csv",
+  "historyCount": 1321,
+  "latestKy": "1325",
+  "latestDate": "28/03/2026",
+  "latestTime": "",
+  "lastLearnedKy": "1325",
+  "lastLearnedAt": "2026-03-31T16:59:39",
+  "metaState": "volatile",
+  "stabilityScore": 0.456536,
+  "driftScore": 0.590721,
+  "rankingOverlap": 0.181818,
+  "preferredEngine": "gen_local",
+  "weights": {
+    "gen_local": 0.344746,
+    "luan_so": 0.329415,
+    "both_combo": 0.325839
+  },
+  "weightShift": 0.026315,
+  "rewards": {
+    "gen_local": 0.290139,
+    "luan_so": 0.620841,
+    "both_combo": 0.42256
+  },
+  "rewardHistory": [
+    {
+      "ky": "1321",
+      "learnedAt": "2026-03-21T08:11:45",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.285722,
+        "luan_so": 0.620841,
+        "both_combo": 0.410001
+      },
+      "weights": {
+        "gen_local": 0.314497,
+        "luan_so": 0.356157,
+        "both_combo": 0.329346
+      },
+      "weightShift": 0.022824
+    },
+    {
+      "ky": "1322",
+      "learnedAt": "2026-03-21T19:08:26",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.286973,
+        "luan_so": 0.0,
+        "both_combo": 0.126727
+      },
+      "weights": {
+        "gen_local": 0.335857,
+        "luan_so": 0.335176,
+        "both_combo": 0.328967
+      },
+      "weightShift": 0.02136
+    },
+    {
+      "ky": "1323",
+      "learnedAt": "2026-03-25T17:10:12",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.290008,
+        "luan_so": 0.0,
+        "both_combo": 0.128067
+      },
+      "weights": {
+        "gen_local": 0.354382,
+        "luan_so": 0.317672,
+        "both_combo": 0.327947
+      },
+      "weightShift": 0.018525
+    },
+    {
+      "ky": "1324",
+      "learnedAt": "2026-03-27T09:37:20",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.292112,
+        "luan_so": 0.0,
+        "both_combo": 0.128997
+      },
+      "weights": {
+        "gen_local": 0.370315,
+        "luan_so": 0.3031,
+        "both_combo": 0.326584
+      },
+      "weightShift": 0.015934
+    },
+    {
+      "ky": "1325",
+      "learnedAt": "2026-03-31T16:59:39",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.290139,
+        "luan_so": 0.620841,
+        "both_combo": 0.42256
+      },
+      "weights": {
+        "gen_local": 0.344746,
+        "luan_so": 0.329415,
+        "both_combo": 0.325839
+      },
+      "weightShift": 0.026315
+    }
+  ],
+  "snapshots": {
+    "gen_local": {
+      "confidence": 0.375223,
+      "backtest": {
+        "avgHits": 0.6562,
+        "avgHitRate": 0.109375,
+        "veryRecentAvgHitRate": 0.1,
+        "recentAvgHitRate": 0.104167,
+        "mediumRecentAvgHitRate": 0.098214,
+        "samples": 96,
+        "stability": 0.741675,
+        "recentConsistency": 0.989286,
+        "agreementScore": 0.649573,
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.998857,
+        "adaptiveScore": 0.405318
+      },
+      "champion": {
+        "key": "hybrid_ai_lite",
+        "label": "Hybrid AI-lite",
+        "samples": 96,
+        "avgHits": 0.6562,
+        "avgHitRate": 0.109375,
+        "veryRecentAvgHitRate": 0.1,
+        "recentAvgHitRate": 0.104167,
+        "mediumRecentAvgHitRate": 0.098214,
+        "stability": 0.741675,
+        "recentConsistency": 0.989286,
+        "agreementScore": 0.649573,
+        "sampleFactor": 1.0,
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.998857,
+        "adaptiveScore": 0.405318,
+        "learnedWeight": 0.268215,
+        "rawScore": 0.405318
+      }
+    },
+    "luan_so": {
+      "confidence": 0.653241,
+      "backtest": {
+        "avgHits": 0.0,
+        "avgHitRate": 0.653241,
+        "samples": 800,
+        "specialHitRate": null,
+        "shrinkageAdjustedConfidence": 0.069122,
+        "shrinkageAdjustedLift": 5.020779,
+        "directionalAgreementRatio": 1.0
+      },
+      "champion": {
+        "key": "luan_so_conditional",
+        "label": "Luận Số • DB->DB",
+        "direction": "forward",
+        "window": 2,
+        "relationKind": "db_db",
+        "strongPairs": 378,
+        "watchPairs": 102,
+        "topLift": 5.020779,
+        "topConfidence": 0.069122,
+        "topBaseline": 0.013767,
+        "topSupport": 84,
+        "topPairCount": 6,
+        "topShrinkFactor": 0.96,
+        "adaptiveScore": 0.564937
+      },
+      "signalSummary": {
+        "dominantDirection": "forward",
+        "dominantWindow": 2,
+        "strongPairCount": 378,
+        "watchPairCount": 102,
+        "filteredPairCount": 4637,
+        "directionalAgreementRatio": 1.0,
+        "topShrinkFactor": 0.96,
+        "topEvidence": [
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 43,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 3.615588,
+            "label": "Strong",
+            "lift": 1.856045,
+            "confidence": 0.248557,
+            "baseline": 0.133917
+          },
+          {
+            "relation_kind": "main_db",
+            "from_number": 13,
+            "to_number": 28,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 3.418305,
+            "label": "Strong",
+            "lift": 2.865937,
+            "confidence": 0.071738,
+            "baseline": 0.025031
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 54,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 3.202243,
+            "label": "Strong",
+            "lift": 1.923958,
+            "confidence": 0.183005,
+            "baseline": 0.095119
+          },
+          {
+            "relation_kind": "db_db",
+            "from_number": 39,
+            "to_number": 26,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 3.150933,
+            "label": "Watchlist",
+            "lift": 7.172378,
+            "confidence": 0.10772,
+            "baseline": 0.015019
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 43,
+            "direction": "forward",
+            "window": 1,
+            "lag": 1,
+            "strength": 3.064058,
+            "label": "Strong",
+            "lift": 1.856045,
+            "confidence": 0.248557,
+            "baseline": 0.133917
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 43,
+            "direction": "forward",
+            "window": 2,
+            "lag": 1,
+            "strength": 3.040549,
+            "label": "Strong",
+            "lift": 1.581789,
+            "confidence": 0.393962,
+            "baseline": 0.249061
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 50,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 3.024289,
+            "label": "Strong",
+            "lift": 1.667183,
+            "confidence": 0.162754,
+            "baseline": 0.097622
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 30,
+            "to_number": 13,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.949539,
+            "label": "Strong",
+            "lift": 1.712326,
+            "confidence": 0.205736,
+            "baseline": 0.12015
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 33,
+            "to_number": 22,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.948195,
+            "label": "Strong",
+            "lift": 1.663365,
+            "confidence": 0.21859,
+            "baseline": 0.131414
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 33,
+            "to_number": 22,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 2.915098,
+            "label": "Strong",
+            "lift": 1.501029,
+            "confidence": 0.197257,
+            "baseline": 0.131414
+          },
+          {
+            "relation_kind": "main_db",
+            "from_number": 13,
+            "to_number": 28,
+            "direction": "forward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.896869,
+            "label": "Strong",
+            "lift": 2.865937,
+            "confidence": 0.071738,
+            "baseline": 0.025031
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 13,
+            "to_number": 27,
+            "direction": "forward",
+            "window": 5,
+            "lag": 1,
+            "strength": 2.883993,
+            "label": "Strong",
+            "lift": 1.328176,
+            "confidence": 0.583467,
+            "baseline": 0.439299
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 33,
+            "to_number": 47,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.85497,
+            "label": "Strong",
+            "lift": 1.361553,
+            "confidence": 0.538486,
+            "baseline": 0.395494
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 43,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 2.843739,
+            "label": "Strong",
+            "lift": 1.535607,
+            "confidence": 0.205644,
+            "baseline": 0.133917
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 13,
+            "to_number": 27,
+            "direction": "forward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.753661,
+            "label": "Strong",
+            "lift": 1.354389,
+            "confidence": 0.510227,
+            "baseline": 0.376721
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 54,
+            "direction": "forward",
+            "window": 1,
+            "lag": 1,
+            "strength": 2.713765,
+            "label": "Strong",
+            "lift": 1.923958,
+            "confidence": 0.183005,
+            "baseline": 0.095119
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 7,
+            "to_number": 43,
+            "direction": "backward",
+            "window": 3,
+            "lag": 1,
+            "strength": 2.668027,
+            "label": "Strong",
+            "lift": 1.451434,
+            "confidence": 0.194372,
+            "baseline": 0.133917
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 33,
+            "to_number": 37,
+            "direction": "backward",
+            "window": 4,
+            "lag": 1,
+            "strength": 2.630939,
+            "label": "Strong",
+            "lift": 1.454101,
+            "confidence": 0.140132,
+            "baseline": 0.09637
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 21,
+            "to_number": 50,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 2.629381,
+            "label": "Strong",
+            "lift": 1.548259,
+            "confidence": 0.151144,
+            "baseline": 0.097622
+          },
+          {
+            "relation_kind": "main_db",
+            "from_number": 21,
+            "to_number": 14,
+            "direction": "forward",
+            "window": 2,
+            "lag": 1,
+            "strength": 2.606014,
+            "label": "Strong",
+            "lift": 2.472474,
+            "confidence": 0.102117,
+            "baseline": 0.041302
+          }
+        ]
+      }
+    }
+  }
+}

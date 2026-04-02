@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vietlott Tra Cứu Nhanh Pro</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!-- ---abc--- Shared Styles --- -->
+  <link rel="stylesheet" href="/vietlott-web.css" />
+</head>
+<body>
+  <!-- ---abc--- Loader / Boot Layer --- -->
+  <div id="pageLoader" class="page-loader">
+    <div class="page-loader-inner">
+      <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="chipGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2d2d2d"></stop>
+            <stop offset="100%" stop-color="#0f0f0f"></stop>
+          </linearGradient>
+          <linearGradient id="textGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#eeeeee"></stop>
+            <stop offset="100%" stop-color="#888888"></stop>
+          </linearGradient>
+          <linearGradient id="pinGradient" x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%" stop-color="#bbbbbb"></stop>
+            <stop offset="50%" stop-color="#888888"></stop>
+            <stop offset="100%" stop-color="#555555"></stop>
+          </linearGradient>
+        </defs>
+
+        <g>
+          <path d="M100 100 H200 V210 H326" class="trace-bg"></path><path d="M100 100 H200 V210 H326" class="trace-flow purple"></path>
+          <path d="M80 180 H180 V230 H326" class="trace-bg"></path><path d="M80 180 H180 V230 H326" class="trace-flow blue"></path>
+          <path d="M60 260 H150 V250 H326" class="trace-bg"></path><path d="M60 260 H150 V250 H326" class="trace-flow yellow"></path>
+          <path d="M100 350 H200 V270 H326" class="trace-bg"></path><path d="M100 350 H200 V270 H326" class="trace-flow green"></path>
+          <path d="M700 90 H560 V210 H474" class="trace-bg"></path><path d="M700 90 H560 V210 H474" class="trace-flow blue"></path>
+          <path d="M740 160 H580 V230 H474" class="trace-bg"></path><path d="M740 160 H580 V230 H474" class="trace-flow green"></path>
+          <path d="M720 250 H590 V250 H474" class="trace-bg"></path><path d="M720 250 H590 V250 H474" class="trace-flow red"></path>
+          <path d="M680 340 H570 V270 H474" class="trace-bg"></path><path d="M680 340 H570 V270 H474" class="trace-flow yellow"></path>
+        </g>
+
+        <rect x="330" y="190" width="140" height="100" rx="20" ry="20" fill="url(#chipGradient)" stroke="#222" stroke-width="3" filter="drop-shadow(0 0 6px rgba(0,0,0,0.8))"></rect>
+        <g>
+          <rect x="322" y="205" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="322" y="225" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="322" y="245" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="322" y="265" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="470" y="205" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="470" y="225" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="470" y="245" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+          <rect x="470" y="265" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+        </g>
+
+        <text x="400" y="240" font-family="Arial, sans-serif" font-size="22" fill="url(#textGradient)" text-anchor="middle" alignment-baseline="middle">Loading</text>
+        <circle cx="100" cy="100" r="5" fill="black"></circle><circle cx="80" cy="180" r="5" fill="black"></circle>
+        <circle cx="60" cy="260" r="5" fill="black"></circle><circle cx="100" cy="350" r="5" fill="black"></circle>
+        <circle cx="700" cy="90" r="5" fill="black"></circle><circle cx="740" cy="160" r="5" fill="black"></circle>
+        <circle cx="720" cy="250" r="5" fill="black"></circle><circle cx="680" cy="340" r="5" fill="black"></circle>
+      </svg>
+    </div>
+  </div>
+
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-layout">
+        <div class="auth-left">
+          <div>
+            <h2>Vietlott <br />Tra Cứu Nhanh</h2>
+            <p>Đăng nhập để giữ dữ liệu riêng theo từng tài khoản.</p>
+            <div class="auth-badges">
+              <span class="auth-badge">Lưu dữ liệu riêng</span>
+              <span class="auth-badge">Tra cứu nhanh</span>
+              <span class="auth-badge">Dự đoán kỳ tới</span>
+            </div>
+          </div>
+          <p>An toàn hơn khi nhiều người cùng dùng một máy.</p>
+        </div>
+        <div class="auth-right">
+          <div class="auth-title">Tài khoản</div>
+          <p class="auth-sub">Đăng nhập hoặc tạo tài khoản mới để bắt đầu.</p>
+          <div class="auth-switch">
+            <button id="showLoginBtn">Đăng nhập</button>
+            <button id="showRegisterBtn" class="inactive">Đăng ký</button>
+          </div>
+          <div id="loginForm">
+            <div class="row">
+              <label>Tên đăng nhập</label>
+              <input id="loginUser" placeholder="Nhập tên đăng nhập" />
+            </div>
+            <div class="row">
+              <label>Mật khẩu</label>
+              <div class="password-wrap">
+                <input id="loginPass" type="password" placeholder="Nhập mật khẩu" />
+                <button type="button" id="toggleLoginPass" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+              </div>
+            </div>
+            <label class="check-row">
+              <input id="rememberCreds" type="checkbox" />
+              <span>Ghi nhớ tài khoản và mật khẩu trên máy này</span>
+            </label>
+            <button id="loginBtn">Đăng nhập</button>
+            <button id="recoverAdminBtn" type="button" class="secondary" style="margin-top:8px;">Quên mật khẩu admin (khôi phục cục bộ)</button>
+          </div>
+          <div id="registerForm" style="display:none;">
+            <div class="row">
+              <label>Tên đăng nhập</label>
+              <input id="regUser" placeholder="Tạo tên đăng nhập" />
+            </div>
+            <div class="row">
+              <label>Mật khẩu</label>
+              <div class="password-wrap">
+                <input id="regPass" type="password" placeholder="Tạo mật khẩu" />
+                <button type="button" id="toggleRegPass" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+              </div>
+            </div>
+            <div class="row">
+              <label>Nhập lại mật khẩu</label>
+              <div class="password-wrap">
+                <input id="regPass2" type="password" placeholder="Nhập lại mật khẩu" />
+                <button type="button" id="toggleRegPass2" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+              </div>
+            </div>
+            <label class="check-row">
+              <input id="regRemember" type="checkbox" />
+              <span>Lưu tài khoản và mật khẩu này để đăng nhập nhanh lần sau</span>
+            </label>
+            <button id="registerBtn">Tạo tài khoản</button>
+          </div>
+          <div id="authMsg" class="auth-msg muted">Đăng nhập để tiếp tục.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---abc--- App Shell / Main Layout --- -->
+  <div id="appShell">
+  <header class="top-fixed">
+    <div class="top-fixed-inner">
+      <div class="top-left">
+        <button id="menuToggleBtn" class="menu-toggle-btn" type="button" title="Mở menu">
+          <span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </span>
+        </button>
+        <h1>Vietlott Tra Cứu Nhanh Pro</h1>
+      </div>
+      <div class="top-right">
+        <div class="currency-bar">
+          <span class="currency-chip">
+            <ion-icon name="diamond-outline"></ion-icon>
+            <span id="diamondBalance">0</span>
+          </span>
+          <span class="currency-chip paypal">
+            <ion-icon name="logo-paypal"></ion-icon>
+            <span id="paypalBalance">0</span>
+          </span>
+        </div>
+        <span class="whoami-pill"><span id="whoami">Chưa đăng nhập</span></span>
+        <button id="openAccountBtn" class="account-star-btn" type="button" style="display:none;">
+          <strong class="account-btn-label">Quản lý tài khoản</strong>
+          <div class="account-stars-wrap"><div class="account-stars"></div></div>
+          <div class="account-btn-glow"><div class="circle"></div><div class="circle"></div></div>
+        </button>
+        <button id="logoutBtn" class="secondary">Đăng xuất</button>
+        <button id="themeToggleBtn" class="theme-toggle" type="button" title="Bật/tắt màu trang">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="sideMenuOverlay" class="side-menu-overlay"></div>
+  <aside id="sideMenu" class="side-menu">
+    <div class="side-menu-head">
+      <div style="font-weight:900;color:#183958;">MENU</div>
+      <button id="sideMenuCloseBtn" class="side-menu-close" type="button">✕</button>
+    </div>
+    <div class="side-menu-body">
+      <div class="side-avatar">🐱</div>
+      <div class="side-title">Vietlott</div>
+      <div class="side-subtitle">Tra cứu nhanh và quản lý dữ liệu</div>
+      <div class="side-section-label">THÔNG TIN</div>
+      <button id="homeMenuBtn" class="side-link active" type="button"><span class="icon">🏠</span><span>Trang chủ</span></button>
+      <button class="side-link" type="button"><span class="icon">👤</span><span>Thông tin tài khoản</span></button>
+      <button id="paypalDepositMenuBtn" class="side-link" type="button"><span class="icon">💳</span><span>Nạp tiền tài khoản</span></button>
+      <button class="side-link" type="button"><span class="icon">📝</span><span>Nhật kí hoạt động</span></button>
+      <button class="side-link" type="button"><span class="icon">🎫</span><span>Phiếu hỗ trợ</span></button>
+      <button class="side-link" type="button"><span class="icon">💸</span><span>Lịch sử hoàn tiền</span></button>
+      <button id="luckyWheelMenuBtn" class="side-link" type="button"><span class="icon">🎡</span><span>Vòng Quay May Mắn</span></button>
+      <button class="side-link" type="button"><span class="icon">🆙</span><span>Cấp bậc Tài khoản</span></button>
+      <button class="side-link" type="button"><span class="icon">👥</span><span>Chương trình Affiliates</span></button>
+    </div>
+  </aside>
+
+  <div class="wrap">
+    <section id="luckyWheelSection" class="lucky-wheel-board" hidden>
+      <div class="lucky-wheel-main">
+        <div class="spin-popup-overlay active" id="spinPopup" data-init="1">
+        <div class="sp-content">
+          <h2 class="sp-title">🎰 Quay ngay — Vận may chờ bạn!</h2>
+
+          <div class="lucky-wheel-shell">
+            <div class="sp-wheel-frame" id="wheelFrame">
+              <div class="sp-wheel-shadow"></div>
+              <div class="sp-wheel-ring"></div>
+              <div class="sp-wheel-ticks" id="spTicks"></div>
+              <div class="sp-pointer bounce" id="spPointer" aria-hidden="true">
+                <svg viewBox="0 0 40 48" fill="none">
+                  <path d="M20 48L4 28C4 28 0 22 0 16C0 7.163 8.954 0 20 0C31.046 0 40 7.163 40 16C40 22 36 28 36 28L20 48Z" fill="url(#ptrGradLucky)"></path>
+                  <circle cx="20" cy="16" r="8" fill="#fff" fill-opacity="0.92"></circle>
+                  <defs>
+                    <linearGradient id="ptrGradLucky" x1="20" y1="0" x2="20" y2="48" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#fbbf24"></stop>
+                      <stop offset="1" stop-color="#f59e0b"></stop>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div id="luckyWheelDisc" class="sp-wheel-rotor">
+                <canvas id="spinCanvas" width="880" height="880"></canvas>
+                <div id="luckyWheelCenterBtn" class="lucky-wheel-center-badge" role="button" tabindex="0" aria-label="Quay Ngay">
+                  <span>QUAY</span>
+                  <strong>NGAY</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-energy" aria-live="polite">
+            <div class="sp-energy-track">
+              <div class="sp-energy-bar">
+                <div id="spinEnergyFill" class="sp-energy-fill"></div>
+                <div id="spinEnergyCount" class="sp-energy-count">60/60</div>
+              </div>
+            </div>
+            <div id="spinEnergyNext" class="sp-energy-next">Đã đầy kho lượt</div>
+          </div>
+          <div class="sp-milestone" aria-live="polite">
+            <div class="sp-milestone-head">
+              <span>Mốc Hộp Quà</span>
+              <span id="spinMilestoneMeta" class="sp-milestone-meta">Còn 80 lượt để mở mốc 80</span>
+            </div>
+            <div class="sp-milestone-track">
+              <div class="sp-milestone-bar">
+                <div id="spinMilestoneFill" class="sp-milestone-fill"></div>
+              </div>
+              <div id="spinMilestoneMarkers" class="sp-milestone-markers"></div>
+            </div>
+            <div id="spinMilestoneNext" class="sp-milestone-next">Reset sau 24:00:00 • 1 ngày reset lại</div>
+          </div>
+
+          <div class="sp-controls">
+            <div class="sp-multiplier-row" role="group" aria-label="Hệ số quay">
+              <button id="spinMultiplier1" class="sp-multiplier-btn active" type="button" data-multiplier="1">x1</button>
+              <button id="spinMultiplier3" class="sp-multiplier-btn" type="button" data-multiplier="3">x3</button>
+              <button id="spinMultiplier5" class="sp-multiplier-btn" type="button" data-multiplier="5">x5</button>
+              <button id="spinMultiplier10" class="sp-multiplier-btn" type="button" data-multiplier="10">x10</button>
+            </div>
+            <div class="sp-spin-row">
+              <button id="luckyWheelSpinBtn" type="button">🎰 QUAY TỰ ĐỘNG</button>
+              <button id="luckyWheelAutoBtn" class="sp-auto-btn" type="button">Mua Thêm Lượt Quay</button>
+            </div>
+          </div>
+        </div>
+        </div>
+
+      </div>
+
+      <div class="lucky-wheel-side">
+        <div class="lucky-wheel-prize-panel">
+          <div class="lucky-wheel-section-head">
+            <span class="lucky-wheel-section-title">Phần quà</span>
+            <span class="lucky-wheel-section-note">Độ hiếm phần quà</span>
+          </div>
+          <div id="luckyWheelPrizeGrid" class="lucky-wheel-prize-grid"></div>
+        </div>
+      </div>
+      <div class="lucky-wheel-history-box">
+        <div class="lucky-wheel-history-head">
+          <span class="lucky-wheel-section-title">Lịch sử</span>
+          <span id="luckyWheelHistoryCount" class="lucky-wheel-history-count">0 lượt</span>
+        </div>
+        <div id="luckyWheelHistory" class="lucky-wheel-history-list"></div>
+      </div>
+      <div id="luckyWheelTopupOverlay" class="spin-topup-overlay" hidden>
+        <div class="spin-topup-dialog" role="dialog" aria-modal="true" aria-labelledby="luckyWheelTopupTitle">
+          <div class="spin-topup-head">
+            <div>
+              <h3 id="luckyWheelTopupTitle">Mua Thêm Lượt Quay</h3>
+              <p>Chọn gói đổi từ PayPal. Sau khi chọn, hệ thống sẽ hiện bước xác nhận đổi trước khi trừ số dư.</p>
+            </div>
+            <button id="luckyWheelTopupCloseBtn" class="spin-topup-close" type="button" aria-label="Đóng bảng đổi lượt">✕</button>
+          </div>
+          <div class="spin-topup-balance">
+            <span>Số dư PayPal hiện tại</span>
+            <strong id="luckyWheelTopupBalance">0 PP</strong>
+          </div>
+          <div id="luckyWheelTopupGrid" class="spin-topup-grid"></div>
+          <div id="luckyWheelTopupConfirm" class="spin-topup-confirm" hidden>
+            <strong>Xác nhận đổi lượt quay</strong>
+            <p id="luckyWheelTopupConfirmText">Bạn có muốn đổi PayPal lấy lượt quay không?</p>
+            <div class="spin-topup-confirm-actions">
+              <button id="luckyWheelTopupCancelBtn" class="spin-topup-confirm-cancel" type="button">Hủy</button>
+              <button id="luckyWheelTopupConfirmBtn" class="spin-topup-confirm-submit" type="button">Xác nhận đổi</button>
+            </div>
+          </div>
+          <div id="luckyWheelTopupMsg" class="result-box muted spin-topup-msg" hidden></div>
+        </div>
+      </div>
+    </section>
+    <section id="paypalDepositSection" class="deposit-board" hidden>
+      <div class="deposit-head">
+        <div>
+          <p class="live-board-eyebrow">PAYPAL TOPUP</p>
+          <h2 class="live-board-title">Nạp Tiền PayPal</h2>
+          <p class="live-board-subtitle">
+            Chọn gói nạp, điền thông tin giao dịch và lưu yêu cầu ngay trong tài khoản của bạn.
+            Tỷ giá hiện tại: <b>1 tiền thật = 1.25 PayPal</b>.
+          </p>
+        </div>
+        <div class="deposit-balance-box">
+          <span class="deposit-balance-label">Số dư PayPal</span>
+          <strong id="depositPaypalBalance">0</strong>
+        </div>
+      </div>
+      <div class="deposit-grid">
+        <div class="deposit-left">
+          <div class="deposit-summary-card">
+            <div class="deposit-summary-top">
+              <div>
+                <div class="deposit-summary-title">Tài khoản nhận thanh toán</div>
+                <div class="deposit-summary-sub">Dùng làm giao diện tiếp nhận yêu cầu nạp và theo dõi lịch sử của từng người dùng.</div>
+              </div>
+              <span class="deposit-summary-pill">PayPal</span>
+            </div>
+            <div class="deposit-merchant">
+              <div class="deposit-merchant-label">Email nhận</div>
+              <div class="deposit-merchant-value">paypal.vietlott.demo@service.local</div>
+            </div>
+            <div class="deposit-merchant-grid">
+              <div class="deposit-merchant-item">
+                <span>Phương thức</span>
+                <strong>PayPal Transfer</strong>
+              </div>
+              <div class="deposit-merchant-item">
+                <span>Xử lý</span>
+                <strong>Trong app</strong>
+              </div>
+              <div class="deposit-merchant-item">
+                <span>Ưu tiên</span>
+                <strong>Theo mã giao dịch</strong>
+              </div>
+            </div>
+          </div>
+          <div class="deposit-package-card">
+            <div class="deposit-section-title">Chọn gói nạp nhanh</div>
+            <div id="depositPackageGrid" class="deposit-package-grid"></div>
+          </div>
+          <div class="deposit-guide-card">
+            <div class="deposit-section-title">Hướng dẫn</div>
+            <div class="deposit-guide-list">
+              <div>1. Chọn một gói hoặc tự nhập số tiền.</div>
+              <div>2. Hệ thống quy đổi theo tỉ giá <b>1 = 1.25 PayPal</b>.</div>
+              <div>3. Bonus theo mốc: <b>50k +1%</b>, <b>100k +1,5%</b>, <b>200k +2%</b>, <b>500k +2,5%</b>.</div>
+              <div>4. Ghi đúng email PayPal và mã giao dịch để dễ đối soát.</div>
+              <div>5. Bấm <b>Tạo yêu cầu nạp</b> để lưu lịch sử trong tài khoản hiện tại.</div>
+            </div>
+          </div>
+        </div>
+        <div class="deposit-right">
+          <div class="deposit-form-card">
+            <div class="deposit-section-title">Tạo yêu cầu nạp</div>
+            <div class="row two">
+              <div>
+                <label>Gói đã chọn</label>
+                <input id="depositSelectedPackage" value="Chưa chọn gói" readonly />
+              </div>
+              <div>
+                <label>Số tiền (VNĐ)</label>
+                <input id="depositAmount" type="number" min="10000" step="1000" placeholder="50000" />
+              </div>
+            </div>
+            <div class="row two">
+              <div>
+                <label>Email PayPal của bạn</label>
+                <input id="depositPaypalEmail" placeholder="ban@email.com" />
+              </div>
+              <div>
+                <label>Mã giao dịch</label>
+                <input id="depositTxnCode" placeholder="PP-20260311-001" />
+              </div>
+            </div>
+            <div class="row two">
+              <div>
+                <label>Người chuyển</label>
+                <input id="depositSenderName" placeholder="Luong Tan Dat" />
+              </div>
+              <div>
+                <label>Thời gian giao dịch</label>
+                <input id="depositTxnTime" placeholder="11/03/2026 20:30" />
+              </div>
+            </div>
+            <div class="row">
+              <label>Ghi chú</label>
+              <textarea id="depositNote" placeholder="Nội dung mô tả thêm nếu cần"></textarea>
+            </div>
+            <div id="depositRatePreview" class="deposit-rate-preview"></div>
+            <div class="deposit-form-actions">
+              <button id="depositCreateBtn" type="button">Tạo yêu cầu nạp</button>
+              <button id="depositClearBtn" type="button" class="secondary">Làm mới form</button>
+            </div>
+            <div id="depositMsg" class="result-box muted">Chưa có thao tác.</div>
+          </div>
+          <div class="deposit-history-card">
+            <div class="deposit-history-head">
+              <span>Lịch sử yêu cầu nạp</span>
+              <span id="depositHistoryCount" class="deposit-history-count">0 yêu cầu</span>
+            </div>
+            <div id="depositHistoryList" class="deposit-history-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="liveBoardSection" class="live-board">
+      <div class="live-board-head">
+        <div>
+          <!-- ---abc--- Live Results --- -->
+          <h2 class="live-board-title"><span class="live-title-kicker">LIVE RESULTS</span><span class="live-title-main">Kết Quả 6 Loại Vé</span></h2>
+          <p class="live-board-subtitle">
+            Tự lấy kỳ gần nhất cho Loto_5/35, Mega_6/45, Power_6/55, Keno, Max 3D và Max 3D Pro.
+            Các loại số truyền thống sẽ tự nhập vào kho dữ liệu hiện tại sau khi đồng bộ thành công, đồng thời lưu và đọc lại lịch sử CSV ngay trong web.
+          </p>
+        </div>
+        <div class="live-board-actions">
+          <button id="liveSyncBtn" type="button">Cập Nhật</button>
+        </div>
+      </div>
+      <div id="liveSyncStatus" class="result-box muted live-status-box">
+        Đang Cập Nhật
+      </div>
+      <div id="liveResultGrid" class="live-result-grid"></div>
+      <div class="card" style="margin-top:16px;">
+        <div class="live-history-head">
+          <h2>Lịch Sử CSV Tự Động</h2>
+          <div class="live-history-head-actions">
+            <button id="liveHistoryRefreshBtn" type="button" class="live-history-refresh-btn">Cập Nhật</button>
+          </div>
+        </div>
+        <div class="row three">
+          <div>
+            <label>Loại</label>
+            <select id="liveHistoryType"></select>
+          </div>
+          <div>
+            <label id="liveHistoryCountLabel">Số kỳ gần nhất</label>
+            <select id="liveHistoryCount">
+              <option value="2" selected>2 kỳ</option>
+              <option value="10">10 kỳ</option>
+              <option value="20">20 kỳ</option>
+              <option value="50">50 kỳ</option>
+              <option value="100">100 kỳ</option>
+              <option value="all">Tất Cả</option>
+            </select>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="liveHistoryBtn" type="button">Xem lịch sử CSV</button>
+          </div>
+        </div>
+        <div id="liveHistoryOut" class="result-box muted">Chưa có thao tác.</div>
+      </div>
+    </section>
+    <div id="mainContentGrid" class="grid">
+      <div id="legacyInputSection" class="input-grid">
+      <section class="card prize-card">
+        <!-- ---abc--- Prize Panel --- -->
+        <h2>Phần Thưởng Vietlott</h2>
+        <div class="prize-toolbar">
+          <div class="row">
+            <label>Loại</label>
+            <select id="prizeType"></select>
+          </div>
+          <div class="row">
+            <label>&nbsp;</label>
+            <button id="showPrizeBtn">Xem Cơ Cấu Thưởng</button>
+          </div>
+        </div>
+        <div id="prizeOut" class="result-box muted">Chưa có thao tác.</div>
+      </section>
+      </div>
+
+      <!-- ---abc--- Stats / Predict --- -->
+      <div class="block-title">Thống kê và dự đoán</div>
+      <div class="stats-grid">
+      <section class="card predict-tab-shell">
+        <div class="predict-tab-bar" role="tablist" aria-label="Chọn hệ dự đoán">
+          <button id="predictModeNormalTab" type="button" class="predict-tab-btn is-active" data-predict-mode-tab="normal">Dự Đoán Thường</button>
+          <button id="predictModeVipTab" type="button" class="predict-tab-btn" data-predict-mode-tab="vip">Dự Đoán Vip</button>
+          <button id="predictModeStatsTab" type="button" class="predict-tab-btn" data-predict-mode-tab="stats">Thống Kê</button>
+          <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu Đồ Thống Kê</button>
+          <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard Lotto</button>
+        </div>
+      </section>
+      <!-- ----- Khu dự đoán kỳ tới ----- -->
+      <!-- Nơi người dùng chọn loại vé, engine AI và xem kết quả dự đoán ngay trong cùng một khung. -->
+      <section id="predictRootNormal" class="card predict-card predict-root predict-root-normal">
+        <div class="predict-card-head">
+          <div>
+            <h2>Dự Đoán Số Kỳ Tới</h2>
+            <p class="predict-card-subtitle">Chọn loại vé, cấu hình số bộ cần in ra và để hệ thống trả về bộ dự đoán ở ngay khung bên phải.</p>
+          </div>
+          <div class="predict-card-actions">
+            <button id="predictionHistoryToggleBtn" type="button" class="predict-card-chip is-button">Lịch Sử</button>
+            <button id="kenoTrainingToggleBtn" type="button" class="predict-card-chip is-button is-off" hidden>Huấn Luyện: Tắt</button>
+          </div>
+        </div>
+        <div class="predict-layout">
+          <div class="predict-config-panel">
+            <div id="pdPlayModeRow" class="row predict-play-row">
+              <div id="pdPlayModeBox">
+                <label>Cách chơi</label>
+                <select id="pdPlayMode">
+                  <option value="normal" selected>Vé Thường</option>
+                  <option value="bao">Bao Số</option>
+                </select>
+              </div>
+              <div id="pdBaoRow" style="display:none;">
+                <label>Chọn Bao</label>
+                <select id="pdBaoLevel"></select>
+              </div>
+            </div>
+            <div id="pdTypeRow" class="row two loai-option">
+              <div id="pdRecentWindowBox">
+                <label>Loại theo kỳ gần nhất</label>
+                <select id="pdRecentWindow">
+                  <option value="0" selected>Không Loại</option>
+                  <option value="1">1 Kỳ</option>
+                  <option value="2">2 Kỳ</option>
+                  <option value="3">3 Kỳ</option>
+                  <option value="5">5 Kỳ</option>
+                </select>
+              </div>
+            </div>
+            <div class="row predict-sub-row">
+              <div id="pdTypeCol">
+                <label>Loại</label>
+                <select id="pdType"></select>
+              </div>
+              <div id="pdCountCol">
+                <label>Số bộ dự đoán</label>
+                <input id="pdCount" type="number" min="1" value="3" />
+              </div>
+              <div id="pdEngineBox" style="display:none;">
+                <label>Engine AI</label>
+                <select id="pdEngine">
+                  <option value="both" selected>Cả 2</option>
+                  <option value="luan_so">Luận Số</option>
+                  <option value="gen_local">AI Gen</option>
+                </select>
+                <div id="pdEngineChoice" class="predict-engine-choice" role="tablist" aria-label="Chọn engine AI">
+                  <button type="button" class="predict-engine-btn is-active" data-pd-engine="both" title="Kết hợp Luận Số và AI Gen để tự cân đối bộ số theo meta." aria-label="Cả 2 - Kết hợp Luận Số và AI Gen để tự cân đối bộ số theo meta">Cả 2</button>
+                  <button type="button" class="predict-engine-btn" data-pd-engine="luan_so" title="Ưu tiên tín hiệu Luận Số để bắt nhịp mạnh hơn, thường biến động hơn." aria-label="Luận Số - Ưu tiên tín hiệu Luận Số để bắt nhịp mạnh hơn">Luận Số</button>
+                  <button type="button" class="predict-engine-btn" data-pd-engine="gen_local" title="Ưu tiên AI Gen để giữ nhịp đều hơn và ổn định hơn theo dữ liệu học." aria-label="AI Gen - Ưu tiên AI Gen để giữ nhịp đều hơn và ổn định hơn">AI Gen</button>
+                </div>
+                <div id="pdRiskModeBox" class="predict-risk-mode-box" hidden>
+                  <label>Chế độ AI</label>
+                  <div id="pdRiskModeChoice" class="predict-risk-choice" role="tablist" aria-label="Chọn chế độ AI">
+                    <button type="button" class="predict-risk-btn" data-pd-risk-mode="stable" title="Giữ nhịp an toàn hơn, giảm rung và ưu tiên sự ổn định." aria-label="Ổn Định - Giữ nhịp an toàn hơn, giảm rung và ưu tiên sự ổn định">Ổn Định</button>
+                    <button type="button" class="predict-risk-btn is-active" data-pd-risk-mode="balanced" title="Cân bằng giữa độ ổn định và cơ hội bùng mạnh. Đây là mode mặc định." aria-label="Cân Bằng - Cân bằng giữa độ ổn định và cơ hội bùng mạnh">Cân Bằng</button>
+                    <button type="button" class="predict-risk-btn" data-pd-risk-mode="aggressive" title="Cho engine đang nóng ăn quota mạnh hơn để săn nhịp bùng, nhưng rung hơn." aria-label="Tấn Công - Cho engine đang nóng ăn quota mạnh hơn để săn nhịp bùng">Tấn Công</button>
+                  </div>
+                </div>
+              </div>
+              <div id="pdKenoLevelBox" style="display:none;">
+                <label>Chọn Bậc Số</label>
+                <select id="pdKenoLevel">
+                  <option value="1">Bậc 1 (1 số)</option>
+                  <option value="2">Bậc 2 (2 số)</option>
+                  <option value="3">Bậc 3 (3 số)</option>
+                  <option value="4">Bậc 4 (4 số)</option>
+                  <option value="5" selected>Bậc 5 (5 số)</option>
+                  <option value="6">Bậc 6 (6 số)</option>
+                  <option value="7">Bậc 7 (7 số)</option>
+                  <option value="8">Bậc 8 (8 số)</option>
+                  <option value="9">Bậc 9 (9 số)</option>
+                  <option value="10">Bậc 10 (10 số)</option>
+                </select>
+              </div>
+            </div>
+            <div class="predict-action-row">
+              <button id="predictBtn">Dự đoán</button>
+            </div>
+          </div>
+          <div class="predict-output-panel">
+            <div class="predict-output-head">
+              <div class="predict-output-title-group">
+                <span class="predict-output-title">Kết quả dự đoán</span>
+                <span class="predict-output-subtitle">Tóm tắt các bộ số dự đoán sẽ hiển thị ngay trong khung này.</span>
+              </div>
+              <span class="predict-output-note">Cập nhật thời gian thực</span>
+            </div>
+            <div id="predictOut" class="result-box muted">Chọn cấu hình ở bên trái rồi bấm Dự đoán để xem tóm tắt AI và các bộ số gợi ý.</div>
+          </div>
+        </div>
+      </section>
+      <section id="predictRootVip" class="card predict-card predict-root predict-root-vip" hidden>
+        <div class="predict-card-head">
+          <div>
+            <h2>Dự Đoán Vip</h2>
+            <p class="predict-card-subtitle">Hệ Vip giữ form riêng, thống kê riêng và lịch sử riêng để ưu tiên ít bộ hơn nhưng chọn lọc gắt hơn.</p>
+          </div>
+          <div class="predict-card-actions">
+            <button id="vipPredictionHistoryToggleBtn" type="button" class="predict-card-chip is-button">Lịch Sử Vip</button>
+            <span class="predict-card-chip predict-card-chip-vip">Strict Select</span>
+          </div>
+        </div>
+        <div class="predict-layout">
+          <div class="predict-config-panel">
+            <div id="vipPdPlayModeRow" class="row predict-play-row">
+              <div id="vipPdPlayModeBox">
+                <label>Cách chơi</label>
+                <select id="vipPdPlayMode">
+                  <option value="normal" selected>Vé Thường</option>
+                  <option value="bao">Bao Số</option>
+                </select>
+              </div>
+              <div id="vipPdBaoRow" style="display:none;">
+                <label>Chọn Bao</label>
+                <select id="vipPdBaoLevel"></select>
+              </div>
+            </div>
+            <div class="row predict-sub-row">
+              <div id="vipPdTypeCol">
+                <label>Loại</label>
+                <select id="vipPdType"></select>
+              </div>
+              <div id="vipPdCountCol">
+                <label>Số bộ dự đoán</label>
+                <input id="vipPdCount" type="number" min="1" max="3" value="1" />
+              </div>
+              <div id="vipPdEngineBox" style="display:none;">
+                <label>Engine AI</label>
+                <select id="vipPdEngine">
+                  <option value="both" selected>Cả 2</option>
+                  <option value="luan_so">Luận Số</option>
+                  <option value="gen_local">AI Gen</option>
+                </select>
+                <div id="vipPdEngineChoice" class="predict-engine-choice" role="tablist" aria-label="Chọn engine AI Vip">
+                  <button type="button" class="predict-engine-btn is-active" data-vip-pd-engine="both">Cả 2</button>
+                  <button type="button" class="predict-engine-btn" data-vip-pd-engine="luan_so">Luận Số</button>
+                  <button type="button" class="predict-engine-btn" data-vip-pd-engine="gen_local">AI Gen</button>
+                </div>
+                <div id="vipPdRiskModeBox" class="predict-risk-mode-box" hidden>
+                  <label>Chế độ AI</label>
+                  <div id="vipPdRiskModeChoice" class="predict-risk-choice" role="tablist" aria-label="Chọn chế độ AI Vip">
+                    <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="stable">Ổn Định</button>
+                    <button type="button" class="predict-risk-btn is-active" data-vip-pd-risk-mode="balanced">Cân Bằng</button>
+                    <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="aggressive">Tấn Công</button>
+                  </div>
+                </div>
+              </div>
+              <div id="vipPdKenoLevelBox" style="display:none;">
+                <label>Chọn Bậc Số</label>
+                <select id="vipPdKenoLevel">
+                  <option value="1">Bậc 1 (1 số)</option>
+                  <option value="2">Bậc 2 (2 số)</option>
+                  <option value="3">Bậc 3 (3 số)</option>
+                  <option value="4">Bậc 4 (4 số)</option>
+                  <option value="5" selected>Bậc 5 (5 số)</option>
+                  <option value="6">Bậc 6 (6 số)</option>
+                  <option value="7">Bậc 7 (7 số)</option>
+                  <option value="8">Bậc 8 (8 số)</option>
+                  <option value="9">Bậc 9 (9 số)</option>
+                  <option value="10">Bậc 10 (10 số)</option>
+                </select>
+              </div>
+            </div>
+            <div class="predict-action-row">
+              <button id="vipPredictBtn">Dự đoán Vip</button>
+            </div>
+          </div>
+          <div class="predict-output-panel">
+            <div class="predict-output-head">
+              <div class="predict-output-title-group">
+                <span class="predict-output-title">Kết quả dự đoán Vip</span>
+                <span class="predict-output-subtitle">Vip tách riêng bộ chính, bộ phụ, top số và thống kê để theo dõi phong độ chọn lọc cao.</span>
+              </div>
+              <span class="predict-output-note">Lớp Vip độc lập</span>
+            </div>
+            <div id="predictVipOut" class="result-box muted">Chọn cấu hình Vip rồi bấm Dự đoán Vip để xem bộ ưu tiên chính và thống kê riêng.</div>
+          </div>
+        </div>
+      </section>
+      <section id="predictRootStats" class="card predict-card predict-root predict-root-stats" hidden>
+        <div class="predict-card-head">
+          <div>
+            <h2>Thống Kê Theo Loại Vé</h2>
+            <p class="predict-card-subtitle">Xem top số ra nhiều và bảng xếp hạng đầy đủ từ dữ liệu kết quả thật trong all_day.csv, lọc theo phạm vi ngày gần nhất.</p>
+          </div>
+          <div class="predict-card-actions">
+            <span class="predict-card-chip">Nguồn all_day.csv</span>
+            <span class="predict-card-chip predict-card-chip-vip">Top 10 + Full Bộ</span>
+          </div>
+        </div>
+        <div class="stats-insight-shell">
+          <div class="stats-insight-toolbar">
+            <div class="stats-insight-toolbar-group">
+              <div class="stats-insight-toolbar-label">Loại vé</div>
+              <select id="statsTypeSelect" class="stats-insight-select" aria-label="Chọn loại vé để thống kê"></select>
+            </div>
+            <div class="stats-insight-toolbar-group">
+              <div class="stats-insight-toolbar-label">Phạm vi ngày</div>
+              <select id="statsWindowSelect" class="stats-insight-select" aria-label="Chọn phạm vi ngày để thống kê"></select>
+              <div id="statsCustomDateRange" class="stats-insight-date-range" hidden>
+                <label class="stats-insight-date-field">
+                  <span class="stats-insight-date-label">Từ ngày</span>
+                  <input id="statsDateFrom" type="date" class="stats-insight-date-input" aria-label="Chọn ngày bắt đầu thống kê">
+                </label>
+                <label class="stats-insight-date-field">
+                  <span class="stats-insight-date-label">Đến ngày</span>
+                  <input id="statsDateTo" type="date" class="stats-insight-date-input" aria-label="Chọn ngày kết thúc thống kê">
+                </label>
+              </div>
+            </div>
+          </div>
+          <div id="statsInsightsOut" class="stats-insight-panel muted">Chọn tab Thống Kê để tải dữ liệu và xem top số theo từng loại vé.</div>
+        </div>
+      </section>
+      <section id="predictRootCharts" class="card predict-card predict-root predict-root-charts" hidden>
+        <div class="predict-card-head">
+          <div>
+            <h2>Biểu Đồ Thống Kê</h2>
+            <p class="predict-card-subtitle">Chọn loại xổ số, số kỳ phân tích và xem ngay biểu đồ nhóm số, tỷ trọng phần trăm cùng bảng thống kê trực tiếp trên web.</p>
+          </div>
+          <div class="predict-card-actions">
+            <span class="predict-card-chip">Nguồn all_day.csv</span>
+            <span class="predict-card-chip predict-card-chip-vip">Nhóm Số Theo Kỳ</span>
+          </div>
+        </div>
+        <div class="chart-stats-shell">
+          <div class="chart-stats-toolbar">
+            <div class="chart-stats-toolbar-group">
+              <div class="chart-stats-toolbar-label">Loại xổ số</div>
+              <select id="chartStatsTypeSelect" class="chart-stats-select" aria-label="Chọn loại xổ số để xem biểu đồ"></select>
+            </div>
+            <div class="chart-stats-toolbar-group">
+              <div class="chart-stats-toolbar-label">Preset kỳ</div>
+              <select id="chartStatsPresetSelect" class="chart-stats-select" aria-label="Chọn preset số kỳ phân tích"></select>
+            </div>
+            <div class="chart-stats-toolbar-group">
+              <div class="chart-stats-toolbar-label">Kỳ tùy chỉnh</div>
+              <input id="chartStatsCustomCount" type="number" min="1" step="1" class="chart-stats-count-input" aria-label="Nhập số kỳ tùy chỉnh để phân tích">
+              <div id="chartStatsCountHint" class="chart-stats-toolbar-note">Chọn preset hoặc chuyển sang Tùy chỉnh để nhập số kỳ bất kỳ.</div>
+            </div>
+            <div class="chart-stats-toolbar-group">
+              <div class="chart-stats-toolbar-label">Chế độ xem</div>
+              <select id="chartStatsViewSelect" class="chart-stats-select" aria-label="Chọn chế độ xem biểu đồ"></select>
+            </div>
+          </div>
+          <div id="chartStatsOut" class="chart-stats-panel muted">Bấm tab Biểu Đồ Thống Kê để tải dữ liệu và xem biểu đồ theo nhóm số.</div>
+        </div>
+      </section>
+      <section id="predictRootDashboard" class="card predict-card predict-root predict-root-dashboard" hidden>
+        <div class="lotto-dashboard-shell">
+          <section class="lotto-dashboard-overview">
+            <div class="lotto-dashboard-header">
+              <div class="lotto-dashboard-header-main">
+                <div class="lotto-dashboard-kicker">Theo game</div>
+                <h2><span class="lotto-dashboard-section-icon">📊</span>Tổng quan</h2>
+                <p class="lotto-dashboard-subtitle">Theo dõi riêng từng game với kết quả mới nhất, thống kê nhanh và biểu đồ phù hợp với đúng loại xổ số đang chọn.</p>
+              </div>
+              <div class="lotto-dashboard-header-actions">
+                <div class="lotto-dashboard-game-picker">
+                  <span class="lotto-dashboard-picker-label">Game</span>
+                  <select id="lottoDashboardGameSelect" class="lotto-dashboard-game-select" aria-label="Chọn game để xem dashboard"></select>
+                </div>
+                <button id="lottoDashboardStatusBtn" type="button" class="lotto-dashboard-icon-btn is-status" title="Trạng thái dữ liệu" aria-label="Trạng thái dữ liệu">●</button>
+                <button id="lottoDashboardSettingsBtn" type="button" class="lotto-dashboard-icon-btn" title="Tùy chỉnh dashboard" aria-label="Tùy chỉnh dashboard">⚙</button>
+                <div id="lottoDashboardUpdatedAt" class="lotto-dashboard-updated">Cập nhật: đang chờ dữ liệu</div>
+                <button id="lottoDashboardRefreshBtn" type="button" class="lotto-dashboard-refresh-btn">Làm mới</button>
+              </div>
+            </div>
+
+            <div id="lottoDashboardStatus" class="lotto-dashboard-status" hidden></div>
+
+            <div id="lottoDashboardHero" class="lotto-dashboard-hero-card">
+              <div class="lotto-dashboard-empty-card">Đang chờ tải kỳ quay mới nhất của game đang chọn...</div>
+            </div>
+
+            <div id="lottoDashboardQuickStats" class="lotto-dashboard-quick-grid">
+              <div class="lotto-dashboard-empty-card">Đang chờ tải quick stats của game đang chọn...</div>
+            </div>
+          </section>
+
+          <div class="lotto-dashboard-main-grid">
+            <section class="lotto-dashboard-panel">
+              <div class="lotto-dashboard-panel-head">
+                <div>
+                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel">◔</span>Hoạt Động Phân Tích</div>
+                  <div id="lottoDashboardActivitySubtitle" class="lotto-dashboard-panel-subtitle">Theo dõi số lượt phân tích theo ngày, tuần hoặc tháng.</div>
+                </div>
+                <div class="lotto-dashboard-tabs" role="tablist" aria-label="Đổi trục thời gian dashboard">
+                  <button type="button" class="lotto-dashboard-tab is-active" data-dashboard-activity-view="day">Theo Ngày</button>
+                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="week">Theo Tuần</button>
+                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="month">Theo Tháng</button>
+                </div>
+              </div>
+              <div id="lottoDashboardActivityStats" class="lotto-dashboard-mini-stats"></div>
+              <div id="lottoDashboardActivityOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted">Chọn tab Dashboard Lotto để xem biểu đồ đường.</div>
+            </section>
+
+            <section class="lotto-dashboard-panel">
+              <div class="lotto-dashboard-panel-head">
+                <div>
+                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel">◌</span>Phân Bổ Số Lotto</div>
+                  <div id="lottoDashboardDistributionSubtitle" class="lotto-dashboard-panel-subtitle">Phân loại số theo ngữ cảnh riêng của game đang chọn.</div>
+                </div>
+                <div id="lottoDashboardDistributionTabs" class="lotto-dashboard-tabs" role="tablist" aria-label="Đổi kiểu phân bổ dashboard">
+                </div>
+              </div>
+              <div id="lottoDashboardDistributionOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted">Biểu đồ donut sẽ hiển thị tại đây sau khi dashboard nạp dữ liệu.</div>
+            </section>
+          </div>
+        </div>
+      </section>
+      <!-- ---abc--- Prediction History Modal --- -->
+      <div id="predictionHistoryOverlay" class="predict-history-overlay" hidden>
+        <div class="predict-history-shell">
+          <div class="predict-history-close-row">
+            <button id="predictionHistoryCloseBtn" type="button" class="predict-history-close" aria-label="Đóng lịch sử dự đoán">✕</button>
+          </div>
+          <div id="predictionHistoryPanel" class="predict-history-panel">
+            <div class="predict-history-head">
+              <div class="predict-history-head-main">
+                <div class="predict-history-head-top">
+                  <div class="predict-history-title">Lịch Sử Dự Đoán</div>
+                </div>
+                <div class="predict-history-subtitle">Tự lưu sau mỗi lần dự đoán để bạn đối chiếu khi kỳ đó đã xổ.</div>
+              </div>
+              <div class="predict-history-controls">
+                <div class="predict-history-row predict-history-row-top">
+                  <div id="predictionHistoryTypeTabs" class="predict-history-type-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo loại"></div>
+                </div>
+                <div class="predict-history-row predict-history-row-bottom">
+                  <div class="predict-history-row-bottom-left">
+                    <div id="predictionHistoryRangeTabs" class="predict-history-range-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo thời gian"></div>
+                    <div id="predictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo cách chơi"></div>
+                    <div id="predictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
+                      <label class="predict-history-bao-filter-label" for="predictionHistoryBaoLevelSelect">Bậc bao</label>
+                      <select id="predictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán theo bậc bao">
+                        <option value="all">Tất cả bậc</option>
+                      </select>
+                    </div>
+                    <span id="predictionHistoryCount" class="predict-history-count">0 bản ghi</span>
+                  </div>
+                  <div class="predict-history-actions">
+                    <div class="predict-history-nav" aria-label="Điều hướng giữa các kỳ dự đoán">
+                      <button id="predictionHistoryPrevBtn" type="button" class="predict-history-nav-btn" aria-label="Xem kỳ trước">↑</button>
+                      <span id="predictionHistoryPosition" class="predict-history-position">0 / 0</span>
+                      <button id="predictionHistoryNextBtn" type="button" class="predict-history-nav-btn" aria-label="Xem kỳ sau">↓</button>
+                    </div>
+                    <button id="predictionHistoryRefreshBtn" type="button" class="prediction-history-refresh-btn">Cập Nhật</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="predictionHistoryList" class="predict-history-list"></div>
+          </div>
+        </div>
+      </div>
+      <div id="vipPredictionHistoryOverlay" class="predict-history-overlay" hidden>
+        <div class="predict-history-shell">
+          <div class="predict-history-close-row">
+            <button id="vipPredictionHistoryCloseBtn" type="button" class="predict-history-close" aria-label="Đóng lịch sử dự đoán Vip">✕</button>
+          </div>
+          <div id="vipPredictionHistoryPanel" class="predict-history-panel predict-history-panel-vip">
+            <div class="predict-history-head">
+              <div class="predict-history-head-main">
+                <div class="predict-history-head-top">
+                  <div class="predict-history-title">Lịch Sử Dự Đoán Vip</div>
+                </div>
+                <div class="predict-history-subtitle">Lưu riêng các lượt Vip để bạn đối chiếu phong độ lọc gắt và bộ ưu tiên chính.</div>
+              </div>
+              <div class="predict-history-controls">
+                <div class="predict-history-row predict-history-row-top">
+                  <div id="vipPredictionHistoryTypeTabs" class="predict-history-type-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo loại"></div>
+                </div>
+                <div class="predict-history-row predict-history-row-bottom">
+                  <div class="predict-history-row-bottom-left">
+                    <div id="vipPredictionHistoryRangeTabs" class="predict-history-range-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo thời gian"></div>
+                    <div id="vipPredictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo cách chơi"></div>
+                    <div id="vipPredictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
+                      <label class="predict-history-bao-filter-label" for="vipPredictionHistoryBaoLevelSelect">Bậc bao</label>
+                      <select id="vipPredictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán Vip theo bậc bao">
+                        <option value="all">Tất cả bậc</option>
+                      </select>
+                    </div>
+                    <span id="vipPredictionHistoryCount" class="predict-history-count">0 bản ghi</span>
+                  </div>
+                  <div class="predict-history-actions">
+                    <div class="predict-history-nav" aria-label="Điều hướng giữa các kỳ dự đoán Vip">
+                      <button id="vipPredictionHistoryPrevBtn" type="button" class="predict-history-nav-btn" aria-label="Xem kỳ Vip trước">↑</button>
+                      <span id="vipPredictionHistoryPosition" class="predict-history-position">0 / 0</span>
+                      <button id="vipPredictionHistoryNextBtn" type="button" class="predict-history-nav-btn" aria-label="Xem kỳ Vip sau">↓</button>
+                    </div>
+                    <button id="vipPredictionHistoryRefreshBtn" type="button" class="prediction-history-refresh-btn">Cập Nhật</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="vipPredictionHistoryList" class="predict-history-list"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="accountOverlay" class="account-overlay">
+    <div class="account-card">
+      <div class="account-head">
+        <h3>Quản lý tài khoản đã đăng ký</h3>
+        <div style="display:flex; gap:8px;">
+          <button id="toggleAccountEditBtn" class="btn-ghost" type="button" style="width:auto;">Sửa</button>
+          <button id="saveAccountEditBtn" type="button" style="width:auto;">Lưu</button>
+          <button id="closeAccountBtn" class="secondary" style="width:auto;">Đóng</button>
+        </div>
+      </div>
+      <div class="account-table-wrap">
+        <table class="account-table">
+          <thead>
+            <tr>
+              <th>Tài khoản</th>
+              <th>Vai trò</th>
+              <th>Truy cập</th>
+              <th>Kim cương</th>
+              <th>PayPal</th>
+              <th>Dữ liệu</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="accountRows"></tbody>
+        </table>
+      </div>
+      <div id="accountMsg" class="account-note">Chỉ admin mới có quyền thay đổi tài khoản.</div>
+    </div>
+  </div>
+  <!-- ------ App Scripts --- -->
+  <script src="/vietlott-web.js"></script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+</body>
+</html>

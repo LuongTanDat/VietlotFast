@@ -1,0 +1,213 @@
+{
+  "ok": true,
+  "mode": "full_history_backfill",
+  "updatedAt": "2026-03-16T01:13:41",
+  "logFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Game 2D\\Lotto\\runtime_logs\\full_history_backfill.log",
+  "lockFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Game 2D\\Lotto\\runtime_logs\\full_history_backfill.lock",
+  "currentType": "LOTO_5_35",
+  "currentStep": "canonical",
+  "typeResults": {
+    "LOTO_5_35": {
+      "type": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "canonical": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      },
+      "ai": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      }
+    },
+    "LOTO_6_45": {
+      "type": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "canonical": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      },
+      "ai": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      }
+    },
+    "LOTO_6_55": {
+      "type": "LOTO_6_55",
+      "label": "Power_6/55",
+      "canonical": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      },
+      "ai": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      }
+    },
+    "KENO": {
+      "type": "KENO",
+      "label": "Keno",
+      "canonical": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      },
+      "ai": {
+        "ok": null,
+        "skipped": false,
+        "timeout": false,
+        "message": "",
+        "updatedAt": "",
+        "latestKy": "",
+        "earliestKy": "",
+        "bootstrapComplete": false,
+        "sourceLimited": false
+      }
+    }
+  },
+  "types": [
+    {
+      "type": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "canonical": {
+        "count": 486,
+        "latestKy": "520",
+        "earliestKy": "35",
+        "earliestDate": "16/07/2025",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-16T01:13:03",
+        "lastBootstrapAt": "2026-03-15T23:45:49"
+      },
+      "ai": {
+        "count": 148,
+        "latestKy": "520",
+        "earliestKy": "373",
+        "earliestDate": "01/01/2026",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-16T00:48:21",
+        "lastBootstrapAt": ""
+      }
+    },
+    {
+      "type": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "canonical": {
+        "count": 1483,
+        "latestKy": "1484",
+        "earliestKy": "2",
+        "earliestDate": "20/07/2016",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-16T01:11:17",
+        "lastBootstrapAt": "2026-03-15T23:55:38"
+      },
+      "ai": {
+        "count": 1483,
+        "latestKy": "1484",
+        "earliestKy": "2",
+        "earliestDate": "20/07/2016",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-15T22:59:02",
+        "lastBootstrapAt": ""
+      }
+    },
+    {
+      "type": "LOTO_6_55",
+      "label": "Power_6/55",
+      "canonical": {
+        "count": 1315,
+        "latestKy": "1319",
+        "earliestKy": "5",
+        "earliestDate": "01/08/2017",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-16T01:11:18",
+        "lastBootstrapAt": "2026-03-16T00:21:57"
+      },
+      "ai": {
+        "count": 1315,
+        "latestKy": "1319",
+        "earliestKy": "5",
+        "earliestDate": "01/08/2017",
+        "bootstrapComplete": false,
+        "sourceLimited": false,
+        "lastSyncAt": "2026-03-15T23:00:10",
+        "lastBootstrapAt": ""
+      }
+    },
+    {
+      "type": "KENO",
+      "label": "Keno",
+      "canonical": {
+        "count": 15588,
+        "latestKy": "273962",
+        "earliestKy": "258374",
+        "earliestDate": "05/11/2025",
+        "bootstrapComplete": false,
+        "sourceLimited": true,
+        "lastSyncAt": "2026-03-16T00:16:58",
+        "lastBootstrapAt": ""
+      },
+      "ai": {
+        "count": 15588,
+        "latestKy": "273962",
+        "earliestKy": "258374",
+        "earliestDate": "05/11/2025",
+        "bootstrapComplete": false,
+        "sourceLimited": true,
+        "lastSyncAt": "2026-03-15T22:59:29",
+        "lastBootstrapAt": ""
+      }
+    }
+  ]
+}

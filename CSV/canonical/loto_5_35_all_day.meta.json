@@ -1,0 +1,10 @@
+{
+  "type": "LOTO_5_35",
+  "bootstrapComplete": true,
+  "requestedStartMode": "full_history",
+  "lastSyncAt": "2026-04-02T16:42:05",
+  "lastBootstrapAt": "2026-03-16T23:59:00",
+  "effectiveEarliestKy": "1",
+  "effectiveEarliestDate": "29/06/2025",
+  "sourceLimited": false
+}
