@@ -1,0 +1,9 @@
+{
+  "heuristic_first": true,
+  "deep_model_scaffold": true,
+  "deep_model_enabled": true,
+  "slot_bias": true,
+  "weekday_bias": true,
+  "tracking_memory": true,
+  "ticket_quality": true
+}

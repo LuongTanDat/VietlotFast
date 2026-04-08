@@ -1,0 +1,149 @@
+{
+  "game": "mega_6_45",
+  "schedule_weekdays": [
+    2,
+    4,
+    6
+  ],
+  "numbers": {
+    "min": 1,
+    "max": 45,
+    "count": 6
+  },
+  "windows": {
+    "primary": 4,
+    "secondary": 10,
+    "weekday": 18,
+    "pair_history": 180,
+    "regime": 8
+  },
+  "recent_weights": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "candidate_pool_size": 12,
+  "top_candidate_count": 14,
+  "backup_ticket_count": 3,
+  "scoring_weights": {
+    "recent_score": 0.28,
+    "weekday_score": 0.08,
+    "modulo_score": 0.1,
+    "position_fit_score": 0.12,
+    "pair_score": 0.1,
+    "anti_pair_adjustment": 0.07,
+    "true_hot_score": 0.12,
+    "keep_mark_adjustment": 0.13
+  },
+  "ticket_weights": {
+    "sum_balance": 0.10,
+    "parity_balance": 0.07,
+    "modulo3_balance": 0.06,
+    "modulo5_pattern": 0.07,
+    "tail_structure": 0.05,
+    "pair_compatibility": 0.08,
+    "anti_pair_penalty": -0.06,
+    "positional_fit": 0.08,
+    "span_score": 0.06,
+    "hot_cold_balance": 0.05,
+    "keep_mark_reuse": 0.05,
+    "exclusion_penalty": -0.05,
+    "deep_ticket_support": 0.04,
+    "regime_fit": 0.10,
+    "cluster_shift_fit": 0.09,
+    "recent_alignment": 0.07,
+    "source_confidence": 0.08
+  },
+  "tracking": {
+    "decay": {
+      "keep_mark_score": 0.95,
+      "hot_score": 0.97,
+      "miss_penalty_score": 0.97,
+      "cooldown_score": 0.95
+    },
+    "strong_reward": 1.35,
+    "medium_reward": 0.62,
+    "small_reward": 0.22,
+    "success_decay": 0.55,
+    "miss_penalty": 0.32,
+    "cooldown_increment": 0.24,
+    "exclude_after_misses": 3,
+    "max_recent_log": 36
+  },
+  "filters": {
+    "min_sum": 85,
+    "max_sum": 185,
+    "min_range": 16,
+    "max_range": 39,
+    "max_last_draw_overlap": 3,
+    "max_excluded_per_ticket": 1
+  },
+  "blend_mode_default": "blended",
+  "blend_profiles": {
+    "heuristic_only": {
+      "heuristic": 0.45,
+      "deep": 0.0,
+      "tracking": 0.2
+    },
+    "deep_only": {
+      "heuristic": 0.0,
+      "deep": 1.0,
+      "tracking": 0.0
+    },
+    "blended": {
+      "heuristic": 0.66,
+      "deep": 0.08,
+      "tracking": 0.26
+    }
+  },
+  "deep_blend": {
+    "heuristic": 0.66,
+    "deep": 0.08,
+    "tracking": 0.26
+  },
+  "assembly": {
+    "modes": [
+      "heuristic_led",
+      "blended",
+      "deep_led",
+      "regime_shift",
+      "conservative"
+    ],
+    "disagreement_top_n": 10,
+    "low_disagreement_threshold": 0.18,
+    "high_disagreement_threshold": 0.40,
+    "diversity_overlap_limit": 4,
+    "mode_bias": {
+      "heuristic_led": 1.04,
+      "blended": 1.00,
+      "deep_led": 0.92,
+      "regime_shift": 1.03,
+      "conservative": 1.01
+    },
+    "main_mode_allowlist_when_high_disagreement": [
+      "heuristic_led",
+      "blended",
+      "regime_shift"
+    ]
+  },
+  "deep_training": {
+    "sequence_length": 10,
+    "min_samples_required_for_deep": 96,
+    "epochs": 24,
+    "batch_size": 32,
+    "learning_rate": 0.003,
+    "weight_decay": 0.0001,
+    "validation_ratio": 0.18,
+    "early_stopping_patience": 5,
+    "early_stopping_min_delta": 0.0005,
+    "conv_channels": 16,
+    "hidden_size": 24,
+    "shared_size": 32,
+    "kernel_size": 3,
+    "seed": 20260403,
+    "retrain_every_n_draws": 8,
+    "fine_tune_enabled": true,
+    "fine_tune_epochs": 6
+  }
+}

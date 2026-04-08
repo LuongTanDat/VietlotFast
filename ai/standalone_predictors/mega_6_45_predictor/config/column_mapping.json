@@ -1,0 +1,40 @@
+{
+  "draw_id": [
+    "Ky",
+    "Kỳ"
+  ],
+  "draw_date": [
+    "Ngay",
+    "Ngày"
+  ],
+  "draw_time": [
+    "Time",
+    "Giờ",
+    "Thời Gian"
+  ],
+  "main_numbers_raw": [
+    "Main",
+    "Bộ Số",
+    "Numbers"
+  ],
+  "special_raw": [
+    "Special",
+    "ĐB"
+  ],
+  "display_lines": [
+    "DisplayLines",
+    "Hiển thị"
+  ],
+  "game_label": [
+    "Label",
+    "Loại"
+  ],
+  "source_url": [
+    "SourceUrl",
+    "Link cập nhật"
+  ],
+  "source_date": [
+    "SourceDate",
+    "Ngày cập nhật"
+  ]
+}

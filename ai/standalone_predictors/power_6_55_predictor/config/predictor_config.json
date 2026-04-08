@@ -1,0 +1,195 @@
+{
+  "game": "power_6_55",
+  "schedule_weekdays": [
+    1,
+    3,
+    5
+  ],
+  "numbers": {
+    "main_min": 1,
+    "main_max": 55,
+    "main_count": 6,
+    "special_min": 1,
+    "special_max": 55
+  },
+  "windows": {
+    "primary": 4,
+    "secondary": 10,
+    "weekday": 18,
+    "pair_history": 220,
+    "regime": 8
+  },
+  "recent_weights": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "candidate_pool_size": 14,
+  "top_candidate_count": 16,
+  "backup_ticket_count": 3,
+  "max_ticket_combinations": 900,
+  "scoring_weights": {
+    "main": {
+      "recent_score": 0.24,
+      "weekday_score": 0.08,
+      "modulo_score": 0.12,
+      "position_fit_score": 0.12,
+      "pair_score": 0.08,
+      "anti_pair_adjustment": 0.07,
+      "true_hot_score": 0.12,
+      "keep_mark_adjustment": 0.17
+    },
+    "special": {
+      "recent_special_score": 0.30,
+      "weekday_special_score": 0.12,
+      "special_repeat_reset_logic": 0.15,
+      "special_tracking_score": 0.18,
+      "special_modulo_score": 0.10,
+      "regime_special_adjustment": 0.15
+    }
+  },
+  "ticket_weights": {
+    "sum_balance": 0.10,
+    "parity_balance": 0.07,
+    "modulo3_balance": 0.06,
+    "modulo5_pattern": 0.07,
+    "tail_structure": 0.05,
+    "pair_compatibility": 0.07,
+    "anti_pair_penalty": -0.06,
+    "positional_fit": 0.08,
+    "span_score": 0.06,
+    "hot_cold_balance": 0.05,
+    "keep_mark_reuse": 0.06,
+    "exclusion_penalty": -0.05,
+    "deep_ticket_support": 0.05,
+    "special_support_score": 0.04,
+    "regime_fit": 0.09,
+    "cluster_shift_fit": 0.08,
+    "recent_alignment": 0.06,
+    "source_confidence": 0.08
+  },
+  "tracking": {
+    "decay": {
+      "keep_mark_score": 0.95,
+      "hot_score": 0.97,
+      "miss_penalty_score": 0.97,
+      "cooldown_score": 0.95,
+      "special_keep_score": 0.95,
+      "special_hot_score": 0.97,
+      "special_penalty_score": 0.97
+    },
+    "strong_reward": 1.35,
+    "medium_reward": 0.62,
+    "small_reward": 0.22,
+    "success_decay": 0.55,
+    "miss_penalty": 0.32,
+    "cooldown_increment": 0.24,
+    "exclude_after_misses": 3,
+    "max_recent_log": 36
+  },
+  "filters": {
+    "min_sum": 110,
+    "max_sum": 240,
+    "min_range": 20,
+    "max_range": 50,
+    "max_last_draw_overlap": 3,
+    "max_excluded_per_ticket": 1
+  },
+  "blend_mode_default": "blended",
+  "blend_profiles": {
+    "heuristic_only": {
+      "main": {
+        "heuristic": 0.40,
+        "deep": 0.0,
+        "tracking": 0.25
+      },
+      "special": {
+        "heuristic": 0.35,
+        "deep": 0.0,
+        "tracking": 0.30
+      }
+    },
+    "deep_only": {
+      "main": {
+        "heuristic": 0.0,
+        "deep": 1.0,
+        "tracking": 0.0
+      },
+      "special": {
+        "heuristic": 0.0,
+        "deep": 1.0,
+        "tracking": 0.0
+      }
+    },
+    "blended": {
+      "main": {
+        "heuristic": 0.48,
+        "deep": 0.20,
+        "tracking": 0.32
+      },
+      "special": {
+        "heuristic": 0.42,
+        "deep": 0.22,
+        "tracking": 0.36
+      }
+    }
+  },
+  "deep_blend": {
+    "main": {
+      "heuristic": 0.48,
+      "deep": 0.20,
+      "tracking": 0.32
+    },
+    "special": {
+      "heuristic": 0.42,
+      "deep": 0.22,
+      "tracking": 0.36
+    }
+  },
+  "assembly": {
+    "modes": [
+      "heuristic_led",
+      "blended",
+      "deep_led",
+      "regime_shift",
+      "conservative"
+    ],
+    "disagreement_top_n": 12,
+    "low_disagreement_threshold": 0.20,
+    "high_disagreement_threshold": 0.42,
+    "diversity_overlap_limit": 4,
+    "mode_bias": {
+      "heuristic_led": 1.00,
+      "blended": 1.03,
+      "deep_led": 0.98,
+      "regime_shift": 1.02,
+      "conservative": 1.01
+    },
+    "main_mode_allowlist_when_high_disagreement": [
+      "heuristic_led",
+      "blended",
+      "deep_led",
+      "regime_shift"
+    ]
+  },
+  "deep_training": {
+    "sequence_length": 10,
+    "min_samples_required_for_deep": 120,
+    "epochs": 26,
+    "batch_size": 32,
+    "learning_rate": 0.003,
+    "weight_decay": 0.0001,
+    "validation_ratio": 0.18,
+    "early_stopping_patience": 5,
+    "early_stopping_min_delta": 0.0005,
+    "conv_channels": 18,
+    "hidden_size": 28,
+    "shared_size": 36,
+    "kernel_size": 3,
+    "seed": 20260403,
+    "retrain_every_n_draws": 8,
+    "fine_tune_enabled": true,
+    "fine_tune_epochs": 6
+  }
+}

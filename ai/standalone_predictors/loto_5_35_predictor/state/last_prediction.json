@@ -1,0 +1,136 @@
+{
+  "version": "loto_5_35_vip_v1",
+  "game": "loto_5_35",
+  "resolved": false,
+  "target_draw_id": "564",
+  "target_slot": "21:00",
+  "created_at": "2026-04-06T17:02:37",
+  "source_latest_ky": "563",
+  "main_ticket": [
+    14,
+    18,
+    19,
+    25,
+    27
+  ],
+  "backup_tickets": [
+    [
+      14,
+      15,
+      18,
+      22,
+      25
+    ],
+    [
+      14,
+      15,
+      18,
+      19,
+      22
+    ]
+  ],
+  "bonus": 1,
+  "bonus_backups": [
+    1,
+    7
+  ],
+  "quality_score": 69.97,
+  "tickets": [
+    {
+      "main": [
+        14,
+        18,
+        19,
+        25,
+        27
+      ],
+      "special": 1,
+      "qualityScore": 69.97,
+      "beautyScore": 69.97,
+      "qualityBreakdown": {
+        "sumBalance": 0.7896341463414634,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.8,
+        "modulo5Pattern": 0.8,
+        "tailPattern": 1.0,
+        "pairCompatibility": 0.2168067226890756,
+        "antiPairPenalty": 0.13944203944203945,
+        "positionPlausibility": 0.6975,
+        "rangeScore": 0.0714285714285714,
+        "hotColdBalance": 0.6816558854666531,
+        "keepReuseScore": 0.6,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.10206881662209828,
+        "bonusSupport": 1.0,
+        "regimeFit": 0.9019999999999999,
+        "clusterShiftFit": 0.8174374999999998,
+        "recentAlignment": 0.7233992463244784,
+        "sourceConfidence": 0.7383609274323975
+      }
+    },
+    {
+      "main": [
+        14,
+        15,
+        18,
+        22,
+        25
+      ],
+      "special": 1,
+      "qualityScore": 62.99,
+      "beautyScore": 62.99,
+      "qualityBreakdown": {
+        "sumBalance": 0.9908536585365854,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.8,
+        "modulo5Pattern": 0.8,
+        "tailPattern": 0.8,
+        "pairCompatibility": 0.15079365079365079,
+        "antiPairPenalty": 0.3730364873222017,
+        "positionPlausibility": 0.6491666666666667,
+        "rangeScore": 0.0,
+        "hotColdBalance": 0.634936089597951,
+        "keepReuseScore": 0.6,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.10726034020384152,
+        "bonusSupport": 1.0,
+        "regimeFit": 0.8300000000000001,
+        "clusterShiftFit": 0.5361874999999999,
+        "recentAlignment": 0.7353150297332666,
+        "sourceConfidence": 0.5263236782957548
+      }
+    },
+    {
+      "main": [
+        14,
+        15,
+        18,
+        19,
+        22
+      ],
+      "special": 7,
+      "qualityScore": 56.15,
+      "beautyScore": 56.15,
+      "qualityBreakdown": {
+        "sumBalance": 0.8445121951219512,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.8,
+        "modulo5Pattern": 0.8,
+        "tailPattern": 1.0,
+        "pairCompatibility": 0.13571428571428573,
+        "antiPairPenalty": 0.4325156325156326,
+        "positionPlausibility": 0.5291666666666667,
+        "rangeScore": 0.0,
+        "hotColdBalance": 0.6150541460552987,
+        "keepReuseScore": 0.4,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.1018401396771272,
+        "bonusSupport": 0.7871426459367246,
+        "regimeFit": 0.806,
+        "clusterShiftFit": 0.36368749999999994,
+        "recentAlignment": 0.6870880568104114,
+        "sourceConfidence": 0.5335128670704633
+      }
+    }
+  ]
+}

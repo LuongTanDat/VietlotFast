@@ -1,0 +1,72 @@
+{
+  "last_backtest_run": {
+    "blend_mode": "blended",
+    "samples": 18,
+    "avgHits": 0.9444,
+    "avgHitRate": 0.188889,
+    "bonusAccuracy": 0.0,
+    "note": "Backtest nhanh predictor standalone Loto 5/35 trên các kỳ gần nhất với lớp heuristic + tracking.",
+    "game": "loto_5_35",
+    "predictorVersion": "loto_5_35_vip_v1"
+  },
+  "last_ablation_report": {
+    "game": "loto_5_35",
+    "predictorVersion": "loto_5_35_vip_v1",
+    "dataset": {
+      "type": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "historyFile": "loto_5_35_all_day.csv",
+      "historyPath": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\loto_5_35_all_day.csv",
+      "historyCount": 558,
+      "latestKy": "558",
+      "latestDate": "03/04/2026",
+      "latestTime": "21:00",
+      "effectiveEarliestKy": "1",
+      "effectiveEarliestDate": "29/06/2025",
+      "bootstrapComplete": true,
+      "sourceLimited": false,
+      "errors": []
+    },
+    "modes": {
+      "heuristic_only": {
+        "blend_mode": "heuristic_only",
+        "draws_tested": 534,
+        "average_hits": 0.7565543071161048,
+        "top_k_recall": 0.2850187265917603,
+        "bonus_or_special_accuracy": 0.08052434456928839,
+        "ticket_quality_mean": 64.88548689138577
+      },
+      "deep_only": {
+        "blend_mode": "deep_only",
+        "draws_tested": 534,
+        "average_hits": 0.8239700374531835,
+        "top_k_recall": 0.35580524344569286,
+        "bonus_or_special_accuracy": 0.41760299625468167,
+        "ticket_quality_mean": 63.70496254681648
+      },
+      "blended": {
+        "blend_mode": "blended",
+        "draws_tested": 534,
+        "average_hits": 0.7434456928838952,
+        "top_k_recall": 0.2932584269662921,
+        "bonus_or_special_accuracy": 0.25280898876404495,
+        "ticket_quality_mean": 66.6478277153558
+      }
+    },
+    "winner_mode": "deep_only",
+    "winner_summary": {
+      "blend_mode": "deep_only",
+      "draws_tested": 534,
+      "average_hits": 0.8239700374531835,
+      "top_k_recall": 0.35580524344569286,
+      "bonus_or_special_accuracy": 0.41760299625468167,
+      "ticket_quality_mean": 63.70496254681648
+    },
+    "metric_priority": [
+      "average_hits",
+      "top_k_recall",
+      "bonus_or_special_accuracy",
+      "ticket_quality_mean"
+    ]
+  }
+}

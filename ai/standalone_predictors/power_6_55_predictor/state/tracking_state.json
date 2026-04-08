@@ -1,0 +1,13 @@
+{
+  "kept_numbers": [],
+  "true_hot_numbers": [],
+  "temporary_excluded_numbers": [],
+  "prioritized_special": [],
+  "memory_scores": {
+    "main": {},
+    "special": {}
+  },
+  "recent_prediction_log": [],
+  "updated_at": "",
+  "last_resolved_draw_id": null
+}

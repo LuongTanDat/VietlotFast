@@ -1,0 +1,48 @@
+{
+  "draw_id": [
+    "Kỳ",
+    "Ky"
+  ],
+  "weekday_text": [
+    "Thứ",
+    "Thu"
+  ],
+  "draw_date": [
+    "Ngày",
+    "Ngay"
+  ],
+  "draw_time": [
+    "Giờ",
+    "Time"
+  ],
+  "main_numbers_raw": [
+    "Bộ Số",
+    "Bo So",
+    "Main"
+  ],
+  "special_raw": [
+    "ĐB",
+    "DB",
+    "Special"
+  ],
+  "display_text": [
+    "Hiển thị",
+    "Hien thi",
+    "DisplayLines"
+  ],
+  "game_label": [
+    "Loại",
+    "Loai",
+    "Label"
+  ],
+  "source_url": [
+    "Link cập nhật",
+    "Link cap nhat",
+    "SourceUrl"
+  ],
+  "source_date": [
+    "Ngày cập nhật",
+    "Ngay cap nhat",
+    "SourceDate"
+  ]
+}

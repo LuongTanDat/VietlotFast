@@ -1,0 +1,82 @@
+{
+  "last_prediction_run": {
+    "run_at": "2026-04-04T23:25:56",
+    "target_draw_id": 1493,
+    "target_date_estimate": "05/04/2026",
+    "quality_score": 70.181687098786,
+    "main_ticket": [
+      5,
+      11,
+      24,
+      30,
+      37,
+      44
+    ],
+    "blend_mode_used": "blended"
+  },
+  "last_update_run": null,
+  "last_backtest_run": {
+    "run_at": "2026-04-04T00:43:45",
+    "blend_mode": "blended",
+    "draws_tested": 1431,
+    "average_hits": 0.7973445143256463,
+    "top_k_recall": 0.26659678546471,
+    "ticket_quality_mean": 72.09543878964732,
+    "bonus_or_special_accuracy": null,
+    "winner_mode": "blended"
+  },
+  "last_ablation_report": {
+    "run_at": "2026-04-04T00:43:45",
+    "game": "mega_6_45",
+    "dataset": {
+      "csv_path": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\mega_6_45_all_day.csv",
+      "record_count": 1491,
+      "time_slot_usable": false,
+      "latest_draw_id": 1492,
+      "latest_draw_date": "03/04/2026",
+      "earliest_draw_id": 2,
+      "earliest_draw_date": "20/07/2016",
+      "label": "Mega_6/45"
+    },
+    "modes": {
+      "heuristic_only": {
+        "blend_mode": "heuristic_only",
+        "draws_tested": 1431,
+        "average_hits": 0.7875611460517121,
+        "top_k_recall": 0.2641509433962264,
+        "ticket_quality_mean": 73.93445047809347,
+        "bonus_or_special_accuracy": null
+      },
+      "deep_only": {
+        "blend_mode": "deep_only",
+        "draws_tested": 1431,
+        "average_hits": 0.7945492662473794,
+        "top_k_recall": 0.2941998602375961,
+        "ticket_quality_mean": 70.47545139203852,
+        "bonus_or_special_accuracy": null
+      },
+      "blended": {
+        "blend_mode": "blended",
+        "draws_tested": 1431,
+        "average_hits": 0.7973445143256463,
+        "top_k_recall": 0.26659678546471,
+        "ticket_quality_mean": 72.09543878964732,
+        "bonus_or_special_accuracy": null
+      }
+    },
+    "winner_mode": "blended",
+    "winner_summary": {
+      "blend_mode": "blended",
+      "draws_tested": 1431,
+      "average_hits": 0.7973445143256463,
+      "top_k_recall": 0.26659678546471,
+      "ticket_quality_mean": 72.09543878964732,
+      "bonus_or_special_accuracy": null
+    },
+    "metric_priority": [
+      "average_hits",
+      "top_k_recall",
+      "ticket_quality_mean"
+    ]
+  }
+}

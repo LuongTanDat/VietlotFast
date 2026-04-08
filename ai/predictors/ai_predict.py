@@ -2,6 +2,7 @@ import json
 import math
 import re
 import os
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -11,6 +12,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+STANDALONE_PREDICTORS_ROOT = PROJECT_ROOT / "ai" / "standalone_predictors"
+if str(STANDALONE_PREDICTORS_ROOT) not in sys.path:
+    sys.path.insert(0, str(STANDALONE_PREDICTORS_ROOT))
 
 import ai.configs.data_paths as dp
 import ai.predictors.number_scoring as ns
@@ -215,6 +219,342 @@ def apply_vip_prediction_profile(payload, bundle_count):
     ]
     result["vipSummary"] = f"Vip đang ưu tiên {len(result.get('tickets') or [])} bộ mạnh nhất từ lượt dự đoán hiện tại."
     return result
+
+
+def build_loto_6_45_vip_prediction(bundle_count, requested_engine="", risk_mode="balanced"):
+    standalone_root = STANDALONE_PREDICTORS_ROOT / "mega_6_45_predictor"
+    if str(standalone_root) not in sys.path:
+        sys.path.insert(0, str(standalone_root))
+
+    from src import predictor_api as mega_645_predictor_api
+
+    csv_path = dp.get_canonical_csv_read_path("LOTO_6_45")
+    requested_total = max(1, int(bundle_count or 1))
+    backup_count = max(2, requested_total - 1)
+    prediction = mega_645_predictor_api.predict(csv_path, project_root=standalone_root, backup_count=backup_count)
+    dataset = dict(prediction.get("dataset") or {})
+    sync = dict(prediction.get("sync") or {})
+    metrics = dict((mega_645_predictor_api.load_runtime_state(standalone_root).get("metrics") or {}))
+    backtest = dict(metrics.get("last_backtest_run") or {})
+    tracking_state = dict(prediction.get("tracking_state") or {})
+    top_main_candidates = [int(value) for value in list(prediction.get("top_main_candidates") or []) if isinstance(value, int)]
+    main_ticket = [int(value) for value in list(prediction.get("main_ticket") or []) if isinstance(value, int)]
+    backup_tickets = [
+        [int(value) for value in list(ticket or []) if isinstance(value, int)]
+        for ticket in list(prediction.get("backup_tickets") or [])
+    ]
+    quality_score = float(prediction.get("quality_score", 0.0) or 0.0)
+    deep_status_line = str(prediction.get("deep_status_line", "") or "").strip()
+    notes = []
+    if sync.get("message"):
+        notes.append(str(sync.get("message", "")).strip())
+    if deep_status_line:
+        notes.append(deep_status_line)
+    explanation = dict(prediction.get("explanation") or {})
+    notes.extend(str(note).strip() for note in list(explanation.get("regime_notes") or [])[:2] if str(note).strip())
+    notes.extend(str(note).strip() for note in list(explanation.get("modulo_notes") or [])[:1] if str(note).strip())
+    return {
+        "ok": True,
+        "ready": True,
+        "bootstrapComplete": True,
+        "mode": "ai_predict",
+        "predictorVersion": "mega_6_45_vip_v1",
+        "predictionMode": PREDICTION_MODE_VIP,
+        "vipProfile": "mega_6_45_adaptive",
+        "vipSummary": f"Vip Mega 6/45 đang dùng predictor adaptive riêng với {1 + len(backup_tickets)} bộ.",
+        "engine": "mega_6_45_vip",
+        "engineLabel": "Mega 6/45 Vip Adaptive",
+        "type": "LOTO_6_45",
+        "label": "Mega_6/45",
+        "modelVersion": "mega_6_45_vip_v1",
+        "model": {
+            "key": "mega_6_45_vip_adaptive",
+            "label": "Mega 6/45 Adaptive VIP",
+            "samples": int(dataset.get("record_count", 0) or 0),
+        },
+        "champion": {
+            "key": "mega_6_45_vip_main_ticket",
+            "label": "Main Mega 6/45 VIP Ticket",
+        },
+        "historyFile": str(dataset.get("csv_path", "")),
+        "historyCount": int(dataset.get("record_count", 0) or 0),
+        "latestKy": str(dataset.get("latest_draw_id", "") or ""),
+        "latestDate": str(dataset.get("latest_draw_date", "") or ""),
+        "latestTime": "",
+        "nextKy": f"#{prediction.get('target_draw_id', '')}" if prediction.get("target_draw_id") else "",
+        "target_draw_id": str(prediction.get("target_draw_id", "") or ""),
+        "target_date": str(prediction.get("target_date_estimate", "") or ""),
+        "target_slot": "",
+        "bundleCount": 1 + len(backup_tickets),
+        "pickSize": 6,
+        "topRanking": top_main_candidates[:14],
+        "top_main_candidates": top_main_candidates[:14],
+        "top_heuristic_candidates": list(prediction.get("top_heuristic_candidates") or []),
+        "top_deep_candidates": list(prediction.get("top_deep_candidates") or []),
+        "main_ticket": main_ticket,
+        "backup_tickets": backup_tickets,
+        "tickets": [{"main": main_ticket}, *({"main": ticket} for ticket in backup_tickets)],
+        "ticketSources": ["mega_6_45_vip" for _ in range(1 + len(backup_tickets))],
+        "quality_score": quality_score,
+        "qualityScore": quality_score,
+        "blend_mode_used": str(prediction.get("blend_mode_used", "") or ""),
+        "blend_weights_used": dict(prediction.get("blend_weights_used") or {}),
+        "assembly_mode": str(prediction.get("assembly_mode", "") or ""),
+        "assembly_variants": list(prediction.get("assembly_variants") or []),
+        "disagreement_score": float(prediction.get("disagreement_score", 0.0) or 0.0),
+        "disagreement_level": str(prediction.get("disagreement_level", "low") or "low"),
+        "why_selected": list(prediction.get("why_selected") or []),
+        "tracking_state": {
+            "kept_numbers": list(tracking_state.get("kept_numbers") or []),
+            "true_hot_numbers": list(tracking_state.get("true_hot_numbers") or []),
+            "temporary_excluded_numbers": list(tracking_state.get("temporary_excluded_numbers") or []),
+        },
+        "regime": str(prediction.get("regime", "") or ""),
+        "regimeLabel": str(prediction.get("regime", "") or "").capitalize(),
+        "confidence": round(min(0.98, 0.56 + quality_score / 250.0), 6),
+        "backtest": backtest,
+        "sync": sync,
+        "deep_enabled": bool(prediction.get("deep_enabled")),
+        "deep_status": str(prediction.get("deep_status", "") or ""),
+        "deep_status_reason": str(prediction.get("deep_status_reason", "") or ""),
+        "deep_status_line": deep_status_line,
+        "deep_model_type": str(prediction.get("deep_model_type", "") or ""),
+        "deep_model_version": str(prediction.get("deep_model_version", "") or ""),
+        "deep_last_trained_at": str(prediction.get("deep_last_trained_at", "") or ""),
+        "deep_artifacts": dict(prediction.get("deep_artifacts") or {}),
+        "notes": [
+            f"Mega 6/45 Vip đang dùng công thức adaptive riêng, engine yêu cầu: {requested_engine or 'auto'}.",
+            *[note for note in notes if note],
+        ],
+        "explanation": explanation,
+        "riskMode": normalize_risk_mode(risk_mode),
+        "riskModeLabel": AI_RISK_MODE_LABELS.get(normalize_risk_mode(risk_mode), AI_RISK_MODE_LABELS[AI_RISK_MODE_BALANCED]),
+        "riskModeSummary": build_risk_mode_summary(risk_mode),
+    }
+
+
+def build_loto_5_35_vip_prediction(bundle_count, requested_engine="", risk_mode="balanced"):
+    standalone_root = STANDALONE_PREDICTORS_ROOT / "loto_5_35_predictor"
+    csv_path = dp.get_canonical_csv_read_path("LOTO_5_35")
+    requested_total = max(1, int(bundle_count or 1))
+    prediction = _run_standalone_predict_cli(
+        standalone_root,
+        csv_path,
+        extra_args=["--bundle-count", str(requested_total)],
+    )
+    result = attach_risk_mode_metadata(prediction, risk_mode)
+    result["predictionMode"] = PREDICTION_MODE_VIP
+    result["vipProfile"] = str(result.get("vipProfile") or "loto_5_35_adaptive")
+    result["vipSummary"] = str(
+        result.get("vipSummary")
+        or f"Vip Loto 5/35 đang dùng predictor standalone riêng với {len(result.get('tickets') or [])} bộ."
+    )
+    result["notes"] = [
+        f"Loto 5/35 Vip đang dùng predictor standalone riêng, engine yêu cầu: {requested_engine or 'auto'}.",
+        *list(result.get("notes") or []),
+    ]
+    return result
+
+
+def _read_json_file(path, default=None):
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:
+        return {} if default is None else default
+
+
+def _normalize_adaptive_backtest(backtest_payload, pick_size):
+    summary = dict(backtest_payload or {})
+    avg_hits = float(
+        summary.get("avgHits")
+        or summary.get("average_exact_main_hits_per_draw")
+        or summary.get("average_exact_hits_per_draw")
+        or 0.0
+    )
+    avg_hit_rate = float(summary.get("avgHitRate") or 0.0)
+    if avg_hit_rate <= 0.0 and pick_size > 0 and avg_hits > 0.0:
+        avg_hit_rate = avg_hits / float(pick_size)
+    samples = int(summary.get("samples") or summary.get("draws_tested") or 0)
+    summary["avgHits"] = avg_hits
+    summary["avgHitRate"] = avg_hit_rate
+    summary["samples"] = samples
+    if "special_hit_rate" in summary and "specialHitRate" not in summary:
+        summary["specialHitRate"] = float(summary.get("special_hit_rate") or 0.0)
+    return summary
+
+
+def _run_standalone_predict_cli(standalone_root, csv_path, extra_args=None):
+    command = [sys.executable or "python", "main.py", "predict", "--csv", str(csv_path)]
+    for argument in list(extra_args or []):
+        command.append(str(argument))
+    completed = subprocess.run(
+        command,
+        cwd=str(standalone_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        stderr_text = str(completed.stderr or "").strip()
+        stdout_text = str(completed.stdout or "").strip()
+        raise RuntimeError(stderr_text or stdout_text or f"Standalone predictor exited with code {completed.returncode}.")
+    try:
+        return json.loads(completed.stdout or "{}")
+    except Exception as exc:
+        output_preview = str(completed.stdout or "").strip()[:400]
+        raise RuntimeError(f"Không parse được JSON từ standalone predictor: {exc}. Output: {output_preview}")
+
+
+def _pick_special_for_ticket(ticket_numbers, preferred_values, special_min=1, special_max=55):
+    ticket_set = {int(value) for value in list(ticket_numbers or []) if isinstance(value, int)}
+    for value in list(preferred_values or []):
+        if not isinstance(value, int):
+            continue
+        if value < special_min or value > special_max:
+            continue
+        if value in ticket_set:
+            continue
+        return value
+    return None
+
+
+def build_loto_6_55_vip_prediction(bundle_count, requested_engine="", risk_mode="balanced"):
+    standalone_root = STANDALONE_PREDICTORS_ROOT / "power_6_55_predictor"
+    csv_path = dp.get_canonical_csv_read_path("LOTO_6_55")
+    prediction = _run_standalone_predict_cli(standalone_root, csv_path)
+
+    dataset = dict(prediction.get("dataset") or {})
+    sync = dict(prediction.get("sync") or {})
+    metrics = dict((_read_json_file(standalone_root / "state" / "metrics.json", {}).get("last_backtest_run") or {}))
+    backtest = _normalize_adaptive_backtest(metrics, 6)
+    tracking_state = dict(prediction.get("tracking_state") or {})
+    top_main_candidates = [int(value) for value in list(prediction.get("top_main_candidates") or []) if isinstance(value, int)]
+    top_special_candidates = [int(value) for value in list(prediction.get("top_special_candidates") or []) if isinstance(value, int)]
+    main_ticket = [int(value) for value in list(prediction.get("main_ticket") or []) if isinstance(value, int)]
+    backup_tickets = [
+        [int(value) for value in list(ticket or []) if isinstance(value, int)]
+        for ticket in list(prediction.get("backup_tickets") or [])
+    ]
+    special = prediction.get("special")
+    special = int(special) if isinstance(special, int) else _pick_special_for_ticket(main_ticket, top_special_candidates)
+    special_backups = [int(value) for value in list(prediction.get("special_backups") or []) if isinstance(value, int)]
+    quality_score = float(prediction.get("quality_score", 0.0) or 0.0)
+    explanation = dict(prediction.get("explanation") or {})
+    deep_status_line = str(prediction.get("deep_status_line", "") or "").strip()
+    requested_total = max(1, int(bundle_count or 1))
+    backup_count = max(2, requested_total - 1)
+    scoped_backup_tickets = backup_tickets[:backup_count]
+
+    ticket_payloads = []
+    ticket_payloads.append({
+        "main": main_ticket,
+        "special": _pick_special_for_ticket(main_ticket, [special, *special_backups, *top_special_candidates]),
+    })
+    for index, ticket in enumerate(scoped_backup_tickets):
+        preferred_specials = []
+        if index < len(special_backups):
+            preferred_specials.append(special_backups[index])
+        preferred_specials.extend(special_backups)
+        preferred_specials.extend(top_special_candidates)
+        if isinstance(special, int):
+            preferred_specials.append(special)
+        ticket_payloads.append({
+            "main": ticket,
+            "special": _pick_special_for_ticket(ticket, preferred_specials),
+        })
+
+    notes = []
+    if sync.get("message"):
+        notes.append(str(sync.get("message", "")).strip())
+    if deep_status_line:
+        notes.append(deep_status_line)
+    notes.extend(str(note).strip() for note in list(explanation.get("regime_notes") or [])[:2] if str(note).strip())
+    notes.extend(str(note).strip() for note in list(explanation.get("modulo_notes") or [])[:1] if str(note).strip())
+    notes.extend(str(note).strip() for note in list(explanation.get("special_notes") or [])[:2] if str(note).strip())
+
+    return {
+        "ok": True,
+        "ready": True,
+        "bootstrapComplete": True,
+        "mode": "ai_predict",
+        "predictorVersion": "power_6_55_vip_v1",
+        "predictionMode": PREDICTION_MODE_VIP,
+        "vipProfile": "power_6_55_adaptive",
+        "vipSummary": f"Vip Power 6/55 đang dùng predictor adaptive riêng với {len(ticket_payloads)} bộ.",
+        "engine": "power_6_55_vip",
+        "engineLabel": "Power 6/55 Vip Adaptive",
+        "type": "LOTO_6_55",
+        "label": "Power_6/55",
+        "modelVersion": "power_6_55_vip_v1",
+        "model": {
+            "key": "power_6_55_vip_adaptive",
+            "label": "Power 6/55 Adaptive VIP",
+            "samples": int(dataset.get("record_count", 0) or 0),
+        },
+        "champion": {
+            "key": "power_6_55_vip_main_ticket",
+            "label": "Main Power 6/55 VIP Ticket",
+        },
+        "historyFile": str(dataset.get("csv_path", "")),
+        "historyCount": int(dataset.get("record_count", 0) or 0),
+        "latestKy": str(dataset.get("latest_draw_id", "") or ""),
+        "latestDate": str(dataset.get("latest_draw_date", "") or ""),
+        "latestTime": "",
+        "nextKy": f"#{prediction.get('target_draw_id', '')}" if prediction.get("target_draw_id") else "",
+        "target_draw_id": str(prediction.get("target_draw_id", "") or ""),
+        "target_date": str(prediction.get("target_date_estimate", "") or ""),
+        "target_slot": "",
+        "bundleCount": len(ticket_payloads),
+        "pickSize": 6,
+        "topRanking": top_main_candidates[:16],
+        "top_main_candidates": top_main_candidates[:16],
+        "topSpecialRanking": top_special_candidates[:10],
+        "top_special_candidates": top_special_candidates[:10],
+        "top_heuristic_candidates": list(prediction.get("top_heuristic_candidates") or []),
+        "top_deep_candidates": list(prediction.get("top_deep_candidates") or []),
+        "main_ticket": main_ticket,
+        "backup_tickets": scoped_backup_tickets,
+        "special": special,
+        "special_backups": special_backups[:3],
+        "tickets": ticket_payloads,
+        "ticketSources": ["power_6_55_vip" for _ in range(len(ticket_payloads))],
+        "quality_score": quality_score,
+        "qualityScore": quality_score,
+        "blend_mode_used": str(prediction.get("blend_mode_used", "") or ""),
+        "blend_weights_used": dict(prediction.get("blend_weights_used") or {}),
+        "assembly_mode": str(prediction.get("assembly_mode", "") or ""),
+        "assembly_variants": list(prediction.get("assembly_variants") or []),
+        "disagreement_score": float(prediction.get("disagreement_score", 0.0) or 0.0),
+        "disagreement_level": str(prediction.get("disagreement_level", "low") or "low"),
+        "why_selected": list(prediction.get("why_selected") or []),
+        "tracking_state": {
+            "kept_numbers": list(tracking_state.get("kept_numbers") or []),
+            "true_hot_numbers": list(tracking_state.get("true_hot_numbers") or []),
+            "temporary_excluded_numbers": list(tracking_state.get("temporary_excluded_numbers") or []),
+            "prioritized_special": list(tracking_state.get("prioritized_special") or []),
+        },
+        "regime": str(prediction.get("regime", "") or ""),
+        "regimeLabel": str(prediction.get("regime", "") or "").capitalize(),
+        "confidence": round(min(0.98, 0.56 + quality_score / 250.0), 6),
+        "backtest": backtest,
+        "sync": sync,
+        "deep_enabled": bool(prediction.get("deep_enabled")),
+        "deep_status": str(prediction.get("deep_status", "") or ""),
+        "deep_status_reason": str(prediction.get("deep_status_reason", "") or ""),
+        "deep_status_line": deep_status_line,
+        "deep_model_type": str(prediction.get("deep_model_type", "") or ""),
+        "deep_model_version": str(prediction.get("deep_model_version", "") or ""),
+        "deep_last_trained_at": str(prediction.get("deep_last_trained_at", "") or ""),
+        "deep_artifacts": dict(prediction.get("deep_artifacts") or {}),
+        "notes": [
+            f"Power 6/55 Vip đang dùng công thức adaptive riêng, engine yêu cầu: {requested_engine or 'auto'}.",
+            *[note for note in notes if note],
+        ],
+        "explanation": explanation,
+        "riskMode": normalize_risk_mode(risk_mode),
+        "riskModeLabel": AI_RISK_MODE_LABELS.get(normalize_risk_mode(risk_mode), AI_RISK_MODE_LABELS[AI_RISK_MODE_BALANCED]),
+        "riskModeSummary": build_risk_mode_summary(risk_mode),
+    }
 AI_GAME_CONFIG = {
     "LOTO_5_35": {"mainMax": 35, "mainCount": 5, "hasSpecial": True, "specialMin": 1, "specialMax": 12},
     "LOTO_6_45": {"mainMax": 45, "mainCount": 6, "hasSpecial": False, "specialMin": 0, "specialMax": 0},
@@ -3341,6 +3681,85 @@ def predict_json(type_key, bundle_count, keno_level=None, engine=AI_ENGINE_CLASS
             return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
         payload = attach_risk_mode_metadata(build_keno_prediction(bundle_count, order), risk_mode)
         return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
+    # predictor_v2 integration start
+    if type_key == "LOTO_5_35" and prediction_mode == PREDICTION_MODE_VIP:
+        try:
+            return build_loto_5_35_vip_prediction(
+                bundle_count=bundle_count,
+                requested_engine=engine,
+                risk_mode=risk_mode,
+            )
+        except Exception as exc:
+            try:
+                from predictor_v2.predictor_api import predict_next_vip
+
+                legacy_payload = attach_risk_mode_metadata(
+                    predict_next_vip(
+                        game="loto_5_35",
+                        slot=None,
+                        bundle_count=bundle_count,
+                        requested_engine=engine,
+                        risk_mode=risk_mode,
+                    ),
+                    risk_mode,
+                )
+                legacy_payload["notes"] = [
+                    f"Loto 5/35 standalone lỗi, đang dùng predictor_v2 fallback: {exc}",
+                    *list(legacy_payload.get("notes") or []),
+                ]
+                return legacy_payload
+            except Exception as legacy_exc:
+                fallback_prefix = f"Loto 5/35 Vip standalone lỗi ({exc}); predictor_v2 fallback cũng lỗi ({legacy_exc}), đang dùng Vip fallback."
+                if engine == AI_ENGINE_LUAN_SO:
+                    payload = attach_risk_mode_metadata(build_luan_so_prediction(type_key, bundle_count), risk_mode)
+                elif engine == AI_ENGINE_GEN_LOCAL:
+                    payload = attach_risk_mode_metadata(build_numeric_gen_local_prediction(type_key, bundle_count), risk_mode)
+                else:
+                    payload = attach_risk_mode_metadata(build_numeric_prediction(type_key, bundle_count), risk_mode)
+                fallback_payload = apply_vip_prediction_profile(payload, bundle_count)
+                fallback_payload["notes"] = [fallback_prefix, *list(fallback_payload.get("notes") or [])]
+                return fallback_payload
+    # predictor_v2 integration end
+    # mega_6_45 vip integration start
+    if type_key == "LOTO_6_45" and prediction_mode == PREDICTION_MODE_VIP:
+        try:
+            return build_loto_6_45_vip_prediction(
+                bundle_count=bundle_count,
+                requested_engine=engine,
+                risk_mode=risk_mode,
+            )
+        except Exception as exc:
+            fallback_prefix = f"Mega 6/45 Vip adaptive lỗi, đang dùng Vip fallback: {exc}"
+            if engine == AI_ENGINE_LUAN_SO:
+                payload = attach_risk_mode_metadata(build_luan_so_prediction(type_key, bundle_count), risk_mode)
+            elif engine == AI_ENGINE_GEN_LOCAL:
+                payload = attach_risk_mode_metadata(build_numeric_gen_local_prediction(type_key, bundle_count), risk_mode)
+            else:
+                payload = attach_risk_mode_metadata(build_numeric_prediction(type_key, bundle_count), risk_mode)
+            fallback_payload = apply_vip_prediction_profile(payload, bundle_count)
+            fallback_payload["notes"] = [fallback_prefix, *list(fallback_payload.get("notes") or [])]
+            return fallback_payload
+    # mega_6_45 vip integration end
+    # power_6_55 vip integration start
+    if type_key == "LOTO_6_55" and prediction_mode == PREDICTION_MODE_VIP:
+        try:
+            return build_loto_6_55_vip_prediction(
+                bundle_count=bundle_count,
+                requested_engine=engine,
+                risk_mode=risk_mode,
+            )
+        except Exception as exc:
+            fallback_prefix = f"Power 6/55 Vip adaptive lỗi, đang dùng Vip fallback: {exc}"
+            if engine == AI_ENGINE_LUAN_SO:
+                payload = attach_risk_mode_metadata(build_luan_so_prediction(type_key, bundle_count), risk_mode)
+            elif engine == AI_ENGINE_GEN_LOCAL:
+                payload = attach_risk_mode_metadata(build_numeric_gen_local_prediction(type_key, bundle_count), risk_mode)
+            else:
+                payload = attach_risk_mode_metadata(build_numeric_prediction(type_key, bundle_count), risk_mode)
+            fallback_payload = apply_vip_prediction_profile(payload, bundle_count)
+            fallback_payload["notes"] = [fallback_prefix, *list(fallback_payload.get("notes") or [])]
+            return fallback_payload
+    # power_6_55 vip integration end
     if engine == AI_ENGINE_LUAN_SO:
         payload = attach_risk_mode_metadata(build_luan_so_prediction(type_key, bundle_count), risk_mode)
         return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload

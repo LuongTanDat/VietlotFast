@@ -1,0 +1,1439 @@
+{
+  "generated_at": "2026-04-03",
+  "artifact_sizes": {
+    "loto_5_35": {
+      "cnn_rnn_model.pt": 42581,
+      "scaler.pkl": 1040,
+      "model_meta.json": 4379
+    },
+    "mega_6_45": {
+      "cnn_rnn_model.pt": 42629,
+      "scaler.pkl": 1056,
+      "model_meta.json": 4258
+    },
+    "power_6_55": {
+      "cnn_rnn_model.pt": 76810,
+      "scaler.pkl": 1656,
+      "model_meta.json": 6084
+    }
+  },
+  "model_meta": {
+    "loto_5_35": {
+      "model_type": "cnn_gru_numpy",
+      "game": "loto_5_35",
+      "sequence_length": 10,
+      "feature_dim": 104,
+      "feature_schema_version": "loto_5_35_deep_features_v1",
+      "feature_names": [
+        "main_hot_1",
+        "main_hot_2",
+        "main_hot_3",
+        "main_hot_4",
+        "main_hot_5",
+        "main_hot_6",
+        "main_hot_7",
+        "main_hot_8",
+        "main_hot_9",
+        "main_hot_10",
+        "main_hot_11",
+        "main_hot_12",
+        "main_hot_13",
+        "main_hot_14",
+        "main_hot_15",
+        "main_hot_16",
+        "main_hot_17",
+        "main_hot_18",
+        "main_hot_19",
+        "main_hot_20",
+        "main_hot_21",
+        "main_hot_22",
+        "main_hot_23",
+        "main_hot_24",
+        "main_hot_25",
+        "main_hot_26",
+        "main_hot_27",
+        "main_hot_28",
+        "main_hot_29",
+        "main_hot_30",
+        "main_hot_31",
+        "main_hot_32",
+        "main_hot_33",
+        "main_hot_34",
+        "main_hot_35",
+        "bonus_hot_1",
+        "bonus_hot_2",
+        "bonus_hot_3",
+        "bonus_hot_4",
+        "bonus_hot_5",
+        "bonus_hot_6",
+        "bonus_hot_7",
+        "bonus_hot_8",
+        "bonus_hot_9",
+        "bonus_hot_10",
+        "bonus_hot_11",
+        "bonus_hot_12",
+        "position_1",
+        "position_2",
+        "position_3",
+        "position_4",
+        "position_5",
+        "gap_1_2",
+        "gap_2_3",
+        "gap_3_4",
+        "gap_4_5",
+        "sum_main",
+        "mean_main",
+        "min_main",
+        "max_main",
+        "range_main",
+        "bonus_number",
+        "day_of_month",
+        "day_of_month_is_odd",
+        "weekday_0",
+        "weekday_1",
+        "weekday_2",
+        "weekday_3",
+        "weekday_4",
+        "weekday_5",
+        "weekday_6",
+        "time_slot_0",
+        "time_slot_1",
+        "mod2_0",
+        "mod2_1",
+        "mod3_0",
+        "mod3_1",
+        "mod3_2",
+        "mod5_0",
+        "mod5_1",
+        "mod5_2",
+        "mod5_3",
+        "mod5_4",
+        "mod10_0",
+        "mod10_1",
+        "mod10_2",
+        "mod10_3",
+        "mod10_4",
+        "mod10_5",
+        "mod10_6",
+        "mod10_7",
+        "mod10_8",
+        "mod10_9",
+        "bonus_mod2",
+        "bonus_mod3",
+        "bonus_mod5",
+        "bonus_mod10",
+        "overlap_previous_draw",
+        "overlap_previous_same_weekday_draw",
+        "overlap_recent_window",
+        "recent_main_activity_mean",
+        "recent_bonus_activity",
+        "bonus_repeat_recent",
+        "recent_window_fill"
+      ],
+      "train_samples": 448,
+      "val_samples": 98,
+      "trained_at": "2026-04-03T11:22:04",
+      "trained_on_latest_draw_id": "556",
+      "source_csv": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\loto_5_35_all_day.csv",
+      "version": "loto_5_35_deep_v1",
+      "artifacts_valid": true,
+      "deep_enabled": true,
+      "metrics": {
+        "main_loss": 0.40587180852890015,
+        "val_main_loss": 0.42128700017929077,
+        "bonus_loss": 1.5315759181976318,
+        "val_bonus_loss": 3.2358131408691406,
+        "regime_loss": 0.439072847366333,
+        "val_regime_loss": 0.7204224467277527,
+        "exact_hit_mean": 0.6020408163265306,
+        "topk_recall": 0.4,
+        "bonus_accuracy": 0.09183673469387756,
+        "regime_accuracy": 0.673469387755102
+      },
+      "training_history_tail": [
+        {
+          "epoch": 6,
+          "train_total_loss": 1.480154377903257,
+          "val_total_loss": 1.5924150621891022,
+          "train_exact_hit_mean": 0.9263392857142857,
+          "val_exact_hit_mean": 0.6122448979591837,
+          "val_topk_recall": 0.38367346938775504
+        },
+        {
+          "epoch": 7,
+          "train_total_loss": 1.4282862608773372,
+          "val_total_loss": 1.6215134787559509,
+          "train_exact_hit_mean": 0.9508928571428571,
+          "val_exact_hit_mean": 0.5918367346938775,
+          "val_topk_recall": 0.39387755102040817
+        },
+        {
+          "epoch": 8,
+          "train_total_loss": 1.3621008899382179,
+          "val_total_loss": 1.6770699071884154,
+          "train_exact_hit_mean": 1.0178571428571428,
+          "val_exact_hit_mean": 0.5510204081632653,
+          "val_topk_recall": 0.3877551020408164
+        },
+        {
+          "epoch": 9,
+          "train_total_loss": 1.2830422650916236,
+          "val_total_loss": 1.7676513028144836,
+          "train_exact_hit_mean": 1.0513392857142858,
+          "val_exact_hit_mean": 0.5612244897959183,
+          "val_topk_recall": 0.37755102040816335
+        },
+        {
+          "epoch": 10,
+          "train_total_loss": 1.1924260362557002,
+          "val_total_loss": 1.8955961108207702,
+          "train_exact_hit_mean": 1.0758928571428572,
+          "val_exact_hit_mean": 0.6020408163265306,
+          "val_topk_recall": 0.4
+        }
+      ],
+      "best_epoch": 5
+    },
+    "mega_6_45": {
+      "model_type": "cnn_gru_numpy",
+      "game": "mega_6_45",
+      "sequence_length": 10,
+      "feature_dim": 106,
+      "feature_schema_version": "mega_6_45_deep_features_v1",
+      "feature_names": [
+        "main_hot_1",
+        "main_hot_2",
+        "main_hot_3",
+        "main_hot_4",
+        "main_hot_5",
+        "main_hot_6",
+        "main_hot_7",
+        "main_hot_8",
+        "main_hot_9",
+        "main_hot_10",
+        "main_hot_11",
+        "main_hot_12",
+        "main_hot_13",
+        "main_hot_14",
+        "main_hot_15",
+        "main_hot_16",
+        "main_hot_17",
+        "main_hot_18",
+        "main_hot_19",
+        "main_hot_20",
+        "main_hot_21",
+        "main_hot_22",
+        "main_hot_23",
+        "main_hot_24",
+        "main_hot_25",
+        "main_hot_26",
+        "main_hot_27",
+        "main_hot_28",
+        "main_hot_29",
+        "main_hot_30",
+        "main_hot_31",
+        "main_hot_32",
+        "main_hot_33",
+        "main_hot_34",
+        "main_hot_35",
+        "main_hot_36",
+        "main_hot_37",
+        "main_hot_38",
+        "main_hot_39",
+        "main_hot_40",
+        "main_hot_41",
+        "main_hot_42",
+        "main_hot_43",
+        "main_hot_44",
+        "main_hot_45",
+        "position_1",
+        "position_2",
+        "position_3",
+        "position_4",
+        "position_5",
+        "position_6",
+        "gap_1_2",
+        "gap_2_3",
+        "gap_3_4",
+        "gap_4_5",
+        "gap_5_6",
+        "sum_main",
+        "mean_main",
+        "min_main",
+        "max_main",
+        "range_main",
+        "day_of_month",
+        "day_of_month_is_odd",
+        "weekday_0",
+        "weekday_1",
+        "weekday_2",
+        "weekday_3",
+        "weekday_4",
+        "weekday_5",
+        "weekday_6",
+        "time_slot_0",
+        "time_slot_1",
+        "mod2_0",
+        "mod2_1",
+        "mod3_0",
+        "mod3_1",
+        "mod3_2",
+        "mod5_0",
+        "mod5_1",
+        "mod5_2",
+        "mod5_3",
+        "mod5_4",
+        "mod10_0",
+        "mod10_1",
+        "mod10_2",
+        "mod10_3",
+        "mod10_4",
+        "mod10_5",
+        "mod10_6",
+        "mod10_7",
+        "mod10_8",
+        "mod10_9",
+        "mod9_0",
+        "mod9_1",
+        "mod9_2",
+        "mod9_3",
+        "mod9_4",
+        "mod9_5",
+        "mod9_6",
+        "mod9_7",
+        "mod9_8",
+        "overlap_previous_draw",
+        "overlap_previous_same_weekday_draw",
+        "overlap_recent_window",
+        "recent_activity_mean",
+        "recent_window_fill"
+      ],
+      "train_samples": 1214,
+      "val_samples": 266,
+      "trained_at": "2026-04-03T11:22:21",
+      "trained_on_latest_draw_id": 1491,
+      "source_csv": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\mega_6_45_all_day.csv",
+      "version": "mega_6_45_deep_v1",
+      "artifacts_valid": true,
+      "deep_enabled": true,
+      "metrics": {
+        "main_loss": 0.39241209626197815,
+        "val_main_loss": 0.3947273790836334,
+        "regime_loss": 0.17154081165790558,
+        "val_regime_loss": 0.6071280837059021,
+        "exact_hit_mean": 0.7857142857142857,
+        "topk_recall": 0.3157894736842105,
+        "regime_accuracy": 0.7857142857142857
+      },
+      "training_history_tail": [
+        {
+          "epoch": 6,
+          "train_total_loss": 0.41867195613951863,
+          "val_total_loss": 0.45045664012432096,
+          "train_exact_hit_mean": 0.9003294892915981,
+          "val_exact_hit_mean": 0.8571428571428571,
+          "val_topk_recall": 0.3057644110275689
+        },
+        {
+          "epoch": 7,
+          "train_total_loss": 0.4204196522877503,
+          "val_total_loss": 0.4404958242177963,
+          "train_exact_hit_mean": 0.9357495881383855,
+          "val_exact_hit_mean": 0.8157894736842105,
+          "val_topk_recall": 0.30889724310776945
+        },
+        {
+          "epoch": 8,
+          "train_total_loss": 0.41118137669161353,
+          "val_total_loss": 0.44696029782295227,
+          "train_exact_hit_mean": 0.9308072487644151,
+          "val_exact_hit_mean": 0.8421052631578947,
+          "val_topk_recall": 0.300125313283208
+        },
+        {
+          "epoch": 9,
+          "train_total_loss": 0.40867409118052916,
+          "val_total_loss": 0.46116856038570403,
+          "train_exact_hit_mean": 0.9217462932454695,
+          "val_exact_hit_mean": 0.8421052631578947,
+          "val_topk_recall": 0.30513784461152876
+        },
+        {
+          "epoch": 10,
+          "train_total_loss": 0.41053339330602046,
+          "val_total_loss": 0.5040104341506958,
+          "train_exact_hit_mean": 0.9398682042833608,
+          "val_exact_hit_mean": 0.7857142857142857,
+          "val_topk_recall": 0.3157894736842105
+        }
+      ],
+      "best_epoch": 5
+    },
+    "power_6_55": {
+      "model_type": "cnn_gru_numpy",
+      "game": "power_6_55",
+      "sequence_length": 10,
+      "feature_dim": 181,
+      "feature_schema_version": "power_6_55_deep_features_v1",
+      "feature_names": [
+        "main_hot_1",
+        "main_hot_2",
+        "main_hot_3",
+        "main_hot_4",
+        "main_hot_5",
+        "main_hot_6",
+        "main_hot_7",
+        "main_hot_8",
+        "main_hot_9",
+        "main_hot_10",
+        "main_hot_11",
+        "main_hot_12",
+        "main_hot_13",
+        "main_hot_14",
+        "main_hot_15",
+        "main_hot_16",
+        "main_hot_17",
+        "main_hot_18",
+        "main_hot_19",
+        "main_hot_20",
+        "main_hot_21",
+        "main_hot_22",
+        "main_hot_23",
+        "main_hot_24",
+        "main_hot_25",
+        "main_hot_26",
+        "main_hot_27",
+        "main_hot_28",
+        "main_hot_29",
+        "main_hot_30",
+        "main_hot_31",
+        "main_hot_32",
+        "main_hot_33",
+        "main_hot_34",
+        "main_hot_35",
+        "main_hot_36",
+        "main_hot_37",
+        "main_hot_38",
+        "main_hot_39",
+        "main_hot_40",
+        "main_hot_41",
+        "main_hot_42",
+        "main_hot_43",
+        "main_hot_44",
+        "main_hot_45",
+        "main_hot_46",
+        "main_hot_47",
+        "main_hot_48",
+        "main_hot_49",
+        "main_hot_50",
+        "main_hot_51",
+        "main_hot_52",
+        "main_hot_53",
+        "main_hot_54",
+        "main_hot_55",
+        "special_hot_1",
+        "special_hot_2",
+        "special_hot_3",
+        "special_hot_4",
+        "special_hot_5",
+        "special_hot_6",
+        "special_hot_7",
+        "special_hot_8",
+        "special_hot_9",
+        "special_hot_10",
+        "special_hot_11",
+        "special_hot_12",
+        "special_hot_13",
+        "special_hot_14",
+        "special_hot_15",
+        "special_hot_16",
+        "special_hot_17",
+        "special_hot_18",
+        "special_hot_19",
+        "special_hot_20",
+        "special_hot_21",
+        "special_hot_22",
+        "special_hot_23",
+        "special_hot_24",
+        "special_hot_25",
+        "special_hot_26",
+        "special_hot_27",
+        "special_hot_28",
+        "special_hot_29",
+        "special_hot_30",
+        "special_hot_31",
+        "special_hot_32",
+        "special_hot_33",
+        "special_hot_34",
+        "special_hot_35",
+        "special_hot_36",
+        "special_hot_37",
+        "special_hot_38",
+        "special_hot_39",
+        "special_hot_40",
+        "special_hot_41",
+        "special_hot_42",
+        "special_hot_43",
+        "special_hot_44",
+        "special_hot_45",
+        "special_hot_46",
+        "special_hot_47",
+        "special_hot_48",
+        "special_hot_49",
+        "special_hot_50",
+        "special_hot_51",
+        "special_hot_52",
+        "special_hot_53",
+        "special_hot_54",
+        "special_hot_55",
+        "position_1",
+        "position_2",
+        "position_3",
+        "position_4",
+        "position_5",
+        "position_6",
+        "gap_1_2",
+        "gap_2_3",
+        "gap_3_4",
+        "gap_4_5",
+        "gap_5_6",
+        "sum_main",
+        "mean_main",
+        "min_main",
+        "max_main",
+        "range_main",
+        "special_number",
+        "day_of_month",
+        "day_of_month_is_odd",
+        "weekday_0",
+        "weekday_1",
+        "weekday_2",
+        "weekday_3",
+        "weekday_4",
+        "weekday_5",
+        "weekday_6",
+        "time_slot_0",
+        "time_slot_1",
+        "mod2_0",
+        "mod2_1",
+        "mod3_0",
+        "mod3_1",
+        "mod3_2",
+        "mod5_0",
+        "mod5_1",
+        "mod5_2",
+        "mod5_3",
+        "mod5_4",
+        "mod10_0",
+        "mod10_1",
+        "mod10_2",
+        "mod10_3",
+        "mod10_4",
+        "mod10_5",
+        "mod10_6",
+        "mod10_7",
+        "mod10_8",
+        "mod10_9",
+        "mod11_0",
+        "mod11_1",
+        "mod11_2",
+        "mod11_3",
+        "mod11_4",
+        "mod11_5",
+        "mod11_6",
+        "mod11_7",
+        "mod11_8",
+        "mod11_9",
+        "mod11_10",
+        "special_mod2",
+        "special_mod3",
+        "special_mod5",
+        "special_mod10",
+        "special_repeat_previous",
+        "special_in_recent_window",
+        "overlap_previous_draw",
+        "overlap_previous_same_weekday_draw",
+        "overlap_recent_window",
+        "recent_activity_mean",
+        "recent_special_activity",
+        "recent_window_fill"
+      ],
+      "train_samples": 1077,
+      "val_samples": 236,
+      "trained_at": "2026-04-03T11:22:37",
+      "trained_on_latest_draw_id": 1327,
+      "source_csv": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\power_6_55_all_day.csv",
+      "version": "power_6_55_deep_v1",
+      "artifacts_valid": true,
+      "deep_enabled": true,
+      "metrics": {
+        "main_loss": 0.34595441818237305,
+        "val_main_loss": 0.350994348526001,
+        "special_loss": 2.915571689605713,
+        "val_special_loss": 4.550790786743164,
+        "regime_loss": 0.15324661135673523,
+        "val_regime_loss": 0.36590540409088135,
+        "exact_hit_mean": 0.6949152542372882,
+        "topk_recall": 0.3029661016949153,
+        "special_accuracy": 0.012711864406779662,
+        "regime_accuracy": 0.8940677966101694
+      },
+      "training_history_tail": [
+        {
+          "epoch": 3,
+          "train_total_loss": 1.8878190361050997,
+          "val_total_loss": 1.9322478580474853,
+          "train_exact_hit_mean": 0.7883008356545961,
+          "val_exact_hit_mean": 0.7033898305084746,
+          "val_topk_recall": 0.2930790960451977
+        },
+        {
+          "epoch": 4,
+          "train_total_loss": 1.857363815154223,
+          "val_total_loss": 1.9407839787006378,
+          "train_exact_hit_mean": 0.8124419684308264,
+          "val_exact_hit_mean": 0.7033898305084746,
+          "val_topk_recall": 0.2838983050847458
+        },
+        {
+          "epoch": 5,
+          "train_total_loss": 1.7996322516264287,
+          "val_total_loss": 1.9686215990781784,
+          "train_exact_hit_mean": 0.8421541318477251,
+          "val_exact_hit_mean": 0.690677966101695,
+          "val_topk_recall": 0.28531073446327676
+        },
+        {
+          "epoch": 6,
+          "train_total_loss": 1.712412776894429,
+          "val_total_loss": 2.0360632079839704,
+          "train_exact_hit_mean": 0.8969359331476323,
+          "val_exact_hit_mean": 0.7245762711864406,
+          "val_topk_recall": 0.3029661016949153
+        },
+        {
+          "epoch": 7,
+          "train_total_loss": 1.6006040951363087,
+          "val_total_loss": 2.146157820224762,
+          "train_exact_hit_mean": 0.9340761374187558,
+          "val_exact_hit_mean": 0.6949152542372882,
+          "val_topk_recall": 0.3029661016949153
+        }
+      ],
+      "best_epoch": 2
+    }
+  },
+  "prediction_comparison": {
+    "loto_5_35": {
+      "heuristic_only": {
+        "main_ticket": [
+          3,
+          14,
+          18,
+          23,
+          25
+        ],
+        "backup_tickets": [
+          [
+            4,
+            13,
+            14,
+            18,
+            25
+          ],
+          [
+            3,
+            6,
+            13,
+            14,
+            18
+          ]
+        ],
+        "bonus": 7,
+        "bonus_backups": [
+          1,
+          5
+        ],
+        "quality_score": 63.17,
+        "top_main_candidates": [
+          14,
+          25,
+          4,
+          3,
+          18,
+          13,
+          23,
+          6,
+          27,
+          24
+        ],
+        "top_bonus_candidates": [
+          2,
+          7,
+          5,
+          8,
+          10,
+          1
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          3,
+          13,
+          14,
+          18,
+          25
+        ],
+        "backup_tickets": [
+          [
+            3,
+            14,
+            18,
+            19,
+            23
+          ],
+          [
+            4,
+            6,
+            14,
+            18,
+            23
+          ]
+        ],
+        "bonus": 2,
+        "bonus_backups": [
+          1,
+          5
+        ],
+        "quality_score": 59.18,
+        "top_main_candidates": [
+          14,
+          25,
+          3,
+          4,
+          13,
+          23,
+          18,
+          6,
+          27,
+          24
+        ],
+        "top_bonus_candidates": [
+          2,
+          7,
+          5,
+          8,
+          10,
+          1
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": true
+    },
+    "mega_6_45": {
+      "heuristic_only": {
+        "main_ticket": [
+          7,
+          8,
+          23,
+          24,
+          36,
+          37
+        ],
+        "backup_tickets": [
+          [
+            7,
+            8,
+            23,
+            30,
+            35,
+            36
+          ],
+          [
+            7,
+            8,
+            24,
+            30,
+            35,
+            37
+          ],
+          [
+            5,
+            7,
+            24,
+            30,
+            35,
+            36
+          ]
+        ],
+        "quality_score": 81.34248155828136,
+        "top_main_candidates": [
+          35,
+          36,
+          30,
+          23,
+          5,
+          37,
+          44,
+          24,
+          4,
+          8,
+          2,
+          7
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          7,
+          8,
+          23,
+          24,
+          36,
+          37
+        ],
+        "backup_tickets": [
+          [
+            7,
+            8,
+            23,
+            30,
+            35,
+            36
+          ],
+          [
+            7,
+            8,
+            24,
+            30,
+            35,
+            37
+          ],
+          [
+            5,
+            7,
+            24,
+            30,
+            35,
+            36
+          ]
+        ],
+        "quality_score": 77.9068864482226,
+        "top_main_candidates": [
+          36,
+          35,
+          37,
+          23,
+          44,
+          5,
+          24,
+          30,
+          4,
+          41,
+          7,
+          8
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": false
+    },
+    "power_6_55": {
+      "heuristic_only": {
+        "main_ticket": [
+          7,
+          12,
+          30,
+          34,
+          38,
+          53
+        ],
+        "backup_tickets": [
+          [
+            7,
+            21,
+            32,
+            34,
+            38,
+            43
+          ],
+          [
+            7,
+            9,
+            30,
+            38,
+            52,
+            53
+          ],
+          [
+            7,
+            9,
+            30,
+            32,
+            38,
+            43
+          ]
+        ],
+        "special": 39,
+        "special_backups": [
+          3,
+          26,
+          11
+        ],
+        "quality_score": 82.93383668434332,
+        "top_main_candidates": [
+          34,
+          21,
+          53,
+          9,
+          43,
+          16,
+          32,
+          38,
+          52,
+          7,
+          30,
+          33
+        ],
+        "top_special_candidates": [
+          39,
+          3,
+          26,
+          11,
+          52,
+          22
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          7,
+          12,
+          30,
+          34,
+          38,
+          53
+        ],
+        "backup_tickets": [
+          [
+            7,
+            9,
+            30,
+            38,
+            43,
+            52
+          ],
+          [
+            7,
+            30,
+            32,
+            33,
+            34,
+            53
+          ],
+          [
+            7,
+            9,
+            30,
+            32,
+            38,
+            53
+          ]
+        ],
+        "special": 39,
+        "special_backups": [
+          3,
+          54,
+          52
+        ],
+        "quality_score": 80.03671492796013,
+        "top_main_candidates": [
+          34,
+          53,
+          21,
+          9,
+          43,
+          32,
+          38,
+          16,
+          52,
+          7,
+          12,
+          30
+        ],
+        "top_special_candidates": [
+          39,
+          3,
+          54,
+          52,
+          22,
+          11
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": false
+    }
+  },
+  "rolling_backtest_comparison": {
+    "loto_5_35": {
+      "heuristic_only": {
+        "draws_tested": 534,
+        "average_hits": 0.7097378277153558,
+        "top_k_recall": 0.2816479400749064,
+        "bonus_or_special_accuracy": 0.07865168539325842
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 534,
+        "average_hits": 0.7209737827715356,
+        "top_k_recall": 0.2906367041198502,
+        "bonus_or_special_accuracy": 0.18164794007490637
+      }
+    },
+    "mega_6_45": {
+      "heuristic_only": {
+        "draws_tested": 1431,
+        "average_hits": 0.7896575821104123,
+        "top_k_recall": 0.2663638481248544,
+        "bonus_or_special_accuracy": null
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 1431,
+        "average_hits": 0.7854647099930119,
+        "top_k_recall": 0.2696249708828325,
+        "bonus_or_special_accuracy": null
+      }
+    },
+    "power_6_55": {
+      "heuristic_only": {
+        "draws_tested": 1243,
+        "average_hits": 0.6154465004022526,
+        "top_k_recall": 0.21453472780906407,
+        "bonus_or_special_accuracy": 0.02091713596138375
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 1243,
+        "average_hits": 0.6267095736122285,
+        "top_k_recall": 0.2228479485116653,
+        "bonus_or_special_accuracy": 0.02172164119066774
+      }
+    }
+  },
+  "data_leakage_audit": {
+    "conclusion": "No direct train/validation scaling leakage detected in the current deep pipeline.",
+    "evidence": [
+      "shared_deep/numpy_cnn_gru.py splits chronologically: train = features[:split_index], validation = features[split_index:]",
+      "shared_deep/numpy_cnn_gru.py fits SequenceStandardScaler on train_features_raw only, then transforms validation with that scaler",
+      "each deep_dataset builds target t from history window [t-sequence_length, t), not from future rows"
+    ],
+    "caveat": "Validation is still the latest chronological block from the same historical stream, so it avoids direct leakage but is still a rolling holdout rather than a fully external test set."
+  },
+  "loto_5_35": {
+    "prediction_comparison": {
+      "heuristic_only": {
+        "main_ticket": [
+          3,
+          14,
+          18,
+          23,
+          25
+        ],
+        "backup_tickets": [
+          [
+            4,
+            13,
+            14,
+            18,
+            25
+          ],
+          [
+            3,
+            6,
+            13,
+            14,
+            18
+          ]
+        ],
+        "bonus": 7,
+        "bonus_backups": [
+          1,
+          5
+        ],
+        "quality_score": 63.17,
+        "top_main_candidates": [
+          14,
+          25,
+          4,
+          3,
+          18,
+          13,
+          23,
+          6,
+          27,
+          24
+        ],
+        "top_bonus_candidates": [
+          2,
+          7,
+          5,
+          8,
+          10,
+          1
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          3,
+          13,
+          14,
+          18,
+          25
+        ],
+        "backup_tickets": [
+          [
+            3,
+            14,
+            18,
+            19,
+            23
+          ],
+          [
+            4,
+            6,
+            14,
+            18,
+            23
+          ]
+        ],
+        "bonus": 2,
+        "bonus_backups": [
+          1,
+          5
+        ],
+        "quality_score": 59.18,
+        "top_main_candidates": [
+          14,
+          25,
+          3,
+          4,
+          13,
+          23,
+          18,
+          6,
+          27,
+          24
+        ],
+        "top_bonus_candidates": [
+          2,
+          7,
+          5,
+          8,
+          10,
+          1
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": true
+    },
+    "backtest_comparison": {
+      "heuristic_only": {
+        "draws_tested": 534,
+        "average_hits": 0.7097378277153558,
+        "top_k_recall": 0.2816479400749064,
+        "bonus_or_special_accuracy": 0.07865168539325842
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 534,
+        "average_hits": 0.7209737827715356,
+        "top_k_recall": 0.2906367041198502,
+        "bonus_or_special_accuracy": 0.18164794007490637
+      }
+    }
+  },
+  "mega_6_45": {
+    "prediction_comparison": {
+      "heuristic_only": {
+        "main_ticket": [
+          7,
+          8,
+          23,
+          24,
+          36,
+          37
+        ],
+        "backup_tickets": [
+          [
+            7,
+            8,
+            23,
+            30,
+            35,
+            36
+          ],
+          [
+            7,
+            8,
+            24,
+            30,
+            35,
+            37
+          ],
+          [
+            5,
+            7,
+            24,
+            30,
+            35,
+            36
+          ]
+        ],
+        "quality_score": 81.34248155828136,
+        "top_main_candidates": [
+          35,
+          36,
+          30,
+          23,
+          5,
+          37,
+          44,
+          24,
+          4,
+          8,
+          2,
+          7
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          7,
+          8,
+          23,
+          24,
+          36,
+          37
+        ],
+        "backup_tickets": [
+          [
+            7,
+            8,
+            23,
+            30,
+            35,
+            36
+          ],
+          [
+            7,
+            8,
+            24,
+            30,
+            35,
+            37
+          ],
+          [
+            5,
+            7,
+            24,
+            30,
+            35,
+            36
+          ]
+        ],
+        "quality_score": 77.9068864482226,
+        "top_main_candidates": [
+          36,
+          35,
+          37,
+          23,
+          44,
+          5,
+          24,
+          30,
+          4,
+          41,
+          7,
+          8
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": false
+    },
+    "backtest_comparison": {
+      "heuristic_only": {
+        "draws_tested": 1431,
+        "average_hits": 0.7896575821104123,
+        "top_k_recall": 0.2663638481248544,
+        "bonus_or_special_accuracy": null
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 1431,
+        "average_hits": 0.7854647099930119,
+        "top_k_recall": 0.2696249708828325,
+        "bonus_or_special_accuracy": null
+      }
+    }
+  },
+  "power_6_55": {
+    "prediction_comparison": {
+      "heuristic_only": {
+        "main_ticket": [
+          7,
+          12,
+          30,
+          34,
+          38,
+          53
+        ],
+        "backup_tickets": [
+          [
+            7,
+            21,
+            32,
+            34,
+            38,
+            43
+          ],
+          [
+            7,
+            9,
+            30,
+            38,
+            52,
+            53
+          ],
+          [
+            7,
+            9,
+            30,
+            32,
+            38,
+            43
+          ]
+        ],
+        "special": 39,
+        "special_backups": [
+          3,
+          26,
+          11
+        ],
+        "quality_score": 82.93383668434332,
+        "top_main_candidates": [
+          34,
+          21,
+          53,
+          9,
+          43,
+          16,
+          32,
+          38,
+          52,
+          7,
+          30,
+          33
+        ],
+        "top_special_candidates": [
+          39,
+          3,
+          26,
+          11,
+          52,
+          22
+        ],
+        "deep_enabled": false,
+        "deep_status": "fallback_heuristic_only"
+      },
+      "deep_active": {
+        "main_ticket": [
+          7,
+          12,
+          30,
+          34,
+          38,
+          53
+        ],
+        "backup_tickets": [
+          [
+            7,
+            9,
+            30,
+            38,
+            43,
+            52
+          ],
+          [
+            7,
+            30,
+            32,
+            33,
+            34,
+            53
+          ],
+          [
+            7,
+            9,
+            30,
+            32,
+            38,
+            53
+          ]
+        ],
+        "special": 39,
+        "special_backups": [
+          3,
+          54,
+          52
+        ],
+        "quality_score": 80.03671492796013,
+        "top_main_candidates": [
+          34,
+          53,
+          21,
+          9,
+          43,
+          32,
+          38,
+          16,
+          52,
+          7,
+          12,
+          30
+        ],
+        "top_special_candidates": [
+          39,
+          3,
+          54,
+          52,
+          22,
+          11
+        ],
+        "deep_enabled": true,
+        "deep_status": "trained_active"
+      },
+      "final_ticket_changed": false
+    },
+    "backtest_comparison": {
+      "heuristic_only": {
+        "draws_tested": 1243,
+        "average_hits": 0.6154465004022526,
+        "top_k_recall": 0.21453472780906407,
+        "bonus_or_special_accuracy": 0.02091713596138375
+      },
+      "heuristic_plus_deep": {
+        "draws_tested": 1243,
+        "average_hits": 0.6267095736122285,
+        "top_k_recall": 0.2228479485116653,
+        "bonus_or_special_accuracy": 0.02172164119066774
+      }
+    }
+  }
+}

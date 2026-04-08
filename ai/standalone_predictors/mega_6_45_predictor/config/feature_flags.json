@@ -1,0 +1,7 @@
+{
+  "use_time_slot_auto": true,
+  "use_mod9": true,
+  "use_deep_model": true,
+  "write_processed_snapshots": false,
+  "persist_metrics": true
+}

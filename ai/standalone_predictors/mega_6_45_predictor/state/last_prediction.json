@@ -1,0 +1,81 @@
+{
+  "resolved": false,
+  "target_draw_id": 1493,
+  "target_date_estimate": "05/04/2026",
+  "created_at": "2026-04-04T23:25:56",
+  "main_ticket": [
+    5,
+    11,
+    24,
+    30,
+    37,
+    44
+  ],
+  "backup_tickets": [
+    [
+      8,
+      22,
+      23,
+      24,
+      36,
+      37
+    ],
+    [
+      5,
+      7,
+      24,
+      30,
+      36,
+      44
+    ]
+  ],
+  "top_main_candidates": [
+    36,
+    35,
+    5,
+    23,
+    37,
+    44,
+    30,
+    24,
+    4,
+    22,
+    7,
+    2,
+    8,
+    41
+  ],
+  "quality_score": 70.181687098786,
+  "regime": "continuation",
+  "explanation": {
+    "kept_from_previous_success": [
+      5
+    ],
+    "downgraded_due_to_misses": [],
+    "modulo_notes": [
+      "Recent mod5 blank zones were residues [3, 4].",
+      "Recent modulo patterns: m2_3-3|m3_3-1-2|m5_blank_2, m2_5-1|m3_3-2-1|m5_blank_1, m2_3-3|m3_1-1-4|m5_blank_0.",
+      "Selected ticket modulo balance p=1.00, m3=0.75, m5=1.00."
+    ],
+    "pair_notes": [
+      "Top historical pairs: 3-6 (lift 2.73), 33-34 (lift 2.40), 15-33 (lift 2.37), 2-21 (lift 2.25).",
+      "Selected ticket pair balance pair=0.46, anti=0.20."
+    ],
+    "regime_notes": [
+      "avg_range=34.12",
+      "avg_p5=35.88",
+      "avg_p6=41.75",
+      "avg_overlap=1.00",
+      "spread_trend=10.25",
+      "hot_cluster_share=0.44",
+      "Recent span stayed wide with a steady upper tail, so the regime leans continuation."
+    ],
+    "deep_status_line": "DEEP STATUS: ACTIVE (cnn_gru_numpy mega_6_45_deep_v1, trained 2026-04-03T11:22:21)",
+    "why_selected": [
+      "Mode regime_shift đạt selection score 60.44.",
+      "regime_fit=0.64, cluster_shift_fit=0.85, source_confidence=0.60.",
+      "disagreement=0.32 (medium) giữa ranking heuristic và deep.",
+      "Mode regime_shift thắng vì vé bám dịch chuyển band/cluster tốt hơn lớp beauty thuần."
+    ]
+  }
+}

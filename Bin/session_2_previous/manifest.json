@@ -1,14 +1,59 @@
 {
-  "name": "session_2_previous",
-  "label": "Session 2 Previous",
-  "version": "legacy",
-  "status": "archive",
+  "name": "session_1_latest",
+  "label": "Session 1 Latest",
+  "version": "current",
+  "status": "active",
   "filesDir": "files",
   "trackedRoots": [
     "ai",
     "backend",
     "frontend",
-    "data"
+    "data",
+    "docs"
   ],
-  "files": []
+  "sessionCreatedAt": "2026-04-03T00:46:58",
+  "action": "refactor",
+  "reason": "Backup trước khi thêm cột Thứ, chuẩn hóa header CSV tiếng Việt và bổ sung Link cập nhật cho canonical CSV.",
+  "files": [
+    {
+      "path": "backend/live_results.py",
+      "backupPath": "Bin/session_1_latest/files/backend/live_results.py",
+      "action": "refactor"
+    },
+    {
+      "path": "data/canonical/loto_5_35_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/loto_5_35_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "data/canonical/mega_6_45_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/mega_6_45_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "data/canonical/power_6_55_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/power_6_55_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "data/canonical/keno_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/keno_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "data/canonical/max_3d_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/max_3d_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "data/canonical/max_3d_pro_all_day.csv",
+      "backupPath": "Bin/session_1_latest/files/data/canonical/max_3d_pro_all_day.csv",
+      "action": "replace"
+    },
+    {
+      "path": "docs/NhatKyThayDoi.md",
+      "backupPath": "Bin/session_1_latest/files/docs/NhatKyThayDoi.md",
+      "action": "refactor"
+    }
+  ]
 }

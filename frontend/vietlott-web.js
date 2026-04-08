@@ -10154,12 +10154,24 @@
       const riskModeMeta = getPredictRiskModeMeta(riskMode);
       const isAiGenEngine = engine === "gen_local" || engine === "both";
       const isLuanSoEngine = engine === "luan_so";
+      const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
+      const isPredictorV2 = adaptiveVipMeta.active;
       const syncReady = sync?.bootstrapComplete !== false || Boolean(sync?.sourceLimited);
       const isReady = result?.ready !== false && (result?.bootstrapComplete !== false || syncReady);
       const getTicketSourceLabel = index => {
         const rawSource = String(ticketSources[index] || "").trim().toLowerCase();
+        if (adaptiveVipMeta.active && rawSource === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+        if (rawSource === "loto_5_35_vip") return "Loto 5/35 Vip";
+        if (rawSource === "predictor_v2" || rawSource === "vip_v2") return "Predictor V2";
+        if (rawSource === "mega_6_45_vip") return "Mega 6/45 Vip";
+        if (rawSource === "power_6_55_vip") return "Power 6/55 Vip";
         if (rawSource === "luan_so") return "Luận Số";
         if (rawSource === "gen_local" || rawSource === "ai_gen" || rawSource === "ai gen") return "AI GEN";
+        if (adaptiveVipMeta.active && engine === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+        if (engine === "loto_5_35_vip") return "Loto 5/35 Vip";
+        if (engine === "predictor_v2") return "Predictor V2";
+        if (engine === "mega_6_45_vip") return "Mega 6/45 Vip";
+        if (engine === "power_6_55_vip") return "Power 6/55 Vip";
         if (engine === "both") return index % 2 === 0 ? "Luận Số" : "AI GEN";
         if (engine === "luan_so") return "Luận Số";
         return "AI GEN";
@@ -10291,6 +10303,40 @@
         const preferredEngineLabel = String(result?.metaPreferredEngine || "").trim().toLowerCase() === "gen_local" ? "AI Gen" : "Luận Số";
         addMetricCard("Meta ưu tiên", preferredEngineLabel, result?.metaSummary || "Đang tự cân đối theo phong độ gần đây", "preferred");
       }
+      // predictor_v2 integration start
+      if (isPredictorV2) {
+        const qualityScore = Number(result?.qualityScore ?? result?.quality_score ?? 0);
+        const trackingState = result?.tracking_state || {};
+        const deepEnabled = Boolean(result?.deep_enabled);
+        const deepStatus = String(result?.deep_status || "").trim() || "fallback_heuristic_only";
+        const deepStatusLine = String(result?.deep_status_line || "").trim();
+        const prioritizedCount = Array.isArray(trackingState?.prioritized_special)
+          ? trackingState.prioritized_special.length
+          : Array.isArray(trackingState?.prioritized_bonus)
+          ? trackingState.prioritized_bonus.length
+          : 0;
+        const prioritizedLabel = type === "LOTO_6_55" ? "Special" : "Bonus";
+        const slotMeta = [String(result?.target_date || "").trim(), String(result?.target_slot || "").trim()].filter(Boolean).join(" • ") || "-";
+        if (qualityScore > 0) {
+          addMetricCard(
+            "Chất lượng vé",
+            `${qualityScore.toFixed(2)}/100`,
+            `${String(result?.regimeLabel || result?.regime || "Neutral")} • ${slotMeta}`,
+            "preferred"
+          );
+        }
+        addMetricCard(
+          "Deep Status",
+          deepEnabled ? "ACTIVE" : deepStatus.toUpperCase(),
+          deepStatusLine || (deepEnabled ? "CNN/RNN deep scoring is active." : "Heuristic-only fallback is active.")
+        );
+        addMetricCard(
+          "Bộ nhớ giữ nhịp",
+          `${Array.isArray(trackingState?.kept_numbers) ? trackingState.kept_numbers.length : 0} giữ • ${Array.isArray(trackingState?.temporary_excluded_numbers) ? trackingState.temporary_excluded_numbers.length : 0} cooldown`,
+          `Hot ${Array.isArray(trackingState?.true_hot_numbers) ? trackingState.true_hot_numbers.length : 0} • ${prioritizedLabel} ${prioritizedCount}`
+        );
+      }
+      // predictor_v2 integration end
       if (isLuanSoEngine && result?.signalSummary) {
         const signal = result.signalSummary || {};
           const directionLabel = signal.dominantDirection === "backward"
@@ -10311,13 +10357,17 @@
             ? "Dữ liệu lịch sử chưa sẵn sàng. Predictor sẽ mở lại khi bootstrap hoàn tất."
             : "Predictor đang tạm khóa cho tới khi dữ liệu canonical sẵn sàng."
         );
-        notes.slice(0, 1).forEach(addNote);
+        (isPredictorV2 ? notes.slice(0, 3) : notes.slice(0, 1)).forEach(addNote);
       } else {
         if (type === "KENO" && (result?.predictedLn || result?.predictedCl)) {
           const quickFlags = [result?.predictedLn, result?.predictedCl].filter(Boolean).join(" • ");
           if (quickFlags) addNote(`Dự đoán nhanh: ${quickFlags}`);
         }
-        notes.slice(0, 1).forEach(addNote);
+        if (isPredictorV2 && (result?.target_slot || result?.target_date)) {
+          const targetMeta = [String(result?.target_date || "").trim(), String(result?.target_slot || "").trim()].filter(Boolean).join(" • ");
+          addNote(`Khung Vip mục tiêu: ${targetMeta}`);
+        }
+        (isPredictorV2 ? notes.slice(0, 3) : notes.slice(0, 1)).forEach(addNote);
       }
       const heroBadges = [
         engineLabel,
@@ -10444,12 +10494,65 @@
       out.innerHTML = formatAiPredictionText(predictLastDisplayResult);
     }
 
+    function getAdaptiveVipPredictorMeta(result = {}) {
+      const version = String(result?.predictorVersion || "").trim().toLowerCase();
+      if (version === "loto_5_35_vip_v1") {
+        return {
+          active: true,
+          key: "loto_5_35_vip",
+          label: String(result?.engineLabel || "Loto 5/35 Vip Adaptive").trim() || "Loto 5/35 Vip Adaptive",
+          sourceLabel: "Loto 5/35 Vip",
+        };
+      }
+      if (version === "predictor_v2") {
+        return {
+          active: true,
+          key: "predictor_v2",
+          label: String(result?.engineLabel || "Predictor V2 Vip").trim() || "Predictor V2 Vip",
+          sourceLabel: "Predictor V2",
+        };
+      }
+      if (version === "mega_6_45_vip_v1") {
+        return {
+          active: true,
+          key: "mega_6_45_vip",
+          label: String(result?.engineLabel || "Mega 6/45 Vip Adaptive").trim() || "Mega 6/45 Vip Adaptive",
+          sourceLabel: "Mega 6/45 Vip",
+        };
+      }
+      if (version === "power_6_55_vip_v1") {
+        return {
+          active: true,
+          key: "power_6_55_vip",
+          label: String(result?.engineLabel || "Power 6/55 Vip Adaptive").trim() || "Power 6/55 Vip Adaptive",
+          sourceLabel: "Power 6/55 Vip",
+        };
+      }
+      return {
+        active: false,
+        key: "",
+        label: "",
+        sourceLabel: "",
+      };
+    }
+
     function getPredictVipTicketSourceLabel(result, index) {
       const ticketSources = Array.isArray(result?.ticketSources) ? result.ticketSources : [];
       const rawSource = String(ticketSources[index] || "").trim().toLowerCase();
       const engine = String(result?.engine || "gen_local").trim().toLowerCase();
+      const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
+      if (adaptiveVipMeta.active && rawSource === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+      if (rawSource === "loto_5_35_vip") return "Loto 5/35 Vip";
+      if (rawSource === "predictor_v2" || rawSource === "vip_v2") return "Predictor V2";
+      if (rawSource === "mega_6_45_vip") return "Mega 6/45 Vip";
+      if (rawSource === "power_6_55_vip") return "Power 6/55 Vip";
       if (rawSource === "luan_so") return "Luận Số";
       if (rawSource === "gen_local" || rawSource === "ai_gen" || rawSource === "ai gen") return "AI GEN";
+      if (adaptiveVipMeta.active && engine === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+      if (engine === "loto_5_35_vip") return "Loto 5/35 Vip";
+      if (engine === "predictor_v2") return "Predictor V2";
+      if (engine === "mega_6_45_vip") return "Mega 6/45 Vip";
+      if (engine === "power_6_55_vip") return "Power 6/55 Vip";
       if (engine === "both") return index % 2 === 0 ? "Luận Số" : "AI GEN";
       if (engine === "luan_so") return "Luận Số";
       return "AI GEN";
@@ -13271,6 +13374,21 @@
     function applyVipPredictionProfile(result, requestedBundleCount = 1) {
       const type = String(result?.type || "").trim().toUpperCase();
       if (!AI_PREDICT_TYPES.has(type)) return result;
+      // predictor_v2 integration start
+      const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
+      if (adaptiveVipMeta.active) {
+        return {
+          ...result,
+          predictionMode: PREDICTION_MODE_VIP,
+          vipProfile: String(result?.vipProfile || `${adaptiveVipMeta.key}_adaptive`).trim() || `${adaptiveVipMeta.key}_adaptive`,
+          vipSummary: String(result?.vipSummary || `${adaptiveVipMeta.label} đang giữ 1 bộ chính và ${Math.max(0, (Array.isArray(result?.tickets) ? result.tickets.length : 0) - 1)} bộ phụ.`),
+          notes: [
+            String(result?.vipSummary || ""),
+            ...(Array.isArray(result?.notes) ? result.notes : []),
+          ].filter(Boolean),
+        };
+      }
+      // predictor_v2 integration end
       const nextCount = Math.max(1, Math.min(3, Number(requestedBundleCount || 1) || 1));
       const analyses = buildPredictVipTicketAnalyses(result);
       const selected = analyses.slice(0, Math.min(nextCount, analyses.length));
@@ -13328,7 +13446,11 @@
         }
         const startedAt = Date.now();
         let result;
-        if (engineMeta.key === "both") {
+        // predictor_v2 integration start
+        const useAdaptiveVipPredictor = type === "LOTO_5_35" || type === "LOTO_6_45" || type === "LOTO_6_55";
+        if (useAdaptiveVipPredictor) {
+          result = await predictWithAiBackend(type, count, kenoLevel, engineMeta.backendEngine || "gen_local", activeRiskMode, PREDICTION_MODE_VIP);
+        } else if (engineMeta.key === "both") {
           const [luanSoSettled, aiGenSettled] = await Promise.allSettled([
             predictWithAiBackend(type, count, kenoLevel, "luan_so", activeRiskMode, PREDICTION_MODE_VIP),
             predictWithAiBackend(type, count, kenoLevel, "gen_local", activeRiskMode, PREDICTION_MODE_VIP),
@@ -13342,6 +13464,7 @@
         } else {
           result = await predictWithAiBackend(type, count, kenoLevel, engineMeta.backendEngine || "gen_local", activeRiskMode, PREDICTION_MODE_VIP);
         }
+        // predictor_v2 integration end
         if (vipPredictPlayModeValue === "bao" && !t.keno) {
           const baoTickets = buildBaoPredictionTickets(
             type,
@@ -13353,12 +13476,16 @@
           );
           if (baoTickets.length) result = { ...result, tickets: baoTickets };
         }
+        const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
+        const isPredictorV2Vip = adaptiveVipMeta.active;
         const displayResult = applyVipPredictionProfile({
           ...result,
           createdAt: new Date().toISOString(),
-          engine: engineMeta.key,
-          engineKey: engineMeta.key,
-          engineLabel: engineMeta.label,
+          // predictor_v2 integration start
+          engine: isPredictorV2Vip ? adaptiveVipMeta.key : engineMeta.key,
+          engineKey: isPredictorV2Vip ? adaptiveVipMeta.key : engineMeta.key,
+          engineLabel: isPredictorV2Vip ? adaptiveVipMeta.label : engineMeta.label,
+          // predictor_v2 integration end
           riskMode: activeRiskMode,
           riskModeLabel: getPredictRiskModeMeta(activeRiskMode).label,
           riskModeSummary: getPredictRiskModeMeta(activeRiskMode).summary,
@@ -13377,8 +13504,8 @@
               strategyLabel: result?.model?.label || "",
               modelKey: result?.model?.key || "",
               modelLabel: result?.model?.label || "",
-              engineKey: engineMeta.key,
-              engineLabel: `${engineMeta.label} • Vip`,
+              engineKey: isPredictorV2Vip ? String(displayResult?.engineKey || adaptiveVipMeta.key) : engineMeta.key,
+              engineLabel: isPredictorV2Vip ? String(displayResult?.engineLabel || adaptiveVipMeta.label) : `${engineMeta.label} • Vip`,
               riskMode: activeRiskMode,
               riskModeLabel: getPredictRiskModeMeta(activeRiskMode).label,
               riskModeSummary: getPredictRiskModeMeta(activeRiskMode).summary,
@@ -13406,7 +13533,7 @@
               pickSize: t.keno ? kenoLevel : 0,
               stabilityScore: Number((result?.stabilityScore ?? result?.backtest?.stabilityScore) || 0),
               predictionMode: PREDICTION_MODE_VIP,
-              vipProfile: "strict_select",
+              vipProfile: String(displayResult?.vipProfile || "strict_select"),
             });
             saveStore();
           }

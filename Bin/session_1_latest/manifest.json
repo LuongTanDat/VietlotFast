@@ -8,7 +8,33 @@
     "ai",
     "backend",
     "frontend",
-    "data"
+    "data",
+    "docs",
+    "predictor_v2"
   ],
-  "files": []
+  "sessionCreatedAt": "2026-04-03T01:39:07",
+  "action": "refactor",
+  "reason": "Backup trước khi nối Dự Đoán Vip 6/45 sang predictor adaptive riêng và vá tương thích header mới cho predictor_v2.",
+  "files": [
+    {
+      "path": "ai/predictors/ai_predict.py",
+      "backupPath": "Bin/session_1_latest/files/ai/predictors/ai_predict.py",
+      "action": "refactor"
+    },
+    {
+      "path": "frontend/vietlott-web.js",
+      "backupPath": "Bin/session_1_latest/files/frontend/vietlott-web.js",
+      "action": "refactor"
+    },
+    {
+      "path": "predictor_v2/csv_loader.py",
+      "backupPath": "Bin/session_1_latest/files/predictor_v2/csv_loader.py",
+      "action": "refactor"
+    },
+    {
+      "path": "docs/NhatKyThayDoi.md",
+      "backupPath": "Bin/session_1_latest/files/docs/NhatKyThayDoi.md",
+      "action": "refactor"
+    }
+  ]
 }

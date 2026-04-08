@@ -1,0 +1,115 @@
+{
+  "resolved": false,
+  "target_draw_id": 1328,
+  "target_date_estimate": "04/04/2026",
+  "created_at": "2026-04-04T15:43:22",
+  "main_ticket": [
+    7,
+    9,
+    21,
+    34,
+    38,
+    43
+  ],
+  "backup_tickets": [
+    [
+      7,
+      9,
+      12,
+      38,
+      43,
+      52
+    ],
+    [
+      7,
+      9,
+      22,
+      34,
+      43,
+      44
+    ],
+    [
+      7,
+      9,
+      30,
+      34,
+      43,
+      53
+    ]
+  ],
+  "top_main_candidates": [
+    34,
+    21,
+    53,
+    9,
+    43,
+    16,
+    32,
+    38,
+    52,
+    7,
+    30,
+    12,
+    33,
+    22,
+    26,
+    48
+  ],
+  "top_special_candidates": [
+    39,
+    3,
+    54,
+    52,
+    22,
+    11,
+    26,
+    23,
+    48,
+    4
+  ],
+  "special": 39,
+  "special_backups": [
+    3,
+    54,
+    52
+  ],
+  "quality_score": 71.15403036707038,
+  "regime": "neutral",
+  "blend_mode_used": "blended",
+  "explanation": {
+    "kept_from_previous_success": [],
+    "downgraded_due_to_misses": [],
+    "modulo_notes": [
+      "Recent mod5 blank zones were residues [4].",
+      "Recent modulo patterns: m2_2-4|m3_4-2-0|m5_blank_1, m2_4-2|m3_2-3-1|m5_blank_1, m2_3-3|m3_2-2-2|m5_blank_1.",
+      "Selected ticket modulo balance p=0.67, m3=0.75, m5=1.00.",
+      "Selected special 39 aligns with special modulo score 0.38 against recent specials [51, 39, 11, 22]."
+    ],
+    "pair_notes": [
+      "Top historical pairs: 23-42 (lift 3.44), 12-25 (lift 3.19), 23-46 (lift 3.06), 14-27 (lift 2.96).",
+      "Selected ticket pair balance pair=0.46, anti=0.21."
+    ],
+    "regime_notes": [
+      "avg_range=38.62",
+      "avg_p5=41.12",
+      "avg_p6=46.88",
+      "avg_overlap=0.00",
+      "spread_trend=-0.75",
+      "hot_cluster_share=0.50",
+      "special_repeat_rate=0.14",
+      "special_reset_share=0.88",
+      "Recent structure stayed mixed, so the regime remains neutral."
+    ],
+    "special_notes": [
+      "Special 39 remains active in the recent special window.",
+      "Special candidates cooled by misses: [4, 29, 18, 48]."
+    ],
+    "deep_status_line": "DEEP STATUS: ACTIVE (cnn_gru_numpy power_6_55_deep_v1, trained 2026-04-03T11:22:37)",
+    "why_selected": [
+      "Mode blended đạt selection score 59.34.",
+      "regime_fit=0.63, cluster_shift_fit=0.83, source_confidence=0.57.",
+      "disagreement=0.43 (high) giữa ranking heuristic và deep.",
+      "Main ticket giữ nhiều ứng viên nguồn riêng thay vì ép trung bình sớm khi disagreement còn cao."
+    ]
+  }
+}

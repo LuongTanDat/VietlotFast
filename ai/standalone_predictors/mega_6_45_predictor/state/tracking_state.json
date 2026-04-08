@@ -1,0 +1,141 @@
+{
+  "kept_numbers": [
+    5,
+    22,
+    36
+  ],
+  "true_hot_numbers": [],
+  "temporary_excluded_numbers": [],
+  "memory_scores": {
+    "main": {
+      "5": {
+        "keep_mark_score": 0.22,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.06,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": "near_cluster"
+      },
+      "8": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty_score": 0.32,
+        "cooldown_score": 0.24,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "last_outcome": "miss"
+      },
+      "22": {
+        "keep_mark_score": 0.22,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.06,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": "near_cluster"
+      },
+      "30": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty_score": 0.32,
+        "cooldown_score": 0.24,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "last_outcome": "miss"
+      },
+      "31": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty_score": 0.32,
+        "cooldown_score": 0.24,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "last_outcome": "miss"
+      },
+      "36": {
+        "keep_mark_score": 0.22,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.06,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": "near_cluster"
+      },
+      "2": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      },
+      "35": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      },
+      "4": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      },
+      "41": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      },
+      "23": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      },
+      "24": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1,
+        "miss_penalty_score": 0.0,
+        "cooldown_score": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "last_outcome": ""
+      }
+    }
+  },
+  "recent_prediction_log": [
+    {
+      "target_draw_id": 1492,
+      "actual_draw_id": 1492,
+      "exact_hits": [],
+      "near_cluster_hits": [
+        5,
+        22,
+        36
+      ],
+      "missed_numbers": [
+        8,
+        30,
+        31
+      ],
+      "resolved_at": "2026-04-03T23:48:19"
+    }
+  ],
+  "updated_at": "2026-04-03T23:48:19",
+  "last_resolved_draw_id": 1492
+}

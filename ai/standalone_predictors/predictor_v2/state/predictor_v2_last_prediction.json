@@ -1,0 +1,124 @@
+{
+  "version": "predictor_v2",
+  "game": "loto_5_35",
+  "resolved": false,
+  "target_draw_id": "557",
+  "target_slot": "13:00",
+  "created_at": "2026-04-03T01:38:53",
+  "source_latest_ky": "556",
+  "main_ticket": [
+    3,
+    14,
+    18,
+    21,
+    24
+  ],
+  "backup_tickets": [
+    [
+      4,
+      13,
+      14,
+      18,
+      25
+    ],
+    [
+      13,
+      14,
+      18,
+      25,
+      28
+    ]
+  ],
+  "bonus": 5,
+  "bonus_backups": [
+    10,
+    2
+  ],
+  "quality_score": 53.5,
+  "tickets": [
+    {
+      "main": [
+        3,
+        14,
+        18,
+        21,
+        24
+      ],
+      "special": 5,
+      "qualityScore": 53.5,
+      "beautyScore": 53.5,
+      "qualityBreakdown": {
+        "sumBalance": 0.7879746835443038,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.4,
+        "modulo5Pattern": 0.6,
+        "tailPattern": 0.8,
+        "pairCompatibility": 0.18607843137254904,
+        "antiPairPenalty": 0.20330532212885158,
+        "positionPlausibility": 0.7258333333333333,
+        "rangeScore": 0.7412280701754388,
+        "hotColdBalance": 0.9148799950084097,
+        "keepReuseScore": 0.0,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.0,
+        "bonusSupport": 0.9455946469319904
+      }
+    },
+    {
+      "main": [
+        4,
+        13,
+        14,
+        18,
+        25
+      ],
+      "special": 10,
+      "qualityScore": 50.88,
+      "beautyScore": 50.88,
+      "qualityBreakdown": {
+        "sumBalance": 0.6360759493670887,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.6,
+        "modulo5Pattern": 0.6,
+        "tailPattern": 0.8,
+        "pairCompatibility": 0.175,
+        "antiPairPenalty": 0.20730158730158732,
+        "positionPlausibility": 0.6458333333333333,
+        "rangeScore": 0.7412280701754388,
+        "hotColdBalance": 0.937974211980286,
+        "keepReuseScore": 0.0,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.0,
+        "bonusSupport": 0.6578495941091286
+      }
+    },
+    {
+      "main": [
+        13,
+        14,
+        18,
+        25,
+        28
+      ],
+      "special": 2,
+      "qualityScore": 49.9,
+      "beautyScore": 49.9,
+      "qualityBreakdown": {
+        "sumBalance": 0.7563291139240507,
+        "parityBalance": 0.8,
+        "modulo3Balance": 0.6,
+        "modulo5Pattern": 0.6,
+        "tailPattern": 0.8,
+        "pairCompatibility": 0.18,
+        "antiPairPenalty": 0.10476190476190479,
+        "positionPlausibility": 0.7441666666666666,
+        "rangeScore": 0.10964912280701766,
+        "hotColdBalance": 0.9073856989078513,
+        "keepReuseScore": 0.0,
+        "exclusionPenalty": 0.0,
+        "deepTicketSupport": 0.0,
+        "bonusSupport": 0.8454044657764479
+      }
+    }
+  ]
+}

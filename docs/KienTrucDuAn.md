@@ -3,6 +3,7 @@
 Tổng quan cấu trúc thư mục, backend, frontend, AI và luồng dữ liệu.
 
 - `ai/`: mã AI, predictor, model, config, training
+  Bên trong `ai/standalone_predictors/`: predictor standalone cho Vip 5/35, Mega 6/45, Power 6/55 và predictor_v2 legacy
 - `docs/`: tài liệu vận hành và ghi chú dự án
 - `data/`: dữ liệu canonical và export scoring
 - `backend/`: backend Python, Java server, thư viện JDBC

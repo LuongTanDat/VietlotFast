@@ -3,6 +3,7 @@
 Project structure after reorganization:
 
 - `ai/`: predictors, models, training, configs
+  Included inside `ai/standalone_predictors/`: standalone VIP engines for `Loto 5/35`, `Mega 6/45`, `Power 6/55`, plus legacy `predictor_v2`
 - `docs/`: project notes and architecture documents
 - `data/`: canonical data and scoring exports
 - `backend/`: Python backend jobs, Java web server, JDBC library

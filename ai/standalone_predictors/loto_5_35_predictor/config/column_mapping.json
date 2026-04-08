@@ -1,0 +1,43 @@
+{
+  "draw_id": [
+    "Kỳ",
+    "Ky"
+  ],
+  "weekday_text": [
+    "Thứ"
+  ],
+  "draw_date": [
+    "Ngày",
+    "Ngay"
+  ],
+  "draw_time": [
+    "Giờ",
+    "Time",
+    "Thời Gian"
+  ],
+  "main_numbers_raw": [
+    "Bộ Số",
+    "Main",
+    "Numbers"
+  ],
+  "bonus_raw": [
+    "ĐB",
+    "Special"
+  ],
+  "display_text": [
+    "Hiển thị",
+    "DisplayLines"
+  ],
+  "game_label": [
+    "Loại",
+    "Label"
+  ],
+  "source_url": [
+    "Link cập nhật",
+    "SourceUrl"
+  ],
+  "source_date": [
+    "Ngày cập nhật",
+    "SourceDate"
+  ]
+}

@@ -1,0 +1,3 @@
+# Heuristic-only mode uses Python standard library only.
+# Optional future dependencies:
+# torch>=2.0

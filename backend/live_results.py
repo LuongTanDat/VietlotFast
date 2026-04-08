@@ -51,19 +51,50 @@ LIVE_RESULTS_PROGRESS_LOCK_FILE = RUNTIME_LOG_DIR / "live_results_progress.lock"
 AI_GEN_LOCAL_TRAIN_TYPES = ("LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "KENO", "MAX_3D", "MAX_3D_PRO")
 AI_GEN_LOCAL_TRAIN_TIMEOUT_SECONDS = 120
 NUMBER_SCORING_EXPORT_TIMEOUT_SECONDS = 120
-CSV_HEADER = ["Ky", "Ngay", "Time", "Main", "Special", "DisplayLines", "Label", "SourceUrl", "SourceDate"]
-KENO_CSV_FIELDS = ["Ky", "Ngay", "Time", "Numbers", "L/-/N", "C/-/L"]
-KENO_CSV_HEADER = ["Kỳ", "Ngày", "Thời Gian", "Numbers", "Lớn/-/Nhỏ", "Chẵn/-/Lẻ"]
-KENO_CSV_HEADER_ALIASES = {
+CSV_FIELDS = ["Ky", "Thu", "Ngay", "Time", "Main", "Special", "DisplayLines", "Label", "SourceUrl", "SourceDate"]
+CSV_HEADER = ["Kỳ", "Thứ", "Ngày", "Giờ", "Bộ Số", "ĐB", "Hiển thị", "Loại", "Link cập nhật", "Ngày cập nhật"]
+CSV_HEADER_ALIASES = {
     "ky": "Ky",
+    "thu": "Thu",
     "ngay": "Ngay",
     "time": "Time",
+    "gio": "Time",
+    "thoi gian": "Time",
+    "main": "Main",
+    "bo so": "Main",
+    "special": "Special",
+    "db": "Special",
+    "dac biet": "Special",
+    "displaylines": "DisplayLines",
+    "display lines": "DisplayLines",
+    "hien thi": "DisplayLines",
+    "label": "Label",
+    "loai": "Label",
+    "sourceurl": "SourceUrl",
+    "source url": "SourceUrl",
+    "link cap nhat": "SourceUrl",
+    "sourcedate": "SourceDate",
+    "source date": "SourceDate",
+    "ngay cap nhat": "SourceDate",
+}
+KENO_CSV_FIELDS = ["Ky", "Thu", "Ngay", "Time", "Numbers", "L/-/N", "C/-/L", "SourceUrl"]
+KENO_CSV_HEADER = ["Kỳ", "Thứ", "Ngày", "Giờ", "Bộ Số", "Lớn/-/Nhỏ", "Chẵn/-/Lẻ", "Link cập nhật"]
+KENO_CSV_HEADER_ALIASES = {
+    "ky": "Ky",
+    "thu": "Thu",
+    "ngay": "Ngay",
+    "time": "Time",
+    "gio": "Time",
     "thoi gian": "Time",
     "numbers": "Numbers",
+    "bo so": "Numbers",
     "l/-/n": "L/-/N",
     "lon/-/nho": "L/-/N",
     "c/-/l": "C/-/L",
     "chan/-/le": "C/-/L",
+    "sourceurl": "SourceUrl",
+    "source url": "SourceUrl",
+    "link cap nhat": "SourceUrl",
 }
 KENO_LN_VALUE_ALIASES = {
     "": "",
@@ -82,6 +113,15 @@ KENO_CL_VALUE_ALIASES = {
     "le": "Lẻ",
 }
 THREE_DIGIT_TOKEN_RE = re.compile(r"(?<!\d)\d{3}(?!\d)")
+VIETNAMESE_WEEKDAY_NAMES = {
+    0: "Thứ 2",
+    1: "Thứ 3",
+    2: "Thứ 4",
+    3: "Thứ 5",
+    4: "Thứ 6",
+    5: "Thứ 7",
+    6: "Chủ Nhật",
+}
 
 try:
     csv.field_size_limit(10_000_000)
@@ -606,6 +646,13 @@ def format_minhchinh_date(target_date):
     return target_date.strftime("%d-%m-%Y")
 
 
+def format_csv_weekday(value):
+    target_date = value if hasattr(value, "weekday") else parse_csv_date(value)
+    if target_date is None:
+        return ""
+    return VIETNAMESE_WEEKDAY_NAMES.get(target_date.weekday(), "")
+
+
 def get_canonical_output_paths(type_key):
     all_path = dp.get_canonical_csv_write_path(type_key)
     return {
@@ -879,7 +926,7 @@ def read_csv_text_safely(csv_path):
 def normalize_csv_row_dict(header_map, row, fieldnames):
     normalized = {}
     for field in fieldnames:
-        index = header_map.get(field.lower())
+        index = header_map.get(field)
         normalized[field] = str(row[index] or "").strip() if index is not None and index < len(row) else ""
     return normalized
 
@@ -895,6 +942,15 @@ def resolve_keno_csv_header_map(header):
     resolved = {}
     for index, name in enumerate(header):
         canonical = KENO_CSV_HEADER_ALIASES.get(normalize_header_label(name))
+        if canonical and canonical not in resolved:
+            resolved[canonical] = index
+    return resolved
+
+
+def resolve_numeric_csv_header_map(header):
+    resolved = {}
+    for index, name in enumerate(header):
+        canonical = CSV_HEADER_ALIASES.get(normalize_header_label(name))
         if canonical and canonical not in resolved:
             resolved[canonical] = index
     return resolved
@@ -981,8 +1037,8 @@ def load_csv_rows(csv_path, return_info=False):
     if not header:
         return (rows_by_ky, info) if return_info else rows_by_ky
 
-    header_map = {str(name or "").strip().lower(): index for index, name in enumerate(header)}
-    if "ky" not in header_map or "ngay" not in header_map:
+    header_map = resolve_numeric_csv_header_map(header)
+    if "Ky" not in header_map or "Ngay" not in header_map:
         info["sanitized"] = True
         info["issues"].append("missing_required_header")
         return (rows_by_ky, info) if return_info else rows_by_ky
@@ -994,7 +1050,7 @@ def load_csv_rows(csv_path, return_info=False):
             info["sanitized"] = True
             if "extra_fields" not in info["issues"]:
                 info["issues"].append("extra_fields")
-        normalized = normalize_csv_row_dict(header_map, row, CSV_HEADER)
+        normalized = normalize_csv_row_dict(header_map, row, CSV_FIELDS)
         ky = re.sub(r"\D", "", str(normalized.get("Ky", "")).strip())
         row_date = parse_csv_date(normalized.get("Ngay"))
         if not ky or row_date is None:
@@ -1009,6 +1065,7 @@ def load_csv_rows(csv_path, return_info=False):
             continue
         normalized["Ky"] = ky
         normalized["Ngay"] = format_csv_date(row_date)
+        normalized["Thu"] = normalized.get("Thu") or format_csv_weekday(row_date)
         rows_by_ky[ky] = normalized
     return (rows_by_ky, info) if return_info else rows_by_ky
 
@@ -1061,6 +1118,7 @@ def result_to_csv_row(result):
     display_lines = " || ".join(str(item).strip() for item in (result.get("displayLines") or []) if str(item).strip())
     return {
         "Ky": str(result.get("ky", "")).strip(),
+        "Thu": format_csv_weekday(result.get("date")),
         "Ngay": str(result.get("date", "")).strip(),
         "Time": str(result.get("time", "")).strip(),
         "Main": main,
@@ -1081,9 +1139,10 @@ def write_csv_rows(csv_path, rows_by_ky):
     )
     temp_path = csv_path.with_name(f"{csv_path.name}.tmp")
     with temp_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_HEADER)
-        writer.writeheader()
-        writer.writerows(sorted_rows)
+        writer = csv.writer(f)
+        writer.writerow(CSV_HEADER)
+        for row in sorted_rows:
+            writer.writerow([str(row.get(field, "") or "").strip() for field in CSV_FIELDS])
     os.replace(str(temp_path), str(csv_path))
 
 
@@ -1715,11 +1774,13 @@ def keno_result_to_csv_row(result):
     numbers = [int(value) for value in (result.get("main") or [])]
     return {
         "Ky": str(result.get("ky", "")).strip(),
+        "Thu": format_csv_weekday(result.get("date")),
         "Ngay": str(result.get("date", "")).strip(),
         "Time": str(result.get("time", "")).strip(),
         "Numbers": ",".join(str(value) for value in numbers),
         "L/-/N": calc_keno_ln(numbers),
         "C/-/L": calc_keno_cl(numbers),
+        "SourceUrl": str(result.get("sourceUrl", "")).strip() or KENO_URL,
     }
 
 
@@ -1742,11 +1803,13 @@ def load_keno_csv_rows(csv_path, return_info=False):
 
     header_lookup = resolve_keno_csv_header_map(header)
     ky_index = header_lookup.get("Ky")
+    weekday_index = header_lookup.get("Thu")
     date_index = header_lookup.get("Ngay")
     time_index = header_lookup.get("Time")
     numbers_index = header_lookup.get("Numbers")
     ln_index = header_lookup.get("L/-/N")
     cl_index = header_lookup.get("C/-/L")
+    source_url_index = header_lookup.get("SourceUrl")
 
     if None in {ky_index, date_index, time_index, numbers_index}:
         info["sanitized"] = True
@@ -1786,11 +1849,21 @@ def load_keno_csv_rows(csv_path, return_info=False):
             cl_value = normalize_keno_cl_value(row[cl_index])
         rows_by_ky[ky] = {
             "Ky": ky,
+            "Thu": (
+                str(row[weekday_index] or "").strip()
+                if weekday_index is not None and weekday_index < len(row)
+                else format_csv_weekday(row_date)
+            ) or format_csv_weekday(row_date),
             "Ngay": format_csv_date(row_date),
             "Time": time_value,
             "Numbers": ",".join(str(value) for value in numbers),
             "L/-/N": ln_value or calc_keno_ln(numbers),
             "C/-/L": cl_value or calc_keno_cl(numbers),
+            "SourceUrl": (
+                str(row[source_url_index] or "").strip()
+                if source_url_index is not None and source_url_index < len(row)
+                else KENO_URL
+            ) or KENO_URL,
         }
     return (rows_by_ky, info) if return_info else rows_by_ky
 

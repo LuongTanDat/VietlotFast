@@ -1,0 +1,40 @@
+{
+  "game": "loto_5_35",
+  "main_count": 5,
+  "main_min": 1,
+  "main_max": 35,
+  "bonus_min": 1,
+  "bonus_max": 12,
+  "time_slots": [
+    "13:00",
+    "21:00"
+  ],
+  "same_day_carry_limit": 1,
+  "recent_windows": {
+    "main": [
+      6,
+      12,
+      24,
+      48
+    ],
+    "bonus": [
+      8,
+      16,
+      32
+    ]
+  },
+  "history_limits": {
+    "slot": 24,
+    "weekday": 18,
+    "pair": 96,
+    "anti_pair": 48,
+    "backtest_samples": 18
+  },
+  "candidate_pool": {
+    "main": 14,
+    "bonus": 6,
+    "backup_min": 2,
+    "backup_max": 5,
+    "candidate_tickets": 16
+  }
+}

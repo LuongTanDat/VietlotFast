@@ -1,0 +1,87 @@
+{
+  "last_prediction_run": {
+    "run_at": "2026-04-04T15:43:22",
+    "target_draw_id": 1328,
+    "target_date_estimate": "04/04/2026",
+    "quality_score": 71.15403036707038,
+    "main_ticket": [
+      7,
+      9,
+      21,
+      34,
+      38,
+      43
+    ],
+    "special": 39
+  },
+  "last_backtest_run": {
+    "run_at": "2026-04-04T00:11:24",
+    "blend_mode": "blended",
+    "draws_tested": 1243,
+    "average_hits": 0.6234915526950925,
+    "top_k_recall": 0.2186913381603647,
+    "ticket_quality_mean": 64.79061952134768,
+    "bonus_or_special_accuracy": 0.019308125502815767,
+    "regime_accuracy": 0.9267900241351569,
+    "winner_mode": "heuristic_only"
+  },
+  "last_ablation_report": {
+    "run_at": "2026-04-04T00:11:24",
+    "game": "power_6_55",
+    "dataset": {
+      "csv_path": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\data\\canonical\\power_6_55_all_day.csv",
+      "record_count": 1323,
+      "time_slot_usable": false,
+      "latest_draw_id": 1327,
+      "latest_draw_date": "02/04/2026",
+      "earliest_draw_id": 5,
+      "earliest_draw_date": "01/08/2017",
+      "label": "Power_6/55"
+    },
+    "modes": {
+      "heuristic_only": {
+        "blend_mode": "heuristic_only",
+        "draws_tested": 1243,
+        "average_hits": 0.6355591311343524,
+        "top_k_recall": 0.21560740144810941,
+        "ticket_quality_mean": 67.0797959643236,
+        "bonus_or_special_accuracy": 0.017699115044247787,
+        "regime_accuracy": 0.9267900241351569
+      },
+      "deep_only": {
+        "blend_mode": "deep_only",
+        "draws_tested": 1243,
+        "average_hits": 0.6242960579243765,
+        "top_k_recall": 0.25408956824886025,
+        "ticket_quality_mean": 64.54012214862641,
+        "bonus_or_special_accuracy": 0.03298471440064361,
+        "regime_accuracy": 0.9267900241351569
+      },
+      "blended": {
+        "blend_mode": "blended",
+        "draws_tested": 1243,
+        "average_hits": 0.6234915526950925,
+        "top_k_recall": 0.2186913381603647,
+        "ticket_quality_mean": 64.79061952134768,
+        "bonus_or_special_accuracy": 0.019308125502815767,
+        "regime_accuracy": 0.9267900241351569
+      }
+    },
+    "winner_mode": "heuristic_only",
+    "winner_summary": {
+      "blend_mode": "heuristic_only",
+      "draws_tested": 1243,
+      "average_hits": 0.6355591311343524,
+      "top_k_recall": 0.21560740144810941,
+      "ticket_quality_mean": 67.0797959643236,
+      "bonus_or_special_accuracy": 0.017699115044247787,
+      "regime_accuracy": 0.9267900241351569
+    },
+    "metric_priority": [
+      "average_hits",
+      "top_k_recall",
+      "bonus_or_special_accuracy",
+      "ticket_quality_mean"
+    ]
+  }
+}

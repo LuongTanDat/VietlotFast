@@ -1,0 +1,565 @@
+{
+  "version": "loto_5_35_vip_v1",
+  "game": "loto_5_35",
+  "kept_numbers": [
+    18,
+    25,
+    3,
+    28,
+    14
+  ],
+  "true_hot_numbers": [
+    18,
+    25,
+    3,
+    28,
+    14,
+    19,
+    27,
+    13
+  ],
+  "temporary_excluded_numbers": [],
+  "prioritized_bonus": [
+    1,
+    4,
+    6,
+    3
+  ],
+  "memory_scores": {
+    "main": {
+      "13": {
+        "keep_mark_score": 0.18454282649600007,
+        "hot_score": 0.25339040224,
+        "miss_penalty": 0.263364395008,
+        "cooldown": 0.13993232,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "14": {
+        "keep_mark_score": 1.1077926963200004,
+        "hot_score": 0.6114692961279998,
+        "miss_penalty": 0.8072807424,
+        "cooldown": 0.9452537952000001,
+        "hit_count": 1,
+        "miss_streak": 3,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "18": {
+        "keep_mark_score": 3.4924326963200003,
+        "hot_score": 2.064996108928,
+        "miss_penalty": 0.34,
+        "cooldown": 0.22,
+        "hit_count": 3,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "21": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.411129331712,
+        "cooldown": 0.24342626387199995,
+        "hit_count": 0,
+        "miss_streak": 2,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "25": {
+        "keep_mark_score": 2.1317600563200005,
+        "hot_score": 1.2052108961279997,
+        "miss_penalty": 0.34,
+        "cooldown": 0.22,
+        "hit_count": 2,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "23": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.13210272403199996,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "27": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.291150724032,
+        "miss_penalty": 0.34,
+        "cooldown": 0.22,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "9": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14950511999999996,
+        "miss_penalty": 0.20389642240000003,
+        "cooldown": 0.1203417952,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "19": {
+        "keep_mark_score": 0.20059002880000007,
+        "hot_score": 0.38662801599999996,
+        "miss_penalty": 0.37598172160000004,
+        "cooldown": 0.22,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "20": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.20389642240000003,
+        "cooldown": 0.1203417952,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "28": {
+        "keep_mark_score": 1.2041224960000003,
+        "hot_score": 0.6504992511999999,
+        "miss_penalty": 0.345664,
+        "cooldown": 0.1892,
+        "hit_count": 1,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "32": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14053481279999996,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "35": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14053481279999996,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "22": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14053481279999996,
+        "miss_penalty": 0.26329600000000003,
+        "cooldown": 0.162712,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "3": {
+        "keep_mark_score": 1.35,
+        "hot_score": 1.0285531199999998,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 1,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "exact_hit"
+      },
+      "15": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14950511999999996,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "31": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.14950511999999996,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "30": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.26329600000000003,
+        "cooldown": 0.162712,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": "miss"
+      },
+      "24": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.15904799999999997,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "6": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1692,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "10": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1692,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "11": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.1692,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "33": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.18,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "34": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.18,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "16": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.18,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      }
+    },
+    "bonus": {
+      "2": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 2,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.18472860000000008,
+        "last_outcome": "bonus_miss"
+      },
+      "1": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.17253234278400004,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "5": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.09185400000000002,
+        "last_outcome": "bonus_miss"
+      },
+      "3": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.0859671552,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "12": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.11340000000000003,
+        "last_outcome": "bonus_miss"
+      },
+      "6": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.101568,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      },
+      "10": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.0,
+        "bonus_penalty": 0.12600000000000003,
+        "last_outcome": "bonus_miss"
+      },
+      "7": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 1,
+        "bonus_reward": 0.1104,
+        "bonus_penalty": 0.14,
+        "last_outcome": "bonus_miss"
+      },
+      "4": {
+        "keep_mark_score": 0.0,
+        "hot_score": 0.0,
+        "miss_penalty": 0.0,
+        "cooldown": 0.0,
+        "hit_count": 0,
+        "miss_streak": 0,
+        "bonus_reward": 0.12,
+        "bonus_penalty": 0.0,
+        "last_outcome": ""
+      }
+    }
+  },
+  "recent_prediction_log": [
+    {
+      "target_draw_id": "557",
+      "target_slot": "13:00",
+      "actual_draw_id": "557",
+      "actual_slot": "13:00",
+      "hits": [
+        14,
+        18,
+        25
+      ],
+      "near_hits": [
+        13
+      ],
+      "misses": [
+        21
+      ],
+      "actual_main": [
+        14,
+        18,
+        23,
+        25,
+        27
+      ],
+      "actual_special": 1,
+      "resolved_at": "2026-04-03T19:42:30"
+    },
+    {
+      "target_draw_id": "558",
+      "target_slot": "21:00",
+      "actual_draw_id": "558",
+      "actual_slot": "21:00",
+      "hits": [
+        28
+      ],
+      "near_hits": [
+        19
+      ],
+      "misses": [
+        9,
+        14,
+        20
+      ],
+      "actual_main": [
+        18,
+        22,
+        28,
+        32,
+        35
+      ],
+      "actual_special": 3,
+      "resolved_at": "2026-04-03T22:48:11"
+    },
+    {
+      "target_draw_id": "559",
+      "target_slot": "13:00",
+      "actual_draw_id": "559",
+      "actual_slot": "13:00",
+      "hits": [],
+      "near_hits": [
+        14,
+        18
+      ],
+      "misses": [
+        13,
+        21,
+        25
+      ],
+      "actual_main": [
+        3,
+        9,
+        15,
+        19,
+        31
+      ],
+      "actual_special": 1,
+      "resolved_at": "2026-04-04T15:41:49"
+    },
+    {
+      "target_draw_id": "560",
+      "target_slot": "21:00",
+      "actual_draw_id": "560",
+      "actual_slot": "21:00",
+      "hits": [
+        18
+      ],
+      "near_hits": [
+        28
+      ],
+      "misses": [
+        14,
+        22,
+        30
+      ],
+      "actual_main": [
+        3,
+        18,
+        19,
+        24,
+        27
+      ],
+      "actual_special": 6,
+      "resolved_at": "2026-04-04T23:23:42"
+    },
+    {
+      "target_draw_id": "561",
+      "target_slot": "13:00",
+      "actual_draw_id": "561",
+      "actual_slot": "13:00",
+      "hits": [
+        18,
+        25
+      ],
+      "near_hits": [],
+      "misses": [
+        3,
+        14,
+        28
+      ],
+      "actual_main": [
+        6,
+        10,
+        11,
+        18,
+        25
+      ],
+      "actual_special": 7,
+      "resolved_at": "2026-04-05T22:27:23"
+    },
+    {
+      "target_draw_id": "563",
+      "target_slot": "13:00",
+      "actual_draw_id": "563",
+      "actual_slot": "13:00",
+      "hits": [
+        3
+      ],
+      "near_hits": [],
+      "misses": [
+        18,
+        19,
+        25,
+        27
+      ],
+      "actual_main": [
+        3,
+        13,
+        16,
+        33,
+        34
+      ],
+      "actual_special": 4,
+      "resolved_at": "2026-04-06T17:02:34"
+    }
+  ],
+  "last_resolved_actual_ky": "563",
+  "updated_at": "2026-04-06T17:02:34"
+}

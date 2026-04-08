@@ -1,0 +1,198 @@
+{
+  "game": "loto_5_35",
+  "label": "Loto_5/35",
+  "main_count": 5,
+  "main_min": 1,
+  "main_max": 35,
+  "bonus_min": 1,
+  "bonus_max": 12,
+  "default_csv_path": "data/loto_5_35.csv",
+  "time_slots": [
+    "13:00",
+    "21:00"
+  ],
+  "same_day_carry_limit": 1,
+  "recent_windows": {
+    "main": [
+      6,
+      12,
+      24,
+      48
+    ],
+    "bonus": [
+      8,
+      16,
+      32
+    ]
+  },
+  "history_limits": {
+    "slot": 24,
+    "weekday": 18,
+    "pair": 96,
+    "anti_pair": 48,
+    "backtest_samples": 18
+  },
+  "candidate_pool": {
+    "main": 14,
+    "bonus": 6,
+    "backup_min": 2,
+    "backup_max": 5,
+    "candidate_tickets": 16
+  },
+  "heuristic_weights": {
+    "main": {
+      "recent": 0.28,
+      "slot": 0.16,
+      "weekday": 0.1,
+      "modulo": 0.12,
+      "pair": 0.1,
+      "gap": 0.08,
+      "position": 0.08,
+      "overlap": 0.08
+    },
+    "bonus": {
+      "recent": 0.32,
+      "slot": 0.2,
+      "weekday": 0.14,
+      "modulo": 0.12,
+      "gap": 0.1,
+      "overlap": 0.12
+    }
+  },
+  "blend_mode_default": "blended",
+  "blend_profiles": {
+    "heuristic_only": {
+      "main": {
+        "heuristic": 0.4,
+        "deep": 0.0,
+        "tracking": 0.15,
+        "regime": 0.1
+      },
+      "bonus": {
+        "heuristic": 0.35,
+        "deep": 0.0,
+        "tracking": 0.2,
+        "regime": 0.1
+      }
+    },
+    "deep_only": {
+      "main": {
+        "heuristic": 0.0,
+        "deep": 1.0,
+        "tracking": 0.0,
+        "regime": 0.0
+      },
+      "bonus": {
+        "heuristic": 0.0,
+        "deep": 1.0,
+        "tracking": 0.0,
+        "regime": 0.0
+      }
+    },
+    "blended": {
+      "main": {
+        "heuristic": 0.32,
+        "deep": 0.42,
+        "tracking": 0.16,
+        "regime": 0.1
+      },
+      "bonus": {
+        "heuristic": 0.23,
+        "deep": 0.47,
+        "tracking": 0.2,
+        "regime": 0.1
+      }
+    }
+  },
+  "blend_weights": {
+    "main": {
+      "heuristic": 0.32,
+      "deep": 0.42,
+      "tracking": 0.16,
+      "regime": 0.1
+    },
+    "bonus": {
+      "heuristic": 0.23,
+      "deep": 0.47,
+      "tracking": 0.2,
+      "regime": 0.1
+    }
+  },
+  "ticket_weights": {
+    "sumBalance": 0.08,
+    "parityBalance": 0.05,
+    "modulo3Balance": 0.05,
+    "modulo5Pattern": 0.04,
+    "tailPattern": 0.04,
+    "pairCompatibility": 0.08,
+    "antiPairPenalty": -0.08,
+    "positionPlausibility": 0.06,
+    "rangeScore": 0.05,
+    "hotColdBalance": 0.10,
+    "keepReuseScore": 0.08,
+    "exclusionPenalty": -0.10,
+    "deepTicketSupport": 0.05,
+    "bonusSupport": 0.07,
+    "regimeFit": 0.09,
+    "clusterShiftFit": 0.08,
+    "recentAlignment": 0.06,
+    "sourceConfidence": 0.07
+  },
+  "assembly": {
+    "modes": [
+      "heuristic_led",
+      "blended",
+      "deep_led",
+      "regime_shift",
+      "conservative"
+    ],
+    "disagreement_top_n": 8,
+    "low_disagreement_threshold": 0.24,
+    "high_disagreement_threshold": 0.48,
+    "diversity_overlap_limit": 3,
+    "mode_bias": {
+      "heuristic_led": 0.99,
+      "blended": 1.03,
+      "deep_led": 1.05,
+      "regime_shift": 1.01,
+      "conservative": 0.99
+    },
+    "main_mode_allowlist_when_high_disagreement": [
+      "heuristic_led",
+      "blended",
+      "deep_led",
+      "regime_shift"
+    ]
+  },
+  "tracking": {
+    "decay": {
+      "keep": 0.92,
+      "hot": 0.94,
+      "miss": 0.88,
+      "cooldown": 0.86,
+      "bonus_reward": 0.92,
+      "bonus_penalty": 0.9
+    },
+    "exclude_after_misses": 3,
+    "max_recent_log": 30
+  },
+  "deep_training": {
+    "sequence_length": 10,
+    "min_samples_required_for_deep": 120,
+    "epochs": 24,
+    "batch_size": 32,
+    "learning_rate": 0.003,
+    "weight_decay": 0.0001,
+    "validation_ratio": 0.18,
+    "early_stopping_patience": 5,
+    "early_stopping_min_delta": 0.0005,
+    "conv_channels": 16,
+    "hidden_size": 24,
+    "shared_size": 32,
+    "kernel_size": 3,
+    "seed": 20260403,
+    "retrain_every_n_draws": 6,
+    "fine_tune_enabled": true,
+    "fine_tune_epochs": 6
+  }
+}

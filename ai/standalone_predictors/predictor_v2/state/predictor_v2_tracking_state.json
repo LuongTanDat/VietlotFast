@@ -1,0 +1,15 @@
+{
+  "version": "predictor_v2",
+  "game": "loto_5_35",
+  "kept_numbers": [],
+  "true_hot_numbers": [],
+  "temporary_excluded_numbers": [],
+  "prioritized_bonus": [],
+  "memory_scores": {
+    "main": {},
+    "bonus": {}
+  },
+  "recent_prediction_log": [],
+  "last_resolved_actual_ky": "",
+  "updated_at": ""
+}
