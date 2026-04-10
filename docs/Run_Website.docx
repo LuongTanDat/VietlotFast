@@ -1,7 +1,7 @@
 cd "c:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto"
 .\scripts\chay_lotto_web.bat
-Cách nhanh nhất mỗi lần update
 
+Cách nhanh nhất mỗi lần update
 git add .
 git commit -m "update"
 git push
