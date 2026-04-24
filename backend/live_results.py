@@ -34,12 +34,14 @@ DEFAULT_HISTORY_DAYS = 100
 HISTORY_REQUEST_DELAY_SECONDS = 0.08
 SYNC_ALL_EMPTY_DAY_STOP = 30
 SYNC_ALL_RECENT_LOOKBACK_DAYS = 30
+REPAIR_DEFAULT_RECENT_DAYS = 15
 CSV_AUTO_RECENT_LOOKBACK_DAYS = 15
 FULL_HISTORY_REQUESTED_START_MODE = "full_history"
 KENO_MAX_PAGES_PER_DAY = 20
 KENO_FULL_DAY_DRAW_COUNT = 119
 KENO_REQUEST_DELAY_SECONDS = 1.0
-KENO_MANUAL_UPDATE_TIMEOUT_SECONDS = 30
+KENO_MANUAL_UPDATE_TIMEOUT_SECONDS = 300
+KENO_OUTSIDE_OPERATING_HOURS_MESSAGE = "Hoạt động từ 6:00 đến 22:00"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -308,6 +310,58 @@ def is_within_keno_operating_window(now_value=None):
     return 6 * 60 <= minutes <= 22 * 60
 
 
+def normalize_recent_lookback_days(value, default_days):
+    try:
+        if value is None:
+            return max(1, int(default_days))
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return max(1, int(default_days))
+
+
+def get_recent_window_start_date(today, lookback_days):
+    normalized_days = normalize_recent_lookback_days(lookback_days, 1)
+    return today - timedelta(days=max(0, normalized_days - 1))
+
+
+def filter_dates_in_range(dates, start_date=None, end_date=None):
+    filtered = set()
+    for value in dates or set():
+        if start_date is not None and value < start_date:
+            continue
+        if end_date is not None and value > end_date:
+            continue
+        filtered.add(value)
+    return filtered
+
+
+def filter_rows_by_date_range(rows_by_ky, start_date=None, end_date=None):
+    filtered = {}
+    for ky, row in (rows_by_ky or {}).items():
+        row_date = parse_csv_date(row.get("Ngay"))
+        if row_date is None:
+            continue
+        if start_date is not None and row_date < start_date:
+            continue
+        if end_date is not None and row_date > end_date:
+            continue
+        filtered[ky] = row
+    return filtered
+
+
+def is_keno_outside_operating_window_error(message):
+    return normalize_space(message) == KENO_OUTSIDE_OPERATING_HOURS_MESSAGE
+
+
+def keno_errors_are_outside_operating_window(errors):
+    messages = [
+        str(item.get("message", "")).strip()
+        for item in (errors or [])
+        if str(item.get("message", "")).strip()
+    ]
+    return bool(messages) and all(is_keno_outside_operating_window_error(message) for message in messages)
+
+
 def build_type_result_fields(type_key, had_errors=False, errors=None, now_value=None):
     error_text = "; ".join(
         f"{item.get('date', '')} {item.get('message', '')}".strip()
@@ -321,15 +375,15 @@ def build_type_result_fields(type_key, had_errors=False, errors=None, now_value=
             "resultMessage": "",
         }
     if type_key == "KENO":
-        if is_within_keno_operating_window(now_value):
+        if keno_errors_are_outside_operating_window(errors):
             return {
-                "resultCode": "failure",
-                "resultLabel": "Thất Bại",
+                "resultCode": "outside_hours",
+                "resultLabel": "Thử Lại Trong Khung Giờ 6:00 - 22:00",
                 "resultMessage": error_text,
             }
         return {
-            "resultCode": "outside_hours",
-            "resultLabel": "Thử Lại Trong Khung Giờ 6:00 - 22:00",
+            "resultCode": "failure",
+            "resultLabel": "Thất Bại",
             "resultMessage": error_text,
         }
     return {
@@ -353,9 +407,7 @@ def resolve_type_progress_outcome(type_key, result, now_value=None):
 
 
 def build_keno_manual_timeout_message(now_value=None):
-    if is_within_keno_operating_window(now_value):
-        return f"Keno cập nhật quá {KENO_MANUAL_UPDATE_TIMEOUT_SECONDS} giây."
-    return "Hoạt động từ 6:00 đến 22:00"
+    return f"Keno cập nhật quá {KENO_MANUAL_UPDATE_TIMEOUT_SECONDS} giây."
 
 
 class LiveResultsProgressTracker:
@@ -2468,7 +2520,7 @@ def parse_keno_from_minhchinh(session):
     soup = BeautifulSoup(response.text, "html.parser")
     row = soup.select_one("#containerKQKeno .wrapperKQKeno")
     if not row:
-        raise RuntimeError("Hoạt động từ 6:00 đến 22:00")
+        raise RuntimeError(KENO_OUTSIDE_OPERATING_HOURS_MESSAGE)
 
     ky_node = row.select_one(".kyKQKeno")
     time_parts = row.select(".timeKQ > div")
@@ -2661,6 +2713,14 @@ def count_numeric_partial_days(type_key, rows_by_ky, today):
     return len(partial_dates), partial_dates
 
 
+def collect_missing_dates_for_range(type_key, existing_dates, start_date, end_date):
+    missing_dates = set()
+    for target_date in iter_type_dates(type_key, start_date, end_date):
+        if target_date not in existing_dates:
+            missing_dates.add(target_date)
+    return missing_dates
+
+
 def write_canonical_rows(type_key, rows_by_ky, today):
     canonical_paths = get_canonical_output_paths(type_key)
     today_count = count_rows_for_date(rows_by_ky, today)
@@ -2758,7 +2818,6 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     meta = read_canonical_meta(type_key)
     rows_by_ky, seed_files = load_seed_rows(type_key)
     initial_row_count = len(rows_by_ky)
-    initial_gap_count, gap_dates = count_gap_intervals_for_type(type_key, rows_by_ky)
     repairs = {"missingDates": 0, "partialDates": 0, "kyGaps": 0}
     errors = []
     new_rows = 0
@@ -2767,26 +2826,37 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     grouped = rows_grouped_by_date(rows_by_ky)
     existing_dates = set(grouped.keys())
     earliest_date = get_earliest_row_date(rows_by_ky) or today
-    missing_dates = set()
-    partial_count_before, partial_dates = count_numeric_partial_days(type_key, rows_by_ky, today)
-    for target_date in iter_type_dates(type_key, earliest_date, today):
-        if target_date not in existing_dates:
-            missing_dates.add(target_date)
+    lookback_days = normalize_recent_lookback_days(
+        recent_lookback_days,
+        SYNC_ALL_RECENT_LOOKBACK_DAYS if allow_bootstrap else REPAIR_DEFAULT_RECENT_DAYS,
+    )
+    recent_start = max(earliest_date, get_recent_window_start_date(today, lookback_days))
+    scoped_rows = (
+        filter_rows_by_date_range(rows_by_ky, recent_start, today)
+        if not allow_bootstrap else rows_by_ky
+    )
+    initial_gap_count, gap_dates = count_gap_intervals_for_type(type_key, scoped_rows)
+    partial_count_before, partial_dates = count_numeric_partial_days(type_key, scoped_rows, today)
+    recent_dates = set(iter_type_dates(type_key, recent_start, today))
+
+    if allow_bootstrap:
+        missing_dates = collect_missing_dates_for_range(type_key, existing_dates, earliest_date, today)
+    else:
+        missing_dates = collect_missing_dates_for_range(type_key, existing_dates, recent_start, today)
+        partial_dates = filter_dates_in_range(partial_dates, recent_start, today)
+        gap_dates = filter_dates_in_range(gap_dates, recent_start, today)
 
     dates_to_fetch = set(missing_dates)
     dates_to_fetch.update(partial_dates)
     dates_to_fetch.update(gap_dates)
-    lookback_days = max(1, int(recent_lookback_days or SYNC_ALL_RECENT_LOOKBACK_DAYS))
-    recent_start = max(earliest_date, today - timedelta(days=lookback_days))
-    for target_date in iter_type_dates(type_key, recent_start, today):
-        dates_to_fetch.add(target_date)
+    dates_to_fetch.update(recent_dates)
 
     sorted_dates_to_fetch = sorted(dates_to_fetch, reverse=True)
     if progress:
         progress.set_phase(
             "repair_recent",
             current_type=type_key,
-                message=f"{cfg.label}: đang rà soát {len(sorted_dates_to_fetch)} ngày gần nhất từ MinhChinh.",
+            message=f"{cfg.label}: đang rà soát {len(sorted_dates_to_fetch)} ngày gần nhất từ MinhChinh.",
         )
         progress.reserve_steps(len(sorted_dates_to_fetch))
 
@@ -2838,8 +2908,12 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
             meta["bootstrapComplete"] = True
             meta["lastBootstrapAt"] = datetime.now().isoformat(timespec="seconds")
 
-    final_gap_count, _ = count_gap_intervals_for_type(type_key, rows_by_ky)
-    partial_count_after, _ = count_numeric_partial_days(type_key, rows_by_ky, today)
+    final_scope_rows = (
+        filter_rows_by_date_range(rows_by_ky, recent_start, today)
+        if not allow_bootstrap else rows_by_ky
+    )
+    final_gap_count, _ = count_gap_intervals_for_type(type_key, final_scope_rows)
+    partial_count_after, _ = count_numeric_partial_days(type_key, final_scope_rows, today)
     repairs["missingDates"] = len(repaired_missing_dates)
     repairs["partialDates"] = max(partial_count_before - partial_count_after, len(repaired_partial_dates))
     repairs["kyGaps"] = max(initial_gap_count - final_gap_count, 0)
@@ -2889,7 +2963,6 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
     meta = read_canonical_meta("KENO")
     rows_by_ky, seed_files = load_seed_rows("KENO")
     initial_row_count = len(rows_by_ky)
-    partial_count_before, partial_dates = count_keno_partial_days(rows_by_ky, today)
     errors = []
     new_rows = 0
     updated_rows = 0
@@ -2922,22 +2995,43 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
     grouped = rows_grouped_by_date(rows_by_ky)
     existing_dates = set(grouped.keys())
     earliest_date = get_earliest_row_date(rows_by_ky) or today
-    missing_dates = set()
-    for target_date in iter_type_dates("KENO", earliest_date, today):
-        if target_date not in existing_dates:
-            missing_dates.add(target_date)
+    lookback_days = normalize_recent_lookback_days(
+        recent_lookback_days,
+        SYNC_ALL_RECENT_LOOKBACK_DAYS if allow_bootstrap else REPAIR_DEFAULT_RECENT_DAYS,
+    )
+    recent_start = max(earliest_date, get_recent_window_start_date(today, lookback_days))
+    scoped_rows = (
+        filter_rows_by_date_range(rows_by_ky, recent_start, today)
+        if not allow_bootstrap else rows_by_ky
+    )
+    initial_gap_count, gap_dates = count_gap_intervals_for_type("KENO", scoped_rows)
+    partial_count_before, partial_dates = count_keno_partial_days(scoped_rows, today)
+    recent_dates = set(iter_type_dates("KENO", recent_start, today))
 
-    dates_to_fetch = set(missing_dates)
-    dates_to_fetch.update(partial_dates)
-    lookback_days = max(1, int(recent_lookback_days or SYNC_ALL_RECENT_LOOKBACK_DAYS))
-    recent_start = max(earliest_date, today - timedelta(days=lookback_days))
-    for target_date in iter_type_dates("KENO", recent_start, today):
-        dates_to_fetch.add(target_date)
+    if allow_bootstrap:
+        missing_dates = collect_missing_dates_for_range("KENO", existing_dates, earliest_date, today)
+        dates_to_fetch = set(missing_dates)
+        dates_to_fetch.update(partial_dates)
+        dates_to_fetch.update(gap_dates)
+        dates_to_fetch.update(recent_dates)
+        ordered_dates_to_fetch = sorted(dates_to_fetch, reverse=True)
+    else:
+        missing_dates = collect_missing_dates_for_range("KENO", existing_dates, recent_start, today)
+        partial_dates = filter_dates_in_range(partial_dates, recent_start, today)
+        gap_dates = filter_dates_in_range(gap_dates, recent_start, today)
+        priority_dates = set(missing_dates)
+        priority_dates.update(partial_dates)
+        priority_dates.update(gap_dates)
+        refresh_dates = recent_dates - priority_dates
+        ordered_dates_to_fetch = sorted(priority_dates, reverse=True) + sorted(refresh_dates, reverse=True)
+        dates_to_fetch = set(ordered_dates_to_fetch)
 
     try:
         latest_search_date, _ = fetch_latest_keno_page(session)
         latest_available_date = parse_csv_date(latest_search_date)
-        if latest_available_date is not None:
+        if latest_available_date is not None and (
+            allow_bootstrap or recent_start <= latest_available_date <= today
+        ):
             dates_to_fetch.add(latest_available_date)
     except Exception:
         latest_available_date = None
@@ -2947,7 +3041,7 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
         latest_available_date = None
 
     latest_page_date = latest_available_date if latest_available_date in dates_to_fetch else None
-    regular_dates_to_fetch = [target_date for target_date in sorted(dates_to_fetch, reverse=True) if target_date != latest_page_date]
+    regular_dates_to_fetch = [target_date for target_date in ordered_dates_to_fetch if target_date != latest_page_date]
     if progress:
         progress.set_phase(
             "repair_recent",
@@ -2960,7 +3054,7 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
 
     repaired_missing_dates = set()
     repaired_partial_dates = set()
-    for target_date in sorted(dates_to_fetch, reverse=True):
+    for target_date in ordered_dates_to_fetch:
         if manual_timeout_reached():
             record_manual_timeout(format_minhchinh_date(target_date))
             break
@@ -3052,11 +3146,16 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
             meta["bootstrapComplete"] = True
             meta["lastBootstrapAt"] = datetime.now().isoformat(timespec="seconds")
 
-    partial_count_after, _ = count_keno_partial_days(rows_by_ky, today)
+    final_scope_rows = (
+        filter_rows_by_date_range(rows_by_ky, recent_start, today)
+        if not allow_bootstrap else rows_by_ky
+    )
+    final_gap_count, _ = count_gap_intervals_for_type("KENO", final_scope_rows)
+    partial_count_after, _ = count_keno_partial_days(final_scope_rows, today)
     repairs = {
         "missingDates": len(repaired_missing_dates),
         "partialDates": max(partial_count_before - partial_count_after, 0),
-        "kyGaps": max(partial_count_before - partial_count_after, 0),
+        "kyGaps": max(initial_gap_count - final_gap_count, 0),
     }
 
     canonical_paths, today_count, all_count = write_canonical_rows("KENO", rows_by_ky, today)
@@ -3207,8 +3306,8 @@ def sync_requested_canonical_csvs(session, requested_type_keys=None, allow_boots
 
 # ----- Phan tich tham so CLI -----
 # Ho tro cac mode sync_all, live_history, history export va luong update thu cong.
-def parse_cli_args():
-    raw_args = [str(value).strip() for value in sys.argv[1:] if str(value).strip()]
+def parse_cli_args(argv=None):
+    raw_args = [str(value).strip() for value in (argv if argv is not None else sys.argv[1:]) if str(value).strip()]
     repair_canonical = False
     recent_lookback_days = None
     args = []
@@ -3234,6 +3333,8 @@ def parse_cli_args():
                 continue
         args.append(raw)
         idx += 1
+    if repair_canonical and recent_lookback_days is None:
+        recent_lookback_days = REPAIR_DEFAULT_RECENT_DAYS
     if args and args[0].lower() in {"sync_all", "sync-all", "canonical", "canonical_sync"}:
         requested = []
         for raw in args[1:]:
