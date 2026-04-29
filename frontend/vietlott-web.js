@@ -10194,6 +10194,7 @@
       const localParts = [];
       const centralParts = [];
       let offset = 0;
+      let centralSize = 0;
       const dosTime = 0;
       const dosDate = 33;
       Object.entries(files).forEach(([path, content]) => {
@@ -10214,7 +10215,7 @@
         pushUint16LE(local, 0);
         pushBytes(local, nameBytes);
         pushBytes(local, dataBytes);
-        localParts.push(...local);
+        localParts.push(new Uint8Array(local));
 
         const central = [];
         pushUint32LE(central, 0x02014b50);
@@ -10235,22 +10236,23 @@
         pushUint32LE(central, 0);
         pushUint32LE(central, offset);
         pushBytes(central, nameBytes);
-        centralParts.push(...central);
+        centralParts.push(new Uint8Array(central));
+        centralSize += central.length;
         offset += local.length;
       });
-      const centralOffset = localParts.length;
+      const centralOffset = offset;
       const end = [];
       pushUint32LE(end, 0x06054b50);
       pushUint16LE(end, 0);
       pushUint16LE(end, 0);
       pushUint16LE(end, Object.keys(files).length);
       pushUint16LE(end, Object.keys(files).length);
-      pushUint32LE(end, centralParts.length);
+      pushUint32LE(end, centralSize);
       pushUint32LE(end, centralOffset);
       pushUint16LE(end, 0);
       return new Blob([
-        new Uint8Array(localParts),
-        new Uint8Array(centralParts),
+        ...localParts,
+        ...centralParts,
         new Uint8Array(end),
       ], { type: mimeType });
     }
