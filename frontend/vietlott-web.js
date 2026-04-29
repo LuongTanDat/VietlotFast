@@ -10041,31 +10041,12 @@
         renderDataTableStatus("Không có dữ liệu để tải xuống.", "warn");
         return;
       }
-      const title = `Bang Du Lieu ${TYPES[type]?.label || type}`;
-      const tableHtml = `
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <style>
-              table { border-collapse: collapse; font-family: Arial, sans-serif; }
-              th, td { border: 1px solid #8aa4bf; padding: 6px 8px; mso-number-format:"\\@"; }
-              th { background: #dbeafe; font-weight: 700; }
-            </style>
-          </head>
-          <body>
-            <table>
-              <caption>${escapeHtml(title)}</caption>
-              <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
-              <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody>
-            </table>
-          </body>
-        </html>`;
-      const blob = new Blob(["\ufeff", tableHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `bang_du_lieu_${safeType}_${safeLimit}.xls`;
+      link.download = `bang_du_lieu_${safeType}_${safeLimit}.xlsx`;
       document.body.appendChild(link);
       link.click();
       window.setTimeout(() => {
@@ -10073,6 +10054,205 @@
         link.remove();
       }, 0);
       renderDataTableStatus(`Đã tạo file Excel ${rows.length} dòng cho ${TYPES[type]?.label || type}.`, "ok");
+    }
+
+    function escapeXml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function getExcelColumnName(index) {
+      let n = Math.max(1, Number(index) || 1);
+      let name = "";
+      while (n > 0) {
+        const mod = (n - 1) % 26;
+        name = String.fromCharCode(65 + mod) + name;
+        n = Math.floor((n - 1) / 26);
+      }
+      return name;
+    }
+
+    function buildXlsxSheetXml(headers, rows) {
+      const allRows = [headers, ...rows];
+      const rowXml = allRows.map((row, rowIndex) => {
+        const rowNumber = rowIndex + 1;
+        const cells = row.map((value, cellIndex) => {
+          const cellRef = `${getExcelColumnName(cellIndex + 1)}${rowNumber}`;
+          const text = escapeXml(value);
+          return `<c r="${cellRef}" t="inlineStr"><is><t xml:space="preserve">${text}</t></is></c>`;
+        }).join("");
+        return `<row r="${rowNumber}">${cells}</row>`;
+      }).join("");
+      const lastCol = getExcelColumnName(Math.max(1, headers.length));
+      const lastRow = Math.max(1, allRows.length);
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${lastCol}${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="4" width="14" customWidth="1"/>
+    <col min="5" max="5" width="72" customWidth="1"/>
+    <col min="6" max="6" width="24" customWidth="1"/>
+  </cols>
+  <sheetData>${rowXml}</sheetData>
+</worksheet>`;
+    }
+
+    function buildXlsxWorkbookBlob(headers, rows, title = "Bang Du Lieu") {
+      const now = new Date().toISOString();
+      const files = {
+        "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`,
+        "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`,
+        "docProps/app.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Vietlott Tra Cuu Nhanh Pro</Application>
+</Properties>`,
+        "docProps/core.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(title)}</dc:title>
+  <dc:creator>Vietlott Tra Cuu Nhanh Pro</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`,
+        "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Bang Du Lieu" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+        "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+        "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts>
+  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`,
+        "xl/worksheets/sheet1.xml": buildXlsxSheetXml(headers, rows),
+      };
+      return buildZipBlob(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    function buildCrc32Table() {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let value = i;
+        for (let bit = 0; bit < 8; bit++) {
+          value = (value & 1) ? (0xEDB88320 ^ (value >>> 1)) : (value >>> 1);
+        }
+        table[i] = value >>> 0;
+      }
+      return table;
+    }
+
+    const ZIP_CRC32_TABLE = buildCrc32Table();
+
+    function crc32(bytes) {
+      let crc = 0xFFFFFFFF;
+      for (let i = 0; i < bytes.length; i++) {
+        crc = ZIP_CRC32_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+      }
+      return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function pushUint16LE(out, value) {
+      out.push(value & 0xFF, (value >>> 8) & 0xFF);
+    }
+
+    function pushUint32LE(out, value) {
+      out.push(value & 0xFF, (value >>> 8) & 0xFF, (value >>> 16) & 0xFF, (value >>> 24) & 0xFF);
+    }
+
+    function pushBytes(out, bytes) {
+      for (let i = 0; i < bytes.length; i++) out.push(bytes[i]);
+    }
+
+    function buildZipBlob(files, mimeType) {
+      const encoder = new TextEncoder();
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+      const dosTime = 0;
+      const dosDate = 33;
+      Object.entries(files).forEach(([path, content]) => {
+        const nameBytes = encoder.encode(path);
+        const dataBytes = encoder.encode(String(content || ""));
+        const crc = crc32(dataBytes);
+        const local = [];
+        pushUint32LE(local, 0x04034b50);
+        pushUint16LE(local, 20);
+        pushUint16LE(local, 0x0800);
+        pushUint16LE(local, 0);
+        pushUint16LE(local, dosTime);
+        pushUint16LE(local, dosDate);
+        pushUint32LE(local, crc);
+        pushUint32LE(local, dataBytes.length);
+        pushUint32LE(local, dataBytes.length);
+        pushUint16LE(local, nameBytes.length);
+        pushUint16LE(local, 0);
+        pushBytes(local, nameBytes);
+        pushBytes(local, dataBytes);
+        localParts.push(...local);
+
+        const central = [];
+        pushUint32LE(central, 0x02014b50);
+        pushUint16LE(central, 20);
+        pushUint16LE(central, 20);
+        pushUint16LE(central, 0x0800);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, dosTime);
+        pushUint16LE(central, dosDate);
+        pushUint32LE(central, crc);
+        pushUint32LE(central, dataBytes.length);
+        pushUint32LE(central, dataBytes.length);
+        pushUint16LE(central, nameBytes.length);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint32LE(central, 0);
+        pushUint32LE(central, offset);
+        pushBytes(central, nameBytes);
+        centralParts.push(...central);
+        offset += local.length;
+      });
+      const centralOffset = localParts.length;
+      const end = [];
+      pushUint32LE(end, 0x06054b50);
+      pushUint16LE(end, 0);
+      pushUint16LE(end, 0);
+      pushUint16LE(end, Object.keys(files).length);
+      pushUint16LE(end, Object.keys(files).length);
+      pushUint32LE(end, centralParts.length);
+      pushUint32LE(end, centralOffset);
+      pushUint16LE(end, 0);
+      return new Blob([
+        new Uint8Array(localParts),
+        new Uint8Array(centralParts),
+        new Uint8Array(end),
+      ], { type: mimeType });
     }
 
     function mergeKenoDraw(feed, ky, draw) {
