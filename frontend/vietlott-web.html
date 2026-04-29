@@ -185,7 +185,7 @@
       <button class="side-link" type="button"><span class="icon">👤</span><span>Thông tin tài khoản</span></button>
       <button id="paypalDepositMenuBtn" class="side-link" type="button"><span class="icon">💳</span><span>Nạp tiền tài khoản</span></button>
       <button class="side-link" type="button"><span class="icon">📝</span><span>Nhật kí hoạt động</span></button>
-      <button class="side-link" type="button"><span class="icon">🎫</span><span>Phiếu hỗ trợ</span></button>
+      <button id="dataTableMenuBtn" class="side-link" type="button"><span class="icon">🎫</span><span>Bảng Dữ Liệu</span></button>
       <button class="side-link" type="button"><span class="icon">💸</span><span>Lịch sử hoàn tiền</span></button>
       <button id="luckyWheelMenuBtn" class="side-link" type="button"><span class="icon">🎡</span><span>Vòng Quay May Mắn</span></button>
       <button class="side-link" type="button"><span class="icon">🆙</span><span>Cấp bậc Tài khoản</span></button>
@@ -194,6 +194,40 @@
   </aside>
 
   <div class="wrap">
+    <section id="dataTableSection" class="data-table-board" hidden>
+      <div class="data-table-head">
+        <div>
+          <p class="data-table-eyebrow">CANONICAL ALL_DAY.CSV</p>
+          <h2>Bảng Dữ Liệu</h2>
+          <p class="data-table-subtitle">Chọn loại xổ số để xem dữ liệu dạng bảng như Excel.</p>
+        </div>
+        <div class="data-table-actions">
+          <div>
+            <label for="dataTableType">Loại</label>
+            <select id="dataTableType"></select>
+          </div>
+          <div>
+            <label for="dataTableLimit">Số lượng</label>
+            <select id="dataTableLimit">
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="500" selected>500</option>
+              <option value="1000">1000</option>
+              <option value="all">Tất Cả</option>
+            </select>
+          </div>
+          <button id="dataTableRefreshBtn" type="button">Hiển thị</button>
+          <button id="dataTableDownloadBtn" type="button">Tải Xuống</button>
+        </div>
+      </div>
+      <div id="dataTableStatus" class="data-table-status muted">Chọn loại rồi bấm Tải bảng để xem dữ liệu.</div>
+      <div class="data-table-wrap">
+        <table class="data-table-grid" aria-label="Bảng dữ liệu Vietlott">
+          <thead id="dataTableHead"></thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </section>
     <section id="luckyWheelSection" class="lucky-wheel-board" hidden>
       <div class="lucky-wheel-main">
         <div class="spin-popup-overlay active" id="spinPopup" data-init="1">

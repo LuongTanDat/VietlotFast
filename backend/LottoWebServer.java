@@ -317,7 +317,9 @@ public class LottoWebServer {
                 && !"/vong-quay".equals(path)
                 && !"/vong-quay.html".equals(path)
                 && !"/nap-tien".equals(path)
-                && !"/nap-tien.html".equals(path)) {
+                && !"/nap-tien.html".equals(path)
+                && !"/bang-du-lieu".equals(path)
+                && !"/bang-du-lieu.html".equals(path)) {
             sendNotFound(ex);
             return;
         }

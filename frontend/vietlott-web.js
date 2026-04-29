@@ -361,6 +361,9 @@
     let liveHistoryState = {};
     let liveHistoryLegacyApiMode = false;
     let liveHistoryRecentRefreshBusy = false;
+    let dataTableSelectedType = "LOTO_5_35";
+    let dataTableSelectedLimit = "500";
+    let dataTableLoading = false;
     let liveResultsFetchedAt = "";
     let liveAutoTimer = null;
     let liveResultsProgressTypeCursor = {};
@@ -451,7 +454,8 @@
     const APP_PAGE_PATHS = {
       home: "/",
       wheel: "/vong-quay",
-      deposit: "/nap-tien"
+      deposit: "/nap-tien",
+      data: "/bang-du-lieu"
     };
 
     function normalizeUser(u) {
@@ -462,6 +466,7 @@
       const normalized = String(pathname || "/").toLowerCase();
       if (normalized === "/vong-quay" || normalized === "/vong-quay.html") return "wheel";
       if (normalized === "/nap-tien" || normalized === "/nap-tien.html") return "deposit";
+      if (normalized === "/bang-du-lieu" || normalized === "/bang-du-lieu.html") return "data";
       return "home";
     }
 
@@ -477,6 +482,10 @@
       }
       if (mode === "deposit") {
         document.title = "Nạp tiền tài khoản | Vietlott Tra Cứu Nhanh Pro";
+        return;
+      }
+      if (mode === "data") {
+        document.title = "Bảng Dữ Liệu | Vietlott Tra Cứu Nhanh Pro";
         return;
       }
       document.title = "Vietlott Tra Cứu Nhanh Pro";
@@ -2899,7 +2908,7 @@
     }
 
     function setAuxiliarySectionsVisible(activeSectionId = "") {
-      ["luckyWheelSection", "paypalDepositSection"].forEach(sectionId => {
+      ["luckyWheelSection", "paypalDepositSection", "dataTableSection"].forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (!section) return;
         section.hidden = sectionId !== activeSectionId;
@@ -2945,6 +2954,14 @@
         setAuxiliarySectionsVisible("paypalDepositSection");
         setSideMenuActiveButton("paypalDepositMenuBtn");
         renderPaypalDepositSection();
+        return;
+      }
+      if (mode === "data") {
+        setPrimaryContentVisible(false);
+        setAuxiliarySectionsVisible("dataTableSection");
+        setSideMenuActiveButton("dataTableMenuBtn");
+        renderDataTableShell();
+        loadDataTableRows();
         return;
       }
       setPrimaryContentVisible(true);
@@ -3004,7 +3021,7 @@
       }
     }
 
-    ["prizeType", "pdType", "vipPdType"].forEach(fillTypeSelect);
+    ["prizeType", "pdType", "vipPdType", "dataTableType"].forEach(fillTypeSelect);
     fillLiveHistoryTypeSelect();
     syncLiveHistoryCountOptions();
 
@@ -3214,7 +3231,9 @@
       "lottoDashboardGameSelect",
       "chartStatsTypeSelect",
       "chartStatsPresetSelect",
-      "chartStatsViewSelect"
+      "chartStatsViewSelect",
+      "dataTableType",
+      "dataTableLimit"
     ].forEach(enhanceSelect);
     normalizePredictRecentWindowSelection();
     renderLotteryMenu();
@@ -3256,6 +3275,9 @@
     };
     document.getElementById("luckyWheelMenuBtn").onclick = () => {
       navigateToAppPage("wheel");
+    };
+    document.getElementById("dataTableMenuBtn").onclick = () => {
+      navigateToAppPage("data");
     };
     {
       const depositAmountEl = document.getElementById("depositAmount");
@@ -4217,6 +4239,44 @@
             await refreshCurrentLiveHistory();
           } catch (err) {
             line(document.getElementById("liveHistoryOut"), `Không tải được lịch sử CSV: ${err.message || err}`, "warn");
+          }
+        });
+      }
+    }
+    {
+      const dataTableType = document.getElementById("dataTableType");
+      if (dataTableType) {
+        dataTableType.addEventListener("change", async () => {
+          dataTableSelectedType = dataTableType.value || "LOTO_5_35";
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
+      const dataTableLimit = document.getElementById("dataTableLimit");
+      if (dataTableLimit) {
+        dataTableLimit.addEventListener("change", async () => {
+          dataTableSelectedLimit = getDataTableLimitValue();
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
+      const dataTableRefreshBtn = document.getElementById("dataTableRefreshBtn");
+      if (dataTableRefreshBtn) {
+        dataTableRefreshBtn.addEventListener("click", async () => {
+          await loadDataTableRows({ force: true });
+        });
+      }
+    }
+    {
+      const dataTableDownloadBtn = document.getElementById("dataTableDownloadBtn");
+      if (dataTableDownloadBtn) {
+        dataTableDownloadBtn.addEventListener("click", async () => {
+          try {
+            await downloadDataTableExcel();
+          } catch (err) {
+            renderDataTableStatus(`Không tải xuống được Excel: ${err.message || err}`, "warn");
           }
         });
       }
@@ -9817,6 +9877,202 @@
         lines.push(`${feed.label || type} ${metaParts.join(" • ")}: ${formatLiveHistoryDraw(type, draw)}`);
       });
       line(out, lines.join("\n"));
+    }
+
+    function formatDataTableWeekday(dateText) {
+      const raw = String(dateText || "").trim();
+      const match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (!match) return "";
+      const day = Number(match[1]);
+      const month = Number(match[2]);
+      const year = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      if (Number.isNaN(date.getTime())) return "";
+      return ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"][date.getDay()] || "";
+    }
+
+    function normalizeDataTableDisplayLine(lineText) {
+      return String(lineText || "").replace(/\s+/g, " ").trim();
+    }
+
+    function splitDataTableDisplayLines(draw) {
+      const rawLines = Array.isArray(draw?.displayLines) ? draw.displayLines : [];
+      return rawLines.map(normalizeDataTableDisplayLine).filter(Boolean);
+    }
+
+    function formatDataTableNumbers(type, draw) {
+      const displayLines = splitDataTableDisplayLines(draw);
+      if (TYPES[type]?.threeDigit && displayLines.length) {
+        const specialLines = [];
+        const numberLines = [];
+        displayLines.forEach(lineText => {
+          if (/^đặc\s*biệt\s*:/i.test(lineText)) {
+            specialLines.push(lineText.replace(/^đặc\s*biệt\s*:\s*/i, "").trim());
+          } else {
+            numberLines.push(lineText);
+          }
+        });
+        return {
+          numbers: numberLines.join(" | ") || displayLines.join(" | "),
+          special: specialLines.join(" | "),
+        };
+      }
+
+      const main = Array.isArray(draw?.main) ? draw.main.map(Number).filter(Number.isFinite) : [];
+      const numbers = main.map(number => formatPredictNumber(number, type)).join(" ");
+      const special = TYPES[type]?.hasSpecial && Number.isInteger(Number(draw?.special))
+        ? formatPredictNumber(Number(draw.special), type)
+        : "";
+      return { numbers, special };
+    }
+
+    function getDataTableLimitValue() {
+      const raw = String(document.getElementById("dataTableLimit")?.value || dataTableSelectedLimit || "500").trim().toLowerCase();
+      return raw === "all" ? "all" : String(Math.max(1, Number(raw) || 500));
+    }
+
+    function getDataTableHeaders(type) {
+      const hasSpecialColumn = !!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit;
+      return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : [])];
+    }
+
+    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue()) {
+      const keys = [...(feed?.order || [])].reverse();
+      if (limitValue === "all") return keys;
+      return keys.slice(0, Math.max(1, Number(limitValue) || 500));
+    }
+
+    function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue()) {
+      return getDataTableSelectedKeys(feed, limitValue).map(ky => {
+        const draw = feed.results?.[ky] || {};
+        const cells = formatDataTableNumbers(type, draw);
+        return [
+          formatLiveKy(ky),
+          formatDataTableWeekday(draw.date),
+          draw.date || "",
+          draw.time || "",
+          cells.numbers || "",
+          ...((!!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
+        ];
+      });
+    }
+
+    function renderDataTableShell() {
+      const select = document.getElementById("dataTableType");
+      const limitSelect = document.getElementById("dataTableLimit");
+      if (select && !select.options.length) {
+        select.innerHTML = LIVE_HISTORY_TYPES.map(item => `<option value="${item.key}">${item.label}</option>`).join("");
+      }
+      if (select && Array.from(select.options).some(option => option.value === dataTableSelectedType)) {
+        select.value = dataTableSelectedType;
+      }
+      if (limitSelect && Array.from(limitSelect.options).some(option => option.value === dataTableSelectedLimit)) {
+        limitSelect.value = dataTableSelectedLimit;
+      }
+      if (select?.__syncCustomSelect) select.__syncCustomSelect();
+      if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
+    }
+
+    function renderDataTableStatus(message, tone = "muted") {
+      const status = document.getElementById("dataTableStatus");
+      if (!status) return;
+      status.className = `data-table-status ${tone}`;
+      status.textContent = message;
+    }
+
+    function renderDataTableRows(type, feed) {
+      const head = document.getElementById("dataTableHead");
+      const body = document.getElementById("dataTableBody");
+      if (!head || !body) return;
+      const headers = getDataTableHeaders(type);
+      head.innerHTML = `<tr>${headers.map(label => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+
+      const rows = buildDataTableRows(type, feed);
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">Chưa có dữ liệu để hiển thị.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = rows.map(rowCells => {
+        return `<tr>${rowCells.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+      }).join("");
+    }
+
+    async function loadDataTableRows({ force = false } = {}) {
+      const select = document.getElementById("dataTableType");
+      const limitSelect = document.getElementById("dataTableLimit");
+      const type = select?.value || dataTableSelectedType || "LOTO_5_35";
+      if (!TYPES[type] || dataTableLoading) return;
+      dataTableSelectedType = type;
+      dataTableSelectedLimit = getDataTableLimitValue();
+      if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
+      if (IS_LOCAL_MODE) {
+        renderDataTableStatus("Bảng dữ liệu chỉ tải tự động khi mở qua http://localhost:8080.", "warn");
+        renderDataTableRows(type, emptyLiveHistoryFeed(TYPES[type]?.label || type));
+        return;
+      }
+      dataTableLoading = true;
+      renderDataTableStatus(`Đang tải ${TYPES[type]?.label || type} từ all_day.csv...`, "muted");
+      try {
+        const feed = await fetchLiveHistory(type, "all", { force, silent: true });
+        renderDataTableRows(type, feed);
+        const total = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
+        const shown = buildDataTableRows(type, feed).length;
+        const source = feed.canonicalFile || feed.allFile || "all_day.csv";
+        renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(total)} kỳ • Nguồn: ${source}`, "ok");
+      } catch (err) {
+        renderDataTableStatus(`Không tải được bảng dữ liệu: ${err.message || err}`, "warn");
+      } finally {
+        dataTableLoading = false;
+      }
+    }
+
+    async function downloadDataTableExcel() {
+      const type = document.getElementById("dataTableType")?.value || dataTableSelectedType || "LOTO_5_35";
+      if (!TYPES[type]) return;
+      if (IS_LOCAL_MODE) {
+        renderDataTableStatus("Tải xuống Excel chỉ hoạt động khi mở qua http://localhost:8080.", "warn");
+        return;
+      }
+      const feed = await fetchLiveHistory(type, "all", { silent: true });
+      const headers = getDataTableHeaders(type);
+      const rows = buildDataTableRows(type, feed);
+      if (!rows.length) {
+        renderDataTableStatus("Không có dữ liệu để tải xuống.", "warn");
+        return;
+      }
+      const title = `Bang Du Lieu ${TYPES[type]?.label || type}`;
+      const tableHtml = `
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              table { border-collapse: collapse; font-family: Arial, sans-serif; }
+              th, td { border: 1px solid #8aa4bf; padding: 6px 8px; mso-number-format:"\\@"; }
+              th { background: #dbeafe; font-weight: 700; }
+            </style>
+          </head>
+          <body>
+            <table>
+              <caption>${escapeHtml(title)}</caption>
+              <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+              <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+          </body>
+        </html>`;
+      const blob = new Blob(["\ufeff", tableHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const safeType = String(type || "DATA").toLowerCase();
+      const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `bang_du_lieu_${safeType}_${safeLimit}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      window.setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+        link.remove();
+      }, 0);
+      renderDataTableStatus(`Đã tạo file Excel ${rows.length} dòng cho ${TYPES[type]?.label || type}.`, "ok");
     }
 
     function mergeKenoDraw(feed, ky, draw) {
