@@ -363,6 +363,7 @@
     let liveHistoryRecentRefreshBusy = false;
     let dataTableSelectedType = "LOTO_5_35";
     let dataTableSelectedLimit = "500";
+    let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
     let dataTableLoading = false;
     let liveResultsFetchedAt = "";
     let liveAutoTimer = null;
@@ -3233,7 +3234,11 @@
       "chartStatsPresetSelect",
       "chartStatsViewSelect",
       "dataTableType",
-      "dataTableLimit"
+      "dataTableLimit",
+      "dataTableWeekday",
+      "dataTableDay",
+      "dataTableMonth",
+      "dataTableYear"
     ].forEach(enhanceSelect);
     normalizePredictRecentWindowSelection();
     renderLotteryMenu();
@@ -4257,6 +4262,23 @@
       if (dataTableLimit) {
         dataTableLimit.addEventListener("change", async () => {
           dataTableSelectedLimit = getDataTableLimitValue();
+          await loadDataTableRows();
+        });
+      }
+    }
+    ["dataTableWeekday", "dataTableDay", "dataTableMonth", "dataTableYear"].forEach(filterId => {
+      const filterEl = document.getElementById(filterId);
+      if (!filterEl) return;
+      filterEl.addEventListener("change", async () => {
+        dataTableDateFilters = getDataTableDateFilters();
+        await loadDataTableRows();
+      });
+    });
+    {
+      const dataTableClearFilterBtn = document.getElementById("dataTableClearFilterBtn");
+      if (dataTableClearFilterBtn) {
+        dataTableClearFilterBtn.addEventListener("click", async () => {
+          resetDataTableDateFilters();
           await loadDataTableRows();
         });
       }
@@ -9879,16 +9901,142 @@
       line(out, lines.join("\n"));
     }
 
-    function formatDataTableWeekday(dateText) {
+    const DATA_TABLE_WEEKDAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+
+    function padDataTableDatePart(value) {
+      return String(Math.max(0, Number(value) || 0)).padStart(2, "0");
+    }
+
+    function parseDataTableDateParts(dateText) {
       const raw = String(dateText || "").trim();
       const match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-      if (!match) return "";
+      if (!match) return null;
       const day = Number(match[1]);
       const month = Number(match[2]);
       const year = Number(match[3]);
       const date = new Date(year, month - 1, day);
-      if (Number.isNaN(date.getTime())) return "";
-      return ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"][date.getDay()] || "";
+      if (
+        Number.isNaN(date.getTime()) ||
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+      ) {
+        return null;
+      }
+      return { day, month, year, weekday: date.getDay() };
+    }
+
+    function formatDataTableWeekday(dateText) {
+      const parts = parseDataTableDateParts(dateText);
+      return parts ? DATA_TABLE_WEEKDAY_LABELS[parts.weekday] || "" : "";
+    }
+
+    function normalizeDataTableFilterNumber(value, min, max) {
+      const raw = String(value ?? "").trim().toLowerCase();
+      if (!raw || raw === "all") return "all";
+      const number = Number(raw);
+      if (!Number.isInteger(number) || number < min || number > max) return "all";
+      return String(number);
+    }
+
+    function normalizeDataTableWeekdayFilter(value) {
+      return normalizeDataTableFilterNumber(value, 0, 6);
+    }
+
+    function getDataTableDateFilters() {
+      dataTableDateFilters = {
+        weekday: normalizeDataTableWeekdayFilter(document.getElementById("dataTableWeekday")?.value ?? dataTableDateFilters.weekday),
+        day: normalizeDataTableFilterNumber(document.getElementById("dataTableDay")?.value ?? dataTableDateFilters.day, 1, 31),
+        month: normalizeDataTableFilterNumber(document.getElementById("dataTableMonth")?.value ?? dataTableDateFilters.month, 1, 12),
+        year: normalizeDataTableFilterNumber(document.getElementById("dataTableYear")?.value ?? dataTableDateFilters.year, 1900, 3000),
+      };
+      return dataTableDateFilters;
+    }
+
+    function hasDataTableDateFilter(filters = getDataTableDateFilters()) {
+      return Object.values(filters || {}).some(value => String(value || "all") !== "all");
+    }
+
+    function isDataTableDrawInDateFilter(draw, filters = getDataTableDateFilters()) {
+      if (!hasDataTableDateFilter(filters)) return true;
+      const parts = parseDataTableDateParts(draw?.date);
+      if (!parts) return false;
+      if (filters.weekday !== "all" && parts.weekday !== Number(filters.weekday)) return false;
+      if (filters.day !== "all" && parts.day !== Number(filters.day)) return false;
+      if (filters.month !== "all" && parts.month !== Number(filters.month)) return false;
+      if (filters.year !== "all" && parts.year !== Number(filters.year)) return false;
+      return true;
+    }
+
+    function setDataTableFilterSelectValue(selectId, value) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const normalized = String(value || "all");
+      select.value = Array.from(select.options).some(option => option.value === normalized) ? normalized : "all";
+      if (select.__syncCustomSelect) select.__syncCustomSelect();
+    }
+
+    function syncDataTableYearFilterOptions(feed = null) {
+      const select = document.getElementById("dataTableYear");
+      if (!select) return;
+      const current = normalizeDataTableFilterNumber(select.value || dataTableDateFilters.year, 1900, 3000);
+      const years = new Set();
+      (feed?.order || []).forEach(ky => {
+        const parts = parseDataTableDateParts(feed.results?.[ky]?.date);
+        if (parts) years.add(parts.year);
+      });
+      const sortedYears = [...years].sort((a, b) => b - a);
+      select.innerHTML = [
+        `<option value="all">Tất Cả</option>`,
+        ...sortedYears.map(year => `<option value="${year}">${year}</option>`),
+      ].join("");
+      select.value = sortedYears.includes(Number(current)) ? current : "all";
+      dataTableDateFilters.year = select.value;
+      if (select.__syncCustomSelect) select.__syncCustomSelect();
+    }
+
+    function syncDataTableDateFilterControls(feed = null) {
+      if (feed) syncDataTableYearFilterOptions(feed);
+      const filters = dataTableDateFilters || {};
+      setDataTableFilterSelectValue("dataTableWeekday", filters.weekday);
+      setDataTableFilterSelectValue("dataTableDay", filters.day);
+      setDataTableFilterSelectValue("dataTableMonth", filters.month);
+      setDataTableFilterSelectValue("dataTableYear", filters.year);
+    }
+
+    function resetDataTableDateFilters() {
+      dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
+      syncDataTableDateFilterControls();
+    }
+
+    function formatDataTableDateFilterSummary(filters = getDataTableDateFilters()) {
+      const parts = [];
+      if (filters.weekday !== "all") {
+        parts.push(DATA_TABLE_WEEKDAY_LABELS[Number(filters.weekday)] || "");
+      }
+
+      const hasDay = filters.day !== "all";
+      const hasMonth = filters.month !== "all";
+      const hasYear = filters.year !== "all";
+      if (hasDay && hasMonth && hasYear) {
+        parts.push(`${padDataTableDatePart(filters.day)}/${padDataTableDatePart(filters.month)}/${filters.year}`);
+      } else if (hasDay && hasMonth) {
+        parts.push(`${padDataTableDatePart(filters.day)}/${padDataTableDatePart(filters.month)}/mọi năm`);
+      } else {
+        if (hasDay) parts.push(`ngày ${padDataTableDatePart(filters.day)}`);
+        if (hasMonth) parts.push(`tháng ${padDataTableDatePart(filters.month)}`);
+        if (hasYear) parts.push(`năm ${filters.year}`);
+      }
+      return parts.filter(Boolean).join(", ");
+    }
+
+    function getDataTableFilterFileSuffix(filters = getDataTableDateFilters()) {
+      const parts = [];
+      if (filters.weekday !== "all") parts.push(`thu_${filters.weekday}`);
+      if (filters.day !== "all") parts.push(`ngay_${padDataTableDatePart(filters.day)}`);
+      if (filters.month !== "all") parts.push(`thang_${padDataTableDatePart(filters.month)}`);
+      if (filters.year !== "all") parts.push(`nam_${filters.year}`);
+      return parts.length ? `_${parts.join("_")}` : "";
     }
 
     function normalizeDataTableDisplayLine(lineText) {
@@ -9936,14 +10084,20 @@
       return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : [])];
     }
 
-    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue()) {
-      const keys = [...(feed?.order || [])].reverse();
+    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters()) {
+      return [...(feed?.order || [])]
+        .reverse()
+        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters));
+    }
+
+    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
+      const keys = getDataTableMatchingKeys(feed, filters);
       if (limitValue === "all") return keys;
       return keys.slice(0, Math.max(1, Number(limitValue) || 500));
     }
 
-    function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue()) {
-      return getDataTableSelectedKeys(feed, limitValue).map(ky => {
+    function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
+      return getDataTableSelectedKeys(feed, limitValue, filters).map(ky => {
         const draw = feed.results?.[ky] || {};
         const cells = formatDataTableNumbers(type, draw);
         return [
@@ -9971,6 +10125,7 @@
       }
       if (select?.__syncCustomSelect) select.__syncCustomSelect();
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
+      syncDataTableDateFilterControls();
     }
 
     function renderDataTableStatus(message, tone = "muted") {
@@ -9980,14 +10135,14 @@
       status.textContent = message;
     }
 
-    function renderDataTableRows(type, feed) {
+    function renderDataTableRows(type, feed, filters = getDataTableDateFilters()) {
       const head = document.getElementById("dataTableHead");
       const body = document.getElementById("dataTableBody");
       if (!head || !body) return;
       const headers = getDataTableHeaders(type);
       head.innerHTML = `<tr>${headers.map(label => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
 
-      const rows = buildDataTableRows(type, feed);
+      const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
         body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">Chưa có dữ liệu để hiển thị.</td></tr>`;
         return;
@@ -10008,18 +10163,27 @@
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
       if (IS_LOCAL_MODE) {
         renderDataTableStatus("Bảng dữ liệu chỉ tải tự động khi mở qua http://localhost:8080.", "warn");
-        renderDataTableRows(type, emptyLiveHistoryFeed(TYPES[type]?.label || type));
+        renderDataTableRows(type, emptyLiveHistoryFeed(TYPES[type]?.label || type), getDataTableDateFilters());
         return;
       }
       dataTableLoading = true;
       renderDataTableStatus(`Đang tải ${TYPES[type]?.label || type} từ all_day.csv...`, "muted");
       try {
         const feed = await fetchLiveHistory(type, "all", { force, silent: true });
-        renderDataTableRows(type, feed);
+        syncDataTableDateFilterControls(feed);
+        const filters = getDataTableDateFilters();
+        renderDataTableRows(type, feed, filters);
         const total = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
-        const shown = buildDataTableRows(type, feed).length;
+        const matching = getDataTableMatchingKeys(feed, filters).length;
+        const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
         const source = feed.canonicalFile || feed.allFile || "all_day.csv";
-        renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(total)} kỳ • Nguồn: ${source}`, "ok");
+        const filterSummary = formatDataTableDateFilterSummary(filters);
+        if (filterSummary) {
+          const tone = matching > 0 ? "ok" : "warn";
+          renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(matching)} kỳ phù hợp • Tổng ${formatLiveSyncCount(total)} kỳ • Lọc: ${filterSummary} • Nguồn: ${source}`, tone);
+        } else {
+          renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(total)} kỳ • Nguồn: ${source}`, "ok");
+        }
       } catch (err) {
         renderDataTableStatus(`Không tải được bảng dữ liệu: ${err.message || err}`, "warn");
       } finally {
@@ -10035,8 +10199,10 @@
         return;
       }
       const feed = await fetchLiveHistory(type, "all", { silent: true });
+      syncDataTableDateFilterControls(feed);
+      const filters = getDataTableDateFilters();
       const headers = getDataTableHeaders(type);
-      const rows = buildDataTableRows(type, feed);
+      const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
         renderDataTableStatus("Không có dữ liệu để tải xuống.", "warn");
         return;
@@ -10044,9 +10210,10 @@
       const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
+      const safeFilter = getDataTableFilterFileSuffix(filters);
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `bang_du_lieu_${safeType}_${safeLimit}.xlsx`;
+      link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;
       document.body.appendChild(link);
       link.click();
       window.setTimeout(() => {

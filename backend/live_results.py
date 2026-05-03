@@ -39,6 +39,9 @@ CSV_AUTO_RECENT_LOOKBACK_DAYS = 15
 FULL_HISTORY_REQUESTED_START_MODE = "full_history"
 KENO_MAX_PAGES_PER_DAY = 20
 KENO_FULL_DAY_DRAW_COUNT = 119
+KENO_FIRST_DRAW_MINUTES = 6 * 60 + 8
+KENO_DRAW_INTERVAL_MINUTES = 8
+KENO_LAST_DRAW_MINUTES = 21 * 60 + 52
 KENO_REQUEST_DELAY_SECONDS = 1.0
 KENO_MANUAL_UPDATE_TIMEOUT_SECONDS = 300
 KENO_OUTSIDE_OPERATING_HOURS_MESSAGE = "Hoạt động từ 6:00 đến 22:00"
@@ -1917,10 +1920,15 @@ def load_keno_csv_rows(csv_path, return_info=False):
                 else KENO_URL
             ) or KENO_URL,
         }
+    fixed_times = normalize_keno_schedule_times(rows_by_ky)
+    if fixed_times:
+        info["sanitized"] = True
+        info["issues"].append(f"keno_time_slots_normalized:{fixed_times}")
     return (rows_by_ky, info) if return_info else rows_by_ky
 
 
 def write_keno_csv_rows(csv_path, rows_by_ky):
+    normalize_keno_schedule_times(rows_by_ky)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     sorted_rows = sorted(
         rows_by_ky.values(),
@@ -2662,6 +2670,61 @@ def normalize_draw_time_slot(value):
     if not match:
         return text
     return f"{int(match.group(1)):02d}:{int(match.group(2)):02d}"
+
+
+def format_minutes_time(total_minutes):
+    minutes = max(0, int(total_minutes or 0))
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def parse_time_minutes(value):
+    match = re.match(r"^\s*(\d{1,2}):(\d{2})\s*$", str(value or "").strip())
+    if not match:
+        return None
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    if hour > 23 or minute > 59:
+        return None
+    return hour * 60 + minute
+
+
+def expected_keno_time_for_index(index):
+    return format_minutes_time(KENO_FIRST_DRAW_MINUTES + KENO_DRAW_INTERVAL_MINUTES * int(index or 0))
+
+
+def normalize_keno_schedule_times(rows_by_ky):
+    grouped = rows_grouped_by_date(rows_by_ky)
+    fixed_count = 0
+    for row_date, day_rows in grouped.items():
+        sorted_rows = sorted(day_rows, key=lambda item: sort_key_from_ky(item.get("Ky", "")))
+        if not sorted_rows:
+            continue
+        normalized_times = [normalize_draw_time_slot(row.get("Time", "")) for row in sorted_rows]
+        has_broken_step = False
+        previous_minutes = None
+        for time_text in normalized_times:
+            row_minutes = parse_time_minutes(time_text)
+            if row_minutes is None:
+                has_broken_step = True
+                break
+            if previous_minutes is not None and row_minutes - previous_minutes != KENO_DRAW_INTERVAL_MINUTES:
+                has_broken_step = True
+                break
+            previous_minutes = row_minutes
+        first_time_is_schedule_anchor = normalized_times[0] == expected_keno_time_for_index(0)
+        if not has_broken_step and not first_time_is_schedule_anchor:
+            continue
+        for index, row in enumerate(sorted_rows):
+            if index >= KENO_FULL_DAY_DRAW_COUNT:
+                break
+            expected_time = expected_keno_time_for_index(index)
+            if normalize_draw_time_slot(row.get("Time", "")) != expected_time:
+                row["Time"] = expected_time
+                fixed_count += 1
+            expected_weekday = format_csv_weekday(row_date)
+            if expected_weekday and str(row.get("Thu", "")).strip() != expected_weekday:
+                row["Thu"] = expected_weekday
+    return fixed_count
 
 
 def is_complete_numeric_day(type_key, day_rows):
