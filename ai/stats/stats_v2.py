@@ -110,6 +110,9 @@ SORT_KEYS = {"most", "least", "overdue", "streak"}
 PERIOD_KEYS = {"7d", "30d", "60d", "1y", "custom", "all"}
 GROUP_KEYS = {"main", "special"}
 THREE_DIGIT_TOKEN_RE = re.compile(r"(?<!\d)\d{3}(?!\d)")
+DEFAULT_MAX_COMBO_SIZE = 5
+KENO_MAX_COMBO_SIZE = 10
+KENO_EXHAUSTIVE_COMBO_LIMIT = 3
 
 
 def normalize_header(value):
@@ -135,6 +138,10 @@ def normalize_type(value):
         "MAX_3DPRO": "MAX_3D_PRO",
     }
     return aliases.get(text, text)
+
+
+def max_combo_size_for_type(type_key):
+    return KENO_MAX_COMBO_SIZE if normalize_type(type_key) == "KENO" else DEFAULT_MAX_COMBO_SIZE
 
 
 def parse_date_value(value):
@@ -304,17 +311,26 @@ def draw_combo_items(type_key, draw, group, combo_size):
         return {(token,) for token in tokens}
     if group == "special":
         return set()
+    if combo_size > len(tokens):
+        return set()
+    if type_key == "KENO" and combo_size > KENO_EXHAUSTIVE_COMBO_LIMIT:
+        return {
+            tuple(tokens[index:index + combo_size])
+            for index in range(0, len(tokens) - combo_size + 1)
+        }
     return {tuple(combo) for combo in combinations(tokens, combo_size)}
 
 
 def candidate_items(type_key, group, combo_size, observed):
-    cfg = GAME_CONFIGS[type_key]
     if combo_size <= 1:
         return [(token,) for token in number_universe(type_key, group)]
+    cfg = GAME_CONFIGS[type_key]
     if cfg["kind"] == "three_digit":
         return sorted(observed)
-    universe = number_universe(type_key, group)
-    return [tuple(combo) for combo in combinations(universe, combo_size)]
+    if combo_size <= KENO_EXHAUSTIVE_COMBO_LIMIT:
+        universe = number_universe(type_key, group)
+        return [tuple(combo) for combo in combinations(universe, combo_size)]
+    return sorted(observed)
 
 
 def item_label(item):
@@ -322,7 +338,8 @@ def item_label(item):
 
 
 def compute_stats(type_key, draws, group="main", combo_size=1, sort_key="most", limit=120):
-    combo_size = max(1, min(3, int(combo_size or 1)))
+    type_key = normalize_type(type_key)
+    combo_size = max(1, min(max_combo_size_for_type(type_key), int(combo_size or 1)))
     sort_key = sort_key if sort_key in SORT_KEYS else "most"
     total_draws = len(draws)
     counts = Counter()
@@ -409,7 +426,7 @@ def build_stats_payload(
     group = str(group or "main").strip().lower()
     if group not in GROUP_KEYS:
         group = "main"
-    combo_size = max(1, min(3, int(combo_size or 1)))
+    combo_size = max(1, min(max_combo_size_for_type(normalized_type), int(combo_size or 1)))
     sort_key = str(sort_key or "most").strip().lower()
     if sort_key not in SORT_KEYS:
         sort_key = "most"
@@ -436,6 +453,11 @@ def build_stats_payload(
 
     filtered_draws, filtered_from, filtered_to = filter_draws_by_period(draws, period, from_date, to_date)
     items, _ = compute_stats(normalized_type, filtered_draws, group, combo_size, sort_key, limit)
+    combo_mode = (
+        "keno_window"
+        if normalized_type == "KENO" and group == "main" and combo_size > KENO_EXHAUSTIVE_COMBO_LIMIT
+        else "exact"
+    )
     payload = {
         "ok": True,
         "supported": True,
@@ -444,6 +466,7 @@ def build_stats_payload(
         "label": cfg["label"],
         "sourceFile": source_path.name,
         "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        "comboMode": combo_mode,
         "params": {
             "period": period,
             "group": group,

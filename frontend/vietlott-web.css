@@ -4504,7 +4504,7 @@
       grid-template-columns: repeat(5, minmax(0, 1fr));
     }
     .stats-v2-control.is-combo .stats-v2-tabs {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--stats-v2-combo-columns, 5), minmax(0, 1fr));
     }
     .stats-v2-tab {
       width: auto;
@@ -9002,7 +9002,7 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
       .stats-v2-control.is-combo .stats-v2-tabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(var(--stats-v2-combo-columns, 5), minmax(0, 1fr));
       }
       .stats-v2-date-range {
         grid-template-columns: 1fr;

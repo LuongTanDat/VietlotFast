@@ -182,11 +182,12 @@
       { value: "overdue", label: "Lâu chưa về nhất" },
       { value: "streak", label: "Đang ra liên tiếp" },
     ];
-    const STATS_V2_COMBO_OPTIONS = [
-      { value: 1, label: "1 số" },
-      { value: 2, label: "2 số" },
-      { value: 3, label: "3 số" },
-    ];
+    const STATS_V2_MAX_COMBO_DEFAULT = 5;
+    const STATS_V2_MAX_COMBO_KENO = 10;
+    const STATS_V2_COMBO_OPTIONS = Array.from({ length: STATS_V2_MAX_COMBO_KENO }, (_, index) => {
+      const value = index + 1;
+      return { value, label: `${value} số` };
+    });
     const STATS_V2_LOTO535_VIEW_OPTIONS = [
       { value: "jackpot", label: "Giá trị Độc đắc" },
       { value: "frequency", label: "Tần suất" },
@@ -3806,6 +3807,7 @@
           statsV2State.loto535View = "frequency";
           statsV2State.group = "main";
         }
+        statsV2State.comboSize = normalizeStatsV2ComboSize(statsV2State.comboSize, nextType);
         clearStatsV2Selection();
         saveStatsV2UiState();
         loadStatsV2({ force: true, silent: true });
@@ -3839,7 +3841,7 @@
       statsV2ComboTabs.addEventListener("click", event => {
         const button = event.target?.closest("[data-stats-v2-combo]");
         if (!button || button.disabled) return;
-        const nextCombo = normalizeStatsV2ComboSize(button.dataset.statsV2Combo);
+        const nextCombo = normalizeStatsV2ComboSize(button.dataset.statsV2Combo, statsV2State.type);
         if (nextCombo === statsV2State.comboSize) return;
         statsV2State.comboSize = nextCombo;
         clearStatsV2Selection();
@@ -6086,9 +6088,19 @@
       return STATS_V2_SORT_OPTIONS.some(item => item.value === normalized) ? normalized : "most";
     }
 
-    function normalizeStatsV2ComboSize(value) {
+    function getStatsV2MaxComboSize(type = statsV2State?.type) {
+      return normalizeStatsV2Type(type) === "KENO" ? STATS_V2_MAX_COMBO_KENO : STATS_V2_MAX_COMBO_DEFAULT;
+    }
+
+    function getStatsV2ComboOptions(type = statsV2State?.type) {
+      const maxCombo = getStatsV2MaxComboSize(type);
+      return STATS_V2_COMBO_OPTIONS.filter(item => item.value <= maxCombo);
+    }
+
+    function normalizeStatsV2ComboSize(value, type = statsV2State?.type) {
       const parsed = Number(value || 1);
-      return Number.isInteger(parsed) && parsed >= 1 && parsed <= 3 ? parsed : 1;
+      if (!Number.isInteger(parsed) || parsed < 1) return 1;
+      return Math.min(parsed, getStatsV2MaxComboSize(type));
     }
 
     function normalizeStatsV2Group(value) {
@@ -6113,7 +6125,7 @@
       statsV2State.type = normalizeStatsV2Type(saved.type || statsV2State.type);
       statsV2State.period = normalizeStatsV2Period(saved.period || statsV2State.period);
       statsV2State.sort = normalizeStatsV2Sort(saved.sort || statsV2State.sort);
-      statsV2State.comboSize = normalizeStatsV2ComboSize(saved.comboSize || statsV2State.comboSize);
+      statsV2State.comboSize = normalizeStatsV2ComboSize(saved.comboSize || statsV2State.comboSize, statsV2State.type);
       statsV2State.group = normalizeStatsV2Group(saved.group || statsV2State.group);
       statsV2State.loto535View = normalizeStatsV2Loto535View(saved.loto535View || statsV2State.loto535View);
       statsV2State.from = String(saved.from || "");
@@ -6170,7 +6182,10 @@
       const effectiveGroup = getStatsV2EffectiveGroup();
       const comboTabs = document.getElementById("statsV2ComboTabs");
       if (comboTabs) {
-        comboTabs.innerHTML = STATS_V2_COMBO_OPTIONS.map(item => {
+        statsV2State.comboSize = effectiveGroup === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize, statsV2State.type);
+        const comboOptions = effectiveGroup === "special" ? STATS_V2_COMBO_OPTIONS.slice(0, 1) : getStatsV2ComboOptions(statsV2State.type);
+        comboTabs.style.setProperty("--stats-v2-combo-columns", String(Math.min(5, Math.max(1, comboOptions.length))));
+        comboTabs.innerHTML = comboOptions.map(item => {
           const disabled = effectiveGroup === "special" && item.value !== 1;
           const active = item.value === statsV2State.comboSize;
           return `<button type="button" class="stats-v2-tab${active ? " is-active" : ""}" data-stats-v2-combo="${item.value}" role="tab" aria-selected="${active ? "true" : "false"}"${disabled ? " disabled" : ""}>${escapeHtml(item.label)}</button>`;
@@ -6202,7 +6217,7 @@
       params.set("type", normalizeStatsV2Type(statsV2State.type));
       params.set("period", normalizeStatsV2Period(statsV2State.period));
       params.set("group", getStatsV2EffectiveGroup());
-      params.set("comboSize", String(getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize)));
+      params.set("comboSize", String(getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize, statsV2State.type)));
       params.set("sort", normalizeStatsV2Sort(statsV2State.sort));
       if (statsV2State.period === "custom") {
         if (statsV2State.from) params.set("from", statsV2State.from);
@@ -6363,7 +6378,7 @@
       statsV2State.type = normalizeStatsV2Type(statsV2State.type);
       statsV2State.period = normalizeStatsV2Period(statsV2State.period);
       statsV2State.sort = normalizeStatsV2Sort(statsV2State.sort);
-      statsV2State.comboSize = getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize);
+      statsV2State.comboSize = getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize, statsV2State.type);
       renderStatsV2Controls();
       renderStatsV2Selection();
       syncStatsV2AutoRefreshTimer();

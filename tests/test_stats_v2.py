@@ -14,11 +14,16 @@ SAMPLE_LOTO_535 = """Kỳ,Thứ,Ngày,Giờ,Bộ Số,ĐB,Hiển thị,Loại,Li
 1,Thứ 5,01/01/2026,21:00,"1,2,3,4,5",1,01 02 03 04 05 | ĐB 01,Loto_5/35,https://example.test,01/01/2026
 """
 
+SAMPLE_KENO = """Kỳ,Thứ,Ngày,Giờ,Bộ Số,ĐB,Hiển thị,Loại,Link cập nhật,Ngày cập nhật
+2,Thứ 6,02/01/2026,06:16,"1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30",,01 02 03 04 05 06 07 08 09 10 21 22 23 24 25 26 27 28 29 30,Keno,https://example.test,02/01/2026
+1,Thứ 5,01/01/2026,06:08,"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20,Keno,https://example.test,01/01/2026
+"""
+
 
 class StatsV2Tests(unittest.TestCase):
-    def write_csv(self, text=SAMPLE_LOTO_535):
+    def write_csv(self, text=SAMPLE_LOTO_535, filename="loto_5_35_all_day.csv"):
         temp = tempfile.TemporaryDirectory()
-        path = Path(temp.name) / "loto_5_35_all_day.csv"
+        path = Path(temp.name) / filename
         path.write_text(text, encoding="utf-8", newline="")
         self.addCleanup(temp.cleanup)
         return path
@@ -68,6 +73,28 @@ class StatsV2Tests(unittest.TestCase):
 
         self.assertEqual(2, item["count"])
 
+    def test_combo_5_numbers(self):
+        payload = self.payload(period="all", group="main", combo_size=5, sort_key="most")
+        item = self.find_item(payload, "01-02-03-04-05")
+
+        self.assertEqual(2, item["count"])
+
+    def test_keno_combo_10_numbers(self):
+        payload = sv2.build_stats_payload(
+            "KENO",
+            period="all",
+            group="main",
+            combo_size=10,
+            sort_key="most",
+            csv_path=self.write_csv(SAMPLE_KENO, "keno_all_day.csv"),
+        )
+        item = self.find_item(payload, "01-02-03-04-05-06-07-08-09-10")
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(10, payload["params"]["comboSize"])
+        self.assertEqual("keno_window", payload["comboMode"])
+        self.assertEqual(2, item["count"])
+
     def test_current_gap(self):
         payload = self.payload(period="all", group="main", combo_size=1, sort_key="overdue")
         item = self.find_item(payload, "07")
@@ -100,4 +127,3 @@ class StatsV2Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
