@@ -110,6 +110,7 @@
     const STATS_SELECTED_DAY_WINDOW_KEY = "vietlott_stats_selected_day_window_v1";
     const STATS_DATE_FROM_KEY = "vietlott_stats_date_from_v1";
     const STATS_DATE_TO_KEY = "vietlott_stats_date_to_v1";
+    const STATS_V2_UI_KEY = "vietlott_stats_v2_ui_v1";
     const LIVE_RESULTS_CACHE_KEY = "vietlott_live_results_v1";
     const LIVE_HISTORY_CACHE_KEY = "vietlott_live_history_v1";
     const LIVE_SYNC_TIMING_CACHE_KEY = "vietlott_live_sync_timing_v1";
@@ -165,8 +166,34 @@
     const PREDICTION_MODE_NORMAL = "normal";
     const PREDICTION_MODE_VIP = "vip";
     const PREDICTION_MODE_STATS = "stats";
+    const PREDICTION_MODE_STATS_V2 = "stats-v2";
     const PREDICTION_MODE_CHARTS = "charts";
     const PREDICTION_MODE_DASHBOARD = "dashboard";
+    const STATS_V2_PERIOD_OPTIONS = [
+      { value: "7d", label: "7 ngày" },
+      { value: "30d", label: "30 ngày" },
+      { value: "60d", label: "60 ngày" },
+      { value: "1y", label: "1 năm" },
+      { value: "custom", label: "Custom" },
+    ];
+    const STATS_V2_SORT_OPTIONS = [
+      { value: "most", label: "Xuất hiện nhiều nhất" },
+      { value: "least", label: "Xuất hiện ít nhất" },
+      { value: "overdue", label: "Lâu chưa về nhất" },
+      { value: "streak", label: "Đang ra liên tiếp" },
+    ];
+    const STATS_V2_COMBO_OPTIONS = [
+      { value: 1, label: "1 số" },
+      { value: 2, label: "2 số" },
+      { value: 3, label: "3 số" },
+    ];
+    const STATS_V2_LOTO535_VIEW_OPTIONS = [
+      { value: "jackpot", label: "Giá trị Độc đắc" },
+      { value: "frequency", label: "Tần suất" },
+    ];
+    const STATS_V2_AUTO_REFRESH_MS = 90000;
+    const MAX_STATS_V2_FAVORITES = 50;
+    const MAX_STATS_V2_HISTORY = 80;
     const DASHBOARD_LOTTO_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const DASHBOARD_ACTIVITY_VIEW_OPTIONS = ["day", "week", "month"];
     const DASHBOARD_DISTRIBUTION_VIEW_OPTIONS = ["range", "parity", "temperature", "head", "tail"];
@@ -335,6 +362,8 @@
       resultOrder: Object.fromEntries(TYPE_KEYS.map(k => [k, []])),
       pickOrder: Object.fromEntries(TYPE_KEYS.map(k => [k, []])),
       predictionLogs: Object.fromEntries(PREDICTION_LOG_TYPES.map(k => [k, []])),
+      statsV2Favorites: [],
+      statsV2History: [],
       paypalTopups: [],
       luckyWheelHistory: [],
       luckyWheelTopupHistory: [],
@@ -361,6 +390,10 @@
     let liveHistoryState = {};
     let liveHistoryLegacyApiMode = false;
     let liveHistoryRecentRefreshBusy = false;
+    let dataTableSelectedType = "LOTO_5_35";
+    let dataTableSelectedLimit = "500";
+    let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
+    let dataTableLoading = false;
     let liveResultsFetchedAt = "";
     let liveAutoTimer = null;
     let liveResultsProgressTypeCursor = {};
@@ -387,6 +420,24 @@
     let statsPanelLoading = false;
     let statsPanelError = "";
     let statsPanelRefreshToken = 0;
+    let statsV2State = {
+      type: "LOTO_5_35",
+      period: "30d",
+      sort: "most",
+      comboSize: 1,
+      group: "main",
+      loto535View: "frequency",
+      from: "",
+      to: "",
+      autoRefresh: false,
+      loading: false,
+      error: "",
+      payload: null,
+      selected: [],
+      message: "",
+      refreshToken: 0,
+      timer: null
+    };
     let chartStatsSelectedType = "KENO";
     let chartStatsSelectedPreset = "119";
     let chartStatsCustomCountValue = "";
@@ -451,7 +502,8 @@
     const APP_PAGE_PATHS = {
       home: "/",
       wheel: "/vong-quay",
-      deposit: "/nap-tien"
+      deposit: "/nap-tien",
+      data: "/bang-du-lieu"
     };
 
     function normalizeUser(u) {
@@ -462,6 +514,7 @@
       const normalized = String(pathname || "/").toLowerCase();
       if (normalized === "/vong-quay" || normalized === "/vong-quay.html") return "wheel";
       if (normalized === "/nap-tien" || normalized === "/nap-tien.html") return "deposit";
+      if (normalized === "/bang-du-lieu" || normalized === "/bang-du-lieu.html") return "data";
       return "home";
     }
 
@@ -477,6 +530,10 @@
       }
       if (mode === "deposit") {
         document.title = "Nạp tiền tài khoản | Vietlott Tra Cứu Nhanh Pro";
+        return;
+      }
+      if (mode === "data") {
+        document.title = "Bảng Dữ Liệu | Vietlott Tra Cứu Nhanh Pro";
         return;
       }
       document.title = "Vietlott Tra Cứu Nhanh Pro";
@@ -532,6 +589,7 @@
       const normalized = String(value || "").trim().toLowerCase();
       if (normalized === PREDICTION_MODE_VIP) return PREDICTION_MODE_VIP;
       if (normalized === PREDICTION_MODE_STATS) return PREDICTION_MODE_STATS;
+      if (normalized === PREDICTION_MODE_STATS_V2) return PREDICTION_MODE_STATS_V2;
       if (normalized === PREDICTION_MODE_CHARTS) return PREDICTION_MODE_CHARTS;
       if (normalized === PREDICTION_MODE_DASHBOARD) return PREDICTION_MODE_DASHBOARD;
       return PREDICTION_MODE_NORMAL;
@@ -1084,6 +1142,8 @@
       for (const t of PREDICTION_LOG_TYPES) {
         base.predictionLogs[t] = Array.isArray(parsed.predictionLogs?.[t]) ? parsed.predictionLogs[t] : [];
       }
+      base.statsV2Favorites = Array.isArray(parsed.statsV2Favorites) ? parsed.statsV2Favorites : [];
+      base.statsV2History = Array.isArray(parsed.statsV2History) ? parsed.statsV2History : [];
       base.paypalTopups = Array.isArray(parsed.paypalTopups) ? parsed.paypalTopups : [];
       base.luckyWheelHistory = Array.isArray(parsed.luckyWheelHistory) ? parsed.luckyWheelHistory : [];
       base.luckyWheelTopupHistory = Array.isArray(parsed.luckyWheelTopupHistory) ? parsed.luckyWheelTopupHistory : [];
@@ -1183,6 +1243,11 @@
         }
         setLocalStoreForUser(cur.username, parsed);
         return { ok: true };
+      }
+
+      if (path.startsWith("/api/stats-v2") && m === "GET") {
+        requireAuth();
+        throw new Error("Thống Kê V2 cần chạy qua http://localhost:8080 để server đọc canonical CSV.");
       }
 
       if (path === "/api/recover-admin" && m === "POST") {
@@ -1431,6 +1496,8 @@
       for (const t of PREDICTION_LOG_TYPES) {
         base.predictionLogs[t] = Array.isArray(parsed.predictionLogs?.[t]) ? parsed.predictionLogs[t] : [];
       }
+      base.statsV2Favorites = Array.isArray(parsed.statsV2Favorites) ? parsed.statsV2Favorites : [];
+      base.statsV2History = Array.isArray(parsed.statsV2History) ? parsed.statsV2History : [];
       base.paypalTopups = Array.isArray(parsed.paypalTopups) ? parsed.paypalTopups : [];
       base.luckyWheelHistory = Array.isArray(parsed.luckyWheelHistory) ? parsed.luckyWheelHistory : [];
       base.luckyWheelTopupHistory = Array.isArray(parsed.luckyWheelTopupHistory) ? parsed.luckyWheelTopupHistory : [];
@@ -2899,7 +2966,7 @@
     }
 
     function setAuxiliarySectionsVisible(activeSectionId = "") {
-      ["luckyWheelSection", "paypalDepositSection"].forEach(sectionId => {
+      ["luckyWheelSection", "paypalDepositSection", "dataTableSection"].forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (!section) return;
         section.hidden = sectionId !== activeSectionId;
@@ -2945,6 +3012,14 @@
         setAuxiliarySectionsVisible("paypalDepositSection");
         setSideMenuActiveButton("paypalDepositMenuBtn");
         renderPaypalDepositSection();
+        return;
+      }
+      if (mode === "data") {
+        setPrimaryContentVisible(false);
+        setAuxiliarySectionsVisible("dataTableSection");
+        setSideMenuActiveButton("dataTableMenuBtn");
+        renderDataTableShell();
+        loadDataTableRows();
         return;
       }
       setPrimaryContentVisible(true);
@@ -3004,7 +3079,7 @@
       }
     }
 
-    ["prizeType", "pdType", "vipPdType"].forEach(fillTypeSelect);
+    ["prizeType", "pdType", "vipPdType", "dataTableType"].forEach(fillTypeSelect);
     fillLiveHistoryTypeSelect();
     syncLiveHistoryCountOptions();
 
@@ -3214,7 +3289,13 @@
       "lottoDashboardGameSelect",
       "chartStatsTypeSelect",
       "chartStatsPresetSelect",
-      "chartStatsViewSelect"
+      "chartStatsViewSelect",
+      "dataTableType",
+      "dataTableLimit",
+      "dataTableWeekday",
+      "dataTableDay",
+      "dataTableMonth",
+      "dataTableYear"
     ].forEach(enhanceSelect);
     normalizePredictRecentWindowSelection();
     renderLotteryMenu();
@@ -3256,6 +3337,9 @@
     };
     document.getElementById("luckyWheelMenuBtn").onclick = () => {
       navigateToAppPage("wheel");
+    };
+    document.getElementById("dataTableMenuBtn").onclick = () => {
+      navigateToAppPage("data");
     };
     {
       const depositAmountEl = document.getElementById("depositAmount");
@@ -3607,6 +3691,11 @@
         renderPredictModeTabs();
         if (nextMode === PREDICTION_MODE_STATS) {
           startStatsPanelRefresh({ silent: true });
+        } else if (nextMode === PREDICTION_MODE_STATS_V2) {
+          loadStatsV2({ force: true, silent: true });
+          window.setTimeout(() => {
+            document.getElementById("predictRootStatsV2")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 40);
         } else if (nextMode === PREDICTION_MODE_CHARTS) {
           startChartStatsRefresh({ silent: true });
           window.setTimeout(() => {
@@ -3707,6 +3796,118 @@
         renderStatsPanel();
       });
     }
+    const statsV2TypeSelect = document.getElementById("statsV2TypeSelect");
+    if (statsV2TypeSelect) {
+      statsV2TypeSelect.addEventListener("change", () => {
+        const nextType = normalizeStatsV2Type(statsV2TypeSelect.value);
+        if (nextType === statsV2State.type) return;
+        statsV2State.type = nextType;
+        if (nextType !== "LOTO_5_35") {
+          statsV2State.loto535View = "frequency";
+          statsV2State.group = "main";
+        }
+        clearStatsV2Selection();
+        saveStatsV2UiState();
+        loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2PeriodTabs = document.getElementById("statsV2PeriodTabs");
+    if (statsV2PeriodTabs) {
+      statsV2PeriodTabs.addEventListener("click", event => {
+        const button = event.target?.closest("[data-stats-v2-period]");
+        if (!button) return;
+        const nextPeriod = normalizeStatsV2Period(button.dataset.statsV2Period);
+        if (nextPeriod === statsV2State.period) return;
+        statsV2State.period = nextPeriod;
+        clearStatsV2Selection();
+        saveStatsV2UiState();
+        loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2SortSelect = document.getElementById("statsV2SortSelect");
+    if (statsV2SortSelect) {
+      statsV2SortSelect.addEventListener("change", () => {
+        const nextSort = normalizeStatsV2Sort(statsV2SortSelect.value);
+        if (nextSort === statsV2State.sort) return;
+        statsV2State.sort = nextSort;
+        saveStatsV2UiState();
+        loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2ComboTabs = document.getElementById("statsV2ComboTabs");
+    if (statsV2ComboTabs) {
+      statsV2ComboTabs.addEventListener("click", event => {
+        const button = event.target?.closest("[data-stats-v2-combo]");
+        if (!button || button.disabled) return;
+        const nextCombo = normalizeStatsV2ComboSize(button.dataset.statsV2Combo);
+        if (nextCombo === statsV2State.comboSize) return;
+        statsV2State.comboSize = nextCombo;
+        clearStatsV2Selection();
+        saveStatsV2UiState();
+        loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2Loto535Tabs = document.getElementById("statsV2Loto535Tabs");
+    if (statsV2Loto535Tabs) {
+      statsV2Loto535Tabs.addEventListener("click", event => {
+        const button = event.target?.closest("[data-stats-v2-loto535-view]");
+        if (!button) return;
+        const nextView = normalizeStatsV2Loto535View(button.dataset.statsV2Loto535View);
+        if (nextView === statsV2State.loto535View) return;
+        statsV2State.loto535View = nextView;
+        clearStatsV2Selection();
+        saveStatsV2UiState();
+        renderStatsV2Panel();
+        if (!statsV2State.payload) loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2Out = document.getElementById("statsV2Out");
+    if (statsV2Out) {
+      statsV2Out.addEventListener("click", event => {
+        const groupButton = event.target?.closest("[data-stats-v2-group]");
+        if (groupButton) {
+          const nextGroup = normalizeStatsV2Group(groupButton.dataset.statsV2Group);
+          if (nextGroup !== statsV2State.group) {
+            statsV2State.group = nextGroup;
+            if (nextGroup === "special") statsV2State.comboSize = 1;
+            clearStatsV2Selection();
+            saveStatsV2UiState();
+            loadStatsV2({ force: true, silent: true });
+          }
+          return;
+        }
+        const itemHost = event.target?.closest("[data-stats-v2-item]");
+        if (itemHost) toggleStatsV2Selection(itemHost.dataset.statsV2Item);
+      });
+    }
+    const statsV2DateFromInput = document.getElementById("statsV2DateFrom");
+    if (statsV2DateFromInput) {
+      statsV2DateFromInput.addEventListener("change", () => {
+        statsV2State.from = String(statsV2DateFromInput.value || "").trim();
+        saveStatsV2UiState();
+        if (statsV2State.period === "custom") loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2DateToInput = document.getElementById("statsV2DateTo");
+    if (statsV2DateToInput) {
+      statsV2DateToInput.addEventListener("change", () => {
+        statsV2State.to = String(statsV2DateToInput.value || "").trim();
+        saveStatsV2UiState();
+        if (statsV2State.period === "custom") loadStatsV2({ force: true, silent: true });
+      });
+    }
+    const statsV2AutoRefreshInput = document.getElementById("statsV2AutoRefresh");
+    if (statsV2AutoRefreshInput) {
+      statsV2AutoRefreshInput.addEventListener("change", () => {
+        statsV2State.autoRefresh = !!statsV2AutoRefreshInput.checked;
+        saveStatsV2UiState();
+        syncStatsV2AutoRefreshTimer();
+      });
+    }
+    const statsV2SaveBtn = document.getElementById("statsV2SaveBtn");
+    if (statsV2SaveBtn) statsV2SaveBtn.addEventListener("click", saveStatsV2Favorite);
+    const statsV2BuyBtn = document.getElementById("statsV2BuyBtn");
+    if (statsV2BuyBtn) statsV2BuyBtn.addEventListener("click", buyStatsV2Selection);
     const chartStatsTypeSelect = document.getElementById("chartStatsTypeSelect");
     if (chartStatsTypeSelect) {
       chartStatsTypeSelect.addEventListener("change", () => {
@@ -4129,16 +4330,20 @@
     {
       const initialPdType = document.getElementById("pdType")?.value || "";
       enforcePredictEngineVisibility(initialPdType === "KENO", AI_PREDICT_TYPES.has(initialPdType));
+      restoreStatsV2UiState();
       renderPredictEngineChoice();
       renderPredictModeTabs();
       renderStatsTypeTabs();
       renderStatsWindowTabs();
       renderStatsPanel();
+      renderStatsV2Panel();
       renderChartStatsPanel();
       renderDashboardPanel();
       renderKenoTrainingToggle();
       if (predictPageModeValue === PREDICTION_MODE_STATS) {
         startStatsPanelRefresh({ silent: true });
+      } else if (predictPageModeValue === PREDICTION_MODE_STATS_V2) {
+        loadStatsV2({ force: true, silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_CHARTS) {
         startChartStatsRefresh({ silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_DASHBOARD) {
@@ -4217,6 +4422,61 @@
             await refreshCurrentLiveHistory();
           } catch (err) {
             line(document.getElementById("liveHistoryOut"), `Không tải được lịch sử CSV: ${err.message || err}`, "warn");
+          }
+        });
+      }
+    }
+    {
+      const dataTableType = document.getElementById("dataTableType");
+      if (dataTableType) {
+        dataTableType.addEventListener("change", async () => {
+          dataTableSelectedType = dataTableType.value || "LOTO_5_35";
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
+      const dataTableLimit = document.getElementById("dataTableLimit");
+      if (dataTableLimit) {
+        dataTableLimit.addEventListener("change", async () => {
+          dataTableSelectedLimit = getDataTableLimitValue();
+          await loadDataTableRows();
+        });
+      }
+    }
+    ["dataTableWeekday", "dataTableDay", "dataTableMonth", "dataTableYear"].forEach(filterId => {
+      const filterEl = document.getElementById(filterId);
+      if (!filterEl) return;
+      filterEl.addEventListener("change", async () => {
+        dataTableDateFilters = getDataTableDateFilters();
+        await loadDataTableRows();
+      });
+    });
+    {
+      const dataTableClearFilterBtn = document.getElementById("dataTableClearFilterBtn");
+      if (dataTableClearFilterBtn) {
+        dataTableClearFilterBtn.addEventListener("click", async () => {
+          resetDataTableDateFilters();
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
+      const dataTableRefreshBtn = document.getElementById("dataTableRefreshBtn");
+      if (dataTableRefreshBtn) {
+        dataTableRefreshBtn.addEventListener("click", async () => {
+          await loadDataTableRows({ force: true });
+        });
+      }
+    }
+    {
+      const dataTableDownloadBtn = document.getElementById("dataTableDownloadBtn");
+      if (dataTableDownloadBtn) {
+        dataTableDownloadBtn.addEventListener("click", async () => {
+          try {
+            await downloadDataTableExcel();
+          } catch (err) {
+            renderDataTableStatus(`Không tải xuống được Excel: ${err.message || err}`, "warn");
           }
         });
       }
@@ -5180,13 +5440,16 @@
       const normalRoot = document.getElementById("predictRootNormal");
       const vipRoot = document.getElementById("predictRootVip");
       const statsRoot = document.getElementById("predictRootStats");
+      const statsV2Root = document.getElementById("predictRootStatsV2");
       const chartsRoot = document.getElementById("predictRootCharts");
       const dashboardRoot = document.getElementById("predictRootDashboard");
       if (normalRoot) normalRoot.hidden = predictPageModeValue !== PREDICTION_MODE_NORMAL;
       if (vipRoot) vipRoot.hidden = predictPageModeValue !== PREDICTION_MODE_VIP;
       if (statsRoot) statsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_STATS;
+      if (statsV2Root) statsV2Root.hidden = predictPageModeValue !== PREDICTION_MODE_STATS_V2;
       if (chartsRoot) chartsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_CHARTS;
       if (dashboardRoot) dashboardRoot.hidden = predictPageModeValue !== PREDICTION_MODE_DASHBOARD;
+      syncStatsV2AutoRefreshTimer();
     }
 
     function getStatsTypeUiMeta(typeKey) {
@@ -5806,6 +6069,435 @@
         if (refreshToken !== statsPanelRefreshToken) return;
         renderStatsPanel();
       }
+    }
+
+    function normalizeStatsV2Type(value) {
+      const normalized = String(value || "").trim().toUpperCase();
+      return TYPE_KEYS.includes(normalized) ? normalized : "LOTO_5_35";
+    }
+
+    function normalizeStatsV2Period(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return STATS_V2_PERIOD_OPTIONS.some(item => item.value === normalized) ? normalized : "30d";
+    }
+
+    function normalizeStatsV2Sort(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return STATS_V2_SORT_OPTIONS.some(item => item.value === normalized) ? normalized : "most";
+    }
+
+    function normalizeStatsV2ComboSize(value) {
+      const parsed = Number(value || 1);
+      return Number.isInteger(parsed) && parsed >= 1 && parsed <= 3 ? parsed : 1;
+    }
+
+    function normalizeStatsV2Group(value) {
+      return String(value || "").trim().toLowerCase() === "special" ? "special" : "main";
+    }
+
+    function normalizeStatsV2Loto535View(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return STATS_V2_LOTO535_VIEW_OPTIONS.some(item => item.value === normalized) ? normalized : "frequency";
+    }
+
+    function getStatsV2EffectiveGroup() {
+      const type = normalizeStatsV2Type(statsV2State.type);
+      if (type === "LOTO_5_35" && statsV2State.loto535View === "frequency") {
+        return normalizeStatsV2Group(statsV2State.group);
+      }
+      return "main";
+    }
+
+    function restoreStatsV2UiState() {
+      const saved = readJsonLocal(STATS_V2_UI_KEY, {});
+      statsV2State.type = normalizeStatsV2Type(saved.type || statsV2State.type);
+      statsV2State.period = normalizeStatsV2Period(saved.period || statsV2State.period);
+      statsV2State.sort = normalizeStatsV2Sort(saved.sort || statsV2State.sort);
+      statsV2State.comboSize = normalizeStatsV2ComboSize(saved.comboSize || statsV2State.comboSize);
+      statsV2State.group = normalizeStatsV2Group(saved.group || statsV2State.group);
+      statsV2State.loto535View = normalizeStatsV2Loto535View(saved.loto535View || statsV2State.loto535View);
+      statsV2State.from = String(saved.from || "");
+      statsV2State.to = String(saved.to || "");
+      statsV2State.autoRefresh = !!saved.autoRefresh;
+      if (getStatsV2EffectiveGroup() === "special") statsV2State.comboSize = 1;
+    }
+
+    function saveStatsV2UiState() {
+      writeJsonLocal(STATS_V2_UI_KEY, {
+        type: statsV2State.type,
+        period: statsV2State.period,
+        sort: statsV2State.sort,
+        comboSize: statsV2State.comboSize,
+        group: statsV2State.group,
+        loto535View: statsV2State.loto535View,
+        from: statsV2State.from,
+        to: statsV2State.to,
+        autoRefresh: !!statsV2State.autoRefresh,
+      });
+    }
+
+    function clearStatsV2Selection() {
+      statsV2State.selected = [];
+      renderStatsV2Selection();
+    }
+
+    function renderStatsV2Controls() {
+      const typeSelect = document.getElementById("statsV2TypeSelect");
+      if (typeSelect) {
+        typeSelect.innerHTML = TYPE_KEYS.map(key => `<option value="${escapeHtml(key)}">${escapeHtml(TYPES[key]?.label || key)}</option>`).join("");
+        typeSelect.value = normalizeStatsV2Type(statsV2State.type);
+        if (typeof typeSelect.__syncCustomSelect === "function") typeSelect.__syncCustomSelect();
+      }
+      const periodTabs = document.getElementById("statsV2PeriodTabs");
+      if (periodTabs) {
+        periodTabs.innerHTML = STATS_V2_PERIOD_OPTIONS.map(item => {
+          const active = item.value === statsV2State.period;
+          return `<button type="button" class="stats-v2-tab${active ? " is-active" : ""}" data-stats-v2-period="${escapeHtml(item.value)}" role="tab" aria-selected="${active ? "true" : "false"}">${escapeHtml(item.label)}</button>`;
+        }).join("");
+      }
+      const customRange = document.getElementById("statsV2CustomRange");
+      if (customRange) customRange.hidden = statsV2State.period !== "custom";
+      const fromInput = document.getElementById("statsV2DateFrom");
+      const toInput = document.getElementById("statsV2DateTo");
+      if (fromInput && fromInput.value !== statsV2State.from) fromInput.value = statsV2State.from;
+      if (toInput && toInput.value !== statsV2State.to) toInput.value = statsV2State.to;
+      const sortSelect = document.getElementById("statsV2SortSelect");
+      if (sortSelect) {
+        sortSelect.innerHTML = STATS_V2_SORT_OPTIONS.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("");
+        sortSelect.value = normalizeStatsV2Sort(statsV2State.sort);
+        if (typeof sortSelect.__syncCustomSelect === "function") sortSelect.__syncCustomSelect();
+      }
+      const effectiveGroup = getStatsV2EffectiveGroup();
+      const comboTabs = document.getElementById("statsV2ComboTabs");
+      if (comboTabs) {
+        comboTabs.innerHTML = STATS_V2_COMBO_OPTIONS.map(item => {
+          const disabled = effectiveGroup === "special" && item.value !== 1;
+          const active = item.value === statsV2State.comboSize;
+          return `<button type="button" class="stats-v2-tab${active ? " is-active" : ""}" data-stats-v2-combo="${item.value}" role="tab" aria-selected="${active ? "true" : "false"}"${disabled ? " disabled" : ""}>${escapeHtml(item.label)}</button>`;
+        }).join("");
+      }
+      const lotoTabs = document.getElementById("statsV2Loto535Tabs");
+      if (lotoTabs) {
+        const isLoto535 = normalizeStatsV2Type(statsV2State.type) === "LOTO_5_35";
+        lotoTabs.hidden = !isLoto535;
+        lotoTabs.innerHTML = STATS_V2_LOTO535_VIEW_OPTIONS.map(item => {
+          const active = item.value === statsV2State.loto535View;
+          return `<button type="button" class="stats-v2-tab${active ? " is-active" : ""}" data-stats-v2-loto535-view="${escapeHtml(item.value)}" role="tab" aria-selected="${active ? "true" : "false"}">${escapeHtml(item.label)}</button>`;
+        }).join("");
+      }
+      const autoInput = document.getElementById("statsV2AutoRefresh");
+      if (autoInput) autoInput.checked = !!statsV2State.autoRefresh;
+    }
+
+    function setStatsV2Status(message = "", tone = "warn") {
+      const status = document.getElementById("statsV2Status");
+      if (!status) return;
+      status.hidden = !message;
+      status.textContent = message;
+      status.classList.toggle("is-ok", tone === "ok");
+    }
+
+    function buildStatsV2Query() {
+      const params = new URLSearchParams();
+      params.set("type", normalizeStatsV2Type(statsV2State.type));
+      params.set("period", normalizeStatsV2Period(statsV2State.period));
+      params.set("group", getStatsV2EffectiveGroup());
+      params.set("comboSize", String(getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize)));
+      params.set("sort", normalizeStatsV2Sort(statsV2State.sort));
+      if (statsV2State.period === "custom") {
+        if (statsV2State.from) params.set("from", statsV2State.from);
+        if (statsV2State.to) params.set("to", statsV2State.to);
+      }
+      return params;
+    }
+
+    async function loadStatsV2({ force = false, silent = true } = {}) {
+      const refreshToken = ++statsV2State.refreshToken;
+      statsV2State.loading = true;
+      statsV2State.error = "";
+      if (force) statsV2State.payload = null;
+      if (!silent) statsV2State.message = "";
+      renderStatsV2Panel();
+      try {
+        const params = buildStatsV2Query();
+        if (force) params.set("force", "1");
+        const res = await api(`/api/stats-v2?${params.toString()}`);
+        if (refreshToken !== statsV2State.refreshToken) return;
+        statsV2State.payload = res;
+        statsV2State.loading = false;
+        statsV2State.error = "";
+        statsV2State.message = "";
+      } catch (error) {
+        if (refreshToken !== statsV2State.refreshToken) return;
+        statsV2State.loading = false;
+        statsV2State.error = String(error?.message || error || "Không tải được Thống Kê V2.");
+      } finally {
+        if (refreshToken !== statsV2State.refreshToken) return;
+        renderStatsV2Panel();
+      }
+    }
+
+    function formatStatsV2Metric(value, fallback = "--") {
+      if (value == null || value === "") return fallback;
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return String(value);
+      if (Math.abs(numeric) < 1 && numeric > 0) return `${(numeric * 100).toFixed(2)}%`;
+      return numeric.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    }
+
+    function formatStatsV2UpdatedAt(value) {
+      const text = String(value || "").trim();
+      if (!text) return "Chưa tải";
+      const match = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})(?::\d{2})?/);
+      if (match) return `Cập nhật ${match[4]} • ${match[3]}/${match[2]}`;
+      return `Cập nhật ${text}`;
+    }
+
+    function renderStatsV2Balls(item, group = "main") {
+      const numbers = Array.isArray(item?.numbers) ? item.numbers : [item?.label || item?.key || ""];
+      const specialClass = group === "special" ? " is-special" : "";
+      return `<div class="stats-v2-ball-stack">${numbers.map(number => `<span class="stats-v2-ball${specialClass}">${escapeHtml(number)}</span>`).join("")}</div>`;
+    }
+
+    function renderStatsV2GroupTabs() {
+      if (normalizeStatsV2Type(statsV2State.type) !== "LOTO_5_35" || statsV2State.loto535View !== "frequency") return "";
+      const items = [
+        { value: "main", label: "Số chính 01-35" },
+        { value: "special", label: "Số đặc biệt 01-12" },
+      ];
+      return `<div class="stats-v2-subtabs">${items.map(item => {
+        const active = item.value === getStatsV2EffectiveGroup();
+        return `<button type="button" class="stats-v2-tab${active ? " is-active" : ""}" data-stats-v2-group="${escapeHtml(item.value)}" role="tab" aria-selected="${active ? "true" : "false"}">${escapeHtml(item.label)}</button>`;
+      }).join("")}</div>`;
+    }
+
+    function renderStatsV2Summary(payload) {
+      const items = [
+        ["Số kỳ", formatLiveSyncCount(payload?.totalDraws || 0)],
+        ["Từ ngày", payload?.filteredFrom || "--"],
+        ["Đến ngày", payload?.filteredTo || "--"],
+        ["Nguồn", payload?.sourceFile || "--"],
+      ];
+      return `<div class="stats-v2-summary">${items.map(([label, value]) => `
+        <div class="stats-v2-summary-item">
+          <div class="stats-v2-summary-label">${escapeHtml(label)}</div>
+          <div class="stats-v2-summary-value">${escapeHtml(value)}</div>
+        </div>
+      `).join("")}</div>`;
+    }
+
+    function renderStatsV2Loto535Footer(payload) {
+      const summary = payload?.loto535Summary || {};
+      const cards = [
+        ["Số chính ra nhiều nhất", summary.mainMost],
+        ["Số chính ra ít nhất", summary.mainLeast],
+        ["Số chính ra liên tiếp", summary.mainCurrentStreak],
+      ];
+      return `<div class="stats-v2-summary">${cards.map(([label, item]) => `
+        <div class="stats-v2-summary-item">
+          <div class="stats-v2-summary-label">${escapeHtml(label)}</div>
+          <div class="stats-v2-summary-value">${escapeHtml(item?.label || "--")}</div>
+          <div class="stats-v2-row-meta">${escapeHtml(item ? `${formatLiveSyncCount(item.count)} lần • streak ${formatLiveSyncCount(item.currentStreak || item.maxStreak || 0)}` : "")}</div>
+        </div>
+      `).join("")}</div>`;
+    }
+
+    function renderStatsV2Frequency(payload) {
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      if (!items.length) return `<div class="stats-insight-empty">Không có dữ liệu phù hợp.</div>`;
+      const maxCount = Math.max(1, ...items.map(item => Number(item.count || 0)));
+      const group = payload?.params?.group || getStatsV2EffectiveGroup();
+      const tableMode = normalizeStatsV2Type(statsV2State.type) === "LOTO_5_35" && Number(payload?.params?.comboSize || 1) === 1;
+      const rows = items.map(item => {
+        const selected = statsV2State.selected.some(entry => entry.key === item.key);
+        const percent = Math.max(2, Math.round((Number(item.count || 0) / maxCount) * 100));
+        return `
+          <div class="stats-v2-row${selected ? " is-selected" : ""}" data-stats-v2-item="${escapeHtml(item.key)}">
+            ${renderStatsV2Balls(item, group)}
+            <div class="stats-v2-bar-wrap">
+              <div class="stats-v2-bar-track"><div class="stats-v2-bar-fill" style="width:${percent}%"></div></div>
+              <div class="stats-v2-row-meta">${escapeHtml(`TB ${formatStatsV2Metric(item.avgCycle)} kỳ • Chưa về ${formatLiveSyncCount(item.currentGap || 0)} kỳ • Streak ${formatLiveSyncCount(item.currentStreak || 0)}`)}</div>
+            </div>
+            <div class="stats-v2-count">${escapeHtml(`${formatLiveSyncCount(item.count || 0)} lần`)}</div>
+          </div>
+        `;
+      }).join("");
+      const table = tableMode ? `
+        <div class="stats-v2-table-wrap">
+          <table class="stats-v2-table">
+            <thead><tr><th>Số</th><th>Số lần về</th><th>Trung bình số kỳ về</th><th>Số kỳ chưa về</th></tr></thead>
+            <tbody>${items.map(item => `
+              <tr data-stats-v2-item="${escapeHtml(item.key)}">
+                <td>${renderStatsV2Balls(item, group)}</td>
+                <td>${escapeHtml(formatLiveSyncCount(item.count || 0))}</td>
+                <td>${escapeHtml(formatStatsV2Metric(item.avgCycle))}</td>
+                <td>${escapeHtml(formatLiveSyncCount(item.currentGap || 0))}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>
+        </div>
+      ` : "";
+      return `
+        ${renderStatsV2GroupTabs()}
+        <div class="stats-v2-list">${rows}</div>
+        ${table}
+        ${normalizeStatsV2Type(statsV2State.type) === "LOTO_5_35" ? renderStatsV2Loto535Footer(payload) : ""}
+      `;
+    }
+
+    function renderStatsV2Jackpot(payload) {
+      const jackpot = payload?.jackpot || {};
+      return `
+        <div class="stats-v2-jackpot">
+          <div class="stats-v2-jackpot-title">${escapeHtml(jackpot.title || "Giá trị Độc đắc")}</div>
+          <div class="stats-v2-jackpot-value">${escapeHtml(jackpot.value || "Tối thiểu 6 tỷ và tích lũy")}</div>
+          <div class="stats-v2-jackpot-note">${escapeHtml(jackpot.note || "")}</div>
+        </div>
+        ${renderStatsV2Loto535Footer(payload)}
+      `;
+    }
+
+    function renderStatsV2Panel() {
+      const out = document.getElementById("statsV2Out");
+      if (!out) return;
+      statsV2State.type = normalizeStatsV2Type(statsV2State.type);
+      statsV2State.period = normalizeStatsV2Period(statsV2State.period);
+      statsV2State.sort = normalizeStatsV2Sort(statsV2State.sort);
+      statsV2State.comboSize = getStatsV2EffectiveGroup() === "special" ? 1 : normalizeStatsV2ComboSize(statsV2State.comboSize);
+      renderStatsV2Controls();
+      renderStatsV2Selection();
+      syncStatsV2AutoRefreshTimer();
+      const updated = document.getElementById("statsV2UpdatedAt");
+      if (updated) updated.textContent = formatStatsV2UpdatedAt(statsV2State.payload?.generatedAt || "");
+      setStatsV2Status(statsV2State.message || "");
+      if (statsV2State.loading && !statsV2State.payload) {
+        out.classList.add("muted");
+        out.innerHTML = "Đang tải Thống Kê V2...";
+        return;
+      }
+      if (statsV2State.error) {
+        out.classList.add("muted");
+        out.innerHTML = escapeHtml(statsV2State.error);
+        return;
+      }
+      const payload = statsV2State.payload;
+      if (!payload) {
+        out.classList.add("muted");
+        out.innerHTML = "Chọn tab Thống Kê V2 để tải dữ liệu.";
+        return;
+      }
+      if (payload.supported === false) {
+        out.classList.add("muted");
+        out.innerHTML = escapeHtml(payload.message || "Loại này chưa hỗ trợ đầy đủ.");
+        return;
+      }
+      out.classList.remove("muted");
+      const showJackpot = normalizeStatsV2Type(statsV2State.type) === "LOTO_5_35" && statsV2State.loto535View === "jackpot";
+      out.innerHTML = `
+        ${renderStatsV2Summary(payload)}
+        ${showJackpot ? renderStatsV2Jackpot(payload) : renderStatsV2Frequency(payload)}
+      `;
+    }
+
+    function getStatsV2PayloadItem(key) {
+      const items = Array.isArray(statsV2State.payload?.items) ? statsV2State.payload.items : [];
+      return items.find(item => String(item.key) === String(key)) || null;
+    }
+
+    function toggleStatsV2Selection(key) {
+      const item = getStatsV2PayloadItem(key);
+      if (!item) return;
+      const index = statsV2State.selected.findIndex(entry => entry.key === item.key);
+      if (index >= 0) {
+        statsV2State.selected.splice(index, 1);
+      } else {
+        statsV2State.selected.push({
+          key: item.key,
+          label: item.label,
+          numbers: Array.isArray(item.numbers) ? item.numbers : [],
+          type: normalizeStatsV2Type(statsV2State.type),
+          group: statsV2State.payload?.params?.group || getStatsV2EffectiveGroup(),
+          comboSize: Number(statsV2State.payload?.params?.comboSize || statsV2State.comboSize || 1),
+        });
+      }
+      renderStatsV2Panel();
+    }
+
+    function renderStatsV2Selection() {
+      const text = document.getElementById("statsV2SelectedText");
+      const saveBtn = document.getElementById("statsV2SaveBtn");
+      const buyBtn = document.getElementById("statsV2BuyBtn");
+      const hasSelection = statsV2State.selected.length > 0;
+      if (text) {
+        text.textContent = hasSelection
+          ? statsV2State.selected.map(item => item.label || item.key).join(", ")
+          : "Bạn chưa chọn số nào";
+      }
+      if (saveBtn) saveBtn.disabled = !hasSelection;
+      if (buyBtn) buyBtn.disabled = !hasSelection;
+    }
+
+    function buildStatsV2UserSelection(action) {
+      return {
+        id: `statsv2_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        action,
+        createdAt: new Date().toISOString(),
+        type: normalizeStatsV2Type(statsV2State.type),
+        period: statsV2State.period,
+        sort: statsV2State.sort,
+        group: statsV2State.payload?.params?.group || getStatsV2EffectiveGroup(),
+        comboSize: Number(statsV2State.payload?.params?.comboSize || statsV2State.comboSize || 1),
+        selected: statsV2State.selected.map(item => ({
+          key: item.key,
+          label: item.label,
+          numbers: Array.isArray(item.numbers) ? item.numbers : [],
+        })),
+      };
+    }
+
+    function addStatsV2History(action = "select") {
+      if (!statsV2State.selected.length) return null;
+      if (!Array.isArray(store.statsV2History)) store.statsV2History = [];
+      const entry = buildStatsV2UserSelection(action);
+      store.statsV2History.unshift(entry);
+      while (store.statsV2History.length > MAX_STATS_V2_HISTORY) store.statsV2History.pop();
+      saveStore();
+      return entry;
+    }
+
+    function saveStatsV2Favorite() {
+      if (!statsV2State.selected.length) return;
+      if (!Array.isArray(store.statsV2Favorites)) store.statsV2Favorites = [];
+      const entry = buildStatsV2UserSelection("favorite");
+      store.statsV2Favorites.unshift(entry);
+      while (store.statsV2Favorites.length > MAX_STATS_V2_FAVORITES) store.statsV2Favorites.pop();
+      addStatsV2History("favorite");
+      saveStore();
+      statsV2State.message = "Đã lưu lựa chọn vào yêu thích.";
+      renderStatsV2Panel();
+    }
+
+    function buyStatsV2Selection() {
+      if (!statsV2State.selected.length) return;
+      addStatsV2History("buy");
+      statsV2State.message = "Đã ghi nhận lựa chọn mua ngay.";
+      renderStatsV2Panel();
+    }
+
+    function syncStatsV2AutoRefreshTimer() {
+      if (statsV2State.timer) {
+        clearInterval(statsV2State.timer);
+        statsV2State.timer = null;
+      }
+      if (!statsV2State.autoRefresh || predictPageModeValue !== PREDICTION_MODE_STATS_V2) return;
+      statsV2State.timer = setInterval(() => {
+        loadStatsV2({ force: true, silent: true });
+      }, STATS_V2_AUTO_REFRESH_MS);
+    }
+
+    function refreshStatsV2AfterLiveUpdate() {
+      if (predictPageModeValue !== PREDICTION_MODE_STATS_V2) return;
+      loadStatsV2({ force: true, silent: true });
     }
 
     function getChartStatsTypeMeta(typeKey) {
@@ -9819,6 +10511,529 @@
       line(out, lines.join("\n"));
     }
 
+    const DATA_TABLE_WEEKDAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+
+    function padDataTableDatePart(value) {
+      return String(Math.max(0, Number(value) || 0)).padStart(2, "0");
+    }
+
+    function parseDataTableDateParts(dateText) {
+      const raw = String(dateText || "").trim();
+      const match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (!match) return null;
+      const day = Number(match[1]);
+      const month = Number(match[2]);
+      const year = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      if (
+        Number.isNaN(date.getTime()) ||
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+      ) {
+        return null;
+      }
+      return { day, month, year, weekday: date.getDay() };
+    }
+
+    function formatDataTableWeekday(dateText) {
+      const parts = parseDataTableDateParts(dateText);
+      return parts ? DATA_TABLE_WEEKDAY_LABELS[parts.weekday] || "" : "";
+    }
+
+    function normalizeDataTableFilterNumber(value, min, max) {
+      const raw = String(value ?? "").trim().toLowerCase();
+      if (!raw || raw === "all") return "all";
+      const number = Number(raw);
+      if (!Number.isInteger(number) || number < min || number > max) return "all";
+      return String(number);
+    }
+
+    function normalizeDataTableWeekdayFilter(value) {
+      return normalizeDataTableFilterNumber(value, 0, 6);
+    }
+
+    function getDataTableDateFilters() {
+      dataTableDateFilters = {
+        weekday: normalizeDataTableWeekdayFilter(document.getElementById("dataTableWeekday")?.value ?? dataTableDateFilters.weekday),
+        day: normalizeDataTableFilterNumber(document.getElementById("dataTableDay")?.value ?? dataTableDateFilters.day, 1, 31),
+        month: normalizeDataTableFilterNumber(document.getElementById("dataTableMonth")?.value ?? dataTableDateFilters.month, 1, 12),
+        year: normalizeDataTableFilterNumber(document.getElementById("dataTableYear")?.value ?? dataTableDateFilters.year, 1900, 3000),
+      };
+      return dataTableDateFilters;
+    }
+
+    function hasDataTableDateFilter(filters = getDataTableDateFilters()) {
+      return Object.values(filters || {}).some(value => String(value || "all") !== "all");
+    }
+
+    function isDataTableDrawInDateFilter(draw, filters = getDataTableDateFilters()) {
+      if (!hasDataTableDateFilter(filters)) return true;
+      const parts = parseDataTableDateParts(draw?.date);
+      if (!parts) return false;
+      if (filters.weekday !== "all" && parts.weekday !== Number(filters.weekday)) return false;
+      if (filters.day !== "all" && parts.day !== Number(filters.day)) return false;
+      if (filters.month !== "all" && parts.month !== Number(filters.month)) return false;
+      if (filters.year !== "all" && parts.year !== Number(filters.year)) return false;
+      return true;
+    }
+
+    function setDataTableFilterSelectValue(selectId, value) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const normalized = String(value || "all");
+      select.value = Array.from(select.options).some(option => option.value === normalized) ? normalized : "all";
+      if (select.__syncCustomSelect) select.__syncCustomSelect();
+    }
+
+    function syncDataTableYearFilterOptions(feed = null) {
+      const select = document.getElementById("dataTableYear");
+      if (!select) return;
+      const current = normalizeDataTableFilterNumber(select.value || dataTableDateFilters.year, 1900, 3000);
+      const years = new Set();
+      (feed?.order || []).forEach(ky => {
+        const parts = parseDataTableDateParts(feed.results?.[ky]?.date);
+        if (parts) years.add(parts.year);
+      });
+      const sortedYears = [...years].sort((a, b) => b - a);
+      select.innerHTML = [
+        `<option value="all">Tất Cả</option>`,
+        ...sortedYears.map(year => `<option value="${year}">${year}</option>`),
+      ].join("");
+      select.value = sortedYears.includes(Number(current)) ? current : "all";
+      dataTableDateFilters.year = select.value;
+      if (select.__syncCustomSelect) select.__syncCustomSelect();
+    }
+
+    function syncDataTableDateFilterControls(feed = null) {
+      if (feed) syncDataTableYearFilterOptions(feed);
+      const filters = dataTableDateFilters || {};
+      setDataTableFilterSelectValue("dataTableWeekday", filters.weekday);
+      setDataTableFilterSelectValue("dataTableDay", filters.day);
+      setDataTableFilterSelectValue("dataTableMonth", filters.month);
+      setDataTableFilterSelectValue("dataTableYear", filters.year);
+    }
+
+    function resetDataTableDateFilters() {
+      dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
+      syncDataTableDateFilterControls();
+    }
+
+    function formatDataTableDateFilterSummary(filters = getDataTableDateFilters()) {
+      const parts = [];
+      if (filters.weekday !== "all") {
+        parts.push(DATA_TABLE_WEEKDAY_LABELS[Number(filters.weekday)] || "");
+      }
+
+      const hasDay = filters.day !== "all";
+      const hasMonth = filters.month !== "all";
+      const hasYear = filters.year !== "all";
+      if (hasDay && hasMonth && hasYear) {
+        parts.push(`${padDataTableDatePart(filters.day)}/${padDataTableDatePart(filters.month)}/${filters.year}`);
+      } else if (hasDay && hasMonth) {
+        parts.push(`${padDataTableDatePart(filters.day)}/${padDataTableDatePart(filters.month)}/mọi năm`);
+      } else {
+        if (hasDay) parts.push(`ngày ${padDataTableDatePart(filters.day)}`);
+        if (hasMonth) parts.push(`tháng ${padDataTableDatePart(filters.month)}`);
+        if (hasYear) parts.push(`năm ${filters.year}`);
+      }
+      return parts.filter(Boolean).join(", ");
+    }
+
+    function getDataTableFilterFileSuffix(filters = getDataTableDateFilters()) {
+      const parts = [];
+      if (filters.weekday !== "all") parts.push(`thu_${filters.weekday}`);
+      if (filters.day !== "all") parts.push(`ngay_${padDataTableDatePart(filters.day)}`);
+      if (filters.month !== "all") parts.push(`thang_${padDataTableDatePart(filters.month)}`);
+      if (filters.year !== "all") parts.push(`nam_${filters.year}`);
+      return parts.length ? `_${parts.join("_")}` : "";
+    }
+
+    function normalizeDataTableDisplayLine(lineText) {
+      return String(lineText || "").replace(/\s+/g, " ").trim();
+    }
+
+    function splitDataTableDisplayLines(draw) {
+      const rawLines = Array.isArray(draw?.displayLines) ? draw.displayLines : [];
+      return rawLines.map(normalizeDataTableDisplayLine).filter(Boolean);
+    }
+
+    function formatDataTableNumbers(type, draw) {
+      const displayLines = splitDataTableDisplayLines(draw);
+      if (TYPES[type]?.threeDigit && displayLines.length) {
+        const specialLines = [];
+        const numberLines = [];
+        displayLines.forEach(lineText => {
+          if (/^đặc\s*biệt\s*:/i.test(lineText)) {
+            specialLines.push(lineText.replace(/^đặc\s*biệt\s*:\s*/i, "").trim());
+          } else {
+            numberLines.push(lineText);
+          }
+        });
+        return {
+          numbers: numberLines.join(" | ") || displayLines.join(" | "),
+          special: specialLines.join(" | "),
+        };
+      }
+
+      const main = Array.isArray(draw?.main) ? draw.main.map(Number).filter(Number.isFinite) : [];
+      const numbers = main.map(number => formatPredictNumber(number, type)).join(" ");
+      const special = TYPES[type]?.hasSpecial && Number.isInteger(Number(draw?.special))
+        ? formatPredictNumber(Number(draw.special), type)
+        : "";
+      return { numbers, special };
+    }
+
+    function getDataTableLimitValue() {
+      const raw = String(document.getElementById("dataTableLimit")?.value || dataTableSelectedLimit || "500").trim().toLowerCase();
+      return raw === "all" ? "all" : String(Math.max(1, Number(raw) || 500));
+    }
+
+    function getDataTableHeaders(type) {
+      const hasSpecialColumn = !!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit;
+      return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : [])];
+    }
+
+    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters()) {
+      return [...(feed?.order || [])]
+        .reverse()
+        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters));
+    }
+
+    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
+      const keys = getDataTableMatchingKeys(feed, filters);
+      if (limitValue === "all") return keys;
+      return keys.slice(0, Math.max(1, Number(limitValue) || 500));
+    }
+
+    function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
+      return getDataTableSelectedKeys(feed, limitValue, filters).map(ky => {
+        const draw = feed.results?.[ky] || {};
+        const cells = formatDataTableNumbers(type, draw);
+        return [
+          formatLiveKy(ky),
+          formatDataTableWeekday(draw.date),
+          draw.date || "",
+          draw.time || "",
+          cells.numbers || "",
+          ...((!!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
+        ];
+      });
+    }
+
+    function renderDataTableShell() {
+      const select = document.getElementById("dataTableType");
+      const limitSelect = document.getElementById("dataTableLimit");
+      if (select && !select.options.length) {
+        select.innerHTML = LIVE_HISTORY_TYPES.map(item => `<option value="${item.key}">${item.label}</option>`).join("");
+      }
+      if (select && Array.from(select.options).some(option => option.value === dataTableSelectedType)) {
+        select.value = dataTableSelectedType;
+      }
+      if (limitSelect && Array.from(limitSelect.options).some(option => option.value === dataTableSelectedLimit)) {
+        limitSelect.value = dataTableSelectedLimit;
+      }
+      if (select?.__syncCustomSelect) select.__syncCustomSelect();
+      if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
+      syncDataTableDateFilterControls();
+    }
+
+    function renderDataTableStatus(message, tone = "muted") {
+      const status = document.getElementById("dataTableStatus");
+      if (!status) return;
+      status.className = `data-table-status ${tone}`;
+      status.textContent = message;
+    }
+
+    function renderDataTableRows(type, feed, filters = getDataTableDateFilters()) {
+      const head = document.getElementById("dataTableHead");
+      const body = document.getElementById("dataTableBody");
+      if (!head || !body) return;
+      const headers = getDataTableHeaders(type);
+      head.innerHTML = `<tr>${headers.map(label => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+
+      const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">Chưa có dữ liệu để hiển thị.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = rows.map(rowCells => {
+        return `<tr>${rowCells.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+      }).join("");
+    }
+
+    async function loadDataTableRows({ force = false } = {}) {
+      const select = document.getElementById("dataTableType");
+      const limitSelect = document.getElementById("dataTableLimit");
+      const type = select?.value || dataTableSelectedType || "LOTO_5_35";
+      if (!TYPES[type] || dataTableLoading) return;
+      dataTableSelectedType = type;
+      dataTableSelectedLimit = getDataTableLimitValue();
+      if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
+      if (IS_LOCAL_MODE) {
+        renderDataTableStatus("Bảng dữ liệu chỉ tải tự động khi mở qua http://localhost:8080.", "warn");
+        renderDataTableRows(type, emptyLiveHistoryFeed(TYPES[type]?.label || type), getDataTableDateFilters());
+        return;
+      }
+      dataTableLoading = true;
+      renderDataTableStatus(`Đang tải ${TYPES[type]?.label || type} từ all_day.csv...`, "muted");
+      try {
+        const feed = await fetchLiveHistory(type, "all", { force, silent: true });
+        syncDataTableDateFilterControls(feed);
+        const filters = getDataTableDateFilters();
+        renderDataTableRows(type, feed, filters);
+        const total = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
+        const matching = getDataTableMatchingKeys(feed, filters).length;
+        const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
+        const source = feed.canonicalFile || feed.allFile || "all_day.csv";
+        const filterSummary = formatDataTableDateFilterSummary(filters);
+        if (filterSummary) {
+          const tone = matching > 0 ? "ok" : "warn";
+          renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(matching)} kỳ phù hợp • Tổng ${formatLiveSyncCount(total)} kỳ • Lọc: ${filterSummary} • Nguồn: ${source}`, tone);
+        } else {
+          renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(total)} kỳ • Nguồn: ${source}`, "ok");
+        }
+      } catch (err) {
+        renderDataTableStatus(`Không tải được bảng dữ liệu: ${err.message || err}`, "warn");
+      } finally {
+        dataTableLoading = false;
+      }
+    }
+
+    async function downloadDataTableExcel() {
+      const type = document.getElementById("dataTableType")?.value || dataTableSelectedType || "LOTO_5_35";
+      if (!TYPES[type]) return;
+      if (IS_LOCAL_MODE) {
+        renderDataTableStatus("Tải xuống Excel chỉ hoạt động khi mở qua http://localhost:8080.", "warn");
+        return;
+      }
+      const feed = await fetchLiveHistory(type, "all", { silent: true });
+      syncDataTableDateFilterControls(feed);
+      const filters = getDataTableDateFilters();
+      const headers = getDataTableHeaders(type);
+      const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
+      if (!rows.length) {
+        renderDataTableStatus("Không có dữ liệu để tải xuống.", "warn");
+        return;
+      }
+      const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
+      const safeType = String(type || "DATA").toLowerCase();
+      const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
+      const safeFilter = getDataTableFilterFileSuffix(filters);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      window.setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+        link.remove();
+      }, 0);
+      renderDataTableStatus(`Đã tạo file Excel ${rows.length} dòng cho ${TYPES[type]?.label || type}.`, "ok");
+    }
+
+    function escapeXml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function getExcelColumnName(index) {
+      let n = Math.max(1, Number(index) || 1);
+      let name = "";
+      while (n > 0) {
+        const mod = (n - 1) % 26;
+        name = String.fromCharCode(65 + mod) + name;
+        n = Math.floor((n - 1) / 26);
+      }
+      return name;
+    }
+
+    function buildXlsxSheetXml(headers, rows) {
+      const allRows = [headers, ...rows];
+      const rowXml = allRows.map((row, rowIndex) => {
+        const rowNumber = rowIndex + 1;
+        const cells = row.map((value, cellIndex) => {
+          const cellRef = `${getExcelColumnName(cellIndex + 1)}${rowNumber}`;
+          const text = escapeXml(value);
+          return `<c r="${cellRef}" t="inlineStr"><is><t xml:space="preserve">${text}</t></is></c>`;
+        }).join("");
+        return `<row r="${rowNumber}">${cells}</row>`;
+      }).join("");
+      const lastCol = getExcelColumnName(Math.max(1, headers.length));
+      const lastRow = Math.max(1, allRows.length);
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${lastCol}${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="4" width="14" customWidth="1"/>
+    <col min="5" max="5" width="72" customWidth="1"/>
+    <col min="6" max="6" width="24" customWidth="1"/>
+  </cols>
+  <sheetData>${rowXml}</sheetData>
+</worksheet>`;
+    }
+
+    function buildXlsxWorkbookBlob(headers, rows, title = "Bang Du Lieu") {
+      const now = new Date().toISOString();
+      const files = {
+        "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`,
+        "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`,
+        "docProps/app.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>Vietlott Tra Cuu Nhanh Pro</Application>
+</Properties>`,
+        "docProps/core.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(title)}</dc:title>
+  <dc:creator>Vietlott Tra Cuu Nhanh Pro</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`,
+        "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Bang Du Lieu" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+        "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+        "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts>
+  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`,
+        "xl/worksheets/sheet1.xml": buildXlsxSheetXml(headers, rows),
+      };
+      return buildZipBlob(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    function buildCrc32Table() {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let value = i;
+        for (let bit = 0; bit < 8; bit++) {
+          value = (value & 1) ? (0xEDB88320 ^ (value >>> 1)) : (value >>> 1);
+        }
+        table[i] = value >>> 0;
+      }
+      return table;
+    }
+
+    const ZIP_CRC32_TABLE = buildCrc32Table();
+
+    function crc32(bytes) {
+      let crc = 0xFFFFFFFF;
+      for (let i = 0; i < bytes.length; i++) {
+        crc = ZIP_CRC32_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+      }
+      return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function pushUint16LE(out, value) {
+      out.push(value & 0xFF, (value >>> 8) & 0xFF);
+    }
+
+    function pushUint32LE(out, value) {
+      out.push(value & 0xFF, (value >>> 8) & 0xFF, (value >>> 16) & 0xFF, (value >>> 24) & 0xFF);
+    }
+
+    function pushBytes(out, bytes) {
+      for (let i = 0; i < bytes.length; i++) out.push(bytes[i]);
+    }
+
+    function buildZipBlob(files, mimeType) {
+      const encoder = new TextEncoder();
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+      let centralSize = 0;
+      const dosTime = 0;
+      const dosDate = 33;
+      Object.entries(files).forEach(([path, content]) => {
+        const nameBytes = encoder.encode(path);
+        const dataBytes = encoder.encode(String(content || ""));
+        const crc = crc32(dataBytes);
+        const local = [];
+        pushUint32LE(local, 0x04034b50);
+        pushUint16LE(local, 20);
+        pushUint16LE(local, 0x0800);
+        pushUint16LE(local, 0);
+        pushUint16LE(local, dosTime);
+        pushUint16LE(local, dosDate);
+        pushUint32LE(local, crc);
+        pushUint32LE(local, dataBytes.length);
+        pushUint32LE(local, dataBytes.length);
+        pushUint16LE(local, nameBytes.length);
+        pushUint16LE(local, 0);
+        pushBytes(local, nameBytes);
+        pushBytes(local, dataBytes);
+        localParts.push(new Uint8Array(local));
+
+        const central = [];
+        pushUint32LE(central, 0x02014b50);
+        pushUint16LE(central, 20);
+        pushUint16LE(central, 20);
+        pushUint16LE(central, 0x0800);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, dosTime);
+        pushUint16LE(central, dosDate);
+        pushUint32LE(central, crc);
+        pushUint32LE(central, dataBytes.length);
+        pushUint32LE(central, dataBytes.length);
+        pushUint16LE(central, nameBytes.length);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint16LE(central, 0);
+        pushUint32LE(central, 0);
+        pushUint32LE(central, offset);
+        pushBytes(central, nameBytes);
+        centralParts.push(new Uint8Array(central));
+        centralSize += central.length;
+        offset += local.length;
+      });
+      const centralOffset = offset;
+      const end = [];
+      pushUint32LE(end, 0x06054b50);
+      pushUint16LE(end, 0);
+      pushUint16LE(end, 0);
+      pushUint16LE(end, Object.keys(files).length);
+      pushUint16LE(end, Object.keys(files).length);
+      pushUint32LE(end, centralSize);
+      pushUint32LE(end, centralOffset);
+      pushUint16LE(end, 0);
+      return new Blob([
+        ...localParts,
+        ...centralParts,
+        new Uint8Array(end),
+      ], { type: mimeType });
+    }
+
     function mergeKenoDraw(feed, ky, draw) {
       const key = String(ky || "").replace(/\D/g, "");
       const cloned = cloneDraw(draw);
@@ -10161,12 +11376,14 @@
       const getTicketSourceLabel = index => {
         const rawSource = String(ticketSources[index] || "").trim().toLowerCase();
         if (adaptiveVipMeta.active && rawSource === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+        if (rawSource === "loto_5_35_vip") return "Loto 5/35 Vip";
         if (rawSource === "predictor_v2" || rawSource === "vip_v2") return "Predictor V2";
         if (rawSource === "mega_6_45_vip") return "Mega 6/45 Vip";
         if (rawSource === "power_6_55_vip") return "Power 6/55 Vip";
         if (rawSource === "luan_so") return "Luận Số";
         if (rawSource === "gen_local" || rawSource === "ai_gen" || rawSource === "ai gen") return "AI GEN";
         if (adaptiveVipMeta.active && engine === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+        if (engine === "loto_5_35_vip") return "Loto 5/35 Vip";
         if (engine === "predictor_v2") return "Predictor V2";
         if (engine === "mega_6_45_vip") return "Mega 6/45 Vip";
         if (engine === "power_6_55_vip") return "Power 6/55 Vip";
@@ -10305,6 +11522,9 @@
       if (isPredictorV2) {
         const qualityScore = Number(result?.qualityScore ?? result?.quality_score ?? 0);
         const trackingState = result?.tracking_state || {};
+        const deepEnabled = Boolean(result?.deep_enabled);
+        const deepStatus = String(result?.deep_status || "").trim() || "fallback_heuristic_only";
+        const deepStatusLine = String(result?.deep_status_line || "").trim();
         const prioritizedCount = Array.isArray(trackingState?.prioritized_special)
           ? trackingState.prioritized_special.length
           : Array.isArray(trackingState?.prioritized_bonus)
@@ -10320,6 +11540,11 @@
             "preferred"
           );
         }
+        addMetricCard(
+          "Deep Status",
+          deepEnabled ? "ACTIVE" : deepStatus.toUpperCase(),
+          deepStatusLine || (deepEnabled ? "CNN/RNN deep scoring is active." : "Heuristic-only fallback is active.")
+        );
         addMetricCard(
           "Bộ nhớ giữ nhịp",
           `${Array.isArray(trackingState?.kept_numbers) ? trackingState.kept_numbers.length : 0} giữ • ${Array.isArray(trackingState?.temporary_excluded_numbers) ? trackingState.temporary_excluded_numbers.length : 0} cooldown`,
@@ -10486,6 +11711,14 @@
 
     function getAdaptiveVipPredictorMeta(result = {}) {
       const version = String(result?.predictorVersion || "").trim().toLowerCase();
+      if (version === "loto_5_35_vip_v1") {
+        return {
+          active: true,
+          key: "loto_5_35_vip",
+          label: String(result?.engineLabel || "Loto 5/35 Vip Adaptive").trim() || "Loto 5/35 Vip Adaptive",
+          sourceLabel: "Loto 5/35 Vip",
+        };
+      }
       if (version === "predictor_v2") {
         return {
           active: true,
@@ -10524,12 +11757,14 @@
       const engine = String(result?.engine || "gen_local").trim().toLowerCase();
       const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
       if (adaptiveVipMeta.active && rawSource === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+      if (rawSource === "loto_5_35_vip") return "Loto 5/35 Vip";
       if (rawSource === "predictor_v2" || rawSource === "vip_v2") return "Predictor V2";
       if (rawSource === "mega_6_45_vip") return "Mega 6/45 Vip";
       if (rawSource === "power_6_55_vip") return "Power 6/55 Vip";
       if (rawSource === "luan_so") return "Luận Số";
       if (rawSource === "gen_local" || rawSource === "ai_gen" || rawSource === "ai gen") return "AI GEN";
       if (adaptiveVipMeta.active && engine === adaptiveVipMeta.key) return adaptiveVipMeta.sourceLabel;
+      if (engine === "loto_5_35_vip") return "Loto 5/35 Vip";
       if (engine === "predictor_v2") return "Predictor V2";
       if (engine === "mega_6_45_vip") return "Mega 6/45 Vip";
       if (engine === "power_6_55_vip") return "Power 6/55 Vip";
@@ -11302,6 +12537,7 @@
         statusParts.push(repairCanonical ? "Hoàn Tất Cập Nhật." : "Đã Cập Nhật");
       }
       setLiveStatus(statusParts.join("\n"), ((res.errors || []).length || canonicalBackfillErrors.length) ? "warn" : "ok");
+      refreshStatsV2AfterLiveUpdate();
     }
 
     async function runLegacyRepairCanonicalSync({ silent = false, manageButton = false, originalButtonText = "Cập Nhật" } = {}) {
@@ -11346,6 +12582,7 @@
         const status = getLiveResultsProgressStatus(progress, { repairCanonical });
         setLiveStatus(status.message, status.cls);
         if (!progress?.running && progress?.done) {
+          refreshStatsV2AfterLiveUpdate();
           stopLiveResultsProgressPolling();
         }
       } catch (err) {
@@ -11907,13 +13144,13 @@
       const data = {
         LOTO_5_35: [
           { level: 4, sub: "Bao 4 (310K/1 lần dự thưởng)", rows: [
-            ["5 số chính + ĐB", "ĐỘC ĐẮC + 150 TRIỆU"],
-            ["5 số chính", "25 TRIỆU ĐỒNG"],
-            ["4 số chính + ĐB", "12,9 TRIỆU ĐỒNG"],
-            ["4 số chính", "1,87 TRIỆU ĐỒNG"],
-            ["3 số chính + ĐB", "580.000"],
-            ["3 số chính", "90.000"],
-            ["2 số chính + ĐB", "310.000"]
+            ["4 số chính + ĐB", "ĐỘC ĐẮC + 150 TRIỆU"],
+            ["4 số chính", "25 TRIỆU ĐỒNG"],
+            ["3 số chính + ĐB", "12,9 TRIỆU ĐỒNG"],
+            ["3 số chính", "1,87 TRIỆU ĐỒNG"],
+            ["2 số chính + ĐB", "580.000"],
+            ["2 số chính", "90.000"],
+            ["1 số chính + ĐB hoặc chỉ ĐB", "310.000"]
           ]},
           { level: 6, sub: "Bao 6 (60K/1 lần dự thưởng)", rows: [
             ["5 số chính + ĐB", "ĐỘC ĐẮC + 25 TRIỆU"],

@@ -6245,14 +6245,6 @@
       return numeric.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
     }
 
-    function formatStatsV2UpdatedAt(value) {
-      const text = String(value || "").trim();
-      if (!text) return "Chưa tải";
-      const match = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})(?::\d{2})?/);
-      if (match) return `Cập nhật ${match[4]} • ${match[3]}/${match[2]}`;
-      return `Cập nhật ${text}`;
-    }
-
     function renderStatsV2Balls(item, group = "main") {
       const numbers = Array.isArray(item?.numbers) ? item.numbers : [item?.label || item?.key || ""];
       const specialClass = group === "special" ? " is-special" : "";
@@ -6368,7 +6360,7 @@
       renderStatsV2Selection();
       syncStatsV2AutoRefreshTimer();
       const updated = document.getElementById("statsV2UpdatedAt");
-      if (updated) updated.textContent = formatStatsV2UpdatedAt(statsV2State.payload?.generatedAt || "");
+      if (updated) updated.textContent = statsV2State.payload?.generatedAt ? `Cập nhật: ${statsV2State.payload.generatedAt}` : "Chưa tải";
       setStatsV2Status(statsV2State.message || "");
       if (statsV2State.loading && !statsV2State.payload) {
         out.classList.add("muted");

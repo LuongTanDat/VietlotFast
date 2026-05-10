@@ -7,3 +7,7 @@
 - 2026-04-03: Thêm project standalone `power_6_55_predictor` cho Power 6/55 với parser schema tiếng Việt, tracking main/special tách riêng, scoring heuristic-first, scaffold deep model, CLI predict/update/backtest, và payload sẵn sàng để nối vào Vip sau.
 - 2026-04-03: Nối Dự Đoán Vip 6/55 của web sang `power_6_55_predictor`, thêm wrapper adaptive trong `ai_predict.py`, cập nhật nhận diện engine/nhãn ở frontend, và giữ fallback predictor cũ nếu nhánh mới lỗi.
 - 2026-04-03: Đổi tên thư mục predictor Mega 6/45 từ `lotto_6_45_predictor` sang `mega_6_45_predictor` để khớp đúng tên game và cập nhật đường dẫn gọi Vip tương ứng.
+- 2026-04-03: Tách Vip 5/35 thành project standalone `loto_5_35_predictor`, giữ `predictor_v2` làm fallback, và đổi web/backend sang dùng predictor mới với nhãn riêng như Mega 6/45 và Power 6/55.
+- 2026-04-03: Dọn lại cấu trúc repo, gom toàn bộ predictor standalone và `predictor_v2` vào `ai/standalone_predictors/`, chuyển state của `predictor_v2` vào đúng project, và làm sạch các thư mục cache để cây thư mục gọn hơn.
+- 2026-05-10: Thêm module Thống Kê V2 độc lập với API `/api/stats-v2`, script `ai/stats/stats_v2.py`, UI tab riêng, lưu lựa chọn qua `store.statsV2Favorites`/`store.statsV2History`, và test thống kê canonical CSV.
+- 2026-05-10: Tinh chỉnh bố cục Thống Kê V2 gọn hơn: filter dạng segmented ngang, panel thấp hơn, summary/list tiết kiệm khoảng trống và nhãn cập nhật ngắn hơn.
