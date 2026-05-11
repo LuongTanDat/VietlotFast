@@ -11,3 +11,5 @@
 - 2026-04-03: Dọn lại cấu trúc repo, gom toàn bộ predictor standalone và `predictor_v2` vào `ai/standalone_predictors/`, chuyển state của `predictor_v2` vào đúng project, và làm sạch các thư mục cache để cây thư mục gọn hơn.
 - 2026-05-10: Thêm module Thống Kê V2 độc lập với API `/api/stats-v2`, script `ai/stats/stats_v2.py`, UI tab riêng, lưu lựa chọn qua `store.statsV2Favorites`/`store.statsV2History`, và test thống kê canonical CSV.
 - 2026-05-10: Tinh chỉnh bố cục Thống Kê V2 gọn hơn: filter dạng segmented ngang, panel thấp hơn, summary/list tiết kiệm khoảng trống và nhãn cập nhật ngắn hơn.
+- 2026-05-10: Mở rộng combo Thống Kê V2 lên 5 số cho các loại vé thường và 10 số cho Keno, đồng thời cập nhật validate API và test combo lớn.
+- 2026-05-10: Giữ tiến trình `LottoWebServer` sống sau khi khởi động để server nền không tự thoát khi chạy trực tiếp.

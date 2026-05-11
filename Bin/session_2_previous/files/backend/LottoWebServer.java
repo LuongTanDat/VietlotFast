@@ -304,7 +304,6 @@ public class LottoWebServer {
 
         System.out.println("Lotto Web Server chạy tại http://localhost:" + PORT + "/");
         System.out.println("DB file: " + dbFile.toAbsolutePath());
-        Thread.currentThread().join();
     }
 
     // ----- Tài nguyên tĩnh -----
@@ -540,9 +539,8 @@ public class LottoWebServer {
         if (isBlank(comboSizeRaw)) comboSizeRaw = nvl(query.get("combo-size")).trim();
         if (isBlank(comboSizeRaw)) comboSizeRaw = "1";
         int comboSize = parseStrictPositiveInt(comboSizeRaw);
-        int maxComboSize = "KENO".equals(type) ? 10 : 5;
-        if (comboSize < 1 || comboSize > maxComboSize) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Combo size phải từ 1 đến " + maxComboSize + "\"}");
+        if (comboSize < 1 || comboSize > 3) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Combo size phải từ 1 đến 3\"}");
             return;
         }
         if ("special".equals(group) && comboSize != 1) {

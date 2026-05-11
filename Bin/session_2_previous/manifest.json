@@ -1,12 +1,13 @@
 {
-  "time": "2026-05-10T22:25:12",
+  "time": "2026-05-10T22:42:48",
   "action": "replace",
-  "reason": "Tinh chỉnh bố cục Thống Kê V2 gọn và đẹp hơn.",
+  "reason": "Mở rộng combo Thống Kê V2 tới 5 số, riêng Keno tới 10 số.",
   "affected": [
-    "frontend/vietlott-web.html",
-    "frontend/vietlott-web.css",
     "frontend/vietlott-web.js",
+    "backend/LottoWebServer.java",
+    "ai/stats/stats_v2.py",
+    "tests/test_stats_v2.py",
     "docs/NhatKyThayDoi.md"
   ],
-  "note": "Snapshot trước khi chỉnh CSS/HTML/JS frontend theo docs/QuyTac.md."
+  "note": "Snapshot trước khi sửa theo docs/QuyTac.md."
 }

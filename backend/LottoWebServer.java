@@ -44,6 +44,7 @@ public class LottoWebServer {
     private static final long AI_PREDICT_TIMEOUT_SECONDS = 240;
     private static final long AI_SCORE_TIMEOUT_SECONDS = 420;
     private static final long STATS_V2_TIMEOUT_SECONDS = 180;
+    private static final long ANALYSIS_TIMEOUT_SECONDS = 180;
     private static final int KENO_MIN_ORDER = 1;
     private static final int KENO_MAX_ORDER = 10;
     private static final Set<String> LIVE_TYPE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
@@ -57,6 +58,11 @@ public class LottoWebServer {
     )));
     private static final Set<String> AI_PREDICT_RISK_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "stable", "balanced", "aggressive"
+    )));
+    private static final Set<String> ANALYSIS_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
+            "overview", "general", "distribution", "ratios", "latest_draw", "consecutive",
+            "overdue", "poisson", "knn", "chain", "relationships", "modulo", "advanced",
+            "special", "weekday", "smart_wheel", "score", "all"
     )));
 
     private final Path rootDir;
@@ -284,6 +290,7 @@ public class LottoWebServer {
         server.createContext("/api/logout", this::handleLogout);
         server.createContext("/api/store", this::handleStore);
         server.createContext("/api/stats-v2", this::handleStatsV2);
+        server.createContext("/api/analysis", this::handleAnalysis);
         server.createContext("/api/keno-predict-data", this::handleKenoPredictData);
         server.createContext("/api/keno-predict", this::handleKenoPredict);
         server.createContext("/api/ai-predict", this::handleAiPredict);
@@ -595,6 +602,150 @@ public class LottoWebServer {
                 "Stats V2 exited with error",
                 "Tiến trình Stats V2 bị gián đoạn",
                 "Không chạy được Stats V2: ",
+                null
+        );
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleAnalysis(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\",\"warnings\":[]}");
+            return;
+        }
+
+        Path scriptFile = rootDir.resolve("ai").resolve("analysis").resolve("analysis.py");
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy analysis.py\",\"warnings\":[]}");
+            return;
+        }
+
+        Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (isBlank(type)) type = "LOTO_5_35";
+        if (!LIVE_TYPE_KEYS.contains(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Loại phân tích không hợp lệ\",\"warnings\":[]}");
+            return;
+        }
+
+        String period = nvl(query.get("period")).trim().toLowerCase(Locale.ROOT);
+        if (isBlank(period)) period = "30d";
+        if (!Arrays.asList("7d", "30d", "60d", "1y", "all", "custom").contains(period)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Bộ lọc thời gian không hợp lệ\",\"warnings\":[]}");
+            return;
+        }
+
+        String mode = nvl(query.get("mode")).trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        if (isBlank(mode)) mode = "overview";
+        if (!ANALYSIS_MODE_KEYS.contains(mode)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chế độ phân tích không hợp lệ\",\"warnings\":[]}");
+            return;
+        }
+
+        String from = nvl(query.get("from")).trim();
+        String to = nvl(query.get("to")).trim();
+        if ((!isBlank(from) && !isValidStatsV2Date(from)) || (!isBlank(to) && !isValidStatsV2Date(to))) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Ngày custom không hợp lệ\",\"warnings\":[]}");
+            return;
+        }
+
+        String limitRaw = nvl(query.get("limit")).trim();
+        if (isBlank(limitRaw)) limitRaw = "20";
+        int limit = parseStrictPositiveInt(limitRaw);
+        if (limit < 1 || limit > 100) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Limit phải từ 1 đến 100\",\"warnings\":[]}");
+            return;
+        }
+
+        String kRaw = nvl(query.get("k")).trim();
+        if (isBlank(kRaw)) kRaw = "5";
+        int k = parseStrictPositiveInt(kRaw);
+        if (k < 1 || k > 20) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"K phải từ 1 đến 20\",\"warnings\":[]}");
+            return;
+        }
+
+        String comboSizeRaw = nvl(query.get("comboSize")).trim();
+        if (isBlank(comboSizeRaw)) comboSizeRaw = nvl(query.get("combo-size")).trim();
+        if (isBlank(comboSizeRaw)) comboSizeRaw = "2";
+        int comboSize = parseStrictPositiveInt(comboSizeRaw);
+        if (comboSize < 1 || comboSize > 3) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Combo size phải từ 1 đến 3\",\"warnings\":[]}");
+            return;
+        }
+
+        boolean includeSpecial = isBlank(query.get("includeSpecial")) || isTruthyFlag(query.get("includeSpecial"));
+        String numbers = nvl(query.get("numbers")).trim();
+
+        String pickRaw = nvl(query.get("pick")).trim();
+        int pick = 0;
+        if (!isBlank(pickRaw)) {
+            pick = parseStrictPositiveInt(pickRaw);
+            if (pick < 1 || pick > 10) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Pick phải từ 1 đến 10\",\"warnings\":[]}");
+                return;
+            }
+        }
+
+        String maxTicketsRaw = nvl(query.get("maxTickets")).trim();
+        if (isBlank(maxTicketsRaw)) maxTicketsRaw = nvl(query.get("max-tickets")).trim();
+        int maxTickets = 20;
+        if (!isBlank(maxTicketsRaw)) {
+            maxTickets = parseStrictPositiveInt(maxTicketsRaw);
+            if (maxTickets < 1 || maxTickets > 50) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Max tickets phải từ 1 đến 50\",\"warnings\":[]}");
+                return;
+            }
+        }
+
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("analysis_json");
+        command.add("--type");
+        command.add(type);
+        command.add("--period");
+        command.add(period);
+        command.add("--mode");
+        command.add(mode);
+        command.add("--limit");
+        command.add(String.valueOf(limit));
+        command.add("--k");
+        command.add(String.valueOf(k));
+        command.add("--combo-size");
+        command.add(String.valueOf(comboSize));
+        command.add("--include-special");
+        command.add(String.valueOf(includeSpecial));
+        if (!isBlank(from)) {
+            command.add("--from");
+            command.add(from);
+        }
+        if (!isBlank(to)) {
+            command.add("--to");
+            command.add(to);
+        }
+        if (!isBlank(numbers)) {
+            command.add("--numbers");
+            command.add(numbers);
+        }
+        if (pick > 0) {
+            command.add("--pick");
+            command.add(String.valueOf(pick));
+        }
+        command.add("--max-tickets");
+        command.add(String.valueOf(maxTickets));
+
+        String payload = runPythonJsonCommand(
+                ex,
+                rootDir,
+                command,
+                ANALYSIS_TIMEOUT_SECONDS,
+                "Tính Phân Tích quá thời gian chờ",
+                "Phân Tích không trả dữ liệu",
+                "Analysis exited with error",
+                "Tiến trình Phân Tích bị gián đoạn",
+                "Không chạy được Phân Tích: ",
                 null
         );
         if (payload == null) return;

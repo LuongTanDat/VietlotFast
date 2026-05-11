@@ -610,8 +610,9 @@
           <button id="predictModeVipTab" type="button" class="predict-tab-btn" data-predict-mode-tab="vip">Dự Đoán Vip</button>
           <button id="predictModeStatsTab" type="button" class="predict-tab-btn" data-predict-mode-tab="stats">Thống Kê</button>
           <button id="predictModeStatsV2Tab" type="button" class="predict-tab-btn" data-predict-mode-tab="stats-v2">Thống Kê V2</button>
-          <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu Đồ Thống Kê</button>
-          <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard Lotto</button>
+          <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu Đồ</button>
+          <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard</button>
+          <button id="predictModeAnalysisTab" type="button" class="predict-tab-btn" data-predict-mode-tab="analysis">Phân Tích</button>
         </div>
       </section>
       <!-- ----- Khu dự đoán kỳ tới ----- -->
@@ -985,6 +986,66 @@
               <div id="lottoDashboardDistributionOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted">Biểu đồ donut sẽ hiển thị tại đây sau khi dashboard nạp dữ liệu.</div>
             </section>
           </div>
+        </div>
+      </section>
+      <section id="predictRootAnalysis" class="card predict-card predict-root predict-root-analysis" hidden>
+        <div class="predict-card-head">
+          <div>
+            <h2>Phân Tích</h2>
+            <p class="predict-card-subtitle">Phân tích sâu theo xác suất thống kê, pattern, khoảng cách, chuỗi lặp và mức bất thường. Kết quả chỉ mang tính tham khảo.</p>
+          </div>
+          <div class="predict-card-actions">
+            <span id="analysisUpdatedAt" class="predict-card-chip">Chưa tải</span>
+            <label class="analysis-auto-toggle">
+              <input id="analysisAutoRefresh" type="checkbox">
+              <span>Tự làm mới</span>
+            </label>
+          </div>
+        </div>
+        <div class="analysis-shell">
+          <div class="analysis-toolbar">
+            <label class="analysis-control">
+              <span>Loại vé</span>
+              <select id="analysisTypeSelect" class="analysis-select"></select>
+            </label>
+            <label class="analysis-control">
+              <span>Khoảng thời gian</span>
+              <select id="analysisPeriodSelect" class="analysis-select"></select>
+            </label>
+            <label class="analysis-control">
+              <span>Chế độ phân tích</span>
+              <select id="analysisModeSelect" class="analysis-select"></select>
+            </label>
+            <label class="analysis-control">
+              <span>Limit</span>
+              <input id="analysisLimitInput" type="number" min="1" max="100" value="20" class="analysis-input">
+            </label>
+            <label class="analysis-control">
+              <span>K / Combo</span>
+              <div class="analysis-inline-inputs">
+                <input id="analysisKInput" type="number" min="1" max="20" value="5" class="analysis-input" aria-label="K gần nhất">
+                <input id="analysisComboSizeInput" type="number" min="1" max="3" value="2" class="analysis-input" aria-label="Combo size">
+              </div>
+            </label>
+            <div class="analysis-control analysis-custom-range" id="analysisCustomRange" hidden>
+              <span>Custom date</span>
+              <div class="analysis-inline-inputs">
+                <input id="analysisDateFrom" type="date" class="analysis-input" aria-label="Từ ngày Phân Tích">
+                <input id="analysisDateTo" type="date" class="analysis-input" aria-label="Đến ngày Phân Tích">
+              </div>
+            </div>
+            <div class="analysis-control analysis-action-group">
+              <span>Thao tác</span>
+              <div class="analysis-action-row">
+                <button id="analysisRefreshBtn" type="button" class="analysis-action-btn is-primary">Cập nhật</button>
+                <button id="analysisSaveBtn" type="button" class="analysis-action-btn">Lưu phân tích</button>
+              </div>
+            </div>
+          </div>
+          <div id="analysisStatus" class="analysis-warning" hidden></div>
+          <div id="analysisOut" class="analysis-explanation">Đây là phân tích thống kê tham khảo, không cam kết dự đoán trúng.</div>
+          <div id="analysisSummaryCards" class="analysis-grid"></div>
+          <div id="analysisDetailPanel" class="analysis-detail-panel muted">Chọn tab Phân Tích để tải dữ liệu.</div>
         </div>
       </section>
       <!-- ---abc--- Prediction History Modal --- -->

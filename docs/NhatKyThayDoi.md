@@ -13,3 +13,4 @@
 - 2026-05-10: Tinh chỉnh bố cục Thống Kê V2 gọn hơn: filter dạng segmented ngang, panel thấp hơn, summary/list tiết kiệm khoảng trống và nhãn cập nhật ngắn hơn.
 - 2026-05-10: Mở rộng combo Thống Kê V2 lên 5 số cho các loại vé thường và 10 số cho Keno, đồng thời cập nhật validate API và test combo lớn.
 - 2026-05-10: Giữ tiến trình `LottoWebServer` sống sau khi khởi động để server nền không tự thoát khi chạy trực tiếp.
+- 2026-05-11: Thêm tab chính `Phân Tích`, route `/api/analysis`, module `ai/analysis/analysis.py`, lưu `store.analysisHistory`, test `tests/test_analysis.py`; mọi kết quả phân tích chỉ mang tính thống kê tham khảo, không cam kết dự đoán trúng.

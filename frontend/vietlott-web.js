@@ -111,6 +111,7 @@
     const STATS_DATE_FROM_KEY = "vietlott_stats_date_from_v1";
     const STATS_DATE_TO_KEY = "vietlott_stats_date_to_v1";
     const STATS_V2_UI_KEY = "vietlott_stats_v2_ui_v1";
+    const ANALYSIS_UI_KEY = "vietlott_analysis_ui_v1";
     const LIVE_RESULTS_CACHE_KEY = "vietlott_live_results_v1";
     const LIVE_HISTORY_CACHE_KEY = "vietlott_live_history_v1";
     const LIVE_SYNC_TIMING_CACHE_KEY = "vietlott_live_sync_timing_v1";
@@ -169,6 +170,7 @@
     const PREDICTION_MODE_STATS_V2 = "stats-v2";
     const PREDICTION_MODE_CHARTS = "charts";
     const PREDICTION_MODE_DASHBOARD = "dashboard";
+    const PREDICTION_MODE_ANALYSIS = "analysis";
     const STATS_V2_PERIOD_OPTIONS = [
       { value: "7d", label: "7 ngày" },
       { value: "30d", label: "30 ngày" },
@@ -195,6 +197,36 @@
     const STATS_V2_AUTO_REFRESH_MS = 90000;
     const MAX_STATS_V2_FAVORITES = 50;
     const MAX_STATS_V2_HISTORY = 80;
+    const ANALYSIS_AUTO_REFRESH_MS = 90000;
+    const MAX_ANALYSIS_HISTORY = 80;
+    const ANALYSIS_PERIOD_OPTIONS = [
+      { value: "7d", label: "7 ngày" },
+      { value: "30d", label: "30 ngày" },
+      { value: "60d", label: "60 ngày" },
+      { value: "1y", label: "1 năm" },
+      { value: "all", label: "Tất cả" },
+      { value: "custom", label: "Custom" },
+    ];
+    const ANALYSIS_MODE_OPTIONS = [
+      { value: "overview", label: "Tổng quan" },
+      { value: "general", label: "Tổng quan bộ số" },
+      { value: "distribution", label: "Phân phối" },
+      { value: "ratios", label: "Chẵn/Lẻ - Cao/Thấp" },
+      { value: "latest_draw", label: "Kỳ mới nhất" },
+      { value: "consecutive", label: "Chuỗi liên tiếp" },
+      { value: "overdue", label: "Gan / Overdue" },
+      { value: "poisson", label: "Poisson" },
+      { value: "knn", label: "KNN tương đồng" },
+      { value: "chain", label: "Lead & Follow" },
+      { value: "relationships", label: "Quan hệ cặp số" },
+      { value: "modulo", label: "Modulo / Đuôi số" },
+      { value: "advanced", label: "Nâng cao" },
+      { value: "special", label: "Số đặc biệt" },
+      { value: "smart_wheel", label: "Smart Wheel" },
+      { value: "weekday", label: "Theo thứ" },
+      { value: "score", label: "Chấm điểm" },
+      { value: "all", label: "Tất cả" },
+    ];
     const DASHBOARD_LOTTO_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const DASHBOARD_ACTIVITY_VIEW_OPTIONS = ["day", "week", "month"];
     const DASHBOARD_DISTRIBUTION_VIEW_OPTIONS = ["range", "parity", "temperature", "head", "tail"];
@@ -365,6 +397,7 @@
       predictionLogs: Object.fromEntries(PREDICTION_LOG_TYPES.map(k => [k, []])),
       statsV2Favorites: [],
       statsV2History: [],
+      analysisHistory: [],
       paypalTopups: [],
       luckyWheelHistory: [],
       luckyWheelTopupHistory: [],
@@ -452,6 +485,23 @@
     let dashboardPanelLoading = false;
     let dashboardPanelError = "";
     let dashboardPanelRefreshToken = 0;
+    const analysisState = {
+      type: "LOTO_5_35",
+      period: "30d",
+      from: "",
+      to: "",
+      mode: "overview",
+      limit: 20,
+      k: 5,
+      comboSize: 2,
+      includeSpecial: true,
+      autoRefresh: false,
+      timer: null,
+      lastPayload: null,
+      loading: false,
+      error: "",
+      refreshToken: 0,
+    };
     let predictLoadingStartAt = 0;
     let predictLoadingTimer = null;
     let predictLoadingEngineKey = "";
@@ -593,6 +643,7 @@
       if (normalized === PREDICTION_MODE_STATS_V2) return PREDICTION_MODE_STATS_V2;
       if (normalized === PREDICTION_MODE_CHARTS) return PREDICTION_MODE_CHARTS;
       if (normalized === PREDICTION_MODE_DASHBOARD) return PREDICTION_MODE_DASHBOARD;
+      if (normalized === PREDICTION_MODE_ANALYSIS) return PREDICTION_MODE_ANALYSIS;
       return PREDICTION_MODE_NORMAL;
     }
 
@@ -1145,6 +1196,7 @@
       }
       base.statsV2Favorites = Array.isArray(parsed.statsV2Favorites) ? parsed.statsV2Favorites : [];
       base.statsV2History = Array.isArray(parsed.statsV2History) ? parsed.statsV2History : [];
+      base.analysisHistory = Array.isArray(parsed.analysisHistory) ? parsed.analysisHistory : [];
       base.paypalTopups = Array.isArray(parsed.paypalTopups) ? parsed.paypalTopups : [];
       base.luckyWheelHistory = Array.isArray(parsed.luckyWheelHistory) ? parsed.luckyWheelHistory : [];
       base.luckyWheelTopupHistory = Array.isArray(parsed.luckyWheelTopupHistory) ? parsed.luckyWheelTopupHistory : [];
@@ -3465,6 +3517,7 @@
       kenoTrainingBusy = false;
       setSideMenuActiveButton("homeMenuBtn");
       stopLiveAutoSync();
+      stopAnalysisAutoRefresh();
       renderCurrencyBar();
       document.getElementById("appShell").style.display = "none";
       document.getElementById("authOverlay").style.display = "flex";
@@ -3707,6 +3760,13 @@
           window.setTimeout(() => {
             document.getElementById("predictRootDashboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }, 40);
+        } else if (nextMode === PREDICTION_MODE_ANALYSIS) {
+          initAnalysisPanel();
+          if (!analysisState.lastPayload) loadAnalysis({ force: true, silent: true });
+          startAnalysisAutoRefresh();
+          window.setTimeout(() => {
+            document.getElementById("predictRootAnalysis")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 40);
         }
       });
     });
@@ -3910,6 +3970,69 @@
     if (statsV2SaveBtn) statsV2SaveBtn.addEventListener("click", saveStatsV2Favorite);
     const statsV2BuyBtn = document.getElementById("statsV2BuyBtn");
     if (statsV2BuyBtn) statsV2BuyBtn.addEventListener("click", buyStatsV2Selection);
+    const analysisTypeSelect = document.getElementById("analysisTypeSelect");
+    if (analysisTypeSelect) {
+      analysisTypeSelect.addEventListener("change", () => {
+        analysisState.type = normalizeAnalysisType(analysisTypeSelect.value);
+        saveAnalysisUiState();
+        loadAnalysis({ force: true, silent: true });
+      });
+    }
+    const analysisPeriodSelect = document.getElementById("analysisPeriodSelect");
+    if (analysisPeriodSelect) {
+      analysisPeriodSelect.addEventListener("change", () => {
+        analysisState.period = normalizeAnalysisPeriod(analysisPeriodSelect.value);
+        saveAnalysisUiState();
+        renderAnalysis(analysisState.lastPayload);
+        loadAnalysis({ force: true, silent: true });
+      });
+    }
+    const analysisModeSelect = document.getElementById("analysisModeSelect");
+    if (analysisModeSelect) {
+      analysisModeSelect.addEventListener("change", () => {
+        analysisState.mode = normalizeAnalysisMode(analysisModeSelect.value);
+        saveAnalysisUiState();
+        loadAnalysis({ force: true, silent: true });
+      });
+    }
+    const analysisDateFrom = document.getElementById("analysisDateFrom");
+    if (analysisDateFrom) {
+      analysisDateFrom.addEventListener("change", () => {
+        analysisState.from = String(analysisDateFrom.value || "").trim();
+        saveAnalysisUiState();
+        if (analysisState.period === "custom") loadAnalysis({ force: true, silent: true });
+      });
+    }
+    const analysisDateTo = document.getElementById("analysisDateTo");
+    if (analysisDateTo) {
+      analysisDateTo.addEventListener("change", () => {
+        analysisState.to = String(analysisDateTo.value || "").trim();
+        saveAnalysisUiState();
+        if (analysisState.period === "custom") loadAnalysis({ force: true, silent: true });
+      });
+    }
+    [["analysisLimitInput", "limit", 1, 100], ["analysisKInput", "k", 1, 20], ["analysisComboSizeInput", "comboSize", 1, 3]].forEach(([id, key, min, max]) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener("change", () => {
+        analysisState[key] = clampAnalysisInt(input.value, analysisState[key], min, max);
+        saveAnalysisUiState();
+        loadAnalysis({ force: true, silent: true });
+      });
+    });
+    const analysisAutoRefresh = document.getElementById("analysisAutoRefresh");
+    if (analysisAutoRefresh) {
+      analysisAutoRefresh.addEventListener("change", () => {
+        analysisState.autoRefresh = !!analysisAutoRefresh.checked;
+        saveAnalysisUiState();
+        if (analysisState.autoRefresh) startAnalysisAutoRefresh();
+        else stopAnalysisAutoRefresh();
+      });
+    }
+    const analysisRefreshBtn = document.getElementById("analysisRefreshBtn");
+    if (analysisRefreshBtn) analysisRefreshBtn.addEventListener("click", () => loadAnalysis({ force: true, silent: false }));
+    const analysisSaveBtn = document.getElementById("analysisSaveBtn");
+    if (analysisSaveBtn) analysisSaveBtn.addEventListener("click", saveAnalysisHistory);
     const chartStatsTypeSelect = document.getElementById("chartStatsTypeSelect");
     if (chartStatsTypeSelect) {
       chartStatsTypeSelect.addEventListener("change", () => {
@@ -4333,12 +4456,14 @@
       const initialPdType = document.getElementById("pdType")?.value || "";
       enforcePredictEngineVisibility(initialPdType === "KENO", AI_PREDICT_TYPES.has(initialPdType));
       restoreStatsV2UiState();
+      restoreAnalysisUiState();
       renderPredictEngineChoice();
       renderPredictModeTabs();
       renderStatsTypeTabs();
       renderStatsWindowTabs();
       renderStatsPanel();
       renderStatsV2Panel();
+      renderAnalysis(null);
       renderChartStatsPanel();
       renderDashboardPanel();
       renderKenoTrainingToggle();
@@ -4350,6 +4475,8 @@
         startChartStatsRefresh({ silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_DASHBOARD) {
         startDashboardRefresh({ silent: true });
+      } else if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) {
+        loadAnalysis({ force: true, silent: true });
       }
     }
     {
@@ -5445,13 +5572,17 @@
       const statsV2Root = document.getElementById("predictRootStatsV2");
       const chartsRoot = document.getElementById("predictRootCharts");
       const dashboardRoot = document.getElementById("predictRootDashboard");
+      const analysisRoot = document.getElementById("predictRootAnalysis");
       if (normalRoot) normalRoot.hidden = predictPageModeValue !== PREDICTION_MODE_NORMAL;
       if (vipRoot) vipRoot.hidden = predictPageModeValue !== PREDICTION_MODE_VIP;
       if (statsRoot) statsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_STATS;
       if (statsV2Root) statsV2Root.hidden = predictPageModeValue !== PREDICTION_MODE_STATS_V2;
       if (chartsRoot) chartsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_CHARTS;
       if (dashboardRoot) dashboardRoot.hidden = predictPageModeValue !== PREDICTION_MODE_DASHBOARD;
+      if (analysisRoot) analysisRoot.hidden = predictPageModeValue !== PREDICTION_MODE_ANALYSIS;
       syncStatsV2AutoRefreshTimer();
+      if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) startAnalysisAutoRefresh();
+      else stopAnalysisAutoRefresh();
     }
 
     function getStatsTypeUiMeta(typeKey) {
@@ -6513,6 +6644,599 @@
     function refreshStatsV2AfterLiveUpdate() {
       if (predictPageModeValue !== PREDICTION_MODE_STATS_V2) return;
       loadStatsV2({ force: true, silent: true });
+    }
+
+    function normalizeAnalysisType(value) {
+      const normalized = String(value || "").trim().toUpperCase();
+      return TYPE_KEYS.includes(normalized) ? normalized : "LOTO_5_35";
+    }
+
+    function normalizeAnalysisPeriod(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return ANALYSIS_PERIOD_OPTIONS.some(item => item.value === normalized) ? normalized : "30d";
+    }
+
+    function normalizeAnalysisMode(value) {
+      const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+      return ANALYSIS_MODE_OPTIONS.some(item => item.value === normalized) ? normalized : "overview";
+    }
+
+    function clampAnalysisInt(value, fallback, min, max) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return fallback;
+      return Math.max(min, Math.min(max, Math.floor(parsed)));
+    }
+
+    function restoreAnalysisUiState() {
+      const saved = readJsonLocal(ANALYSIS_UI_KEY, {});
+      analysisState.type = normalizeAnalysisType(saved.type || analysisState.type);
+      analysisState.period = normalizeAnalysisPeriod(saved.period || analysisState.period);
+      analysisState.mode = normalizeAnalysisMode(saved.mode || analysisState.mode);
+      analysisState.from = String(saved.from || "");
+      analysisState.to = String(saved.to || "");
+      analysisState.limit = clampAnalysisInt(saved.limit, analysisState.limit, 1, 100);
+      analysisState.k = clampAnalysisInt(saved.k, analysisState.k, 1, 20);
+      analysisState.comboSize = clampAnalysisInt(saved.comboSize, analysisState.comboSize, 1, 3);
+      analysisState.includeSpecial = saved.includeSpecial !== false;
+      analysisState.autoRefresh = !!saved.autoRefresh;
+    }
+
+    function saveAnalysisUiState() {
+      writeJsonLocal(ANALYSIS_UI_KEY, {
+        type: analysisState.type,
+        period: analysisState.period,
+        from: analysisState.from,
+        to: analysisState.to,
+        mode: analysisState.mode,
+        limit: analysisState.limit,
+        k: analysisState.k,
+        comboSize: analysisState.comboSize,
+        includeSpecial: !!analysisState.includeSpecial,
+        autoRefresh: !!analysisState.autoRefresh,
+      });
+    }
+
+    function initAnalysisPanel() {
+      analysisState.type = normalizeAnalysisType(analysisState.type);
+      analysisState.period = normalizeAnalysisPeriod(analysisState.period);
+      analysisState.mode = normalizeAnalysisMode(analysisState.mode);
+      const typeSelect = document.getElementById("analysisTypeSelect");
+      if (typeSelect) {
+        typeSelect.innerHTML = TYPE_KEYS.map(key => `<option value="${escapeHtml(key)}">${escapeHtml(TYPES[key]?.label || key)}</option>`).join("");
+        typeSelect.value = analysisState.type;
+        if (typeof typeSelect.__syncCustomSelect === "function") typeSelect.__syncCustomSelect();
+      }
+      const periodSelect = document.getElementById("analysisPeriodSelect");
+      if (periodSelect) {
+        periodSelect.innerHTML = ANALYSIS_PERIOD_OPTIONS.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("");
+        periodSelect.value = analysisState.period;
+        if (typeof periodSelect.__syncCustomSelect === "function") periodSelect.__syncCustomSelect();
+      }
+      const modeSelect = document.getElementById("analysisModeSelect");
+      if (modeSelect) {
+        modeSelect.innerHTML = ANALYSIS_MODE_OPTIONS.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("");
+        modeSelect.value = analysisState.mode;
+        if (typeof modeSelect.__syncCustomSelect === "function") modeSelect.__syncCustomSelect();
+      }
+      const customRange = document.getElementById("analysisCustomRange");
+      if (customRange) customRange.hidden = analysisState.period !== "custom";
+      const fromInput = document.getElementById("analysisDateFrom");
+      const toInput = document.getElementById("analysisDateTo");
+      if (fromInput && fromInput.value !== analysisState.from) fromInput.value = analysisState.from;
+      if (toInput && toInput.value !== analysisState.to) toInput.value = analysisState.to;
+      const limitInput = document.getElementById("analysisLimitInput");
+      const kInput = document.getElementById("analysisKInput");
+      const comboInput = document.getElementById("analysisComboSizeInput");
+      if (limitInput) limitInput.value = String(analysisState.limit);
+      if (kInput) kInput.value = String(analysisState.k);
+      if (comboInput) comboInput.value = String(analysisState.comboSize);
+      const autoInput = document.getElementById("analysisAutoRefresh");
+      if (autoInput) autoInput.checked = !!analysisState.autoRefresh;
+    }
+
+    function buildAnalysisQuery() {
+      const params = new URLSearchParams();
+      params.set("type", normalizeAnalysisType(analysisState.type));
+      params.set("period", normalizeAnalysisPeriod(analysisState.period));
+      params.set("mode", normalizeAnalysisMode(analysisState.mode));
+      params.set("limit", String(clampAnalysisInt(analysisState.limit, 20, 1, 100)));
+      params.set("k", String(clampAnalysisInt(analysisState.k, 5, 1, 20)));
+      params.set("comboSize", String(clampAnalysisInt(analysisState.comboSize, 2, 1, 3)));
+      params.set("includeSpecial", analysisState.includeSpecial ? "true" : "false");
+      if (analysisState.period === "custom") {
+        if (analysisState.from) params.set("from", analysisState.from);
+        if (analysisState.to) params.set("to", analysisState.to);
+      }
+      return params;
+    }
+
+    async function loadAnalysis({ force = false, silent = true } = {}) {
+      const refreshToken = ++analysisState.refreshToken;
+      analysisState.loading = true;
+      analysisState.error = "";
+      if (force) analysisState.lastPayload = null;
+      renderAnalysis(analysisState.lastPayload);
+      try {
+        const params = buildAnalysisQuery();
+        const payload = await api(`/api/analysis?${params.toString()}`);
+        if (refreshToken !== analysisState.refreshToken) return;
+        analysisState.lastPayload = payload;
+        analysisState.loading = false;
+        analysisState.error = payload?.ok === false ? String(payload.message || "Không phân tích được dữ liệu.") : "";
+      } catch (error) {
+        if (refreshToken !== analysisState.refreshToken) return;
+        analysisState.loading = false;
+        analysisState.error = String(error?.message || error || "Không tải được Phân Tích.");
+      } finally {
+        if (refreshToken !== analysisState.refreshToken) return;
+        renderAnalysis(analysisState.lastPayload);
+      }
+    }
+
+    function formatAnalysisModeLabel(mode) {
+      return ANALYSIS_MODE_OPTIONS.find(item => item.value === normalizeAnalysisMode(mode))?.label || "Tổng quan";
+    }
+
+    function formatAnalysisValue(value, fallback = "--") {
+      if (value == null || value === "") return fallback;
+      if (Array.isArray(value)) return value.join(", ");
+      if (typeof value === "number") return value.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+      return String(value);
+    }
+
+    function renderAnalysisChips(values, empty = "--") {
+      const list = Array.isArray(values) ? values : [];
+      if (!list.length) return `<span class="analysis-chip is-muted">${escapeHtml(empty)}</span>`;
+      return list.map(value => `<span class="analysis-chip">${escapeHtml(formatAnalysisValue(value))}</span>`).join("");
+    }
+
+    function renderAnalysisMetricCards(items) {
+      return (items || []).map(item => `
+        <article class="analysis-card">
+          <div class="analysis-card-title">${escapeHtml(item.label)}</div>
+          <div class="analysis-card-value">${escapeHtml(formatAnalysisValue(item.value))}</div>
+          ${item.meta ? `<div class="analysis-card-meta">${escapeHtml(item.meta)}</div>` : ""}
+        </article>
+      `).join("");
+    }
+
+    function renderAnalysisSimpleTable(headers, rows) {
+      if (!Array.isArray(rows) || !rows.length) return `<div class="analysis-empty">Chưa có dữ liệu phù hợp.</div>`;
+      return `
+        <div class="analysis-table-wrap">
+          <table class="analysis-table">
+            <thead><tr>${headers.map(header => `<th>${escapeHtml(header.label)}</th>`).join("")}</tr></thead>
+            <tbody>${rows.map(row => `
+              <tr>${headers.map(header => `<td>${escapeHtml(formatAnalysisValue(row[header.key]))}</td>`).join("")}</tr>
+            `).join("")}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderAnalysisNumberCountList(items, numberKey = "number", countKey = "count") {
+      const rows = (Array.isArray(items) ? items : []).map(item => ({
+        number: item[numberKey] || item.combo || item.pair || item.triple || "",
+        count: item[countKey] ?? item.observed ?? "",
+        status: item.status || item.hotColdStatus || "",
+      }));
+      return renderAnalysisSimpleTable([
+        { key: "number", label: "Số / Nhóm" },
+        { key: "count", label: "Số lần" },
+        { key: "status", label: "Trạng thái" },
+      ], rows);
+    }
+
+    function renderAnalysis(payload = analysisState.lastPayload) {
+      initAnalysisPanel();
+      const status = document.getElementById("analysisStatus");
+      const out = document.getElementById("analysisOut");
+      const summary = document.getElementById("analysisSummaryCards");
+      const detail = document.getElementById("analysisDetailPanel");
+      const updated = document.getElementById("analysisUpdatedAt");
+      if (!detail || !summary || !out) return;
+      if (updated) updated.textContent = payload?.generatedAt ? formatStatsV2UpdatedAt(payload.generatedAt) : "Chưa tải";
+      const warningLines = [];
+      if (analysisState.error) warningLines.push(analysisState.error);
+      if (Array.isArray(payload?.warnings)) warningLines.push(...payload.warnings);
+      if (status) {
+        status.hidden = !warningLines.length;
+        status.textContent = warningLines.join(" • ");
+      }
+      out.innerHTML = (Array.isArray(payload?.explanations) && payload.explanations.length)
+        ? payload.explanations.map(text => `<div>${escapeHtml(text)}</div>`).join("")
+        : `<div>${escapeHtml("Đây là phân tích thống kê tham khảo, không cam kết dự đoán trúng.")}</div>`;
+      if (analysisState.loading && !payload) {
+        summary.innerHTML = "";
+        detail.className = "analysis-detail-panel muted";
+        detail.innerHTML = "Đang tải Phân Tích...";
+        return;
+      }
+      if (analysisState.error && (!payload || payload.ok === false)) {
+        summary.innerHTML = "";
+        detail.className = "analysis-detail-panel muted";
+        detail.innerHTML = escapeHtml(analysisState.error);
+        return;
+      }
+      if (!payload) {
+        summary.innerHTML = "";
+        detail.className = "analysis-detail-panel muted";
+        detail.innerHTML = "Chọn tab Phân Tích để tải dữ liệu.";
+        return;
+      }
+      const latest = payload.latestDraw || {};
+      summary.innerHTML = renderAnalysisMetricCards([
+        { label: "Loại vé", value: TYPES[payload.type]?.label || payload.type },
+        { label: "Chế độ", value: formatAnalysisModeLabel(payload.mode) },
+        { label: "Số kỳ", value: payload.totalDraws || 0, meta: `${payload.fromDate || "--"} đến ${payload.toDate || "--"}` },
+        { label: "Kỳ mới nhất", value: latest.drawId || "--", meta: latest.date || "--" },
+      ]);
+      detail.className = "analysis-detail-panel";
+      const mode = normalizeAnalysisMode(payload.mode);
+      const renderer = {
+        overview: renderAnalysisOverview,
+        general: renderAnalysisGeneral,
+        distribution: renderAnalysisDistribution,
+        ratios: renderAnalysisRatios,
+        latest_draw: renderAnalysisLatestDraw,
+        consecutive: renderAnalysisConsecutive,
+        overdue: renderAnalysisOverdue,
+        poisson: renderAnalysisPoisson,
+        knn: renderAnalysisKnn,
+        chain: renderAnalysisChain,
+        relationships: renderAnalysisRelationships,
+        modulo: renderAnalysisModulo,
+        advanced: renderAnalysisAdvanced,
+        special: renderAnalysisSpecial,
+        weekday: renderAnalysisWeekday,
+        smart_wheel: renderAnalysisSmartWheel,
+        score: renderAnalysisScore,
+        all: renderAnalysisAll,
+      }[mode] || renderAnalysisOverview;
+      detail.innerHTML = renderer(payload);
+    }
+
+    function renderAnalysisOverview(payload) {
+      const data = payload?.data || {};
+      return `
+        <div class="analysis-section-grid">
+          <section class="analysis-card"><div class="analysis-card-title">Số nóng</div><div class="analysis-chip-row">${renderAnalysisChips((data.hotNumbers || []).slice(0, 10).map(item => `${item.number} (${item.count})`))}</div></section>
+          <section class="analysis-card"><div class="analysis-card-title">Số lạnh</div><div class="analysis-chip-row">${renderAnalysisChips((data.coldNumbers || []).slice(0, 10).map(item => `${item.number} (${item.count})`))}</div></section>
+          <section class="analysis-card"><div class="analysis-card-title">Gan lâu</div><div class="analysis-chip-row">${renderAnalysisChips((data.longestOverdue || []).slice(0, 8).map(item => `${item.number}: ${item.currentSkip} kỳ`))}</div></section>
+        </div>
+        <h3 class="analysis-panel-title">Top cặp</h3>
+        ${renderAnalysisNumberCountList(data.topPairs || [], "combo", "count")}
+        <h3 class="analysis-panel-title">Top bộ ba</h3>
+        ${renderAnalysisNumberCountList(data.topTriples || [], "combo", "count")}
+      `;
+    }
+
+    function renderAnalysisGeneral(payload) {
+      const d = payload?.data || {};
+      return `<div class="analysis-grid">${renderAnalysisMetricCards([
+        { label: "Tổng", value: d.sum },
+        { label: "Trung bình", value: d.mean },
+        { label: "Độ lệch chuẩn", value: d.standardDeviation },
+        { label: "Biên độ", value: d.span, meta: `Range: ${d.rangeStatus || "--"}` },
+        { label: "Số nhỏ nhất", value: d.minNumber },
+        { label: "Số lớn nhất", value: d.maxNumber, meta: `Sum: ${d.sumStatus || "--"}` },
+      ])}</div>`;
+    }
+
+    function renderAnalysisDistribution(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-badge-row">
+          <span class="analysis-badge">Expected ${escapeHtml(formatAnalysisValue(d.expectedCount))}</span>
+          <span class="analysis-badge">Chi-square ${escapeHtml(formatAnalysisValue(d.chiSquare))}</span>
+          <span class="analysis-badge">p-value ${escapeHtml(formatAnalysisValue(d.pValue))}</span>
+        </div>
+        ${renderAnalysisSimpleTable([
+          { key: "number", label: "Số" },
+          { key: "observed", label: "Thực tế" },
+          { key: "expected", label: "Kỳ vọng" },
+          { key: "deviation", label: "Lệch" },
+          { key: "status", label: "Trạng thái" },
+        ], d.items || [])}
+      `;
+    }
+
+    function renderAnalysisRatios(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-grid">${renderAnalysisMetricCards([
+          { label: "Chẵn/Lẻ", value: d.evenOddRatio, meta: `${d.evenCount || 0} chẵn • ${d.oddCount || 0} lẻ` },
+          { label: "Thấp/Cao", value: d.lowHighRatio, meta: `${d.lowCount || 0} thấp • ${d.highCount || 0} cao` },
+          { label: "Trạng thái", value: d.ratioStatus || "--" },
+          { label: "Vùng trống", value: (d.blankZones || []).length },
+        ])}</div>
+        <div class="analysis-chip-row">${renderAnalysisChips(d.blankZones || [], "Không có vùng trống")}</div>
+      `;
+    }
+
+    function renderAnalysisLatestDraw(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-card">
+          <div class="analysis-card-title">Kỳ mới nhất</div>
+          <div class="analysis-chip-row">${renderAnalysisChips(d.latestDraw?.numbers || [])}</div>
+        </div>
+        <div class="analysis-section-grid">
+          <section class="analysis-card"><div class="analysis-card-title">Lặp từ kỳ trước</div><div class="analysis-chip-row">${renderAnalysisChips(d.repeatedFromPrevious || [])}</div></section>
+          <section class="analysis-card"><div class="analysis-card-title">Slide ±1</div><div class="analysis-chip-row">${renderAnalysisChips(d.slideNumbers || [])}</div></section>
+        </div>
+      `;
+    }
+
+    function renderAnalysisConsecutive(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-grid">${renderAnalysisMetricCards([
+          { label: "Chuỗi dài nhất", value: d.maxConsecutiveLength || 0 },
+          { label: "Trạng thái", value: d.sequenceRiskStatus || "--" },
+          { label: "Có chuỗi dài", value: d.hasLongSequence ? "Có" : "Không" },
+        ])}</div>
+        <h3 class="analysis-panel-title">Cặp liên tiếp</h3>
+        <div class="analysis-chip-row">${renderAnalysisChips((d.consecutivePairs || []).map(item => item.join("-")))}</div>
+        <h3 class="analysis-panel-title">Bộ ba liên tiếp</h3>
+        <div class="analysis-chip-row">${renderAnalysisChips((d.consecutiveTriples || []).map(item => item.join("-")))}</div>
+      `;
+    }
+
+    function renderAnalysisOverdue(payload) {
+      const rows = (payload?.data?.items || []).map(item => ({
+        number: item.number,
+        currentSkip: item.currentSkip,
+        maxSkip: item.maxSkip,
+        avgGap: item.avgGap,
+        overdueIndex: item.overdueIndex,
+        status: item.status,
+      }));
+      return renderAnalysisSimpleTable([
+        { key: "number", label: "Số" },
+        { key: "currentSkip", label: "Kỳ chưa về" },
+        { key: "maxSkip", label: "Max skip" },
+        { key: "avgGap", label: "Avg gap" },
+        { key: "overdueIndex", label: "Index" },
+        { key: "status", label: "Trạng thái" },
+      ], rows);
+    }
+
+    function renderAnalysisPoisson(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-badge-row">
+          <span class="analysis-badge">lambda ${escapeHtml(formatAnalysisValue(d.lambda))}</span>
+          <span class="analysis-badge">P0 ${escapeHtml(formatAnalysisValue(d.p0))}</span>
+          <span class="analysis-badge">P1 ${escapeHtml(formatAnalysisValue(d.p1))}</span>
+          <span class="analysis-badge">P2 ${escapeHtml(formatAnalysisValue(d.p2))}</span>
+          <span class="analysis-badge">P3+ ${escapeHtml(formatAnalysisValue(d.p3plus))}</span>
+        </div>
+        ${renderAnalysisSimpleTable([
+          { key: "number", label: "Số" },
+          { key: "observed", label: "Thực tế" },
+          { key: "expected", label: "Kỳ vọng" },
+          { key: "hotColdStatus", label: "Hot/Cold" },
+          { key: "anomalyScore", label: "Bất thường" },
+        ], d.items || [])}
+      `;
+    }
+
+    function renderAnalysisKnn(payload) {
+      const d = payload?.data || {};
+      return `
+        ${renderAnalysisSimpleTable([
+          { key: "drawId", label: "Kỳ" },
+          { key: "drawDate", label: "Ngày" },
+          { key: "numbersText", label: "Bộ số" },
+          { key: "distance", label: "Khoảng cách" },
+          { key: "similarityPercent", label: "Tương đồng %" },
+          { key: "nextText", label: "Kỳ sau lịch sử" },
+        ], (d.neighbors || []).map(item => ({
+          ...item,
+          numbersText: (item.numbers || []).join(" "),
+          nextText: (item.nextDrawNumbers || []).join(" "),
+        })))}
+        <h3 class="analysis-panel-title">Số theo sau từ các kỳ tương đồng</h3>
+        ${renderAnalysisNumberCountList(d.followNumbersFromNeighbors || [])}
+      `;
+    }
+
+    function renderAnalysisChain(payload) {
+      return renderAnalysisSimpleTable([
+        { key: "leadNumber", label: "Lead" },
+        { key: "followNumber", label: "Follow" },
+        { key: "count", label: "Số lần" },
+        { key: "leadCount", label: "Lead count" },
+        { key: "probability", label: "Xác suất" },
+      ], payload?.data?.topChains || []);
+    }
+
+    function renderAnalysisRelationships(payload) {
+      const d = payload?.data || {};
+      return `
+        <h3 class="analysis-panel-title">Cặp thân thiết</h3>
+        ${renderAnalysisNumberCountList(d.coOccurrencePairs || [], "pair", "count")}
+        <h3 class="analysis-panel-title">Bộ ba thường gặp</h3>
+        ${renderAnalysisNumberCountList(d.frequentTriples || [], "triple", "count")}
+        <h3 class="analysis-panel-title">Cặp kỵ</h3>
+        ${renderAnalysisNumberCountList(d.incompatiblePairs || [], "pair", "count")}
+      `;
+    }
+
+    function renderAnalysisModulo(payload) {
+      const d = payload?.data || {};
+      const rows = [
+        ...Object.entries(d.mod3 || {}).map(([key, value]) => ({ group: `mod3 = ${key}`, count: value })),
+        ...Object.entries(d.mod5 || {}).map(([key, value]) => ({ group: `mod5 = ${key}`, count: value })),
+        ...Object.entries(d.unitDigits || {}).map(([key, value]) => ({ group: `đuôi ${key}`, count: value })),
+      ];
+      return `
+        <div class="analysis-badge-row">
+          <span class="analysis-badge">Pattern mod3: ${escapeHtml(d.positionalModulo?.mod3 || "--")}</span>
+          <span class="analysis-badge">Pattern mod5: ${escapeHtml(d.positionalModulo?.mod5 || "--")}</span>
+        </div>
+        ${renderAnalysisSimpleTable([
+          { key: "group", label: "Nhóm" },
+          { key: "count", label: "Số lần" },
+        ], rows)}
+      `;
+    }
+
+    function renderAnalysisAdvanced(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-grid">${renderAnalysisMetricCards([
+          { label: "Span", value: d.span },
+          { label: "Prime count", value: d.primeCount },
+          { label: "Beauty score", value: d.beautyScore },
+        ])}</div>
+        <h3 class="analysis-panel-title">Số nguyên tố</h3>
+        <div class="analysis-chip-row">${renderAnalysisChips(d.primeNumbers || [])}</div>
+        <h3 class="analysis-panel-title">Cặp bóng / đảo / slide</h3>
+        <div class="analysis-chip-row">${renderAnalysisChips([...(d.shadowPairs || []), ...(d.invertedPairs || []), ...(d.slideNumbers || [])].map(item => item.join("-")))}</div>
+      `;
+    }
+
+    function renderAnalysisSpecial(payload) {
+      const d = payload?.data || {};
+      if (d.supported === false) return `<div class="analysis-empty">${escapeHtml(d.message || "Không hỗ trợ số đặc biệt.")}</div>`;
+      return `
+        <div class="analysis-badge-row">
+          <span class="analysis-badge">Expected ${escapeHtml(formatAnalysisValue(d.specialExpected))}</span>
+          <span class="analysis-badge">Current skip ${escapeHtml(formatAnalysisValue(d.specialCurrentSkip))}</span>
+          <span class="analysis-badge">Overdue index ${escapeHtml(formatAnalysisValue(d.specialOverdueIndex))}</span>
+        </div>
+        <h3 class="analysis-panel-title">ĐB nóng</h3>
+        ${renderAnalysisNumberCountList(d.topSpecialHot || [])}
+        <h3 class="analysis-panel-title">ĐB lạnh</h3>
+        ${renderAnalysisNumberCountList(d.topSpecialCold || [])}
+      `;
+    }
+
+    function renderAnalysisWeekday(payload) {
+      const d = payload?.data || {};
+      return `
+        <h3 class="analysis-panel-title">Gợi ý theo thứ hiện tại</h3>
+        <div class="analysis-chip-row">${renderAnalysisChips((d.currentWeekdaySuggestion?.numbers || []).map(item => `${item.number} (${item.count})`))}</div>
+        ${renderAnalysisSimpleTable([
+          { key: "weekday", label: "Thứ" },
+          { key: "drawCount", label: "Số kỳ" },
+          { key: "topText", label: "Top số" },
+        ], (d.weekdayStats || []).map(item => ({
+          ...item,
+          topText: (item.topNumbers || []).map(row => `${row.number}(${row.count})`).join(", "),
+        })))}
+      `;
+    }
+
+    function renderAnalysisSmartWheel(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-card">
+          <div class="analysis-card-title">Pool được chọn</div>
+          <div class="analysis-chip-row">${renderAnalysisChips(d.selectedPool || [])}</div>
+        </div>
+        <h3 class="analysis-panel-title">Vé sinh ra</h3>
+        <div class="analysis-ticket-list">${(d.generatedTickets || []).map(ticket => `<div class="analysis-ticket">${renderAnalysisChips(ticket)}</div>`).join("") || `<div class="analysis-empty">${escapeHtml(d.message || "Chưa tạo vé.")}</div>`}</div>
+      `;
+    }
+
+    function renderAnalysisScore(payload) {
+      const d = payload?.data || {};
+      return `
+        <div class="analysis-score-box">
+          <div class="analysis-score-ring">${escapeHtml(formatAnalysisValue(d.finalScore || 0))}</div>
+          <div>
+            <div class="analysis-card-title">Final score</div>
+            <div class="analysis-chip-row">${renderAnalysisChips(d.numbers || [])}</div>
+          </div>
+        </div>
+        <div class="analysis-grid">${renderAnalysisMetricCards([
+          { label: "Balance", value: d.balanceScore },
+          { label: "Sum", value: d.sumScore },
+          { label: "Gap", value: d.gapScore },
+          { label: "Distribution", value: d.distributionScore },
+          { label: "Relationship", value: d.relationshipScore },
+          { label: "Beauty", value: d.beautyScore },
+        ])}</div>
+      `;
+    }
+
+    function renderAnalysisAll(payload) {
+      const d = payload?.data || {};
+      const blocks = [
+        ["Tổng quan", renderAnalysisOverview({ data: d.overview || {} })],
+        ["Bộ số", renderAnalysisGeneral({ data: d.general || {} })],
+        ["Tỷ lệ", renderAnalysisRatios({ data: d.ratios || {} })],
+        ["Gan", renderAnalysisOverdue({ data: { items: d.overdue?.topOverdue || [] } })],
+        ["Poisson", renderAnalysisPoisson({ data: d.poisson || {} })],
+        ["KNN", renderAnalysisKnn({ data: d.knn || {} })],
+        ["Quan hệ", renderAnalysisRelationships({ data: d.relationships || {} })],
+        ["Nâng cao", renderAnalysisAdvanced({ data: d.advanced || {} })],
+        ["Điểm", renderAnalysisScore({ data: d.score || {} })],
+      ];
+      return blocks.map(([title, html]) => `<section class="analysis-all-block"><h3 class="analysis-panel-title">${escapeHtml(title)}</h3>${html}</section>`).join("");
+    }
+
+    function getAnalysisTopNumbers(payload) {
+      const data = payload?.data || {};
+      if (Array.isArray(data.hotNumbers)) return data.hotNumbers.slice(0, 3).map(item => item.number);
+      if (Array.isArray(data.numbers)) return data.numbers.slice(0, 3);
+      if (Array.isArray(data.items)) return data.items.slice(0, 3).map(item => item.number).filter(Boolean);
+      if (Array.isArray(payload?.latestDraw?.numbers)) return payload.latestDraw.numbers.slice(0, 3);
+      return [];
+    }
+
+    function saveAnalysisHistory() {
+      const payload = analysisState.lastPayload;
+      if (!payload?.ok) {
+        analysisState.error = "Chưa có phân tích hợp lệ để lưu.";
+        renderAnalysis(payload);
+        return;
+      }
+      if (!Array.isArray(store.analysisHistory)) store.analysisHistory = [];
+      const summary = payload.data?.summaryText || payload.explanations?.[1] || `${formatAnalysisModeLabel(payload.mode)} ${payload.type}`;
+      const entry = {
+        id: `analysis_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        type: payload.type,
+        period: payload.period,
+        mode: payload.mode,
+        createdAt: new Date().toISOString(),
+        summary,
+        topNumbers: getAnalysisTopNumbers(payload),
+        snapshot: {
+          totalDraws: payload.totalDraws || 0,
+          latestDrawId: payload.latestDraw?.drawId || "",
+          mainHighlights: getAnalysisTopNumbers(payload),
+        },
+      };
+      store.analysisHistory.unshift(entry);
+      while (store.analysisHistory.length > MAX_ANALYSIS_HISTORY) store.analysisHistory.pop();
+      saveStore();
+      const status = document.getElementById("analysisStatus");
+      if (status) {
+        status.hidden = false;
+        status.textContent = "Đã lưu phân tích vào lịch sử.";
+      }
+    }
+
+    function startAnalysisAutoRefresh() {
+      stopAnalysisAutoRefresh();
+      if (!analysisState.autoRefresh || predictPageModeValue !== PREDICTION_MODE_ANALYSIS) return;
+      analysisState.timer = setInterval(() => {
+        loadAnalysis({ force: true, silent: true });
+      }, ANALYSIS_AUTO_REFRESH_MS);
+    }
+
+    function stopAnalysisAutoRefresh() {
+      if (analysisState.timer) clearInterval(analysisState.timer);
+      analysisState.timer = null;
+    }
+
+    function refreshAnalysisAfterLiveUpdate() {
+      if (predictPageModeValue !== PREDICTION_MODE_ANALYSIS) return;
+      loadAnalysis({ force: true, silent: true });
     }
 
     function getChartStatsTypeMeta(typeKey) {
@@ -12553,6 +13277,7 @@
       }
       setLiveStatus(statusParts.join("\n"), ((res.errors || []).length || canonicalBackfillErrors.length) ? "warn" : "ok");
       refreshStatsV2AfterLiveUpdate();
+      refreshAnalysisAfterLiveUpdate();
     }
 
     async function runLegacyRepairCanonicalSync({ silent = false, manageButton = false, originalButtonText = "Cập Nhật" } = {}) {
@@ -12598,6 +13323,7 @@
         setLiveStatus(status.message, status.cls);
         if (!progress?.running && progress?.done) {
           refreshStatsV2AfterLiveUpdate();
+          refreshAnalysisAfterLiveUpdate();
           stopLiveResultsProgressPolling();
         }
       } catch (err) {
