@@ -5184,6 +5184,72 @@
       font-weight: 800;
       line-height: 1.25;
     }
+    .stats-recent100-ticket-list {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+    }
+    .stats-recent100-ticket-list.is-empty {
+      min-height: 46px;
+      align-items: center;
+    }
+    .stats-recent100-ticket-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 5px;
+      align-items: start;
+      min-width: 0;
+      padding-bottom: 1px;
+    }
+    .stats-recent100-ticket-row.is-empty {
+      opacity: .55;
+    }
+    .stats-recent100-ticket-label {
+      padding-top: 4px;
+      color: #111827;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    .stats-recent100-ticket-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .stats-recent100-ticket-ball.stats-recent100-ball {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      min-height: 22px;
+      font-size: 9px;
+      box-shadow: 0 1px 3px rgba(111, 64, 5, .18);
+    }
+    .stats-recent100-ticket-special-label,
+    .stats-recent100-ticket-placeholder,
+    .stats-recent100-ticket-special-empty {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 20px;
+      color: #6b7280;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .stats-recent100-ticket-special-label {
+      color: #92400e;
+    }
+    .stats-recent100-ticket-placeholder,
+    .stats-recent100-ticket-special-empty {
+      min-width: 22px;
+      border: 1px dashed rgba(146, 64, 14, .28);
+      border-radius: 999px;
+      background: rgba(255, 248, 232, .62);
+    }
     .stats-recent100-selected-card {
       appearance: none;
       display: grid;
