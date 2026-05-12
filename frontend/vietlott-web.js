@@ -195,7 +195,12 @@
       { value: "frequency", label: "Tần suất" },
     ];
     const STATS_PANEL_AUTO_REFRESH_MS = 60000;
-    const STATS_RECENT_WINDOW_OPTIONS = [10, 30, 50, 100, 200, 300];
+    const STATS_RECENT_MODE_OPTIONS = [
+      { value: "day", label: "Ngày" },
+      { value: "draw", label: "Kỳ" },
+    ];
+    const STATS_RECENT_DAY_WINDOW_OPTIONS = [3, 5, 7, 15, 30, 60, 100, "all"];
+    const STATS_RECENT_DRAW_WINDOW_OPTIONS = [5, 15, 30, 50, 100, 200, 300, "all"];
     const STATS_RECENT_WINDOW_DEFAULT = 100;
     const STATS_RECENT100_SIDE_LIMIT = 20;
     const STATS_V2_AUTO_REFRESH_MS = 90000;
@@ -461,7 +466,9 @@
     let statsPanelAutoRefreshTimer = null;
     let statsPanelCountdownTimer = null;
     let statsPanelNextRefreshAt = 0;
+    let statsRecentModeValue = "draw";
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
+    let statsRecentSelectedByType = Object.create(null);
     let statsV2State = {
       type: "LOTO_5_35",
       period: "30d",
@@ -3868,9 +3875,18 @@
     document.addEventListener("click", event => {
       const recentWindowButton = event.target.closest("[data-stats-recent-window]");
       if (!recentWindowButton) return;
-      const nextWindow = normalizeStatsRecentWindow(recentWindowButton.dataset.statsRecentWindow);
+      const nextWindow = normalizeStatsRecentWindow(recentWindowButton.dataset.statsRecentWindow, statsRecentModeValue);
       if (nextWindow === statsRecentWindowValue) return;
       statsRecentWindowValue = nextWindow;
+      renderStatsPanel();
+    });
+    document.addEventListener("click", event => {
+      const recentModeButton = event.target.closest("[data-stats-recent-mode]");
+      if (!recentModeButton) return;
+      const nextMode = normalizeStatsRecentMode(recentModeButton.dataset.statsRecentMode);
+      if (nextMode === statsRecentModeValue) return;
+      statsRecentModeValue = nextMode;
+      statsRecentWindowValue = normalizeStatsRecentWindow(statsRecentWindowValue, statsRecentModeValue);
       renderStatsPanel();
     });
     document.addEventListener("click", event => {
@@ -3883,6 +3899,32 @@
       renderStatsTypeTabs();
       renderStatsPanel();
       startStatsPanelRefresh({ force: true, silent: true });
+    });
+    document.addEventListener("click", event => {
+      const removeButton = event.target.closest("[data-stats-recent-selected-remove]");
+      if (removeButton) {
+        removeStatsRecentSelectedNumber(statsSelectedType, removeButton.dataset.statsRecentSelectedRemove);
+        renderStatsPanel();
+        return;
+      }
+      const clearButton = event.target.closest("[data-stats-recent-clear]");
+      if (clearButton) {
+        clearStatsRecentSelectedNumbers(statsSelectedType);
+        renderStatsPanel();
+        return;
+      }
+      const pickButton = event.target.closest("[data-stats-recent-pick]");
+      if (!pickButton) return;
+      addStatsRecentSelectedNumber(statsSelectedType, pickButton.dataset.statsRecentPick);
+      renderStatsPanel();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const pickButton = event.target.closest("[data-stats-recent-pick]");
+      const removeButton = event.target.closest("[data-stats-recent-selected-remove]");
+      if (!pickButton && !removeButton) return;
+      event.preventDefault();
+      event.target.click();
     });
     const statsV2TypeSelect = document.getElementById("statsV2TypeSelect");
     if (statsV2TypeSelect) {
@@ -5979,6 +6021,18 @@
       return missed;
     }
 
+    function getStatsLatestHitPredictionSet(type, latestEntry = null, latestActualSet = null) {
+      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      if (!previousPrediction) return new Set();
+      const actualSet = latestActualSet instanceof Set ? latestActualSet : buildStatsLatestActualNumberSet(type, latestEntry);
+      const predictedSet = collectStatsPredictionMainSet(previousPrediction);
+      const hits = new Set();
+      predictedSet.forEach(value => {
+        if (actualSet.has(value)) hits.add(value);
+      });
+      return hits;
+    }
+
     function getStatsLatestMissedSpecialPredictionSet(type, latestEntry = null, latestActualSpecialSet = null) {
       if (!TYPES[type]?.hasSpecial) return new Set();
       const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
@@ -6118,19 +6172,168 @@
         .sort((a, b) => b.gap - a.gap || a.count - b.count || a.value - b.value);
     }
 
-    function getStatsRecent100BallClass(value, latestNumberSet = null, missedNumberSet = null) {
+    function getStatsRecent100BallClass(value, hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null) {
       const numeric = Number(value);
-      const isLatestDraw = Number.isInteger(numeric) && latestNumberSet instanceof Set && latestNumberSet.has(numeric);
+      const isHitPrediction = Number.isInteger(numeric) && hitNumberSet instanceof Set && hitNumberSet.has(numeric);
       const isMissedPrediction = Number.isInteger(numeric) && missedNumberSet instanceof Set && missedNumberSet.has(numeric);
-      if (isLatestDraw && isMissedPrediction) return "is-latest-and-missed";
-      if (isLatestDraw) return "is-latest-draw";
-      if (isMissedPrediction) return "is-missed-prediction";
+      const isCurrentPrediction = Number.isInteger(numeric) && currentPredictionSet instanceof Set && currentPredictionSet.has(numeric);
+      if (isCurrentPrediction) return "is-current-prediction";
+      if (isHitPrediction) return "is-previous-hit";
+      if (isMissedPrediction) return "is-previous-missed";
       return "";
     }
 
-    function normalizeStatsRecentWindow(value) {
+    function normalizeStatsRecentMode(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return STATS_RECENT_MODE_OPTIONS.some(option => option.value === normalized) ? normalized : "draw";
+    }
+
+    function getStatsRecentWindowOptions(mode = statsRecentModeValue) {
+      return normalizeStatsRecentMode(mode) === "day"
+        ? STATS_RECENT_DAY_WINDOW_OPTIONS
+        : STATS_RECENT_DRAW_WINDOW_OPTIONS;
+    }
+
+    function normalizeStatsRecentWindow(value, mode = statsRecentModeValue) {
+      const options = getStatsRecentWindowOptions(mode);
+      const normalized = String(value || "").trim().toLowerCase();
+      if (normalized === "all" && options.includes("all")) return "all";
+      const numeric = Number(normalized);
+      return options.includes(numeric) ? numeric : STATS_RECENT_WINDOW_DEFAULT;
+    }
+
+    function getStatsRecentWindowLabel(value, mode = statsRecentModeValue) {
+      const normalizedMode = normalizeStatsRecentMode(mode);
+      const normalizedWindow = normalizeStatsRecentWindow(value, normalizedMode);
+      if (normalizedWindow === "all") return "All";
+      return `${normalizedWindow} ${normalizedMode === "day" ? "ngày" : "kỳ"}`;
+    }
+
+    function getStatsRecentPanelTitle(value, mode = statsRecentModeValue) {
+      const normalizedMode = normalizeStatsRecentMode(mode);
+      const normalizedWindow = normalizeStatsRecentWindow(value, normalizedMode);
+      if (normalizedWindow === "all") {
+        return normalizedMode === "day" ? "TẤT CẢ NGÀY GẦN NHẤT" : "TẤT CẢ KỲ XỔ";
+      }
+      return `${normalizedWindow} ${normalizedMode === "day" ? "NGÀY" : "KỲ"} XỔ GẦN NHẤT`;
+    }
+
+    function filterStatsRecentEntriesByMode(entries, mode = statsRecentModeValue, value = statsRecentWindowValue) {
+      const safeEntries = Array.isArray(entries) ? entries : [];
+      const normalizedMode = normalizeStatsRecentMode(mode);
+      const normalizedWindow = normalizeStatsRecentWindow(value, normalizedMode);
+      if (normalizedWindow === "all") return [...safeEntries];
+      const windowCount = Math.max(1, Number(normalizedWindow) || STATS_RECENT_WINDOW_DEFAULT);
+      if (normalizedMode !== "day") return safeEntries.slice(-windowCount);
+
+      let latestDate = null;
+      for (let index = safeEntries.length - 1; index >= 0; index--) {
+        const parsed = parseLiveDate(safeEntries[index]?.draw?.date || "");
+        if (parsed instanceof Date && !Number.isNaN(parsed.getTime())) {
+          latestDate = parsed;
+          break;
+        }
+      }
+      if (!latestDate) return safeEntries.slice(-windowCount);
+      const cutoff = new Date(latestDate.getTime());
+      cutoff.setHours(0, 0, 0, 0);
+      cutoff.setDate(cutoff.getDate() - (windowCount - 1));
+      return safeEntries.filter(entry => {
+        const parsed = parseLiveDate(entry?.draw?.date || "");
+        return parsed instanceof Date && !Number.isNaN(parsed.getTime()) && parsed.getTime() >= cutoff.getTime();
+      });
+    }
+
+    function getStatsRecentSelectedValues(type) {
+      const key = normalizeStatsType(type);
+      const values = Array.isArray(statsRecentSelectedByType[key]) ? statsRecentSelectedByType[key] : [];
+      return values
+        .map(value => Number(value))
+        .filter(value => Number.isInteger(value));
+    }
+
+    function addStatsRecentSelectedNumber(type, value) {
       const numeric = Number(value);
-      return STATS_RECENT_WINDOW_OPTIONS.includes(numeric) ? numeric : STATS_RECENT_WINDOW_DEFAULT;
+      if (!Number.isInteger(numeric)) return;
+      const key = normalizeStatsType(type);
+      const values = getStatsRecentSelectedValues(key);
+      if (!values.includes(numeric)) values.push(numeric);
+      statsRecentSelectedByType[key] = values;
+    }
+
+    function removeStatsRecentSelectedNumber(type, value) {
+      const numeric = Number(value);
+      if (!Number.isInteger(numeric)) return;
+      const key = normalizeStatsType(type);
+      statsRecentSelectedByType[key] = getStatsRecentSelectedValues(key).filter(item => item !== numeric);
+    }
+
+    function clearStatsRecentSelectedNumbers(type) {
+      statsRecentSelectedByType[normalizeStatsType(type)] = [];
+    }
+
+    function renderStatsRecentColorLegend() {
+      return `
+        <div class="stats-recent100-color-balls" aria-label="Chú thích màu bóng">
+          <span class="stats-recent100-color-ball is-yellow" tabindex="0">
+            <span class="stats-recent100-color-tip">
+              <strong>Vàng</strong>
+              <small>Số thống kê thường</small>
+            </span>
+          </span>
+          <span class="stats-recent100-color-ball is-green" tabindex="0">
+            <span class="stats-recent100-color-tip">
+              <strong>Xanh</strong>
+              <small>Dự đoán đúng kỳ trước</small>
+            </span>
+          </span>
+          <span class="stats-recent100-color-ball is-red" tabindex="0">
+            <span class="stats-recent100-color-tip">
+              <strong>Đỏ</strong>
+              <small>Dự đoán sai kỳ trước</small>
+            </span>
+          </span>
+          <span class="stats-recent100-color-ball is-purple" tabindex="0">
+            <span class="stats-recent100-color-tip">
+              <strong>Tím</strong>
+              <small>Dự đoán hiện tại</small>
+            </span>
+          </span>
+        </div>
+      `;
+    }
+
+    function renderStatsRecentSelectedPanel(type, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null, countByValue = null } = {}) {
+      const selectedValues = getStatsRecentSelectedValues(type);
+      return `
+        <div class="stats-recent100-selected-panel">
+          <div class="stats-recent100-selected-head">
+            <span>Bộ Số Bạn Chọn</span>
+            <button
+              type="button"
+              class="stats-recent100-clear-btn"
+              data-stats-recent-clear="1"
+              ${selectedValues.length ? "" : "disabled"}
+            >Xóa</button>
+          </div>
+          <div class="stats-recent100-selected-grid${selectedValues.length ? "" : " is-empty"}">
+            ${selectedValues.length ? selectedValues.map(value => {
+              const count = countByValue instanceof Map ? countByValue.get(value) : null;
+              return `
+                <button
+                  type="button"
+                  class="stats-recent100-selected-card"
+                  data-stats-recent-selected-remove="${Number(value)}"
+                  aria-label="Xóa số ${escapeHtml(getStatsDisplayLabel(type, value))}"
+                >
+                  <span class="stats-recent100-ball ${getStatsRecent100BallClass(value, hitNumberSet, missedNumberSet, currentPredictionSet)}">${escapeHtml(getStatsDisplayLabel(type, value))}</span>
+                  <span class="stats-recent100-selected-count">${Number.isFinite(Number(count)) ? escapeHtml(`${formatLiveSyncCount(count)} lần`) : "Đã chọn"}</span>
+                </button>
+              `;
+            }).join("") : `<span class="stats-recent100-selected-empty">Chọn bóng ở bảng bên phải</span>`}
+          </div>
+        </div>
+      `;
     }
 
     function formatStatsRefreshCountdown(ms) {
@@ -6151,7 +6354,7 @@
       });
     }
 
-    function renderStatsRecent100Table(title, items, valueKey = "count", { latestNumberSet = null, missedNumberSet = null } = {}) {
+    function renderStatsRecent100Table(title, items, valueKey = "count", { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null } = {}) {
       const safeItems = Array.isArray(items) ? items : [];
       const rowCount = Math.ceil(safeItems.length / 2);
       const rows = Array.from({ length: rowCount }, (_, rowIndex) => [
@@ -6166,7 +6369,13 @@
               <div class="stats-recent100-side-row">
                 ${rowItems.map(item => item ? `
                   <span class="stats-recent100-side-cell">
-                    <span class="stats-recent100-side-number ${getStatsRecent100BallClass(item?.value, latestNumberSet, missedNumberSet)}" data-ball="${escapeHtml(item?.label || "--")}"></span>
+                    <button
+                      type="button"
+                      class="stats-recent100-side-number ${getStatsRecent100BallClass(item?.value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
+                      data-ball="${escapeHtml(item?.label || "--")}"
+                      data-stats-recent-pick="${Number(item?.value)}"
+                      aria-label="Chọn số ${escapeHtml(item?.label || "--")}"
+                    ></button>
                     <span class="stats-recent100-side-count">${escapeHtml(`${formatLiveSyncCount(item?.[valueKey] || 0)} lần`)}</span>
                   </span>
                 ` : `<span class="stats-recent100-side-cell is-empty"></span>`).join("")}
@@ -6177,13 +6386,18 @@
       `;
     }
 
-    function renderStatsRecent100Panel(type, entries, { latestNumberSet = null, missedNumberSet = null } = {}) {
+    function renderStatsRecent100Panel(type, entries, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null } = {}) {
       const sourceEntries = Array.isArray(entries) ? entries : [];
       if (!sourceEntries.length) return "";
-      const recentWindow = normalizeStatsRecentWindow(statsRecentWindowValue);
-      const recentEntries = sourceEntries.slice(-recentWindow);
+      statsRecentModeValue = normalizeStatsRecentMode(statsRecentModeValue);
+      statsRecentWindowValue = normalizeStatsRecentWindow(statsRecentWindowValue, statsRecentModeValue);
+      const recentMode = statsRecentModeValue;
+      const recentWindow = statsRecentWindowValue;
+      const recentWindowOptions = getStatsRecentWindowOptions(recentMode);
+      const recentEntries = filterStatsRecentEntriesByMode(sourceEntries, recentMode, recentWindow);
       const frequencyItems = buildStatsFrequencyItems(type, recentEntries);
       const displayItems = TYPES[type]?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems;
+      const countByValue = new Map(frequencyItems.map(item => [Number(item.value), Number(item.count || 0)]));
       const mostItems = frequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
       const leastItems = [...frequencyItems]
         .sort((a, b) => a.count - b.count || a.value - b.value)
@@ -6197,8 +6411,9 @@
             ? "is-six"
             : TYPES[type]?.threeDigit ? "is-three-digit" : "";
       const currentTypeMeta = getStatsTypeUiMeta(type);
+      const titleText = getStatsRecentPanelTitle(recentWindow, recentMode);
       return `
-        <section class="stats-recent100-section">
+        <section class="stats-recent100-section ${gridClass}">
           <div class="stats-recent100-layout">
             <div class="stats-recent100-main">
               <div class="stats-recent100-head">
@@ -6217,42 +6432,76 @@
                   </div>
                 </div>
                 <div class="stats-recent100-title-picker">
-                  <button type="button" class="stats-recent100-title" aria-haspopup="menu" aria-label="Chọn số kỳ xổ gần nhất">${escapeHtml(`${recentWindow} Kỳ Xổ Gần Nhất`)}</button>
-                  <div class="stats-recent100-title-menu" role="menu" aria-label="Chọn phạm vi kỳ xổ gần nhất">
-                    ${STATS_RECENT_WINDOW_OPTIONS.map(option => `
+                  <button type="button" class="stats-recent100-title" aria-haspopup="menu" aria-label="Chọn phạm vi thống kê">${escapeHtml(titleText)}</button>
+                  <div class="stats-recent100-title-menu" role="menu" aria-label="Chọn phạm vi thống kê">
+                    ${recentWindowOptions.map(option => `
                       <button
                         type="button"
                         class="stats-recent100-title-option${option === recentWindow ? " is-active" : ""}"
-                        data-stats-recent-window="${option}"
+                        data-stats-recent-window="${escapeHtml(String(option))}"
                         role="menuitemradio"
                         aria-checked="${option === recentWindow ? "true" : "false"}"
-                      >${option} kỳ</button>
+                      >${escapeHtml(getStatsRecentWindowLabel(option, recentMode))}</button>
                     `).join("")}
                   </div>
-                </div>
-                <div class="stats-recent100-color-balls" aria-label="Chú thích màu bóng">
-                  <span class="stats-recent100-color-ball is-yellow" tabindex="0"><span>Vàng: số thống kê</span></span>
-                  <span class="stats-recent100-color-ball is-green" tabindex="0"><span>Xanh: kỳ trước ra</span></span>
-                  <span class="stats-recent100-color-ball is-red" tabindex="0"><span>Đỏ: kỳ trước đoán trật</span></span>
                 </div>
                 <div class="stats-recent100-refresh-timer" aria-label="Thời gian còn lại tới lần tự làm mới thống kê">
                   <span>Làm mới</span>
                   <strong data-stats-refresh-countdown>${escapeHtml(getStatsRefreshCountdownText())}</strong>
                 </div>
               </div>
-              <div class="stats-recent100-number-grid ${gridClass}">
-                ${displayItems.map(item => `
-                  <div class="stats-recent100-number-card">
-                    <span class="stats-recent100-ball ${getStatsRecent100BallClass(item?.value, latestNumberSet, missedNumberSet)}">${escapeHtml(item.label)}</span>
-                    <span class="stats-recent100-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</span>
+              <div class="stats-recent100-content">
+                <aside class="stats-recent100-sidebar" aria-label="Bộ lọc thống kê nhanh">
+                  <div class="stats-recent100-control-block">
+                    <div class="stats-recent100-sidebar-label">Hình Thức:</div>
+                    <div class="stats-recent100-mode-tabs">
+                      ${STATS_RECENT_MODE_OPTIONS.map(option => `
+                        <button
+                          type="button"
+                          class="stats-recent100-mode-btn${option.value === recentMode ? " is-active" : ""}"
+                          data-stats-recent-mode="${escapeHtml(option.value)}"
+                          aria-pressed="${option.value === recentMode ? "true" : "false"}"
+                        >${escapeHtml(option.label)}</button>
+                      `).join("")}
+                    </div>
                   </div>
-                `).join("")}
+                  <div class="stats-recent100-control-block">
+                    <div class="stats-recent100-sidebar-label">Hiển thị:</div>
+                    <div class="stats-recent100-range-grid">
+                      ${recentWindowOptions.map(option => `
+                        <button
+                          type="button"
+                          class="stats-recent100-range-btn${option === recentWindow ? " is-active" : ""}"
+                          data-stats-recent-window="${escapeHtml(String(option))}"
+                          aria-pressed="${option === recentWindow ? "true" : "false"}"
+                        >${escapeHtml(getStatsRecentWindowLabel(option, recentMode))}</button>
+                      `).join("")}
+                    </div>
+                  </div>
+                  ${renderStatsRecentColorLegend()}
+                  ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}
+                </aside>
+                <div class="stats-recent100-board">
+                  <div class="stats-recent100-number-grid ${gridClass}">
+                    ${displayItems.map(item => `
+                      <div class="stats-recent100-number-card">
+                        <button
+                          type="button"
+                          class="stats-recent100-ball ${getStatsRecent100BallClass(item?.value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
+                          data-stats-recent-pick="${Number(item?.value)}"
+                          aria-label="Chọn số ${escapeHtml(item.label)}"
+                        >${escapeHtml(item.label)}</button>
+                        <span class="stats-recent100-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
               </div>
             </div>
             <div class="stats-recent100-side">
-              ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { latestNumberSet, missedNumberSet })}
-              ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { latestNumberSet, missedNumberSet })}
-              ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { latestNumberSet, missedNumberSet })}
+              ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+              ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+              ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { hitNumberSet, missedNumberSet, currentPredictionSet })}
             </div>
           </div>
         </section>
@@ -6297,6 +6546,8 @@
       const hotItem = mainRanking[0] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
       const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
+      const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
+      const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSpecialSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
       const currentTopSet = new Set(mainRanking.slice(0, 10).map(item => Number(item?.value)).filter(value => Number.isInteger(value)));
@@ -6422,7 +6673,7 @@
                 </div>
               ` : fullRankingBody}
             </section>
-            ${renderStatsRecent100Panel(type, allEntries, { latestNumberSet: latestActualSet, missedNumberSet: missedPredictionSet })}
+            ${renderStatsRecent100Panel(type, allEntries, { hitNumberSet: hitPredictionSet, missedNumberSet: missedPredictionSet, currentPredictionSet: currentPredictionHighlight.numbers })}
           </div>
         </div>
       `;
