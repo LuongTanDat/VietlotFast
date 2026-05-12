@@ -194,6 +194,10 @@
       { value: "jackpot", label: "Giá trị Độc đắc" },
       { value: "frequency", label: "Tần suất" },
     ];
+    const STATS_PANEL_AUTO_REFRESH_MS = 60000;
+    const STATS_RECENT_WINDOW_OPTIONS = [10, 30, 50, 100, 200, 300];
+    const STATS_RECENT_WINDOW_DEFAULT = 100;
+    const STATS_RECENT100_SIDE_LIMIT = 20;
     const STATS_V2_AUTO_REFRESH_MS = 90000;
     const MAX_STATS_V2_FAVORITES = 50;
     const MAX_STATS_V2_HISTORY = 80;
@@ -454,6 +458,10 @@
     let statsPanelLoading = false;
     let statsPanelError = "";
     let statsPanelRefreshToken = 0;
+    let statsPanelAutoRefreshTimer = null;
+    let statsPanelCountdownTimer = null;
+    let statsPanelNextRefreshAt = 0;
+    let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
     let statsV2State = {
       type: "LOTO_5_35",
       period: "30d",
@@ -3744,7 +3752,7 @@
         const nextMode = savePredictPageMode(button.dataset.predictModeTab || PREDICTION_MODE_NORMAL);
         renderPredictModeTabs();
         if (nextMode === PREDICTION_MODE_STATS) {
-          startStatsPanelRefresh({ silent: true });
+          startStatsPanelRefresh({ force: true, silent: true });
         } else if (nextMode === PREDICTION_MODE_STATS_V2) {
           loadStatsV2({ force: true, silent: true });
           window.setTimeout(() => {
@@ -3823,7 +3831,7 @@
         statsSelectedType = nextType;
         saveStatsUiState();
         renderStatsPanel();
-        startStatsPanelRefresh({ silent: true });
+        startStatsPanelRefresh({ force: true, silent: true });
       });
     }
     const statsWindowSelect = document.getElementById("statsWindowSelect");
@@ -3837,7 +3845,7 @@
         renderStatsPanel();
         const currentFeed = getLiveHistoryFeed(statsSelectedType);
         if (!doesLiveHistoryFeedSatisfyCount(statsSelectedType, currentFeed, "all")) {
-          startStatsPanelRefresh({ silent: true });
+          startStatsPanelRefresh({ force: true, silent: true });
         }
       });
     }
@@ -3857,6 +3865,25 @@
         renderStatsPanel();
       });
     }
+    document.addEventListener("click", event => {
+      const recentWindowButton = event.target.closest("[data-stats-recent-window]");
+      if (!recentWindowButton) return;
+      const nextWindow = normalizeStatsRecentWindow(recentWindowButton.dataset.statsRecentWindow);
+      if (nextWindow === statsRecentWindowValue) return;
+      statsRecentWindowValue = nextWindow;
+      renderStatsPanel();
+    });
+    document.addEventListener("click", event => {
+      const recentTypeButton = event.target.closest("[data-stats-recent-type]");
+      if (!recentTypeButton) return;
+      const nextType = normalizeStatsType(recentTypeButton.dataset.statsRecentType);
+      if (nextType === statsSelectedType) return;
+      statsSelectedType = nextType;
+      saveStatsUiState();
+      renderStatsTypeTabs();
+      renderStatsPanel();
+      startStatsPanelRefresh({ force: true, silent: true });
+    });
     const statsV2TypeSelect = document.getElementById("statsV2TypeSelect");
     if (statsV2TypeSelect) {
       statsV2TypeSelect.addEventListener("change", () => {
@@ -4468,7 +4495,7 @@
       renderDashboardPanel();
       renderKenoTrainingToggle();
       if (predictPageModeValue === PREDICTION_MODE_STATS) {
-        startStatsPanelRefresh({ silent: true });
+        startStatsPanelRefresh({ force: true, silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_STATS_V2) {
         loadStatsV2({ force: true, silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_CHARTS) {
@@ -5580,6 +5607,7 @@
       if (chartsRoot) chartsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_CHARTS;
       if (dashboardRoot) dashboardRoot.hidden = predictPageModeValue !== PREDICTION_MODE_DASHBOARD;
       if (analysisRoot) analysisRoot.hidden = predictPageModeValue !== PREDICTION_MODE_ANALYSIS;
+      syncStatsPanelAutoRefreshTimer();
       syncStatsV2AutoRefreshTimer();
       if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) startAnalysisAutoRefresh();
       else stopAnalysisAutoRefresh();
@@ -5899,25 +5927,51 @@
       };
     }
 
-    function getStatsLatestMissedPredictionSet(type, latestEntry = null, latestActualSet = null) {
-      const normalizedLatestKy = normalizeKy(latestEntry?.ky);
-      if (!normalizedLatestKy) return new Set();
+    function getStatsPredictionLogSortTime(entry) {
+      return Date.parse(String(entry?.resolvedAt || entry?.createdAt || "").trim()) || 0;
+    }
+
+    function findStatsPredictionLogForKy(type, ky) {
+      const normalizedKy = normalizeKy(ky);
+      if (!normalizedKy) return null;
       const logs = ensurePredictionLogBucket(type)
         .filter(entry =>
-          entry?.resolved &&
           Array.isArray(entry?.tickets) &&
           entry.tickets.length &&
-          (normalizeKy(entry?.actualKy) === normalizedLatestKy || normalizeKy(entry?.predictedKy) === normalizedLatestKy)
-        )
-        .sort((a, b) => {
-          const aTime = Date.parse(String(a?.resolvedAt || a?.createdAt || "").trim()) || 0;
-          const bTime = Date.parse(String(b?.resolvedAt || b?.createdAt || "").trim()) || 0;
-          return bTime - aTime;
+          (
+            normalizeKy(entry?.actualKy) === normalizedKy ||
+            normalizeKy(entry?.predictedKy) === normalizedKy ||
+            normalizeKy(entry?.predictedKyRepaired) === normalizedKy ||
+            normalizeKy(entry?.predictedKyOriginal) === normalizedKy
+          )
+        );
+      if (!logs.length) return null;
+      logs.sort((a, b) => {
+        const resolvedDelta = Number(!!b?.resolved) - Number(!!a?.resolved);
+        if (resolvedDelta !== 0) return resolvedDelta;
+        const timeDelta = getStatsPredictionLogSortTime(b) - getStatsPredictionLogSortTime(a);
+        if (timeDelta !== 0) return timeDelta;
+        return kySortValue(b?.predictedKy) - kySortValue(a?.predictedKy);
+      });
+      return logs[0] || null;
+    }
+
+    function collectStatsPredictionMainSet(entry) {
+      const values = collectStatsHighlightNumberSetFromTickets(entry?.tickets || []);
+      if (!values.size && Array.isArray(entry?.topMainRanking)) {
+        entry.topMainRanking.forEach(value => {
+          const numeric = Number(value);
+          if (Number.isInteger(numeric)) values.add(numeric);
         });
-      const latestResolved = logs[0];
-      if (!latestResolved) return new Set();
+      }
+      return values;
+    }
+
+    function getStatsLatestMissedPredictionSet(type, latestEntry = null, latestActualSet = null) {
+      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      if (!previousPrediction) return new Set();
       const actualSet = latestActualSet instanceof Set ? latestActualSet : buildStatsLatestActualNumberSet(type, latestEntry);
-      const predictedSet = collectStatsHighlightNumberSetFromTickets(latestResolved.tickets);
+      const predictedSet = collectStatsPredictionMainSet(previousPrediction);
       const missed = new Set();
       predictedSet.forEach(value => {
         if (!actualSet.has(value)) missed.add(value);
@@ -5927,27 +5981,13 @@
 
     function getStatsLatestMissedSpecialPredictionSet(type, latestEntry = null, latestActualSpecialSet = null) {
       if (!TYPES[type]?.hasSpecial) return new Set();
-      const normalizedLatestKy = normalizeKy(latestEntry?.ky);
-      if (!normalizedLatestKy) return new Set();
-      const logs = ensurePredictionLogBucket(type)
-        .filter(entry =>
-          entry?.resolved &&
-          Array.isArray(entry?.tickets) &&
-          entry.tickets.length &&
-          (normalizeKy(entry?.actualKy) === normalizedLatestKy || normalizeKy(entry?.predictedKy) === normalizedLatestKy)
-        )
-        .sort((a, b) => {
-          const aTime = Date.parse(String(a?.resolvedAt || a?.createdAt || "").trim()) || 0;
-          const bTime = Date.parse(String(b?.resolvedAt || b?.createdAt || "").trim()) || 0;
-          return bTime - aTime;
-        });
-      const latestResolved = logs[0];
-      if (!latestResolved) return new Set();
+      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      if (!previousPrediction) return new Set();
       const actualSet = latestActualSpecialSet instanceof Set ? latestActualSpecialSet : buildStatsLatestActualSpecialSet(type, latestEntry);
-      const rankedSpecials = Array.isArray(latestResolved?.topSpecialRanking)
-        ? latestResolved.topSpecialRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
+      const rankedSpecials = Array.isArray(previousPrediction?.topSpecialRanking)
+        ? previousPrediction.topSpecialRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
         : [];
-      const usageRanking = Object.entries(buildNumberUsageMap(latestResolved?.tickets || [], "special"))
+      const usageRanking = Object.entries(buildNumberUsageMap(previousPrediction?.tickets || [], "special"))
         .map(([value, count]) => ({ value: Number(value), count: Number(count || 0) }))
         .filter(item => Number.isInteger(item.value))
         .sort((a, b) => b.count - a.count || a.value - b.value)
@@ -5960,21 +6000,24 @@
       return missed;
     }
 
-    function getStatsHighlightClass(value, latestActualSet, nextPredictionSet, missedPredictionSet) {
+    function getStatsHighlightClass(value, currentTopSet, previousActualSet, missedPredictionSet) {
       const numeric = Number(value);
-      const isLatestHit = Number.isInteger(numeric) && latestActualSet instanceof Set && latestActualSet.has(numeric);
-      const isNextPrediction = Number.isInteger(numeric) && nextPredictionSet instanceof Set && nextPredictionSet.has(numeric);
+      const isCurrentTop = Number.isInteger(numeric) && currentTopSet instanceof Set && currentTopSet.has(numeric);
+      const isPreviousActual = Number.isInteger(numeric) && previousActualSet instanceof Set && previousActualSet.has(numeric);
       const isMissedPrediction = Number.isInteger(numeric) && missedPredictionSet instanceof Set && missedPredictionSet.has(numeric);
-      if (isLatestHit && isNextPrediction) return "is-hit-and-prediction";
-      if (isLatestHit) return "is-latest-hit";
-      if (isNextPrediction) return "is-next-prediction";
+      if (isCurrentTop && isPreviousActual && isMissedPrediction) return "is-current-previous-missed";
+      if (isCurrentTop && isPreviousActual) return "is-hit-and-prediction";
+      if (isCurrentTop && isMissedPrediction) return "is-current-and-missed";
+      if (isPreviousActual && isMissedPrediction) return "is-previous-and-missed";
       if (isMissedPrediction) return "is-missed-prediction";
+      if (isCurrentTop) return "is-latest-hit";
+      if (isPreviousActual) return "is-next-prediction";
       return "";
     }
 
-    function renderStatsTopGrid(type, items, { latestActualSet = null, nextPredictionSet = null, missedPredictionSet = null } = {}) {
+    function renderStatsTopGrid(type, items, { currentTopSet = null, previousActualSet = null, missedPredictionSet = null } = {}) {
       return `<div class="stats-insight-top-grid">${items.map((item, index) => `
-        <article class="stats-insight-top-item ${getStatsHighlightClass(item?.value, latestActualSet, nextPredictionSet, missedPredictionSet)}">
+        <article class="stats-insight-top-item ${getStatsHighlightClass(item?.value, currentTopSet, previousActualSet, missedPredictionSet)}">
           <div class="stats-insight-top-rank">Top ${index + 1}</div>
           <div class="stats-insight-top-number">${escapeHtml(item.label)}</div>
           <div class="stats-insight-top-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần xuất hiện`)}</div>
@@ -5992,10 +6035,10 @@
       return "";
     }
 
-    function renderStatsRankingGrid(type, items, { latestActualSet = null, nextPredictionSet = null, missedPredictionSet = null, extraClass = "" } = {}) {
+    function renderStatsRankingGrid(type, items, { currentTopSet = null, previousActualSet = null, missedPredictionSet = null, extraClass = "" } = {}) {
       const gridClass = getStatsRankGridClass(type);
       return `<div class="stats-insight-rank-grid ${gridClass} ${extraClass}">${items.map((item, index) => `
-        <article class="stats-insight-rank-card ${getStatsHighlightClass(item?.value, latestActualSet, nextPredictionSet, missedPredictionSet)}">
+        <article class="stats-insight-rank-card ${getStatsHighlightClass(item?.value, currentTopSet, previousActualSet, missedPredictionSet)}">
           <div class="stats-insight-rank-card-position">#${index + 1}</div>
           <div class="stats-insight-rank-card-number">${escapeHtml(item.label)}</div>
           <div class="stats-insight-rank-card-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</div>
@@ -6003,9 +6046,9 @@
       `).join("")}</div>`;
     }
 
-    function renderStatsSpecialCompactGrid(type, items, { latestActualSet = null, nextPredictionSet = null, missedPredictionSet = null } = {}) {
+    function renderStatsSpecialCompactGrid(type, items, { currentTopSet = null, previousActualSet = null, missedPredictionSet = null } = {}) {
       return `<div class="stats-insight-special-mini-grid">${items.map((item, index) => `
-        <article class="stats-insight-rank-card stats-insight-special-mini-card ${getStatsHighlightClass(item?.value, latestActualSet, nextPredictionSet, missedPredictionSet)}">
+        <article class="stats-insight-rank-card stats-insight-special-mini-card ${getStatsHighlightClass(item?.value, currentTopSet, previousActualSet, missedPredictionSet)}">
           <div class="stats-insight-rank-card-position">#${index + 1}</div>
           <div class="stats-insight-rank-card-number">${escapeHtml(getStatsDisplayLabel(type, item?.value, true))}</div>
           <div class="stats-insight-rank-card-count">${escapeHtml(`${formatLiveSyncCount(item?.count || 0)} lần`)}</div>
@@ -6013,14 +6056,207 @@
       `).join("")}</div>`;
     }
 
-    function renderStatsRankingList(type, items, { latestActualSet = null, nextPredictionSet = null, missedPredictionSet = null } = {}) {
+    function renderStatsRankingList(type, items, { currentTopSet = null, previousActualSet = null, missedPredictionSet = null } = {}) {
       return `<div class="stats-insight-rank-list">${items.map((item, index) => `
-        <div class="stats-insight-rank-row ${getStatsHighlightClass(item?.value, latestActualSet, nextPredictionSet, missedPredictionSet)}">
+        <div class="stats-insight-rank-row ${getStatsHighlightClass(item?.value, currentTopSet, previousActualSet, missedPredictionSet)}">
           <div class="stats-insight-rank-position">#${index + 1}</div>
           <div class="stats-insight-rank-number">${escapeHtml(item.label)}</div>
           <div class="stats-insight-rank-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</div>
         </div>
       `).join("")}</div>`;
+    }
+
+    function renderStatsColorLegend(items = []) {
+      const safeItems = (Array.isArray(items) ? items : [])
+        .filter(item => item?.tone && item?.label);
+      if (!safeItems.length) return "";
+      return `
+        <div class="stats-insight-color-legend" aria-label="Chú thích màu thống kê">
+          ${safeItems.map(item => `
+            <span
+              class="stats-insight-legend-chip"
+              tabindex="0"
+              aria-label="${escapeHtml(item.label)}"
+            >
+              <span class="stats-insight-legend-swatch is-${escapeHtml(item.tone)}"></span>
+              <span class="stats-insight-legend-text">${escapeHtml(item.label)}</span>
+            </span>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function doesStatsEntryContainNumber(type, entry, value, { special = false } = {}) {
+      const numeric = Number(value);
+      if (!Number.isInteger(numeric) || !entry?.draw) return false;
+      if (TYPES[type]?.threeDigit) {
+        return extractThreeDigitTokensFromLines(entry.draw?.displayLines).includes(numeric);
+      }
+      if (special) {
+        return Number(entry.draw?.special) === numeric;
+      }
+      return (Array.isArray(entry.draw?.main) ? entry.draw.main : [])
+        .some(item => Number(item) === numeric);
+    }
+
+    function buildStatsOverdueItems(type, frequencyItems, entries, { special = false } = {}) {
+      const sourceEntries = Array.isArray(entries) ? entries : [];
+      return (Array.isArray(frequencyItems) ? frequencyItems : [])
+        .map(item => {
+          let gap = sourceEntries.length;
+          for (let index = sourceEntries.length - 1; index >= 0; index--) {
+            if (doesStatsEntryContainNumber(type, sourceEntries[index], item?.value, { special })) {
+              gap = sourceEntries.length - 1 - index;
+              break;
+            }
+          }
+          return {
+            ...item,
+            gap,
+          };
+        })
+        .sort((a, b) => b.gap - a.gap || a.count - b.count || a.value - b.value);
+    }
+
+    function getStatsRecent100BallClass(value, latestNumberSet = null, missedNumberSet = null) {
+      const numeric = Number(value);
+      const isLatestDraw = Number.isInteger(numeric) && latestNumberSet instanceof Set && latestNumberSet.has(numeric);
+      const isMissedPrediction = Number.isInteger(numeric) && missedNumberSet instanceof Set && missedNumberSet.has(numeric);
+      if (isLatestDraw && isMissedPrediction) return "is-latest-and-missed";
+      if (isLatestDraw) return "is-latest-draw";
+      if (isMissedPrediction) return "is-missed-prediction";
+      return "";
+    }
+
+    function normalizeStatsRecentWindow(value) {
+      const numeric = Number(value);
+      return STATS_RECENT_WINDOW_OPTIONS.includes(numeric) ? numeric : STATS_RECENT_WINDOW_DEFAULT;
+    }
+
+    function formatStatsRefreshCountdown(ms) {
+      const totalSeconds = Math.max(0, Math.ceil(Number(ms || 0) / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function getStatsRefreshCountdownText() {
+      if (!statsPanelNextRefreshAt) return "--:--";
+      return formatStatsRefreshCountdown(statsPanelNextRefreshAt - Date.now());
+    }
+
+    function updateStatsRefreshCountdownText() {
+      document.querySelectorAll("[data-stats-refresh-countdown]").forEach(node => {
+        node.textContent = getStatsRefreshCountdownText();
+      });
+    }
+
+    function renderStatsRecent100Table(title, items, valueKey = "count", { latestNumberSet = null, missedNumberSet = null } = {}) {
+      const safeItems = Array.isArray(items) ? items : [];
+      const rowCount = Math.ceil(safeItems.length / 2);
+      const rows = Array.from({ length: rowCount }, (_, rowIndex) => [
+        safeItems[rowIndex],
+        safeItems[rowIndex + rowCount],
+      ]);
+      return `
+        <section class="stats-recent100-side-panel">
+          <div class="stats-recent100-side-title">${escapeHtml(title)}</div>
+          <div class="stats-recent100-side-rows">
+            ${rows.map(rowItems => `
+              <div class="stats-recent100-side-row">
+                ${rowItems.map(item => item ? `
+                  <span class="stats-recent100-side-cell">
+                    <span class="stats-recent100-side-number ${getStatsRecent100BallClass(item?.value, latestNumberSet, missedNumberSet)}" data-ball="${escapeHtml(item?.label || "--")}"></span>
+                    <span class="stats-recent100-side-count">${escapeHtml(`${formatLiveSyncCount(item?.[valueKey] || 0)} lần`)}</span>
+                  </span>
+                ` : `<span class="stats-recent100-side-cell is-empty"></span>`).join("")}
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderStatsRecent100Panel(type, entries, { latestNumberSet = null, missedNumberSet = null } = {}) {
+      const sourceEntries = Array.isArray(entries) ? entries : [];
+      if (!sourceEntries.length) return "";
+      const recentWindow = normalizeStatsRecentWindow(statsRecentWindowValue);
+      const recentEntries = sourceEntries.slice(-recentWindow);
+      const frequencyItems = buildStatsFrequencyItems(type, recentEntries);
+      const displayItems = TYPES[type]?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems;
+      const mostItems = frequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const leastItems = [...frequencyItems]
+        .sort((a, b) => a.count - b.count || a.value - b.value)
+        .slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const overdueItems = buildStatsOverdueItems(type, frequencyItems, sourceEntries).slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const gridClass = type === "KENO"
+        ? "is-keno"
+        : type === "LOTO_5_35"
+          ? "is-five"
+          : STATS_SIX_GRID_TYPES.has(type)
+            ? "is-six"
+            : TYPES[type]?.threeDigit ? "is-three-digit" : "";
+      const currentTypeMeta = getStatsTypeUiMeta(type);
+      return `
+        <section class="stats-recent100-section">
+          <div class="stats-recent100-layout">
+            <div class="stats-recent100-main">
+              <div class="stats-recent100-head">
+                <div class="stats-recent100-type-picker">
+                  <button type="button" class="stats-recent100-type-btn" aria-haspopup="menu" aria-label="Chọn loại vé thống kê">Loại: ${escapeHtml(currentTypeMeta.label)}</button>
+                  <div class="stats-recent100-type-menu" role="menu" aria-label="Chọn loại vé thống kê">
+                    ${STATS_TYPE_OPTIONS.map(option => `
+                      <button
+                        type="button"
+                        class="stats-recent100-type-option${option.value === type ? " is-active" : ""}"
+                        data-stats-recent-type="${escapeHtml(option.value)}"
+                        role="menuitemradio"
+                        aria-checked="${option.value === type ? "true" : "false"}"
+                      >${escapeHtml(option.label)}</button>
+                    `).join("")}
+                  </div>
+                </div>
+                <div class="stats-recent100-title-picker">
+                  <button type="button" class="stats-recent100-title" aria-haspopup="menu" aria-label="Chọn số kỳ xổ gần nhất">${escapeHtml(`${recentWindow} Kỳ Xổ Gần Nhất`)}</button>
+                  <div class="stats-recent100-title-menu" role="menu" aria-label="Chọn phạm vi kỳ xổ gần nhất">
+                    ${STATS_RECENT_WINDOW_OPTIONS.map(option => `
+                      <button
+                        type="button"
+                        class="stats-recent100-title-option${option === recentWindow ? " is-active" : ""}"
+                        data-stats-recent-window="${option}"
+                        role="menuitemradio"
+                        aria-checked="${option === recentWindow ? "true" : "false"}"
+                      >${option} kỳ</button>
+                    `).join("")}
+                  </div>
+                </div>
+                <div class="stats-recent100-color-balls" aria-label="Chú thích màu bóng">
+                  <span class="stats-recent100-color-ball is-yellow" tabindex="0"><span>Vàng: số thống kê</span></span>
+                  <span class="stats-recent100-color-ball is-green" tabindex="0"><span>Xanh: kỳ trước ra</span></span>
+                  <span class="stats-recent100-color-ball is-red" tabindex="0"><span>Đỏ: kỳ trước đoán trật</span></span>
+                </div>
+                <div class="stats-recent100-refresh-timer" aria-label="Thời gian còn lại tới lần tự làm mới thống kê">
+                  <span>Làm mới</span>
+                  <strong data-stats-refresh-countdown>${escapeHtml(getStatsRefreshCountdownText())}</strong>
+                </div>
+              </div>
+              <div class="stats-recent100-number-grid ${gridClass}">
+                ${displayItems.map(item => `
+                  <div class="stats-recent100-number-card">
+                    <span class="stats-recent100-ball ${getStatsRecent100BallClass(item?.value, latestNumberSet, missedNumberSet)}">${escapeHtml(item.label)}</span>
+                    <span class="stats-recent100-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+            <div class="stats-recent100-side">
+              ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { latestNumberSet, missedNumberSet })}
+              ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { latestNumberSet, missedNumberSet })}
+              ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { latestNumberSet, missedNumberSet })}
+            </div>
+          </div>
+        </section>
+      `;
     }
 
     function renderStatsPanel() {
@@ -6061,10 +6297,10 @@
       const hotItem = mainRanking[0] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
       const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
-      const nextPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
-      const nextPredictionSpecialHighlight = getStatsLatestSpecialPredictionHighlight(type, latestEntry);
       const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSpecialSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
+      const currentTopSet = new Set(mainRanking.slice(0, 10).map(item => Number(item?.value)).filter(value => Number.isInteger(value)));
+      const currentTopSpecialSet = new Set(specialRanking.slice(0, 10).map(item => Number(item?.value)).filter(value => Number.isInteger(value)));
       const summaryTitle = TYPES[type]?.threeDigit ? "Bộ nóng nhất" : "Số nóng nhất";
       const topBlockTitle = TYPES[type]?.threeDigit ? "Top 10 Bộ 3 Số Ra Nhiều" : "Top 10 Số Ra Nhiều";
       const fullRankingTitle = STATS_SIX_GRID_TYPES.has(type)
@@ -6079,12 +6315,15 @@
         : (type === "KENO"
           ? "Sắp theo nhiều đến ít, đọc theo lưới gọn"
           : "Từ nhiều nhất đến thấp nhất");
-      const fullRankingMetaBits = [fullRankingMetaBase];
-      if (latestActualSet.size) fullRankingMetaBits.push("Xanh = kỳ vừa rồi");
-      if (nextPredictionHighlight.numbers.size) fullRankingMetaBits.push("Vàng = top 10 dự đoán kỳ tiếp theo");
-      if (missedPredictionSet.size) fullRankingMetaBits.push("Đỏ = đoán sai kỳ trước");
-      if (latestActualSet.size && nextPredictionHighlight.numbers.size) fullRankingMetaBits.push("Xanh-vàng = trùng cả hai");
-      const fullRankingMeta = fullRankingMetaBits.join(" • ");
+      const fullRankingLegendItems = [
+        { tone: "current", label: "Xanh: hiện tại / Top 10" },
+        { tone: "previous", label: "Vàng: kỳ trước" },
+        { tone: "missed", label: "Đỏ: dự đoán sai kỳ trước" },
+        { tone: "current-previous", label: "Xanh-vàng: Top 10 trùng kỳ trước" },
+        { tone: "current-missed", label: "Xanh-đỏ: Top 10 nhưng sai kỳ trước" },
+        { tone: "previous-missed", label: "Vàng-đỏ: kỳ trước trùng nhóm sai" },
+        { tone: "all", label: "Xanh-vàng-đỏ: trùng cả ba nhóm" },
+      ];
       const latestMeta = latestEntry
         ? `${formatLiveKy(latestEntry.ky) || ""}${latestEntry.draw?.date ? ` • ${latestEntry.draw.date}` : ""}`.replace(/^ • /, "")
         : "Không rõ";
@@ -6094,54 +6333,56 @@
       const hasInlineSpecialRanking = type === "LOTO_5_35" && specialRanking.length > 0;
       const fullRankingBody = shouldRenderStatsRankGrid(type)
         ? renderStatsRankingGrid(type, mainRanking, {
-            latestActualSet,
-            nextPredictionSet: nextPredictionHighlight.numbers,
+            currentTopSet,
+            previousActualSet: latestActualSet,
             missedPredictionSet,
             extraClass: hasInlineSpecialRanking ? "is-compact-loto535" : "",
           })
         : renderStatsRankingList(type, mainRanking, {
-            latestActualSet,
-            nextPredictionSet: nextPredictionHighlight.numbers,
+            currentTopSet,
+            previousActualSet: latestActualSet,
             missedPredictionSet,
           });
       out.classList.remove("muted");
       out.innerHTML = `
         <div class="stats-insight-shell-grid ${meta.fullAccentClass}">
-          <section class="stats-insight-summary">
-            <article class="stats-insight-summary-card is-${meta.accentClass}">
-              <div class="stats-insight-summary-head">
-                <div class="stats-insight-summary-label">Số kỳ trong phạm vi</div>
-                <div class="stats-insight-summary-value">${escapeHtml(formatLiveSyncCount(filteredEntries.length))}</div>
-              </div>
-              <div class="stats-insight-summary-meta">${escapeHtml(rangeLabel)}</div>
-            </article>
-            <article class="stats-insight-summary-card is-${meta.accentClass}">
-              <div class="stats-insight-summary-head">
-                <div class="stats-insight-summary-label">Ngày/Kỳ mới nhất</div>
-                <div class="stats-insight-summary-value">${escapeHtml(latestEntry?.draw?.date || "--")}</div>
-              </div>
-              <div class="stats-insight-summary-meta">${escapeHtml(latestMeta || "--")}</div>
-            </article>
-            <article class="stats-insight-summary-card is-${meta.accentClass}">
-              <div class="stats-insight-summary-head">
-                <div class="stats-insight-summary-label">${escapeHtml(summaryTitle)}</div>
-                <div class="stats-insight-summary-value">${escapeHtml(hotItem?.label || "--")}</div>
-              </div>
-              <div class="stats-insight-summary-meta">${escapeHtml(hotItem ? `${formatLiveSyncCount(hotItem.count)} lần xuất hiện` : "Chưa có dữ liệu")}</div>
-            </article>
-          </section>
-          <div class="stats-insight-blocks">
-            <section class="stats-insight-block">
+          <section class="stats-insight-overview">
+            <div class="stats-insight-summary">
+              <article class="stats-insight-summary-card is-${meta.accentClass}">
+                <div class="stats-insight-summary-head">
+                  <div class="stats-insight-summary-label">Số kỳ trong phạm vi</div>
+                  <div class="stats-insight-summary-value">${escapeHtml(formatLiveSyncCount(filteredEntries.length))}</div>
+                </div>
+                <div class="stats-insight-summary-meta">${escapeHtml(rangeLabel)}</div>
+              </article>
+              <article class="stats-insight-summary-card is-${meta.accentClass}">
+                <div class="stats-insight-summary-head">
+                  <div class="stats-insight-summary-label">Ngày/Kỳ mới nhất</div>
+                  <div class="stats-insight-summary-value">${escapeHtml(latestEntry?.draw?.date || "--")}</div>
+                </div>
+                <div class="stats-insight-summary-meta">${escapeHtml(latestMeta || "--")}</div>
+              </article>
+              <article class="stats-insight-summary-card is-${meta.accentClass}">
+                <div class="stats-insight-summary-head">
+                  <div class="stats-insight-summary-label">${escapeHtml(summaryTitle)}</div>
+                  <div class="stats-insight-summary-value">${escapeHtml(hotItem?.label || "--")}</div>
+                </div>
+                <div class="stats-insight-summary-meta">${escapeHtml(hotItem ? `${formatLiveSyncCount(hotItem.count)} lần xuất hiện` : "Chưa có dữ liệu")}</div>
+              </article>
+            </div>
+            <section class="stats-insight-block stats-insight-block-feature">
               <div class="stats-insight-block-head">
                 <div class="stats-insight-block-title">${escapeHtml(topBlockTitle)}</div>
                 <div class="stats-insight-block-meta">${escapeHtml(`${rangeLabel} • ${formatLiveSyncCount(mainRanking.length)} mục`)}</div>
               </div>
               ${renderStatsTopGrid(type, mainRanking.slice(0, 10), {
-                latestActualSet,
-                nextPredictionSet: nextPredictionHighlight.numbers,
+                currentTopSet,
+                previousActualSet: latestActualSet,
                 missedPredictionSet,
               })}
             </section>
+          </section>
+          <div class="stats-insight-blocks">
             ${specialRanking.length && !hasInlineSpecialRanking ? `
               <section class="stats-insight-block">
                 <div class="stats-insight-block-head">
@@ -6149,16 +6390,19 @@
                   <div class="stats-insight-block-meta">${escapeHtml(rangeLabel)}</div>
                 </div>
                 ${renderStatsTopGrid(type, specialRanking.slice(0, 10), {
-                  latestActualSet: latestActualSpecialSet,
-                  nextPredictionSet: nextPredictionSpecialHighlight.numbers,
+                  currentTopSet: currentTopSpecialSet,
+                  previousActualSet: latestActualSpecialSet,
                   missedPredictionSet: missedPredictionSpecialSet,
                 })}
               </section>
             ` : ""}
             <section class="stats-insight-block">
-              <div class="stats-insight-block-head">
-                <div class="stats-insight-block-title">${escapeHtml(fullRankingTitle)}</div>
-                <div class="stats-insight-block-meta">${escapeHtml(fullRankingMeta)}</div>
+              <div class="stats-insight-block-head stats-insight-block-head-legend">
+                <div class="stats-insight-block-title-group">
+                  <div class="stats-insight-block-title">${escapeHtml(fullRankingTitle)}</div>
+                  <div class="stats-insight-block-meta">${escapeHtml(fullRankingMetaBase)}</div>
+                </div>
+                ${renderStatsColorLegend(fullRankingLegendItems)}
               </div>
               ${hasInlineSpecialRanking ? `
                 <div class="stats-insight-dual-grid">
@@ -6170,14 +6414,15 @@
                       <div class="stats-insight-block-title">XH ĐB</div>
                     </div>
                     ${renderStatsSpecialCompactGrid(type, specialRanking, {
-                      latestActualSet: latestActualSpecialSet,
-                      nextPredictionSet: nextPredictionSpecialHighlight.numbers,
+                      currentTopSet: currentTopSpecialSet,
+                      previousActualSet: latestActualSpecialSet,
                       missedPredictionSet: missedPredictionSpecialSet,
                     })}
                   </aside>
                 </div>
               ` : fullRankingBody}
             </section>
+            ${renderStatsRecent100Panel(type, allEntries, { latestNumberSet: latestActualSet, missedNumberSet: missedPredictionSet })}
           </div>
         </div>
       `;
@@ -6202,6 +6447,38 @@
         if (refreshToken !== statsPanelRefreshToken) return;
         renderStatsPanel();
       }
+    }
+
+    function stopStatsPanelAutoRefreshTimer() {
+      if (statsPanelAutoRefreshTimer) {
+        window.clearInterval(statsPanelAutoRefreshTimer);
+        statsPanelAutoRefreshTimer = null;
+      }
+      if (statsPanelCountdownTimer) {
+        window.clearInterval(statsPanelCountdownTimer);
+        statsPanelCountdownTimer = null;
+      }
+      statsPanelNextRefreshAt = 0;
+      updateStatsRefreshCountdownText();
+    }
+
+    function startStatsPanelRefreshCountdownTimer() {
+      if (statsPanelCountdownTimer) window.clearInterval(statsPanelCountdownTimer);
+      updateStatsRefreshCountdownText();
+      statsPanelCountdownTimer = window.setInterval(updateStatsRefreshCountdownText, 1000);
+    }
+
+    function syncStatsPanelAutoRefreshTimer() {
+      stopStatsPanelAutoRefreshTimer();
+      if (predictPageModeValue !== PREDICTION_MODE_STATS) return;
+      statsPanelNextRefreshAt = Date.now() + STATS_PANEL_AUTO_REFRESH_MS;
+      startStatsPanelRefreshCountdownTimer();
+      statsPanelAutoRefreshTimer = window.setInterval(() => {
+        statsPanelNextRefreshAt = Date.now() + STATS_PANEL_AUTO_REFRESH_MS;
+        updateStatsRefreshCountdownText();
+        if (predictPageModeValue !== PREDICTION_MODE_STATS || statsPanelLoading) return;
+        startStatsPanelRefresh({ force: true, silent: true });
+      }, STATS_PANEL_AUTO_REFRESH_MS);
     }
 
     function normalizeStatsV2Type(value) {
@@ -11077,6 +11354,7 @@
         } else {
           const params = new URLSearchParams({ type, count: normalizedCount });
           if (repair) params.set("repair", "1");
+          if (force) params.set("_ts", String(Date.now()));
           if (Number.isFinite(Number(recentDays)) && Number(recentDays) > 0) {
             params.set("recentDays", String(Math.max(1, Math.floor(Number(recentDays)))));
           }
