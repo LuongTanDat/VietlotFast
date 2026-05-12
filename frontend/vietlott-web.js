@@ -6453,16 +6453,24 @@
               <div class="stats-recent100-content">
                 <aside class="stats-recent100-sidebar" aria-label="Bộ lọc thống kê nhanh">
                   <div class="stats-recent100-control-block">
-                    <div class="stats-recent100-sidebar-label">Hình Thức:</div>
-                    <div class="stats-recent100-mode-tabs">
-                      ${STATS_RECENT_MODE_OPTIONS.map(option => `
-                        <button
-                          type="button"
-                          class="stats-recent100-mode-btn${option.value === recentMode ? " is-active" : ""}"
-                          data-stats-recent-mode="${escapeHtml(option.value)}"
-                          aria-pressed="${option.value === recentMode ? "true" : "false"}"
-                        >${escapeHtml(option.label)}</button>
-                      `).join("")}
+                    <div class="stats-recent100-mode-picker">
+                      <button
+                        type="button"
+                        class="stats-recent100-mode-trigger"
+                        aria-haspopup="menu"
+                        aria-label="Chọn hình thức hiển thị thống kê"
+                      >Hình Thức: ${escapeHtml(STATS_RECENT_MODE_OPTIONS.find(option => option.value === recentMode)?.label || "Kỳ")}</button>
+                      <div class="stats-recent100-mode-menu" role="menu" aria-label="Chọn Ngày hoặc Kỳ">
+                        ${STATS_RECENT_MODE_OPTIONS.map(option => `
+                          <button
+                            type="button"
+                            class="stats-recent100-mode-btn${option.value === recentMode ? " is-active" : ""}"
+                            data-stats-recent-mode="${escapeHtml(option.value)}"
+                            role="menuitemradio"
+                            aria-checked="${option.value === recentMode ? "true" : "false"}"
+                          >${escapeHtml(option.label)}</button>
+                        `).join("")}
+                      </div>
                     </div>
                   </div>
                   <div class="stats-recent100-control-block">
@@ -6511,8 +6519,6 @@
     function renderStatsPanel() {
       const out = document.getElementById("statsInsightsOut");
       if (!out) return;
-      renderStatsTypeTabs();
-      renderStatsWindowTabs();
       const type = normalizeStatsType(statsSelectedType);
       const feed = getLiveHistoryFeed(type);
       const meta = getStatsTypeUiMeta(type);
@@ -6534,149 +6540,22 @@
         return;
       }
       const allEntries = buildStatsEntriesForFeed(type, feed);
-      const filteredEntries = filterStatsEntriesByDayWindow(allEntries, statsSelectedDayWindow);
-      if (!filteredEntries.length) {
+      if (!allEntries.length) {
         out.classList.remove("muted");
-        out.innerHTML = `<div class="stats-insight-empty">Không có dữ liệu ${escapeHtml(meta.label)} trong phạm vi ${escapeHtml(STATS_DAY_WINDOW_LABELS[statsSelectedDayWindow] || statsSelectedDayWindow)}.</div>`;
+        out.innerHTML = `<div class="stats-insight-empty">Không có dữ liệu ${escapeHtml(meta.label)} trong all_day.csv.</div>`;
         return;
       }
-      const mainRanking = buildStatsFrequencyItems(type, filteredEntries);
-      const specialRanking = TYPES[type]?.hasSpecial ? buildStatsFrequencyItems(type, filteredEntries, { special: true }) : [];
-      const latestEntry = filteredEntries[filteredEntries.length - 1] || null;
-      const hotItem = mainRanking[0] || null;
+      const latestEntry = allEntries[allEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
-      const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
       const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
       const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
-      const missedPredictionSpecialSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
-      const currentTopSet = new Set(mainRanking.slice(0, 10).map(item => Number(item?.value)).filter(value => Number.isInteger(value)));
-      const currentTopSpecialSet = new Set(specialRanking.slice(0, 10).map(item => Number(item?.value)).filter(value => Number.isInteger(value)));
-      const summaryTitle = TYPES[type]?.threeDigit ? "Bộ nóng nhất" : "Số nóng nhất";
-      const topBlockTitle = TYPES[type]?.threeDigit ? "Top 10 Bộ 3 Số Ra Nhiều" : "Top 10 Số Ra Nhiều";
-      const fullRankingTitle = STATS_SIX_GRID_TYPES.has(type)
-        ? "Xếp hạng đầy đủ"
-        : (type === "KENO"
-          ? "Xếp hạng đầy đủ dạng lưới"
-          : (TYPES[type]?.threeDigit ? "Xếp hạng đầy đủ bộ 3 số" : "Xếp hạng đầy đủ"));
-      const fullRankingMetaBase = STATS_SIX_GRID_TYPES.has(type)
-        ? (type === "LOTO_5_35"
-          ? "Sắp theo nhiều đến ít, đọc theo lưới 5 cột"
-          : "Sắp theo nhiều đến ít, đọc theo lưới 6 cột")
-        : (type === "KENO"
-          ? "Sắp theo nhiều đến ít, đọc theo lưới gọn"
-          : "Từ nhiều nhất đến thấp nhất");
-      const fullRankingLegendItems = [
-        { tone: "current", label: "Xanh: hiện tại / Top 10" },
-        { tone: "previous", label: "Vàng: kỳ trước" },
-        { tone: "missed", label: "Đỏ: dự đoán sai kỳ trước" },
-        { tone: "current-previous", label: "Xanh-vàng: Top 10 trùng kỳ trước" },
-        { tone: "current-missed", label: "Xanh-đỏ: Top 10 nhưng sai kỳ trước" },
-        { tone: "previous-missed", label: "Vàng-đỏ: kỳ trước trùng nhóm sai" },
-        { tone: "all", label: "Xanh-vàng-đỏ: trùng cả ba nhóm" },
-      ];
-      const latestMeta = latestEntry
-        ? `${formatLiveKy(latestEntry.ky) || ""}${latestEntry.draw?.date ? ` • ${latestEntry.draw.date}` : ""}`.replace(/^ • /, "")
-        : "Không rõ";
-      const rangeLabel = statsSelectedDayWindow === "custom"
-        ? buildStatsCustomRangeLabel()
-        : (STATS_DAY_WINDOW_LABELS[statsSelectedDayWindow] || statsSelectedDayWindow);
-      const hasInlineSpecialRanking = type === "LOTO_5_35" && specialRanking.length > 0;
-      const fullRankingBody = shouldRenderStatsRankGrid(type)
-        ? renderStatsRankingGrid(type, mainRanking, {
-            currentTopSet,
-            previousActualSet: latestActualSet,
-            missedPredictionSet,
-            extraClass: hasInlineSpecialRanking ? "is-compact-loto535" : "",
-          })
-        : renderStatsRankingList(type, mainRanking, {
-            currentTopSet,
-            previousActualSet: latestActualSet,
-            missedPredictionSet,
-          });
       out.classList.remove("muted");
-      out.innerHTML = `
-        <div class="stats-insight-shell-grid ${meta.fullAccentClass}">
-          <section class="stats-insight-overview">
-            <div class="stats-insight-summary">
-              <article class="stats-insight-summary-card is-${meta.accentClass}">
-                <div class="stats-insight-summary-head">
-                  <div class="stats-insight-summary-label">Số kỳ trong phạm vi</div>
-                  <div class="stats-insight-summary-value">${escapeHtml(formatLiveSyncCount(filteredEntries.length))}</div>
-                </div>
-                <div class="stats-insight-summary-meta">${escapeHtml(rangeLabel)}</div>
-              </article>
-              <article class="stats-insight-summary-card is-${meta.accentClass}">
-                <div class="stats-insight-summary-head">
-                  <div class="stats-insight-summary-label">Ngày/Kỳ mới nhất</div>
-                  <div class="stats-insight-summary-value">${escapeHtml(latestEntry?.draw?.date || "--")}</div>
-                </div>
-                <div class="stats-insight-summary-meta">${escapeHtml(latestMeta || "--")}</div>
-              </article>
-              <article class="stats-insight-summary-card is-${meta.accentClass}">
-                <div class="stats-insight-summary-head">
-                  <div class="stats-insight-summary-label">${escapeHtml(summaryTitle)}</div>
-                  <div class="stats-insight-summary-value">${escapeHtml(hotItem?.label || "--")}</div>
-                </div>
-                <div class="stats-insight-summary-meta">${escapeHtml(hotItem ? `${formatLiveSyncCount(hotItem.count)} lần xuất hiện` : "Chưa có dữ liệu")}</div>
-              </article>
-            </div>
-            <section class="stats-insight-block stats-insight-block-feature">
-              <div class="stats-insight-block-head">
-                <div class="stats-insight-block-title">${escapeHtml(topBlockTitle)}</div>
-                <div class="stats-insight-block-meta">${escapeHtml(`${rangeLabel} • ${formatLiveSyncCount(mainRanking.length)} mục`)}</div>
-              </div>
-              ${renderStatsTopGrid(type, mainRanking.slice(0, 10), {
-                currentTopSet,
-                previousActualSet: latestActualSet,
-                missedPredictionSet,
-              })}
-            </section>
-          </section>
-          <div class="stats-insight-blocks">
-            ${specialRanking.length && !hasInlineSpecialRanking ? `
-              <section class="stats-insight-block">
-                <div class="stats-insight-block-head">
-                  <div class="stats-insight-block-title">Top ĐB</div>
-                  <div class="stats-insight-block-meta">${escapeHtml(rangeLabel)}</div>
-                </div>
-                ${renderStatsTopGrid(type, specialRanking.slice(0, 10), {
-                  currentTopSet: currentTopSpecialSet,
-                  previousActualSet: latestActualSpecialSet,
-                  missedPredictionSet: missedPredictionSpecialSet,
-                })}
-              </section>
-            ` : ""}
-            <section class="stats-insight-block">
-              <div class="stats-insight-block-head stats-insight-block-head-legend">
-                <div class="stats-insight-block-title-group">
-                  <div class="stats-insight-block-title">${escapeHtml(fullRankingTitle)}</div>
-                  <div class="stats-insight-block-meta">${escapeHtml(fullRankingMetaBase)}</div>
-                </div>
-                ${renderStatsColorLegend(fullRankingLegendItems)}
-              </div>
-              ${hasInlineSpecialRanking ? `
-                <div class="stats-insight-dual-grid">
-                  <div class="stats-insight-dual-main">
-                    ${fullRankingBody}
-                  </div>
-                  <aside class="stats-insight-dual-side">
-                    <div class="stats-insight-block-head stats-insight-block-head-inline stats-insight-block-head-special">
-                      <div class="stats-insight-block-title">XH ĐB</div>
-                    </div>
-                    ${renderStatsSpecialCompactGrid(type, specialRanking, {
-                      currentTopSet: currentTopSpecialSet,
-                      previousActualSet: latestActualSpecialSet,
-                      missedPredictionSet: missedPredictionSpecialSet,
-                    })}
-                  </aside>
-                </div>
-              ` : fullRankingBody}
-            </section>
-            ${renderStatsRecent100Panel(type, allEntries, { hitNumberSet: hitPredictionSet, missedNumberSet: missedPredictionSet, currentPredictionSet: currentPredictionHighlight.numbers })}
-          </div>
-        </div>
-      `;
+      out.innerHTML = renderStatsRecent100Panel(type, allEntries, {
+        hitNumberSet: hitPredictionSet,
+        missedNumberSet: missedPredictionSet,
+        currentPredictionSet: currentPredictionHighlight.numbers,
+      });
     }
 
     async function startStatsPanelRefresh({ force = false, silent = true } = {}) {
