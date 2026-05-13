@@ -469,6 +469,7 @@
     let statsRecentModeValue = "draw";
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
     let statsRecentSelectedByType = Object.create(null);
+    let statsRecentActiveSetByType = Object.create(null);
     let statsV2State = {
       type: "LOTO_5_35",
       period: "30d",
@@ -3918,6 +3919,12 @@
         renderStatsPanel();
         return;
       }
+      const activeSetButton = event.target.closest("[data-stats-recent-active-set]");
+      if (activeSetButton) {
+        setStatsRecentActiveSetIndex(statsSelectedType, activeSetButton.dataset.statsRecentActiveSet);
+        renderStatsPanel();
+        return;
+      }
       const pickButton = event.target.closest("[data-stats-recent-pick]");
       if (!pickButton) return;
       addStatsRecentSelectedNumber(statsSelectedType, pickButton.dataset.statsRecentPick);
@@ -6263,6 +6270,23 @@
       return { maxSets: 6, mainCount: 6, hasSpecial: false, specialLabel: "", specialMin: 0, specialMax: 0 };
     }
 
+    function getStatsRecentActiveSetIndex(type) {
+      const key = normalizeStatsType(type);
+      const config = getStatsRecentTicketConfig(key);
+      const numeric = Number(statsRecentActiveSetByType[key]);
+      if (!Number.isInteger(numeric)) return 0;
+      return Math.min(Math.max(numeric, 0), config.maxSets - 1);
+    }
+
+    function setStatsRecentActiveSetIndex(type, value) {
+      const key = normalizeStatsType(type);
+      const config = getStatsRecentTicketConfig(key);
+      const numeric = Number(value);
+      statsRecentActiveSetByType[key] = Number.isInteger(numeric)
+        ? Math.min(Math.max(numeric, 0), config.maxSets - 1)
+        : 0;
+    }
+
     function createStatsRecentTicketSet() {
       return { main: [], special: null };
     }
@@ -6310,26 +6334,25 @@
       const key = normalizeStatsType(type);
       const config = getStatsRecentTicketConfig(key);
       const sets = getStatsRecentSelectedSets(key);
-      for (let index = 0; index < config.maxSets; index++) {
-        if (!sets[index]) sets[index] = createStatsRecentTicketSet();
-        const set = sets[index];
-        if (set.main.length < config.mainCount) {
-          if (set.main.includes(numeric) || set.special === numeric) return;
-          set.main.push(numeric);
-          statsRecentSelectedByType[key] = { sets };
-          return;
-        }
-        if (
-          config.hasSpecial &&
-          set.special === null &&
-          numeric >= config.specialMin &&
-          numeric <= config.specialMax
-        ) {
-          if (set.main.includes(numeric)) return;
-          set.special = numeric;
-          statsRecentSelectedByType[key] = { sets };
-          return;
-        }
+      const activeSetIndex = getStatsRecentActiveSetIndex(key);
+      if (!sets[activeSetIndex]) sets[activeSetIndex] = createStatsRecentTicketSet();
+      const set = sets[activeSetIndex];
+      if (set.main.length < config.mainCount) {
+        if (set.main.includes(numeric) || set.special === numeric) return;
+        set.main.push(numeric);
+        statsRecentSelectedByType[key] = { sets };
+        return;
+      }
+      if (
+        config.hasSpecial &&
+        set.special === null &&
+        numeric >= config.specialMin &&
+        numeric <= config.specialMax
+      ) {
+        if (set.main.includes(numeric)) return;
+        set.special = numeric;
+        statsRecentSelectedByType[key] = { sets };
+        return;
       }
       statsRecentSelectedByType[key] = { sets };
     }
@@ -6356,7 +6379,10 @@
     }
 
     function clearStatsRecentSelectedNumbers(type) {
-      statsRecentSelectedByType[normalizeStatsType(type)] = { sets: [] };
+      const key = normalizeStatsType(type);
+      const sets = getStatsRecentSelectedSets(key);
+      sets[getStatsRecentActiveSetIndex(key)] = createStatsRecentTicketSet();
+      statsRecentSelectedByType[key] = { sets };
     }
 
     function renderStatsRecentColorLegend() {
@@ -6393,15 +6419,9 @@
     function renderStatsRecentSelectedPanel(type, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null, countByValue = null } = {}) {
       const config = getStatsRecentTicketConfig(type);
       const selectedSets = getStatsRecentSelectedSets(type);
-      const visibleSets = selectedSets.filter(set => set.main.length || set.special !== null);
-      const hasSelection = visibleSets.length > 0;
-      const lastVisibleIndex = selectedSets.reduce((latestIndex, set, index) => (
-        set.main.length || set.special !== null ? index : latestIndex
-      ), -1);
-      const displaySetCount = hasSelection ? Math.min(config.maxSets, lastVisibleIndex + 2) : 0;
-      const displaySets = hasSelection
-        ? Array.from({ length: displaySetCount }, (_, index) => selectedSets[index] || createStatsRecentTicketSet())
-        : [];
+      const activeSetIndex = getStatsRecentActiveSetIndex(type);
+      const activeSet = selectedSets[activeSetIndex] || createStatsRecentTicketSet();
+      const hasSelection = activeSet.main.length > 0 || activeSet.special !== null;
       const renderTicketBall = (value, setIndex, role = "main") => `
         <button
           type="button"
@@ -6415,7 +6435,25 @@
       return `
         <div class="stats-recent100-selected-panel">
           <div class="stats-recent100-selected-head">
-            <span>Bộ Số Bạn Chọn</span>
+            <div class="stats-recent100-set-picker">
+              <button
+                type="button"
+                class="stats-recent100-set-trigger"
+                aria-haspopup="menu"
+                aria-label="Chọn bộ số đang thao tác"
+              >Bộ Số Bạn Chọn: Bộ ${activeSetIndex + 1}</button>
+              <div class="stats-recent100-set-menu" role="menu" aria-label="Chọn bộ số">
+                ${Array.from({ length: config.maxSets }, (_, index) => `
+                  <button
+                    type="button"
+                    class="stats-recent100-set-option${index === activeSetIndex ? " is-active" : ""}"
+                    data-stats-recent-active-set="${index}"
+                    role="menuitemradio"
+                    aria-checked="${index === activeSetIndex ? "true" : "false"}"
+                  >Bộ ${index + 1}</button>
+                `).join("")}
+              </div>
+            </div>
             <button
               type="button"
               class="stats-recent100-clear-btn"
@@ -6424,23 +6462,20 @@
             >Xóa</button>
           </div>
           <div class="stats-recent100-ticket-list${hasSelection ? "" : " is-empty"}">
-            ${hasSelection ? displaySets.map((set, setIndex) => {
-              const mainCountText = `${set.main.length}/${config.mainCount}`;
-              return `
-                <div class="stats-recent100-ticket-row${set.main.length || set.special !== null ? "" : " is-empty"}">
-                  <div class="stats-recent100-ticket-label">Bộ ${setIndex + 1}:</div>
-                  <div class="stats-recent100-ticket-main">
-                    ${set.main.length ? set.main.map(value => renderTicketBall(value, setIndex, "main")).join("") : `<span class="stats-recent100-ticket-placeholder">${escapeHtml(mainCountText)}</span>`}
-                    ${config.hasSpecial ? `
-                      <span class="stats-recent100-ticket-special-label">${escapeHtml(config.specialLabel)}:</span>
-                      ${set.special !== null
-                        ? renderTicketBall(set.special, setIndex, "special")
-                        : `<span class="stats-recent100-ticket-special-empty">--</span>`}
-                    ` : ""}
-                  </div>
+            ${hasSelection ? `
+              <div class="stats-recent100-ticket-row">
+                <div class="stats-recent100-ticket-label">Bộ ${activeSetIndex + 1}:</div>
+                <div class="stats-recent100-ticket-main">
+                  ${activeSet.main.length ? activeSet.main.map(value => renderTicketBall(value, activeSetIndex, "main")).join("") : `<span class="stats-recent100-ticket-placeholder">0/${config.mainCount}</span>`}
+                  ${config.hasSpecial ? `
+                    <span class="stats-recent100-ticket-special-label">${escapeHtml(config.specialLabel)}:</span>
+                    ${activeSet.special !== null
+                      ? renderTicketBall(activeSet.special, activeSetIndex, "special")
+                      : `<span class="stats-recent100-ticket-special-empty">--</span>`}
+                  ` : ""}
                 </div>
-              `;
-            }).join("") : `<span class="stats-recent100-selected-empty">Chọn bóng ở bảng bên phải</span>`}
+              </div>
+            ` : `<span class="stats-recent100-selected-empty">Chọn Bộ ${activeSetIndex + 1}, rồi bấm bóng ở bảng bên phải</span>`}
           </div>
         </div>
       `;
