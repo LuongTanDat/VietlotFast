@@ -68,7 +68,11 @@ public class LottoWebServer {
     private final Path rootDir;
     private final Path htmlFile;
     private final Path cssFile;
+    private final Path extraCssFile;
     private final Path jsFile;
+    private final Path coreJsFile;
+    private final Path statsJsFile;
+    private final Path dataJsFile;
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
@@ -268,7 +272,11 @@ public class LottoWebServer {
         this.rootDir = Paths.get(System.getProperty("user.dir"));
         this.htmlFile = rootDir.resolve("frontend").resolve("vietlott-web.html");
         this.cssFile = rootDir.resolve("frontend").resolve("vietlott-web.css");
+        this.extraCssFile = rootDir.resolve("frontend").resolve("vietlott-web-extra.css");
         this.jsFile = rootDir.resolve("frontend").resolve("vietlott-web.js");
+        this.coreJsFile = rootDir.resolve("frontend").resolve("vietlott-web-core.js");
+        this.statsJsFile = rootDir.resolve("frontend").resolve("vietlott-web-stats.js");
+        this.dataJsFile = rootDir.resolve("frontend").resolve("vietlott-web-data.js");
         this.faviconFile = rootDir.resolve("frontend").resolve("favicon.svg");
         this.dbFile = rootDir.resolve(DB_FILE);
         this.repo = new DatabaseRepo(dbFile);
@@ -282,7 +290,11 @@ public class LottoWebServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         server.createContext("/", this::serveIndex);
         server.createContext("/vietlott-web.css", ex -> serveStaticTextFile(ex, cssFile, "text/css; charset=UTF-8"));
+        server.createContext("/vietlott-web-extra.css", ex -> serveStaticTextFile(ex, extraCssFile, "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web.js", ex -> serveStaticTextFile(ex, jsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-core.js", ex -> serveStaticTextFile(ex, coreJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-stats.js", ex -> serveStaticTextFile(ex, statsJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);
