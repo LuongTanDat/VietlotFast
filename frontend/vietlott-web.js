@@ -470,6 +470,14 @@
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
     let statsRecentSelectedByType = Object.create(null);
     let statsRecentActiveSetByType = Object.create(null);
+    const statsEntriesCache = new Map();
+    const statsRecentComputationCache = new Map();
+    const statsRecentWorkerJobs = new Map();
+    const statsRecentWorkerJobKeys = new Map();
+    let statsRecentWorker = null;
+    let statsRecentWorkerSupported = true;
+    let statsRecentWorkerSeq = 0;
+    let statsRecentPendingComputationKey = "";
     let statsV2State = {
       type: "LOTO_5_35",
       period: "30d",
@@ -3910,25 +3918,25 @@
           removeButton.dataset.statsRecentSelectedSet,
           removeButton.dataset.statsRecentSelectedRole || "main",
         );
-        renderStatsPanel();
+        renderStatsRecentSelectedHostOnly();
         return;
       }
       const clearButton = event.target.closest("[data-stats-recent-clear]");
       if (clearButton) {
         clearStatsRecentSelectedNumbers(statsSelectedType);
-        renderStatsPanel();
+        renderStatsRecentSelectedHostOnly();
         return;
       }
       const activeSetButton = event.target.closest("[data-stats-recent-active-set]");
       if (activeSetButton) {
         setStatsRecentActiveSetIndex(statsSelectedType, activeSetButton.dataset.statsRecentActiveSet);
-        renderStatsPanel();
+        renderStatsRecentSelectedHostOnly();
         return;
       }
       const pickButton = event.target.closest("[data-stats-recent-pick]");
       if (!pickButton) return;
       addStatsRecentSelectedNumber(statsSelectedType, pickButton.dataset.statsRecentPick);
-      renderStatsPanel();
+      renderStatsRecentSelectedHostOnly();
     });
     document.addEventListener("keydown", event => {
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -5824,7 +5832,18 @@
     }
 
     function buildStatsEntriesForFeed(type, feed) {
-      return (Array.isArray(feed?.order) ? feed.order : [])
+      const normalizedType = normalizeStatsType(type);
+      const latestKy = Array.isArray(feed?.order) ? feed.order[feed.order.length - 1] || "" : "";
+      const cacheKey = [
+        normalizedType,
+        Array.isArray(feed?.order) ? feed.order.length : 0,
+        latestKy,
+        feed?.loadedAt || "",
+        feed?.countKey || "",
+      ].join("|");
+      const cached = statsEntriesCache.get(cacheKey);
+      if (cached) return cached;
+      const entries = (Array.isArray(feed?.order) ? feed.order : [])
         .map(ky => ({ ky, draw: feed?.results?.[ky] }))
         .filter(entry => entry.draw)
         .sort((a, b) => {
@@ -5834,6 +5853,8 @@
           const bTime = parseLiveDate(b.draw?.date || "")?.getTime?.() || 0;
           return aTime - bTime;
         });
+      statsEntriesCache.set(cacheKey, entries);
+      return entries;
     }
 
     function filterStatsEntriesByDayWindow(entries, windowKey) {
@@ -6256,6 +6277,321 @@
       });
     }
 
+    function clearStatsRecentComputationCache(type = "") {
+      const normalizedType = type ? normalizeStatsType(type) : "";
+      if (!normalizedType) {
+        statsRecentComputationCache.clear();
+        return;
+      }
+      [...statsRecentComputationCache.keys()].forEach(key => {
+        if (String(key).startsWith(`${normalizedType}|`)) statsRecentComputationCache.delete(key);
+      });
+    }
+
+    function clearStatsEntriesCache(type = "") {
+      const normalizedType = type ? normalizeStatsType(type) : "";
+      if (!normalizedType) {
+        statsEntriesCache.clear();
+        return;
+      }
+      [...statsEntriesCache.keys()].forEach(key => {
+        if (String(key).startsWith(`${normalizedType}|`)) statsEntriesCache.delete(key);
+      });
+    }
+
+    function getStatsRecentEntriesSignature(type, entries, mode = statsRecentModeValue, value = statsRecentWindowValue) {
+      const safeEntries = Array.isArray(entries) ? entries : [];
+      const latestEntry = safeEntries[safeEntries.length - 1] || null;
+      const firstEntry = safeEntries[0] || null;
+      return [
+        normalizeStatsType(type),
+        normalizeStatsRecentMode(mode),
+        String(normalizeStatsRecentWindow(value, mode)),
+        safeEntries.length,
+        firstEntry?.ky || "",
+        latestEntry?.ky || "",
+        latestEntry?.draw?.date || "",
+        latestEntry?.draw?.time || "",
+      ].join("|");
+    }
+
+    function getStatsRecentGridClass(type) {
+      return type === "KENO"
+        ? "is-keno"
+        : type === "LOTO_5_35"
+          ? "is-five"
+          : STATS_SIX_GRID_TYPES.has(type)
+            ? "is-six"
+            : TYPES[type]?.threeDigit ? "is-three-digit" : "";
+    }
+
+    function labelStatsRecentItems(type, items, { special = false } = {}) {
+      return (Array.isArray(items) ? items : []).map(item => ({
+        ...item,
+        value: Number(item?.value),
+        count: Number(item?.count || 0),
+        ...(Object.prototype.hasOwnProperty.call(item || {}, "gap") ? { gap: Number(item?.gap || 0) } : {}),
+        label: getStatsDisplayLabel(type, item?.value, special),
+      }));
+    }
+
+    function normalizeStatsRecentComputation(type, raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const frequencyItems = labelStatsRecentItems(type, raw.frequencyItems);
+      const countPairs = Array.isArray(raw.countPairs)
+        ? raw.countPairs
+        : frequencyItems.map(item => [Number(item.value), Number(item.count || 0)]);
+      return {
+        frequencyItems,
+        displayItems: labelStatsRecentItems(type, raw.displayItems || (TYPES[type]?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems)),
+        mostItems: labelStatsRecentItems(type, raw.mostItems || frequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT)),
+        leastItems: labelStatsRecentItems(type, raw.leastItems),
+        overdueItems: labelStatsRecentItems(type, raw.overdueItems),
+        countByValue: new Map(countPairs.map(pair => [Number(pair[0]), Number(pair[1] || 0)])),
+      };
+    }
+
+    function buildStatsRecentComputationSync(type, sourceEntries, mode = statsRecentModeValue, value = statsRecentWindowValue) {
+      const safeEntries = Array.isArray(sourceEntries) ? sourceEntries : [];
+      const recentEntries = filterStatsRecentEntriesByMode(safeEntries, mode, value);
+      const frequencyItems = buildStatsFrequencyItems(type, recentEntries);
+      const displayItems = TYPES[type]?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems;
+      const mostItems = frequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const leastItems = [...frequencyItems]
+        .sort((a, b) => a.count - b.count || a.value - b.value)
+        .slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const overdueItems = buildStatsOverdueItems(type, frequencyItems, safeEntries).slice(0, STATS_RECENT100_SIDE_LIMIT);
+      return normalizeStatsRecentComputation(type, {
+        frequencyItems,
+        displayItems,
+        mostItems,
+        leastItems,
+        overdueItems,
+        countPairs: frequencyItems.map(item => [Number(item.value), Number(item.count || 0)]),
+      });
+    }
+
+    function serializeStatsRecentEntriesForWorker(entries) {
+      return (Array.isArray(entries) ? entries : []).map(entry => ({
+        ky: String(entry?.ky || ""),
+        draw: {
+          main: Array.isArray(entry?.draw?.main) ? entry.draw.main.map(Number).filter(Number.isFinite) : [],
+          special: Number.isInteger(Number(entry?.draw?.special)) ? Number(entry.draw.special) : null,
+          displayLines: Array.isArray(entry?.draw?.displayLines) ? entry.draw.displayLines.map(String) : [],
+          date: String(entry?.draw?.date || ""),
+          time: String(entry?.draw?.time || ""),
+        },
+      }));
+    }
+
+    function getStatsRecentWorker() {
+      if (!statsRecentWorkerSupported) return null;
+      if (statsRecentWorker) return statsRecentWorker;
+      if (typeof Worker === "undefined" || typeof Blob === "undefined" || typeof URL === "undefined") {
+        statsRecentWorkerSupported = false;
+        return null;
+      }
+      const workerSource = `
+        function parseLiveDate(value) {
+          const text = String(value || '').trim();
+          const match = text.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);
+          if (!match) return null;
+          const day = Number(match[1]);
+          const month = Number(match[2]);
+          const year = Number(match[3]);
+          const parsed = new Date(year, month - 1, day);
+          return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day ? parsed : null;
+        }
+        function range(min, max) {
+          const out = [];
+          for (let value = Number(min); value <= Number(max); value++) out.push(value);
+          return out;
+        }
+        function extractThreeDigitTokensFromLines(lines) {
+          const out = [];
+          (Array.isArray(lines) ? lines : []).forEach(lineText => {
+            const matches = String(lineText || '').match(/\\b\\d{3}\\b/g) || [];
+            matches.forEach(token => {
+              const numeric = Number(token);
+              if (Number.isInteger(numeric) && numeric >= 0 && numeric <= 999) out.push(numeric);
+            });
+          });
+          return out;
+        }
+        function filterEntries(entries, mode, value) {
+          const safeEntries = Array.isArray(entries) ? entries : [];
+          if (String(value) === 'all') return safeEntries.slice();
+          const windowCount = Math.max(1, Number(value) || 100);
+          if (mode !== 'day') return safeEntries.slice(-windowCount);
+          let latestDate = null;
+          for (let index = safeEntries.length - 1; index >= 0; index--) {
+            const parsed = parseLiveDate(safeEntries[index]?.draw?.date || '');
+            if (parsed && !Number.isNaN(parsed.getTime())) {
+              latestDate = parsed;
+              break;
+            }
+          }
+          if (!latestDate) return safeEntries.slice(-windowCount);
+          const cutoff = new Date(latestDate.getTime());
+          cutoff.setHours(0, 0, 0, 0);
+          cutoff.setDate(cutoff.getDate() - (windowCount - 1));
+          return safeEntries.filter(entry => {
+            const parsed = parseLiveDate(entry?.draw?.date || '');
+            return parsed && !Number.isNaN(parsed.getTime()) && parsed.getTime() >= cutoff.getTime();
+          });
+        }
+        function buildFrequencyItems(typeConfig, entries) {
+          const counts = new Map();
+          if (!typeConfig?.threeDigit) {
+            range(typeConfig.mainMin, typeConfig.mainMax).forEach(number => counts.set(Number(number), 0));
+          }
+          if (typeConfig?.threeDigit) {
+            entries.forEach(entry => {
+              extractThreeDigitTokensFromLines(entry?.draw?.displayLines).forEach(number => {
+                counts.set(number, Number(counts.get(number) || 0) + 1);
+              });
+            });
+          } else {
+            entries.forEach(entry => {
+              (Array.isArray(entry?.draw?.main) ? entry.draw.main : []).forEach(value => {
+                const number = Number(value);
+                if (Number.isInteger(number)) counts.set(number, Number(counts.get(number) || 0) + 1);
+              });
+            });
+          }
+          return [...counts.entries()]
+            .map(([value, count]) => ({ value: Number(value), count: Number(count || 0) }))
+            .sort((a, b) => b.count - a.count || a.value - b.value);
+        }
+        function doesEntryContainNumber(typeConfig, entry, value) {
+          const numeric = Number(value);
+          if (!Number.isInteger(numeric) || !entry?.draw) return false;
+          if (typeConfig?.threeDigit) return extractThreeDigitTokensFromLines(entry.draw.displayLines).includes(numeric);
+          return (Array.isArray(entry.draw.main) ? entry.draw.main : []).some(item => Number(item) === numeric);
+        }
+        function buildOverdueItems(typeConfig, frequencyItems, sourceEntries) {
+          return (Array.isArray(frequencyItems) ? frequencyItems : [])
+            .map(item => {
+              let gap = sourceEntries.length;
+              for (let index = sourceEntries.length - 1; index >= 0; index--) {
+                if (doesEntryContainNumber(typeConfig, sourceEntries[index], item?.value)) {
+                  gap = sourceEntries.length - 1 - index;
+                  break;
+                }
+              }
+              return { value: Number(item.value), count: Number(item.count || 0), gap };
+            })
+            .sort((a, b) => b.gap - a.gap || a.count - b.count || a.value - b.value);
+        }
+        self.onmessage = event => {
+          const payload = event.data || {};
+          try {
+            const entries = Array.isArray(payload.entries) ? payload.entries : [];
+            const recentEntries = filterEntries(entries, payload.mode, payload.windowValue);
+            const frequencyItems = buildFrequencyItems(payload.typeConfig || {}, recentEntries);
+            const sideLimit = Math.max(1, Number(payload.sideLimit || 20));
+            const displayItems = payload.typeConfig?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems;
+            const mostItems = frequencyItems.slice(0, sideLimit);
+            const leastItems = frequencyItems.slice().sort((a, b) => a.count - b.count || a.value - b.value).slice(0, sideLimit);
+            const overdueItems = buildOverdueItems(payload.typeConfig || {}, frequencyItems, entries).slice(0, sideLimit);
+            self.postMessage({
+              id: payload.id,
+              ok: true,
+              key: payload.key,
+              frequencyItems,
+              displayItems,
+              mostItems,
+              leastItems,
+              overdueItems,
+              countPairs: frequencyItems.map(item => [Number(item.value), Number(item.count || 0)]),
+            });
+          } catch (error) {
+            self.postMessage({ id: payload.id, ok: false, key: payload.key, error: String(error && error.message || error || 'Worker error') });
+          }
+        };
+      `;
+      try {
+        const blob = new Blob([workerSource], { type: "application/javascript" });
+        statsRecentWorker = new Worker(URL.createObjectURL(blob));
+        statsRecentWorker.onmessage = event => {
+          const data = event.data || {};
+          const job = statsRecentWorkerJobs.get(data.id);
+          if (!job) return;
+          statsRecentWorkerJobs.delete(data.id);
+          statsRecentWorkerJobKeys.delete(job.key);
+          if (!data.ok) {
+            job.reject(new Error(data.error || "Không tính được thống kê trong Worker."));
+            return;
+          }
+          const normalized = normalizeStatsRecentComputation(job.type, data);
+          statsRecentComputationCache.set(job.key, normalized);
+          job.resolve(normalized);
+        };
+        statsRecentWorker.onerror = error => {
+          statsRecentWorkerSupported = false;
+          statsRecentWorkerJobs.forEach(job => job.reject(error));
+          statsRecentWorkerJobs.clear();
+          statsRecentWorkerJobKeys.clear();
+        };
+      } catch {
+        statsRecentWorkerSupported = false;
+        statsRecentWorker = null;
+      }
+      return statsRecentWorker;
+    }
+
+    function requestStatsRecentComputationWorker(type, entries, mode, value, key) {
+      const worker = getStatsRecentWorker();
+      if (!worker) return null;
+      const existingJobId = statsRecentWorkerJobKeys.get(key);
+      if (statsRecentWorkerJobs.has(existingJobId)) return statsRecentWorkerJobs.get(existingJobId).promise;
+      const id = ++statsRecentWorkerSeq;
+      let resolveJob;
+      let rejectJob;
+      const promise = new Promise((resolve, reject) => {
+        resolveJob = resolve;
+        rejectJob = reject;
+      });
+      statsRecentWorkerJobs.set(id, { id, key, type, resolve: resolveJob, reject: rejectJob, promise });
+      statsRecentWorkerJobKeys.set(key, id);
+      worker.postMessage({
+        id,
+        key,
+        type,
+        typeConfig: TYPES[type] || {},
+        entries: serializeStatsRecentEntriesForWorker(entries),
+        mode,
+        windowValue: value,
+        sideLimit: STATS_RECENT100_SIDE_LIMIT,
+      });
+      return promise;
+    }
+
+    function getStatsRecentComputation(type, entries, mode = statsRecentModeValue, value = statsRecentWindowValue, { preferWorker = false } = {}) {
+      const key = getStatsRecentEntriesSignature(type, entries, mode, value);
+      const cached = statsRecentComputationCache.get(key);
+      if (cached) return { key, computation: cached, pending: false };
+      if (preferWorker) {
+        const pending = requestStatsRecentComputationWorker(type, entries, mode, value, key);
+        if (pending) {
+          statsRecentPendingComputationKey = key;
+          pending.then(() => {
+            if (statsRecentPendingComputationKey === key && predictPageModeValue === PREDICTION_MODE_STATS) renderStatsPanel();
+          }).catch(() => {
+            if (statsRecentPendingComputationKey === key) {
+              const fallback = buildStatsRecentComputationSync(type, entries, mode, value);
+              statsRecentComputationCache.set(key, fallback);
+              renderStatsPanel();
+            }
+          });
+          return { key, computation: null, pending: true };
+        }
+      }
+      const computation = buildStatsRecentComputationSync(type, entries, mode, value);
+      statsRecentComputationCache.set(key, computation);
+      return { key, computation, pending: false };
+    }
+
     function getStatsRecentTicketConfig(type) {
       const normalized = normalizeStatsType(type);
       if (normalized === "KENO") {
@@ -6539,22 +6875,14 @@
       const recentMode = statsRecentModeValue;
       const recentWindow = statsRecentWindowValue;
       const recentWindowOptions = getStatsRecentWindowOptions(recentMode);
-      const recentEntries = filterStatsRecentEntriesByMode(sourceEntries, recentMode, recentWindow);
-      const frequencyItems = buildStatsFrequencyItems(type, recentEntries);
-      const displayItems = TYPES[type]?.threeDigit ? frequencyItems.slice(0, 100) : frequencyItems;
-      const countByValue = new Map(frequencyItems.map(item => [Number(item.value), Number(item.count || 0)]));
-      const mostItems = frequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
-      const leastItems = [...frequencyItems]
-        .sort((a, b) => a.count - b.count || a.value - b.value)
-        .slice(0, STATS_RECENT100_SIDE_LIMIT);
-      const overdueItems = buildStatsOverdueItems(type, frequencyItems, sourceEntries).slice(0, STATS_RECENT100_SIDE_LIMIT);
-      const gridClass = type === "KENO"
-        ? "is-keno"
-        : type === "LOTO_5_35"
-          ? "is-five"
-          : STATS_SIX_GRID_TYPES.has(type)
-            ? "is-six"
-            : TYPES[type]?.threeDigit ? "is-three-digit" : "";
+      const { computation, pending } = getStatsRecentComputation(type, sourceEntries, recentMode, recentWindow, { preferWorker: true });
+      const frequencyItems = computation?.frequencyItems || [];
+      const displayItems = computation?.displayItems || [];
+      const countByValue = computation?.countByValue || new Map();
+      const mostItems = computation?.mostItems || [];
+      const leastItems = computation?.leastItems || [];
+      const overdueItems = computation?.overdueItems || [];
+      const gridClass = getStatsRecentGridClass(type);
       const currentTypeMeta = getStatsTypeUiMeta(type);
       const titleText = getStatsRecentPanelTitle(recentWindow, recentMode);
       return `
@@ -6632,11 +6960,14 @@
                     </div>
                   </div>
                   ${renderStatsRecentColorLegend()}
-                  ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}
+                  <div data-stats-recent-selected-host>${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}</div>
                 </aside>
                 <div class="stats-recent100-board">
-                  <div class="stats-recent100-number-grid ${gridClass}">
-                    ${displayItems.map(item => `
+                  ${pending ? `
+                    <div class="stats-recent100-loading">Đang tính thống kê trong nền...</div>
+                  ` : `
+                    <div class="stats-recent100-number-grid ${gridClass}">
+                      ${displayItems.map(item => `
                       <div class="stats-recent100-number-card">
                         <button
                           type="button"
@@ -6646,19 +6977,49 @@
                         >${escapeHtml(item.label)}</button>
                         <span class="stats-recent100-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</span>
                       </div>
-                    `).join("")}
-                  </div>
+                      `).join("")}
+                    </div>
+                  `}
                 </div>
               </div>
             </div>
             <div class="stats-recent100-side">
-              ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
-              ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
-              ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+              ${pending ? `
+                <section class="stats-recent100-side-panel stats-recent100-side-loading">
+                  <div class="stats-recent100-side-title">Đang tải</div>
+                  <div class="stats-recent100-loading">Worker đang tính 3 bảng...</div>
+                </section>
+              ` : `
+                ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+                ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+                ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { hitNumberSet, missedNumberSet, currentPredictionSet })}
+              `}
             </div>
           </div>
         </section>
       `;
+    }
+
+    function renderStatsRecentSelectedHostOnly() {
+      const host = document.querySelector("[data-stats-recent-selected-host]");
+      if (!host) {
+        renderStatsPanel();
+        return;
+      }
+      const type = normalizeStatsType(statsSelectedType);
+      const allEntries = buildStatsEntriesForFeed(type, getLiveHistoryFeed(type));
+      const latestEntry = allEntries[allEntries.length - 1] || null;
+      const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
+      const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
+      const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
+      const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
+      const { computation } = getStatsRecentComputation(type, allEntries, statsRecentModeValue, statsRecentWindowValue);
+      host.innerHTML = renderStatsRecentSelectedPanel(type, {
+        hitNumberSet: hitPredictionSet,
+        missedNumberSet: missedPredictionSet,
+        currentPredictionSet: currentPredictionHighlight.numbers,
+        countByValue: computation?.countByValue || new Map(),
+      });
     }
 
     function renderStatsPanel() {
@@ -11465,6 +11826,8 @@
         ...(nextFeed || {}),
       });
       liveHistoryState = nextState;
+      clearStatsEntriesCache(type);
+      clearStatsRecentComputationCache(type);
     }
 
     function getLiveHistoryFeed(type) {
