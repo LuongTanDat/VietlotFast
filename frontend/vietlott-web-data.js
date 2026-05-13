@@ -3822,9 +3822,12 @@
     function startLiveDrawCountdown() {
       if (liveDrawCountdownTimer) return;
       liveDrawCountdownTimer = window.setInterval(() => {
-        renderLiveResultsBoard();
-        if (predictLastDisplayResult) renderPredictOutput();
-        if (vipPredictLastDisplayResult) renderPredictVipOutput();
+        const liveBoardVisible = isHomePageVisible() && isElementNearViewport(document.getElementById("liveBoardSection"));
+        const normalPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_NORMAL;
+        const vipPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_VIP;
+        if (liveBoardVisible) renderLiveResultsBoard();
+        if (normalPredictVisible && predictLastDisplayResult) renderPredictOutput();
+        if (vipPredictVisible && vipPredictLastDisplayResult) renderPredictVipOutput();
         if (predictionHistoryPanelOpen) renderPredictionHistoryPanel();
         if (vipPredictionHistoryPanelOpen) renderVipPredictionHistoryPanel();
       }, 1000);

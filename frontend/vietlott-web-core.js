@@ -470,6 +470,8 @@
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
     let statsRecentSelectedByType = Object.create(null);
     let statsRecentActiveSetByType = Object.create(null);
+    let statsModernInsightTab = "most";
+    let statsModernInsightExpanded = false;
     const statsEntriesCache = new Map();
     const statsRecentComputationCache = new Map();
     const statsRecentWorkerJobs = new Map();
@@ -595,6 +597,29 @@
 
     function getCurrentAppPageMode() {
       return getAppPageMode(location.pathname || "/");
+    }
+
+    function isElementActuallyVisible(el) {
+      if (!el || el.hidden) return false;
+      if (!document.body.contains(el)) return false;
+      const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+      if (style && (style.display === "none" || style.visibility === "hidden")) return false;
+      return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function isElementNearViewport(el, margin = 160) {
+      if (!isElementActuallyVisible(el) || typeof el.getBoundingClientRect !== "function") return false;
+      const rect = el.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      return rect.bottom >= -margin &&
+        rect.top <= viewportHeight + margin &&
+        rect.right >= -margin &&
+        rect.left <= viewportWidth + margin;
+    }
+
+    function isHomePageVisible() {
+      return getCurrentAppPageMode() === "home";
     }
 
     function applyAppPageMetadata() {
@@ -3005,6 +3030,10 @@
     function startLuckyWheelUiTimer() {
       if (luckyWheelUiTimer) clearInterval(luckyWheelUiTimer);
       luckyWheelUiTimer = window.setInterval(() => {
+        const topupOverlay = document.getElementById("luckyWheelTopupOverlay");
+        const topupOpen = !!topupOverlay && !topupOverlay.hidden;
+        const wheelVisible = getCurrentAppPageMode() === "wheel" && isElementActuallyVisible(document.getElementById("luckyWheelSection"));
+        if (!wheelVisible && !topupOpen && !luckyWheelAutoMode) return;
         if (luckyWheelSpinning) return;
         const snapshot = syncLuckyWheelSpins();
         if (snapshot.changed || snapshot.available !== luckyWheelLastAvailable) {
@@ -3013,7 +3042,7 @@
           return;
         }
         renderLuckyWheelMeta();
-        if (!document.getElementById("luckyWheelTopupOverlay")?.hidden) {
+        if (topupOpen) {
           updateLuckyWheelTopupDialogState();
         }
         maybeTriggerLuckyWheelAutoSpin();
@@ -3520,7 +3549,10 @@
       syncKenoTrainingConfigFromUi();
       renderKenoTrainingToggle();
       if (kenoTrainingEnabled) startKenoTrainingLoop();
-      syncLiveResults({ silent: true }).catch(() => {});
+      window.setTimeout(() => {
+        if (!currentUser) return;
+        syncLiveResults({ silent: true }).catch(() => {});
+      }, 1200);
     }
 
     async function logout() {
@@ -3962,10 +3994,26 @@
       const nextType = normalizeStatsType(recentTypeButton.dataset.statsRecentType);
       if (nextType === statsSelectedType) return;
       statsSelectedType = nextType;
+      statsModernInsightTab = "most";
+      statsModernInsightExpanded = false;
       saveStatsUiState();
       renderStatsTypeTabs();
       renderStatsPanel();
       startStatsPanelRefresh({ force: true, silent: true });
+    });
+    document.addEventListener("click", event => {
+      const insightTabButton = event.target.closest("[data-stats-modern-insight-tab]");
+      if (insightTabButton) {
+        const nextTab = normalizeStatsModernInsightTab(insightTabButton.dataset.statsModernInsightTab);
+        if (nextTab === statsModernInsightTab) return;
+        statsModernInsightTab = nextTab;
+        renderStatsPanel();
+        return;
+      }
+      const insightToggleButton = event.target.closest("[data-stats-modern-insight-toggle]");
+      if (!insightToggleButton) return;
+      statsModernInsightExpanded = !statsModernInsightExpanded;
+      renderStatsPanel();
     });
     document.addEventListener("click", event => {
       const removeButton = event.target.closest("[data-stats-recent-selected-remove]");
@@ -3993,10 +4041,87 @@
       }
       const pickButton = event.target.closest("[data-stats-recent-pick]");
       if (!pickButton) return;
-      addStatsRecentSelectedNumber(statsSelectedType, pickButton.dataset.statsRecentPick);
+      addStatsRecentSelectedNumber(
+        statsSelectedType,
+        pickButton.dataset.statsRecentPick,
+        pickButton.dataset.statsRecentPickRole || "main",
+      );
       renderStatsRecentSelectedHostOnly();
     });
+    let statsRecentHelpCloseTimer = null;
+
+    function clearStatsRecentHelpCloseTimer() {
+      if (statsRecentHelpCloseTimer) {
+        window.clearTimeout(statsRecentHelpCloseTimer);
+        statsRecentHelpCloseTimer = null;
+      }
+    }
+
+    function setStatsRecentHelpOpen(root, open) {
+      if (!root) return;
+      root.classList.toggle("is-open", !!open);
+      const toggle = root.querySelector("[data-stats-recent-help-toggle]");
+      if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function closeStatsRecentHelpPopovers(except = null) {
+      clearStatsRecentHelpCloseTimer();
+      document.querySelectorAll("[data-stats-recent-help].is-open").forEach(node => {
+        if (except && node === except) return;
+        setStatsRecentHelpOpen(node, false);
+      });
+    }
+
+    function openStatsRecentHelp(root) {
+      clearStatsRecentHelpCloseTimer();
+      closeStatsRecentHelpPopovers(root);
+      setStatsRecentHelpOpen(root, true);
+    }
+
+    function scheduleStatsRecentHelpClose(root) {
+      clearStatsRecentHelpCloseTimer();
+      statsRecentHelpCloseTimer = window.setTimeout(() => {
+        setStatsRecentHelpOpen(root, false);
+        statsRecentHelpCloseTimer = null;
+      }, 240);
+    }
+
+    document.addEventListener("mouseover", event => {
+      const root = event.target.closest("[data-stats-recent-help]");
+      if (!root) return;
+      if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+      openStatsRecentHelp(root);
+    });
+    document.addEventListener("mouseout", event => {
+      const root = event.target.closest("[data-stats-recent-help]");
+      if (!root) return;
+      if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+      scheduleStatsRecentHelpClose(root);
+    });
+    document.addEventListener("click", event => {
+      const helpToggle = event.target.closest("[data-stats-recent-help-toggle]");
+      const helpClose = event.target.closest("[data-stats-recent-help-close]");
+      const helpRoot = event.target.closest("[data-stats-recent-help]");
+      if (helpToggle) {
+        const root = helpToggle.closest("[data-stats-recent-help]");
+        if (!root) return;
+        const nextOpen = !root.classList.contains("is-open");
+        if (nextOpen) openStatsRecentHelp(root);
+        else setStatsRecentHelpOpen(root, false);
+        return;
+      }
+      if (helpClose) {
+        const root = helpClose.closest("[data-stats-recent-help]");
+        if (root) setStatsRecentHelpOpen(root, false);
+        return;
+      }
+      if (!helpRoot) closeStatsRecentHelpPopovers();
+    });
     document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeStatsRecentHelpPopovers();
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") return;
       const pickButton = event.target.closest("[data-stats-recent-pick]");
       const removeButton = event.target.closest("[data-stats-recent-selected-remove]");

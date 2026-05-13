@@ -732,6 +732,7 @@
       const preferredLogs = targetNextKyValue
         ? logs.filter(entry => kySortValue(entry?.predictedKy) === targetNextKyValue)
         : [];
+      if (targetNextKyValue && !preferredLogs.length) return { entry: null, numbers: new Set() };
       const candidateLogs = preferredLogs.length ? preferredLogs : logs;
       const sorted = [...candidateLogs].sort((a, b) => {
         const kyDelta = kySortValue(b?.predictedKy) - kySortValue(a?.predictedKy);
@@ -763,6 +764,7 @@
       const preferredLogs = targetNextKyValue
         ? logs.filter(entry => kySortValue(entry?.predictedKy) === targetNextKyValue)
         : [];
+      if (targetNextKyValue && !preferredLogs.length) return { entry: null, numbers: new Set() };
       const candidateLogs = preferredLogs.length ? preferredLogs : logs;
       const sorted = [...candidateLogs].sort((a, b) => {
         const kyDelta = kySortValue(b?.predictedKy) - kySortValue(a?.predictedKy);
@@ -867,6 +869,27 @@
         if (!actualSet.has(value)) missed.add(value);
       });
       return missed;
+    }
+
+    function getStatsLatestHitSpecialPredictionSet(type, latestEntry = null, latestActualSpecialSet = null) {
+      if (!TYPES[type]?.hasSpecial) return new Set();
+      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      if (!previousPrediction) return new Set();
+      const actualSet = latestActualSpecialSet instanceof Set ? latestActualSpecialSet : buildStatsLatestActualSpecialSet(type, latestEntry);
+      const rankedSpecials = Array.isArray(previousPrediction?.topSpecialRanking)
+        ? previousPrediction.topSpecialRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
+        : [];
+      const usageRanking = Object.entries(buildNumberUsageMap(previousPrediction?.tickets || [], "special"))
+        .map(([value, count]) => ({ value: Number(value), count: Number(count || 0) }))
+        .filter(item => Number.isInteger(item.value))
+        .sort((a, b) => b.count - a.count || a.value - b.value)
+        .map(item => item.value);
+      const predictedSet = collectOrderedHighlightNumbers(rankedSpecials, usageRanking, 4);
+      const hits = new Set();
+      predictedSet.forEach(value => {
+        if (actualSet.has(value)) hits.add(value);
+      });
+      return hits;
     }
 
     function getStatsHighlightClass(value, currentTopSet, previousActualSet, missedPredictionSet) {
@@ -992,10 +1015,11 @@
       const isHitPrediction = Number.isInteger(numeric) && hitNumberSet instanceof Set && hitNumberSet.has(numeric);
       const isMissedPrediction = Number.isInteger(numeric) && missedNumberSet instanceof Set && missedNumberSet.has(numeric);
       const isCurrentPrediction = Number.isInteger(numeric) && currentPredictionSet instanceof Set && currentPredictionSet.has(numeric);
-      if (isCurrentPrediction) return "is-current-prediction";
-      if (isHitPrediction) return "is-previous-hit";
-      if (isMissedPrediction) return "is-previous-missed";
-      return "";
+      return [
+        isCurrentPrediction ? "is-current-prediction" : "",
+        isHitPrediction ? "is-previous-hit" : "",
+        isMissedPrediction ? "is-previous-missed" : "",
+      ].filter(Boolean).join(" ");
     }
 
     function normalizeStatsRecentMode(value) {
@@ -1385,6 +1409,9 @@
       if (normalized === "LOTO_6_55") {
         return { maxSets: 6, mainCount: 6, hasSpecial: true, specialLabel: "Số 7", specialMin: 1, specialMax: 55 };
       }
+      if (TYPES[normalized]?.threeDigit) {
+        return { maxSets: 6, mainCount: 1, hasSpecial: false, specialLabel: "", specialMin: 0, specialMax: 0 };
+      }
       return { maxSets: 6, mainCount: 6, hasSpecial: false, specialLabel: "", specialMin: 0, specialMax: 0 };
     }
 
@@ -1446,7 +1473,7 @@
       return sets;
     }
 
-    function addStatsRecentSelectedNumber(type, value) {
+    function addStatsRecentSelectedNumber(type, value, role = "main") {
       const numeric = Number(value);
       if (!Number.isInteger(numeric)) return;
       const key = normalizeStatsType(type);
@@ -1455,6 +1482,17 @@
       const activeSetIndex = getStatsRecentActiveSetIndex(key);
       if (!sets[activeSetIndex]) sets[activeSetIndex] = createStatsRecentTicketSet();
       const set = sets[activeSetIndex];
+      if (
+        role === "special" &&
+        config.hasSpecial &&
+        numeric >= config.specialMin &&
+        numeric <= config.specialMax
+      ) {
+        if (set.main.includes(numeric) || set.special === numeric) return;
+        set.special = numeric;
+        statsRecentSelectedByType[key] = { sets };
+        return;
+      }
       if (set.main.length < config.mainCount) {
         if (set.main.includes(numeric) || set.special === numeric) return;
         set.main.push(numeric);
@@ -1503,6 +1541,204 @@
       statsRecentSelectedByType[key] = { sets };
     }
 
+    const STATS_RECENT_HELP_RULES = {
+      LOTO_5_35: {
+        title: "5/35",
+        mainLabel: "Số chính",
+        mainRange: "1-35",
+        mainCount: 5,
+        hasSpecial: true,
+        specialLabel: "Số ĐB",
+        specialRange: "1-12",
+        specialCount: 1,
+        maxSets: "6 bộ",
+        setDescription: "5 số chính + 1 số ĐB",
+        chooseLines: [
+          "Chọn 5 số chính từ 1 đến 35.",
+          "Chọn 1 số đặc biệt từ 1 đến 12.",
+        ],
+        notes: [
+          "Mỗi lần chơi được lưu tối đa 6 bộ số.",
+          "Trúng thưởng khi khớp đủ số chính và số đặc biệt theo quy tắc hệ thống.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+      LOTO_6_45: {
+        title: "6/45",
+        mainLabel: "Số chính",
+        mainRange: "1-45",
+        mainCount: 6,
+        hasSpecial: false,
+        specialLabel: "",
+        specialRange: "",
+        specialCount: 0,
+        maxSets: "6 bộ",
+        setDescription: "6 số chính",
+        chooseLines: [
+          "Chọn 6 số chính từ 1 đến 45.",
+          "Loại 6/45 không có số đặc biệt.",
+        ],
+        notes: [
+          "Mỗi lần chơi được lưu tối đa 6 bộ số.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+      LOTO_6_55: {
+        title: "6/55",
+        mainLabel: "Số chính",
+        mainRange: "1-55",
+        mainCount: 6,
+        hasSpecial: true,
+        specialLabel: "Số ĐB T7",
+        specialRange: "1-55",
+        specialCount: 1,
+        maxSets: "6 bộ",
+        setDescription: "6 số chính + 1 số ĐB T7",
+        chooseLines: [
+          "Chọn 6 số chính từ 1 đến 55.",
+          "Số ĐB là số T7, cũng nằm trong dải 1 đến 55.",
+        ],
+        notes: [
+          "Mỗi lần chơi được lưu tối đa 6 bộ số.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+      KENO: {
+        title: "Keno",
+        mainLabel: "Số chính",
+        mainRange: "1-80",
+        mainCount: "Theo bậc 1-10",
+        hasSpecial: false,
+        specialLabel: "",
+        specialRange: "",
+        specialCount: 0,
+        maxSets: "Theo bậc",
+        setDescription: "Chọn số theo bậc Keno",
+        chooseLines: [
+          "Keno dùng dải số từ 1 đến 80.",
+          "Chọn số theo bậc Keno từ 1 đến 10 số.",
+        ],
+        kenoRanks: [
+          ["Bậc 1-6", "Tối đa 6 bộ"],
+          ["Bậc 7-8", "Tối đa 4 bộ"],
+          ["Bậc 9-10", "Tối đa 3 bộ"],
+        ],
+        notes: [
+          "Mỗi kỳ quay 20 số từ 1 đến 80.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+      MAX_3D: {
+        title: "3D",
+        mainLabel: "Số chính",
+        mainRange: "000-999",
+        mainCount: "1 số có 3 chữ số",
+        hasSpecial: false,
+        specialLabel: "",
+        specialRange: "",
+        specialCount: 0,
+        maxSets: "6 bộ",
+        setDescription: "Mỗi bộ là 1 số 3 chữ số",
+        chooseLines: [
+          "Chọn hoặc nhập số từ 000 đến 999.",
+          "Luôn hiển thị đủ 3 chữ số, ví dụ: 007, 028, 305.",
+        ],
+        notes: [
+          "Mỗi lần chơi được lưu tối đa 6 bộ số.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+      MAX_3D_PRO: {
+        title: "3D Pro",
+        mainLabel: "Số chính",
+        mainRange: "000-999",
+        mainCount: "1 số có 3 chữ số",
+        hasSpecial: false,
+        specialLabel: "",
+        specialRange: "",
+        specialCount: 0,
+        maxSets: "6 bộ",
+        setDescription: "Hỗ trợ thường / bao / đảo nếu hệ thống có",
+        chooseLines: [
+          "Chọn hoặc nhập số từ 000 đến 999.",
+          "Luôn hiển thị đủ 3 chữ số, ví dụ: 001, 079, 888.",
+        ],
+        notes: [
+          "Có thể mở rộng thêm kiểu thường, bao, đảo.",
+          "Mỗi lần chơi được lưu tối đa 6 bộ số.",
+          "Thống kê chỉ mang tính chất tham khảo.",
+        ],
+      },
+    };
+
+    function getStatsRecentHelpRule(type) {
+      return STATS_RECENT_HELP_RULES[normalizeStatsType(type)] || STATS_RECENT_HELP_RULES.LOTO_5_35;
+    }
+
+    function renderStatsRecentHelpList(items = []) {
+      return `
+        <ul class="stats-recent100-help-list">
+          ${(Array.isArray(items) ? items : []).map(item => `
+            <li><span>•</span><strong>${escapeHtml(item)}</strong></li>
+          `).join("")}
+        </ul>
+      `;
+    }
+
+    function renderStatsRecentHelpPopover(type) {
+      const rule = getStatsRecentHelpRule(type);
+      const normalizedType = normalizeStatsType(type);
+      const starLegendText = normalizedType === "KENO" ? "Kết quả kỳ trước" : "Số ĐB";
+      return `
+        <div class="stats-recent100-help" data-stats-recent-help>
+          <button
+            type="button"
+            class="stats-recent100-help-toggle"
+            data-stats-recent-help-toggle
+            aria-label="Hướng dẫn ${escapeHtml(rule.title)}"
+            aria-expanded="false"
+          >?</button>
+          <div class="stats-recent100-help-popover" data-stats-recent-help-panel role="dialog" aria-label="Hướng dẫn ${escapeHtml(rule.title)}">
+            <div class="stats-recent100-help-head">
+              <div class="stats-recent100-help-title">
+                <span>?</span>
+                <strong>Hướng dẫn ${escapeHtml(rule.title)}</strong>
+              </div>
+            </div>
+            <div class="stats-recent100-help-body">
+              <section class="stats-recent100-help-section is-choose">
+                <h4>Cách chọn số</h4>
+                ${renderStatsRecentHelpList(rule.chooseLines)}
+              </section>
+              <section class="stats-recent100-help-section is-limits">
+                <h4>Số bộ tối đa</h4>
+                <div class="stats-recent100-help-card">
+                  <div><span>Giới hạn</span><strong>${escapeHtml(rule.maxSets)}</strong></div>
+                  ${Array.isArray(rule.kenoRanks) ? rule.kenoRanks.map(([label, value]) => `
+                    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+                  `).join("") : ""}
+                </div>
+              </section>
+              <section class="stats-recent100-help-section is-legend">
+                <h4>Chú thích màu</h4>
+                <div class="stats-recent100-help-legend">
+                  <div><span class="stats-recent100-help-dot is-yellow"></span><strong>Vàng: thống kê</strong></div>
+                  <div><span class="stats-recent100-help-dot is-purple"></span><strong>Tím: dự đoán</strong></div>
+                  <div><span class="stats-recent100-help-dot is-green"></span><strong>Xanh: đúng</strong></div>
+                  <div><span class="stats-recent100-help-dot is-red"></span><strong>Đỏ: sai</strong></div>
+                  <div><span class="stats-recent100-help-star">★</span><strong>${escapeHtml(starLegendText)}</strong></div>
+                </div>
+              </section>
+              <section class="stats-recent100-help-section is-note">
+                <h4>Lưu ý</h4>
+                ${renderStatsRecentHelpList(rule.notes)}
+              </section>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderStatsRecentColorLegend() {
       return `
         <div class="stats-recent100-color-balls" aria-label="Chú thích màu bóng">
@@ -1534,16 +1770,337 @@
       `;
     }
 
+    function getStatsModernRangeText(type, { special = false } = {}) {
+      const config = TYPES[type] || {};
+      if (TYPES[type]?.threeDigit) return "000 - 999";
+      const min = special ? config.specialMin : config.mainMin;
+      const max = special ? config.specialMax : config.mainMax;
+      return `${min} - ${max}`;
+    }
+
+    function getStatsModernOrderedItems(type, countByValue, fallbackItems = [], { special = false, limit = null } = {}) {
+      const config = TYPES[type] || {};
+      const map = countByValue instanceof Map ? countByValue : new Map();
+      if (TYPES[type]?.threeDigit && !special) {
+        return (Array.isArray(fallbackItems) ? fallbackItems : [])
+          .slice(0, Number(limit || 50))
+          .map(item => ({
+            value: Number(item?.value),
+            count: Number(item?.count || 0),
+            label: getStatsDisplayLabel(type, item?.value),
+          }));
+      }
+      const min = special ? config.specialMin : config.mainMin;
+      const max = special ? config.specialMax : config.mainMax;
+      return range(min, max).map(value => ({
+        value: Number(value),
+        count: Number(map.get(Number(value)) || 0),
+        label: getStatsDisplayLabel(type, value, special),
+      }));
+    }
+
+    function getStatsModernMetricItem(items, fallback = null) {
+      const item = Array.isArray(items) && items.length ? items[0] : fallback;
+      if (!item) return null;
+      return {
+        ...item,
+        value: Number(item.value),
+        count: Number(item.count || 0),
+        gap: Number(item.gap || 0),
+      };
+    }
+
+    function renderStatsModernLegend(type) {
+      const normalizedType = normalizeStatsType(type);
+      const markerLabel = normalizedType === "KENO" ? "Kết quả kỳ trước" : "Số ĐB";
+      return `
+        <div class="stats-modern-legend" aria-label="Chú thích màu">
+          <span><i class="stats-modern-dot is-yellow"></i>Số thống kê thường</span>
+          <span><i class="stats-modern-dot is-purple"></i>Dự đoán hiện tại</span>
+          <span><i class="stats-modern-dot is-green"></i>Đúng kỳ trước</span>
+          <span><i class="stats-modern-dot is-red"></i>Sai kỳ trước</span>
+          <span><i class="stats-modern-star">★</i>${escapeHtml(markerLabel)}</span>
+        </div>
+      `;
+    }
+
+    function renderStatsModernTypePicker(type, currentTypeMeta) {
+      return `
+        <div class="stats-modern-select" aria-label="Chọn loại vé thống kê">
+          <button type="button" class="stats-modern-select-trigger" aria-haspopup="menu">
+            <span class="stats-modern-select-text">
+              <span class="stats-modern-select-label">Loại</span>
+              <strong class="stats-modern-select-value">${escapeHtml(currentTypeMeta.label)}</strong>
+            </span>
+            <span class="stats-modern-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="stats-modern-select-menu" role="menu">
+            ${STATS_TYPE_OPTIONS.map(option => `
+              <button
+                type="button"
+                class="stats-modern-select-option${option.value === type ? " is-active" : ""}"
+                data-stats-recent-type="${escapeHtml(option.value)}"
+                role="menuitemradio"
+                aria-checked="${option.value === type ? "true" : "false"}"
+              >${escapeHtml(option.label)}</button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStatsModernModePicker(recentMode) {
+      const label = STATS_RECENT_MODE_OPTIONS.find(option => option.value === recentMode)?.label || "Kỳ";
+      return `
+        <div class="stats-modern-select" aria-label="Chọn hình thức thống kê">
+          <button type="button" class="stats-modern-select-trigger" aria-haspopup="menu">
+            <span class="stats-modern-select-text">
+              <span class="stats-modern-select-label">Hình thức</span>
+              <strong class="stats-modern-select-value">${escapeHtml(label)}</strong>
+            </span>
+            <span class="stats-modern-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="stats-modern-select-menu" role="menu">
+            ${STATS_RECENT_MODE_OPTIONS.map(option => `
+              <button
+                type="button"
+                class="stats-modern-select-option${option.value === recentMode ? " is-active" : ""}"
+                data-stats-recent-mode="${escapeHtml(option.value)}"
+                role="menuitemradio"
+                aria-checked="${option.value === recentMode ? "true" : "false"}"
+              >${escapeHtml(option.label)}</button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStatsModernWindowButtons(recentWindowOptions, recentWindow, recentMode) {
+      return `
+        <div class="stats-modern-window-buttons" aria-label="Chọn phạm vi hiển thị">
+          ${recentWindowOptions.map(option => `
+            <button
+              type="button"
+              class="stats-modern-window-btn${option === recentWindow ? " is-active" : ""}"
+              data-stats-recent-window="${escapeHtml(String(option))}"
+              aria-pressed="${option === recentWindow ? "true" : "false"}"
+            >${escapeHtml(getStatsRecentWindowLabel(option, recentMode))}</button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderStatsModernNumberCard(type, item, {
+      hitNumberSet = null,
+      missedNumberSet = null,
+      currentPredictionSet = null,
+      specialMarkerSet = null,
+      pickRole = "main",
+      compact = false,
+      showSpecialMarker = false,
+      countLabel = "lần",
+    } = {}) {
+      const value = Number(item?.value);
+      const label = item?.label || getStatsDisplayLabel(type, value, pickRole === "special");
+      const markerSet = specialMarkerSet instanceof Set ? specialMarkerSet : new Set();
+      const hasSpecialMarker = showSpecialMarker || markerSet.has(value);
+      return `
+        <button
+          type="button"
+          class="stats-modern-number ${compact ? "is-compact" : ""} ${getStatsRecent100BallClass(value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
+          data-stats-recent-pick="${value}"
+          data-stats-recent-pick-role="${escapeHtml(pickRole)}"
+          aria-label="Chọn số ${escapeHtml(label)}"
+        >
+          ${hasSpecialMarker ? `<span class="stats-modern-number-star" aria-hidden="true">★</span>` : ""}
+          <span class="stats-modern-number-value">${escapeHtml(label)}</span>
+          <span class="stats-modern-number-count">${escapeHtml(`${formatLiveSyncCount(item?.count || 0)} ${countLabel}`)}</span>
+        </button>
+      `;
+    }
+
+    function renderStatsModernNumberGrid(type, items, options = {}) {
+      const gridClass = getStatsRecentGridClass(type);
+      return `
+        <div class="stats-modern-number-grid ${gridClass}">
+          ${(Array.isArray(items) ? items : []).map(item => renderStatsModernNumberCard(type, item, options)).join("")}
+        </div>
+      `;
+    }
+
+    function renderStatsModernPanelTitle(icon, title, subtitle = "") {
+      return `
+        <div class="stats-modern-panel-title">
+          <span class="stats-modern-panel-icon">${escapeHtml(icon)}</span>
+          <div>
+            <h3>${escapeHtml(title)}</h3>
+            ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function normalizeStatsModernInsightTab(value) {
+      const key = String(value || "").trim().toLowerCase();
+      return ["most", "least", "overdue"].includes(key) ? key : "most";
+    }
+
+    function renderStatsModernInsightPanel(type, { mostItems = [], leastItems = [], overdueItems = [] } = {}) {
+      const tabs = [
+        { key: "most", label: "Nhiều nhất", items: mostItems, valueKey: "count", unit: "lần" },
+        { key: "least", label: "Ít nhất", items: leastItems, valueKey: "count", unit: "lần" },
+        { key: "overdue", label: "Chưa về", items: overdueItems, valueKey: "gap", unit: "kỳ" },
+      ];
+      const activeKey = normalizeStatsModernInsightTab(statsModernInsightTab);
+      const activeTab = tabs.find(tab => tab.key === activeKey) || tabs[0];
+      const maxItems = statsModernInsightExpanded ? 20 : 10;
+      const topItems = (Array.isArray(activeTab.items) ? activeTab.items : []).slice(0, maxItems);
+      const rowCount = Math.ceil(topItems.length / 2);
+      const canExpand = (Array.isArray(activeTab.items) ? activeTab.items.length : 0) > 10;
+      return `
+        <section class="stats-modern-card stats-modern-insight">
+          ${renderStatsModernPanelTitle("♢", "Nhận định")}
+          <div class="stats-modern-tabs" aria-label="Nhóm nhận định">
+            ${tabs.map(tab => `
+              <button
+                type="button"
+                class="${tab.key === activeKey ? "is-active" : ""}"
+                data-stats-modern-insight-tab="${escapeHtml(tab.key)}"
+                aria-pressed="${tab.key === activeKey ? "true" : "false"}"
+              >${escapeHtml(tab.label)}</button>
+            `).join("")}
+          </div>
+          <div class="stats-modern-rank-list">
+            ${Array.from({ length: rowCount }, (_, rowIndex) => [topItems[rowIndex], topItems[rowIndex + rowCount]]).map((pair, rowIndex) => `
+              <div class="stats-modern-rank-row">
+                ${pair.map((item, index) => item ? `
+                  <div class="stats-modern-rank-cell">
+                    <span class="stats-modern-rank-index">${rowIndex + 1 + (index ? rowCount : 0)}</span>
+                    <span class="stats-modern-rank-ball">${escapeHtml(item.label || getStatsDisplayLabel(type, item.value))}</span>
+                    <strong>${escapeHtml(`${formatLiveSyncCount(item[activeTab.valueKey] || 0)} ${activeTab.unit}`)}</strong>
+                  </div>
+                ` : `<div class="stats-modern-rank-cell is-empty"></div>`).join("")}
+              </div>
+            `).join("")}
+          </div>
+          ${canExpand ? `
+            <button
+              type="button"
+              class="stats-modern-view-all"
+              data-stats-modern-insight-toggle="1"
+              aria-expanded="${statsModernInsightExpanded ? "true" : "false"}"
+            >${statsModernInsightExpanded ? "Thu gọn" : "Xem đầy đủ"} <span>›</span></button>
+          ` : ""}
+        </section>
+      `;
+    }
+
+    function renderStatsModernMetricCard(title, item, valueKey, icon, tone, type, { special = false } = {}) {
+      const label = item ? getStatsDisplayLabel(type, item.value, special) : "--";
+      const value = item ? (valueKey === "gap" ? item.gap : item.count) : 0;
+      const unit = valueKey === "gap" ? "kỳ" : "lần";
+      return `
+        <article class="stats-modern-metric is-${escapeHtml(tone)}">
+          <div class="stats-modern-metric-head">
+            <span>${escapeHtml(icon)}</span>
+            <strong>${escapeHtml(title)}</strong>
+          </div>
+          <div class="stats-modern-metric-body">
+            <span>${escapeHtml(label)}</span>
+            <small>${escapeHtml(`${formatLiveSyncCount(value)} ${unit}`)}</small>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderStatsModernSummaryMetricCard(title, label, detail, icon, tone) {
+      return `
+        <article class="stats-modern-metric is-${escapeHtml(tone)}">
+          <div class="stats-modern-metric-head">
+            <span>${escapeHtml(icon)}</span>
+            <strong>${escapeHtml(title)}</strong>
+          </div>
+          <div class="stats-modern-metric-body">
+            <span>${escapeHtml(label)}</span>
+            <small>${escapeHtml(detail)}</small>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderStatsModernMetrics(type, { mostItems, leastItems, overdueItems, specialMostItems, hitNumberSet, missedNumberSet, countByValue, latestActualSet = null, latestEntry = null }) {
+      const hot = getStatsModernMetricItem(mostItems);
+      const cold = getStatsModernMetricItem(leastItems);
+      const overdue = getStatsModernMetricItem(overdueItems);
+      const specialHot = getStatsModernMetricItem(specialMostItems, hot);
+      const hitValue = hitNumberSet instanceof Set ? [...hitNumberSet][0] : null;
+      const missedValue = missedNumberSet instanceof Set ? [...missedNumberSet][0] : null;
+      const hitItem = Number.isInteger(Number(hitValue)) ? { value: Number(hitValue), count: Number(countByValue?.get(Number(hitValue)) || 0) } : null;
+      const missedItem = Number.isInteger(Number(missedValue)) ? { value: Number(missedValue), count: Number(countByValue?.get(Number(missedValue)) || 0) } : null;
+      const latestActualCount = latestActualSet instanceof Set ? latestActualSet.size : 0;
+      const latestActualMetric = normalizeStatsType(type) === "KENO"
+        ? renderStatsModernSummaryMetricCard(
+            "Kỳ trước",
+            latestActualCount ? `${latestActualCount} số` : "--",
+            latestEntry?.ky ? `Kỳ ${formatLiveKy(latestEntry.ky)}` : "Chưa có dữ liệu",
+            "★",
+            "special"
+          )
+        : renderStatsModernMetricCard("Số ĐB", specialHot, "count", "★", "special", type, { special: TYPES[type]?.hasSpecial });
+      return `
+        <div class="stats-modern-metrics">
+          ${renderStatsModernMetricCard("Nóng nhất", hot, "count", "🔥", "hot", type)}
+          ${renderStatsModernMetricCard("Lạnh nhất", cold, "count", "❄", "cold", type)}
+          ${renderStatsModernMetricCard("Chưa về lâu", overdue, "gap", "⌛", "overdue", type)}
+          ${latestActualMetric}
+          ${renderStatsModernMetricCard("Đúng kỳ trước", hitItem, "count", "✓", "hit", type)}
+          ${renderStatsModernMetricCard("Sai kỳ trước", missedItem, "count", "✕", "missed", type)}
+        </div>
+      `;
+    }
+
+    function renderStatsModernConfigCards(type) {
+      const rule = getStatsRecentHelpRule(type);
+      const mainText = typeof rule.mainCount === "number"
+        ? `${rule.mainCount} số từ ${rule.mainRange}`
+        : `${rule.mainCount}`;
+      return `
+        <section class="stats-modern-card stats-modern-config">
+          ${renderStatsModernPanelTitle("⚙", "Cấu hình vé")}
+          <div class="stats-modern-config-lines">
+            <div><span>Loại</span><strong>${escapeHtml(rule.title)}</strong></div>
+            <div><span>${escapeHtml(rule.mainLabel)}</span><strong>${escapeHtml(mainText)}</strong></div>
+            <div><span>Số ĐB</span><strong>${rule.hasSpecial ? escapeHtml(`${rule.specialCount} số từ ${rule.specialRange}`) : "Không có"}</strong></div>
+            <div><span>Số bộ tối đa</span><strong>${escapeHtml(rule.maxSets)}</strong></div>
+          </div>
+        </section>
+        <section class="stats-modern-card stats-modern-notes">
+          ${renderStatsModernPanelTitle("✓", "Quy tắc & lưu ý")}
+          <ul>
+            ${(Array.isArray(rule.notes) ? rule.notes : []).slice(0, 3).map(note => `<li>${escapeHtml(note)}</li>`).join("")}
+          </ul>
+        </section>
+      `;
+    }
+
     function renderStatsRecentSelectedPanel(type, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null, countByValue = null } = {}) {
       const config = getStatsRecentTicketConfig(type);
       const selectedSets = getStatsRecentSelectedSets(type);
       const activeSetIndex = getStatsRecentActiveSetIndex(type);
       const activeSet = selectedSets[activeSetIndex] || createStatsRecentTicketSet();
+      const visibleRows = Array.from({ length: config.maxSets }, (_, index) => ({
+        index,
+        set: selectedSets[index] || createStatsRecentTicketSet(),
+      })).filter(({ set }) => set.main.length || set.special !== null);
+      const filledSetCount = selectedSets.filter(set => (set?.main?.length || 0) || set?.special !== null).length;
+      const selectedSummary = type === "KENO"
+        ? `Bộ ${activeSetIndex + 1}: ${activeSet.main.length}/${config.mainCount}`
+        : `${filledSetCount}/${config.maxSets}`;
       const hasSelection = activeSet.main.length > 0 || activeSet.special !== null;
       const renderTicketBall = (value, setIndex, role = "main") => `
         <button
           type="button"
-          class="stats-recent100-ticket-ball stats-recent100-ball ${getStatsRecent100BallClass(value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
+          class="stats-modern-picked-ball ${getStatsRecent100BallClass(value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
           data-stats-recent-selected-remove="${Number(value)}"
           data-stats-recent-selected-set="${Number(setIndex)}"
           data-stats-recent-selected-role="${escapeHtml(role)}"
@@ -1551,51 +2108,47 @@
         >${escapeHtml(getStatsDisplayLabel(type, value))}</button>
       `;
       return `
-        <div class="stats-recent100-selected-panel">
-          <div class="stats-recent100-selected-head">
-            <div class="stats-recent100-set-picker">
-              <button
-                type="button"
-                class="stats-recent100-set-trigger"
-                aria-haspopup="menu"
-                aria-label="Chọn bộ số đang thao tác"
-              >Bộ Số Bạn Chọn: Bộ ${activeSetIndex + 1}</button>
-              <div class="stats-recent100-set-menu" role="menu" aria-label="Chọn bộ số">
-                ${Array.from({ length: config.maxSets }, (_, index) => `
-                  <button
-                    type="button"
-                    class="stats-recent100-set-option${index === activeSetIndex ? " is-active" : ""}"
-                    data-stats-recent-active-set="${index}"
-                    role="menuitemradio"
-                    aria-checked="${index === activeSetIndex ? "true" : "false"}"
-                  >Bộ ${index + 1}</button>
-                `).join("")}
-              </div>
+        <section class="stats-modern-card stats-modern-selected-panel">
+          <div class="stats-modern-selected-head">
+            <div>
+              <span class="stats-modern-selected-icon">↻</span>
+              <strong>Bộ số đang chọn</strong>
+              <small>(${selectedSummary})</small>
             </div>
             <button
               type="button"
-              class="stats-recent100-clear-btn"
+              class="stats-modern-clear-btn"
               data-stats-recent-clear="1"
               ${hasSelection ? "" : "disabled"}
             >Xóa</button>
           </div>
-          <div class="stats-recent100-ticket-list${hasSelection ? "" : " is-empty"}">
-            ${hasSelection ? `
-              <div class="stats-recent100-ticket-row">
-                <div class="stats-recent100-ticket-label">Bộ ${activeSetIndex + 1}:</div>
-                <div class="stats-recent100-ticket-main">
-                  ${activeSet.main.length ? activeSet.main.map(value => renderTicketBall(value, activeSetIndex, "main")).join("") : `<span class="stats-recent100-ticket-placeholder">0/${config.mainCount}</span>`}
+          <div class="stats-modern-set-tabs" aria-label="Chọn bộ số đang thao tác">
+            ${Array.from({ length: config.maxSets }, (_, index) => `
+              <button
+                type="button"
+                class="${index === activeSetIndex ? "is-active" : ""}"
+                data-stats-recent-active-set="${index}"
+                aria-pressed="${index === activeSetIndex ? "true" : "false"}"
+              >Bộ ${index + 1}</button>
+            `).join("")}
+          </div>
+          <div class="stats-modern-selected-list${visibleRows.length ? "" : " is-empty"}">
+            ${visibleRows.length ? visibleRows.map(({ index, set }) => `
+              <div class="stats-modern-selected-row${index === activeSetIndex ? " is-active" : ""}">
+                <button type="button" class="stats-modern-selected-row-label" data-stats-recent-active-set="${index}">Bộ ${index + 1}</button>
+                <div class="stats-modern-selected-balls">
+                  ${set.main.length ? set.main.map(value => renderTicketBall(value, index, "main")).join("") : `<span class="stats-modern-selected-placeholder">${set.main.length}/${config.mainCount}</span>`}
                   ${config.hasSpecial ? `
-                    <span class="stats-recent100-ticket-special-label">${escapeHtml(config.specialLabel)}:</span>
-                    ${activeSet.special !== null
-                      ? renderTicketBall(activeSet.special, activeSetIndex, "special")
-                      : `<span class="stats-recent100-ticket-special-empty">--</span>`}
+                    <span class="stats-modern-special-text">${escapeHtml(config.specialLabel)}:</span>
+                    ${set.special !== null
+                      ? renderTicketBall(set.special, index, "special")
+                      : `<span class="stats-modern-selected-placeholder">--</span>`}
                   ` : ""}
                 </div>
               </div>
-            ` : `<span class="stats-recent100-selected-empty">Chọn Bộ ${activeSetIndex + 1}, rồi bấm bóng ở bảng bên phải</span>`}
+            `).join("") : `<span class="stats-modern-selected-empty">Chọn Bộ ${activeSetIndex + 1}, rồi bấm số trong bảng tần suất.</span>`}
           </div>
-        </div>
+        </section>
       `;
     }
 
@@ -1658,7 +2211,6 @@
       const recentWindow = statsRecentWindowValue;
       const recentWindowOptions = getStatsRecentWindowOptions(recentMode);
       const { computation, pending } = getStatsRecentComputation(type, sourceEntries, recentMode, recentWindow, { preferWorker: true });
-      const frequencyItems = computation?.frequencyItems || [];
       const displayItems = computation?.displayItems || [];
       const countByValue = computation?.countByValue || new Map();
       const mostItems = computation?.mostItems || [];
@@ -1666,118 +2218,119 @@
       const overdueItems = computation?.overdueItems || [];
       const gridClass = getStatsRecentGridClass(type);
       const currentTypeMeta = getStatsTypeUiMeta(type);
+      const typeConfig = TYPES[type] || {};
+      const latestEntry = sourceEntries[sourceEntries.length - 1] || null;
+      const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
+      const recentEntries = filterStatsRecentEntriesByMode(sourceEntries, recentMode, recentWindow);
+      const specialFrequencyItems = typeConfig.hasSpecial ? buildStatsFrequencyItems(type, recentEntries, { special: true }) : [];
+      const specialCountByValue = new Map(specialFrequencyItems.map(item => [Number(item.value), Number(item.count || 0)]));
+      const specialMostItems = specialFrequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
+      const specialCurrentPredictionSet = getStatsLatestSpecialPredictionHighlight(type, latestEntry).numbers;
+      const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
+      const specialHitSet = getStatsLatestHitSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
+      const specialMissedSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
+      const specialMarkerSet = new Set([
+        ...specialCurrentPredictionSet,
+        ...specialHitSet,
+        ...specialMissedSet,
+        ...(type === "KENO" ? [...latestActualSet] : []),
+        ...(typeConfig.hasSpecial ? specialMostItems.slice(0, 4).map(item => Number(item.value)) : []),
+      ]);
       const titleText = getStatsRecentPanelTitle(recentWindow, recentMode);
+      const windowBadge = getStatsRecentWindowLabel(recentWindow, recentMode);
+      const mainItems = getStatsModernOrderedItems(type, countByValue, displayItems, {
+        limit: TYPES[type]?.threeDigit ? 50 : null,
+      });
+      const specialItems = typeConfig.hasSpecial
+        ? getStatsModernOrderedItems(type, specialCountByValue, specialFrequencyItems, { special: true })
+        : [];
+      const mainPanelTitle = TYPES[type]?.threeDigit
+        ? (type === "MAX_3D_PRO" ? "Tần suất 100 kỳ gần nhất" : "Số nổi bật 3D")
+        : type === "KENO"
+          ? `${titleText}`
+          : `Số chính (${getStatsModernRangeText(type)})`;
+      const mainPanelSubtitle = TYPES[type]?.threeDigit
+        ? getStatsModernRangeText(type)
+        : type === "KENO"
+          ? "Dải số 1 - 80"
+          : "";
       return `
-        <section class="stats-recent100-section ${gridClass}">
-          <div class="stats-recent100-layout">
-            <div class="stats-recent100-main">
-              <div class="stats-recent100-head">
-                <div class="stats-recent100-type-picker">
-                  <button type="button" class="stats-recent100-type-btn" aria-haspopup="menu" aria-label="Chọn loại vé thống kê">Loại: ${escapeHtml(currentTypeMeta.label)}</button>
-                  <div class="stats-recent100-type-menu" role="menu" aria-label="Chọn loại vé thống kê">
-                    ${STATS_TYPE_OPTIONS.map(option => `
-                      <button
-                        type="button"
-                        class="stats-recent100-type-option${option.value === type ? " is-active" : ""}"
-                        data-stats-recent-type="${escapeHtml(option.value)}"
-                        role="menuitemradio"
-                        aria-checked="${option.value === type ? "true" : "false"}"
-                      >${escapeHtml(option.label)}</button>
-                    `).join("")}
-                  </div>
-                </div>
-                <div class="stats-recent100-title-picker">
-                  <button type="button" class="stats-recent100-title" aria-haspopup="menu" aria-label="Chọn phạm vi thống kê">${escapeHtml(titleText)}</button>
-                  <div class="stats-recent100-title-menu" role="menu" aria-label="Chọn phạm vi thống kê">
-                    ${recentWindowOptions.map(option => `
-                      <button
-                        type="button"
-                        class="stats-recent100-title-option${option === recentWindow ? " is-active" : ""}"
-                        data-stats-recent-window="${escapeHtml(String(option))}"
-                        role="menuitemradio"
-                        aria-checked="${option === recentWindow ? "true" : "false"}"
-                      >${escapeHtml(getStatsRecentWindowLabel(option, recentMode))}</button>
-                    `).join("")}
-                  </div>
-                </div>
-                <div class="stats-recent100-refresh-timer" aria-label="Thời gian còn lại tới lần tự làm mới thống kê">
-                  <span>Làm mới</span>
-                  <strong data-stats-refresh-countdown>${escapeHtml(getStatsRefreshCountdownText())}</strong>
-                </div>
-              </div>
-              <div class="stats-recent100-content">
-                <aside class="stats-recent100-sidebar" aria-label="Bộ lọc thống kê nhanh">
-                  <div class="stats-recent100-control-block">
-                    <div class="stats-recent100-mode-picker">
-                      <button
-                        type="button"
-                        class="stats-recent100-mode-trigger"
-                        aria-haspopup="menu"
-                        aria-label="Chọn hình thức hiển thị thống kê"
-                      >Hình Thức: ${escapeHtml(STATS_RECENT_MODE_OPTIONS.find(option => option.value === recentMode)?.label || "Kỳ")}</button>
-                      <div class="stats-recent100-mode-menu" role="menu" aria-label="Chọn Ngày hoặc Kỳ">
-                        ${STATS_RECENT_MODE_OPTIONS.map(option => `
-                          <button
-                            type="button"
-                            class="stats-recent100-mode-btn${option.value === recentMode ? " is-active" : ""}"
-                            data-stats-recent-mode="${escapeHtml(option.value)}"
-                            role="menuitemradio"
-                            aria-checked="${option.value === recentMode ? "true" : "false"}"
-                          >${escapeHtml(option.label)}</button>
-                        `).join("")}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="stats-recent100-control-block">
-                    <div class="stats-recent100-sidebar-label">Hiển thị:</div>
-                    <div class="stats-recent100-range-grid">
-                      ${recentWindowOptions.map(option => `
-                        <button
-                          type="button"
-                          class="stats-recent100-range-btn${option === recentWindow ? " is-active" : ""}"
-                          data-stats-recent-window="${escapeHtml(String(option))}"
-                          aria-pressed="${option === recentWindow ? "true" : "false"}"
-                        >${escapeHtml(getStatsRecentWindowLabel(option, recentMode))}</button>
-                      `).join("")}
-                    </div>
-                  </div>
-                  ${renderStatsRecentColorLegend()}
-                  <div data-stats-recent-selected-host>${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}</div>
-                </aside>
-                <div class="stats-recent100-board">
-                  ${pending ? `
-                    <div class="stats-recent100-loading">Đang tính thống kê trong nền...</div>
-                  ` : `
-                    <div class="stats-recent100-number-grid ${gridClass}">
-                      ${displayItems.map(item => `
-                      <div class="stats-recent100-number-card">
-                        <button
-                          type="button"
-                          class="stats-recent100-ball ${getStatsRecent100BallClass(item?.value, hitNumberSet, missedNumberSet, currentPredictionSet)}"
-                          data-stats-recent-pick="${Number(item?.value)}"
-                          aria-label="Chọn số ${escapeHtml(item.label)}"
-                        >${escapeHtml(item.label)}</button>
-                        <span class="stats-recent100-count">${escapeHtml(`${formatLiveSyncCount(item.count)} lần`)}</span>
-                      </div>
-                      `).join("")}
-                    </div>
-                  `}
-                </div>
-              </div>
+        <section class="stats-modern-shell ${gridClass}">
+          <div class="stats-modern-top">
+            <div class="stats-modern-title-wrap">
+              <h2>Thống kê ${escapeHtml(currentTypeMeta.label)}</h2>
+              <span>${escapeHtml(windowBadge)} gần nhất</span>
             </div>
-            <div class="stats-recent100-side">
-              ${pending ? `
-                <section class="stats-recent100-side-panel stats-recent100-side-loading">
-                  <div class="stats-recent100-side-title">Đang tải</div>
-                  <div class="stats-recent100-loading">Worker đang tính 3 bảng...</div>
-                </section>
-              ` : `
-                ${renderStatsRecent100Table("Nhiều Nhất", mostItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
-                ${renderStatsRecent100Table("Ít Nhất", leastItems, "count", { hitNumberSet, missedNumberSet, currentPredictionSet })}
-                ${renderStatsRecent100Table("Chưa Về", overdueItems, "gap", { hitNumberSet, missedNumberSet, currentPredictionSet })}
-              `}
+            <div class="stats-modern-refresh-help">
+              <div class="stats-recent100-refresh-timer stats-modern-refresh" aria-label="Thời gian còn lại tới lần tự làm mới thống kê">
+                <span>Làm mới</span>
+                <strong data-stats-refresh-countdown>${escapeHtml(getStatsRefreshCountdownText())}</strong>
+              </div>
+              ${renderStatsRecentHelpPopover(type)}
             </div>
           </div>
+
+          <div class="stats-modern-controls">
+            ${renderStatsModernTypePicker(type, currentTypeMeta)}
+            ${renderStatsModernModePicker(recentMode)}
+            ${renderStatsModernWindowButtons(recentWindowOptions, recentWindow, recentMode)}
+          </div>
+
+          <div class="stats-modern-body">
+            <div class="stats-modern-left">
+              <section class="stats-modern-card stats-modern-main-card">
+                <div class="stats-modern-main-head">
+                  ${renderStatsModernPanelTitle(type === "KENO" ? "▥" : "▥", mainPanelTitle, mainPanelSubtitle)}
+                  ${renderStatsModernLegend(type)}
+                </div>
+                ${pending ? `
+                  <div class="stats-modern-loading">Đang tính thống kê trong nền...</div>
+                ` : `
+                  ${renderStatsModernNumberGrid(type, mainItems, {
+                    hitNumberSet,
+                    missedNumberSet,
+                    currentPredictionSet,
+                    specialMarkerSet,
+                    showSpecialMarker: false,
+                    countLabel: TYPES[type]?.threeDigit ? "lần" : "lần",
+                  })}
+                `}
+              </section>
+
+              ${typeConfig.hasSpecial ? `
+                <section class="stats-modern-card stats-modern-special-card">
+                  ${renderStatsModernPanelTitle("★", `${type === "LOTO_6_55" ? "Số ĐB T7" : "Số đặc biệt"} (${getStatsModernRangeText(type, { special: true })})`)}
+                  ${renderStatsModernNumberGrid(type, specialItems, {
+                    hitNumberSet: specialHitSet,
+                    missedNumberSet: specialMissedSet,
+                    currentPredictionSet: specialCurrentPredictionSet,
+                    pickRole: "special",
+                    compact: true,
+                    showSpecialMarker: false,
+                  })}
+                </section>
+              ` : ""}
+
+              <div data-stats-recent-selected-host>
+                ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}
+              </div>
+            </div>
+
+            <aside class="stats-modern-right">
+              ${pending ? `
+                <section class="stats-modern-card">
+                  ${renderStatsModernPanelTitle("…", "Đang tải")}
+                  <div class="stats-modern-loading">Worker đang tính dữ liệu thống kê...</div>
+                </section>
+                ${renderStatsModernConfigCards(type)}
+              ` : `
+                ${renderStatsModernInsightPanel(type, { mostItems, leastItems, overdueItems })}
+                ${renderStatsModernMetrics(type, { mostItems, leastItems, overdueItems, specialMostItems, hitNumberSet, missedNumberSet, countByValue, latestActualSet, latestEntry })}
+                ${renderStatsModernConfigCards(type)}
+              `}
+            </aside>
+          </div>
+          <p class="stats-modern-footnote">Lưu ý: Thống kê mang tính chất tham khảo, không đảm bảo kết quả trúng thưởng.</p>
         </section>
       `;
     }
