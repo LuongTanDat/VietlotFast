@@ -5020,7 +5020,7 @@
       margin: 0;
       padding: 0;
       border: 1px solid rgba(91, 116, 140, .76);
-      border-radius: 999px;
+      border-radius: 12px;
       background:
         radial-gradient(circle at 35% 25%, rgba(255, 255, 255, .18), transparent 38%),
         linear-gradient(180deg, #172338, #071322);

@@ -512,7 +512,7 @@
       const entries = buildStatsEntriesForFeed(type, getLiveHistoryFeed(type));
       const latestEntry = entries[entries.length - 1] || null;
       const parsed = parseLiveDate(latestEntry?.draw?.date || "");
-      return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
+      return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : getSyncedNowDate();
     }
 
     function ensureStatsCustomDateDefaults() {
@@ -663,7 +663,7 @@
       }
       if (normalizedWindow === "all") return [...entries];
       const dayCount = Math.max(1, Number(normalizedWindow) || 30);
-      const cutoff = new Date();
+      const cutoff = getSyncedNowDate();
       cutoff.setHours(0, 0, 0, 0);
       cutoff.setDate(cutoff.getDate() - (dayCount - 1));
       return entries.filter(entry => {
@@ -708,11 +708,16 @@
 
     function buildStatsLatestActualNumberSet(type, latestEntry) {
       if (!latestEntry?.draw) return new Set();
+      return buildStatsActualNumberSetFromDraw(type, latestEntry.draw);
+    }
+
+    function buildStatsActualNumberSetFromDraw(type, draw) {
+      if (!draw) return new Set();
       if (TYPES[type]?.threeDigit) {
-        return new Set(extractThreeDigitTokensFromLines(latestEntry.draw?.displayLines));
+        return new Set(extractThreeDigitTokensFromLines(draw?.displayLines));
       }
       return new Set(
-        (Array.isArray(latestEntry.draw?.main) ? latestEntry.draw.main : [])
+        (Array.isArray(draw?.main) ? draw.main : [])
           .map(value => Number(value))
           .filter(value => Number.isInteger(value))
       );
@@ -720,7 +725,12 @@
 
     function buildStatsLatestActualSpecialSet(type, latestEntry) {
       if (!TYPES[type]?.hasSpecial || !latestEntry?.draw) return new Set();
-      const specialValue = Number(latestEntry.draw?.special);
+      return buildStatsActualSpecialSetFromDraw(type, latestEntry.draw);
+    }
+
+    function buildStatsActualSpecialSetFromDraw(type, draw) {
+      if (!TYPES[type]?.hasSpecial || !draw) return new Set();
+      const specialValue = Number(draw?.special);
       return Number.isInteger(specialValue) ? new Set([specialValue]) : new Set();
     }
 
@@ -728,19 +738,23 @@
       const logs = ensurePredictionLogBucket(type)
         .filter(entry => Array.isArray(entry?.tickets) && entry.tickets.length);
       if (!logs.length) return { entry: null, numbers: new Set() };
-      const targetNextKyValue = (kySortValue(latestEntry?.ky) || 0) + 1;
+      const latestKyValue = kySortValue(latestEntry?.ky) || 0;
+      const targetNextKyValue = latestKyValue + 1;
       const preferredLogs = targetNextKyValue
         ? logs.filter(entry => kySortValue(entry?.predictedKy) === targetNextKyValue)
         : [];
-      if (targetNextKyValue && !preferredLogs.length) return { entry: null, numbers: new Set() };
-      const candidateLogs = preferredLogs.length ? preferredLogs : logs;
+      const futureLogs = latestKyValue
+        ? logs.filter(entry => !entry?.resolved && kySortValue(entry?.predictedKy) > latestKyValue)
+        : [];
+      if (targetNextKyValue && !preferredLogs.length && !futureLogs.length) return { entry: null, numbers: new Set() };
+      const candidateLogs = preferredLogs.length ? preferredLogs : (futureLogs.length ? futureLogs : logs);
       const sorted = [...candidateLogs].sort((a, b) => {
         const kyDelta = kySortValue(b?.predictedKy) - kySortValue(a?.predictedKy);
         if (kyDelta !== 0) return kyDelta;
         return (Date.parse(String(b?.createdAt || "").trim()) || 0) - (Date.parse(String(a?.createdAt || "").trim()) || 0);
       });
       const entry = sorted[0] || null;
-      const highlightLimit = 10;
+      const highlightLimit = type === "KENO" ? 20 : 10;
       const rankedNumbers = Array.isArray(entry?.topMainRanking)
         ? entry.topMainRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
         : [];
@@ -753,6 +767,28 @@
         entry,
         numbers: collectOrderedHighlightNumbers(rankedNumbers, usageRanking, highlightLimit),
       };
+    }
+
+    function buildStatsRecentFallbackPredictionSet(type, { mostItems = [], overdueItems = [] } = {}) {
+      if (normalizeStatsType(type) !== "KENO") return new Set();
+      const ordered = [];
+      const seen = new Set();
+      const limit = 20;
+      const sources = [mostItems, overdueItems];
+      for (let index = 0; ordered.length < limit; index++) {
+        let pushed = false;
+        for (const source of sources) {
+          const item = Array.isArray(source) ? source[index] : null;
+          const numeric = Number(item?.value);
+          if (!Number.isInteger(numeric) || seen.has(numeric)) continue;
+          seen.add(numeric);
+          ordered.push(numeric);
+          pushed = true;
+          if (ordered.length >= limit) break;
+        }
+        if (!pushed && index > Math.max(...sources.map(source => Array.isArray(source) ? source.length : 0), 0)) break;
+      }
+      return new Set(ordered);
     }
 
     function getStatsLatestSpecialPredictionHighlight(type, latestEntry = null) {
@@ -815,22 +851,79 @@
       return logs[0] || null;
     }
 
-    function collectStatsPredictionMainSet(entry) {
-      const values = collectStatsHighlightNumberSetFromTickets(entry?.tickets || []);
-      if (!values.size && Array.isArray(entry?.topMainRanking)) {
-        entry.topMainRanking.forEach(value => {
-          const numeric = Number(value);
-          if (Number.isInteger(numeric)) values.add(numeric);
-        });
+    function findStatsLatestResolvedPredictionLog(type) {
+      const logs = ensurePredictionLogBucket(type)
+        .filter(entry =>
+          Array.isArray(entry?.tickets) &&
+          entry.tickets.length &&
+          entry?.resolved &&
+          (entry?.actualDraw || entry?.actualKy)
+        );
+      if (!logs.length) return null;
+      logs.sort((a, b) => {
+        const kyDelta = kySortValue(b?.actualKy || b?.predictedKy) - kySortValue(a?.actualKy || a?.predictedKy);
+        if (kyDelta !== 0) return kyDelta;
+        return getStatsPredictionLogSortTime(b) - getStatsPredictionLogSortTime(a);
+      });
+      return logs[0] || null;
+    }
+
+    function getStatsPredictionComparisonContext(type, latestEntry = null, latestActualSet = null, latestActualSpecialSet = null) {
+      const latestKy = latestEntry?.ky;
+      const directEntry = findStatsPredictionLogForKy(type, latestKy);
+      if (directEntry) {
+        return {
+          entry: directEntry,
+          isLatestEntry: true,
+          actualSet: latestActualSet instanceof Set ? latestActualSet : buildStatsLatestActualNumberSet(type, latestEntry),
+          actualSpecialSet: latestActualSpecialSet instanceof Set ? latestActualSpecialSet : buildStatsLatestActualSpecialSet(type, latestEntry),
+          label: "kỳ trước",
+        };
       }
-      return values;
+      const fallbackEntry = findStatsLatestResolvedPredictionLog(type);
+      if (!fallbackEntry) {
+        return {
+          entry: null,
+          isLatestEntry: false,
+          actualSet: new Set(),
+          actualSpecialSet: new Set(),
+          label: "kỳ trước",
+        };
+      }
+      return {
+        entry: fallbackEntry,
+        isLatestEntry: false,
+        actualSet: buildStatsActualNumberSetFromDraw(type, fallbackEntry.actualDraw),
+        actualSpecialSet: buildStatsActualSpecialSetFromDraw(type, fallbackEntry.actualDraw),
+        label: "kỳ đã chấm",
+      };
+    }
+
+    function getStatsPredictionMainLimit(type) {
+      return normalizeStatsType(type) === "KENO" ? 20 : 10;
+    }
+
+    function collectStatsPredictionMainSet(type, entry) {
+      const limit = getStatsPredictionMainLimit(type);
+      const rankedNumbers = Array.isArray(entry?.topMainRanking)
+        ? entry.topMainRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
+        : [];
+      const usageRanking = Object.entries(buildNumberUsageMap(entry?.tickets || [], "main"))
+        .map(([value, count]) => ({ value: Number(value), count: Number(count || 0) }))
+        .filter(item => Number.isInteger(item.value))
+        .sort((a, b) => b.count - a.count || a.value - b.value)
+        .map(item => item.value);
+      const predictedSet = collectOrderedHighlightNumbers(rankedNumbers, usageRanking, limit);
+      if (predictedSet.size) return predictedSet;
+      return collectOrderedHighlightNumbers([...collectStatsHighlightNumberSetFromTickets(entry?.tickets || [])], [], limit);
     }
 
     function getStatsLatestMissedPredictionSet(type, latestEntry = null, latestActualSet = null) {
-      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      const comparison = getStatsPredictionComparisonContext(type, latestEntry, latestActualSet);
+      const previousPrediction = comparison.entry;
       if (!previousPrediction) return new Set();
-      const actualSet = latestActualSet instanceof Set ? latestActualSet : buildStatsLatestActualNumberSet(type, latestEntry);
-      const predictedSet = collectStatsPredictionMainSet(previousPrediction);
+      const actualSet = comparison.actualSet instanceof Set ? comparison.actualSet : new Set();
+      const predictedSet = collectStatsPredictionMainSet(type, previousPrediction);
       const missed = new Set();
       predictedSet.forEach(value => {
         if (!actualSet.has(value)) missed.add(value);
@@ -839,10 +932,11 @@
     }
 
     function getStatsLatestHitPredictionSet(type, latestEntry = null, latestActualSet = null) {
-      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      const comparison = getStatsPredictionComparisonContext(type, latestEntry, latestActualSet);
+      const previousPrediction = comparison.entry;
       if (!previousPrediction) return new Set();
-      const actualSet = latestActualSet instanceof Set ? latestActualSet : buildStatsLatestActualNumberSet(type, latestEntry);
-      const predictedSet = collectStatsPredictionMainSet(previousPrediction);
+      const actualSet = comparison.actualSet instanceof Set ? comparison.actualSet : new Set();
+      const predictedSet = collectStatsPredictionMainSet(type, previousPrediction);
       const hits = new Set();
       predictedSet.forEach(value => {
         if (actualSet.has(value)) hits.add(value);
@@ -852,9 +946,10 @@
 
     function getStatsLatestMissedSpecialPredictionSet(type, latestEntry = null, latestActualSpecialSet = null) {
       if (!TYPES[type]?.hasSpecial) return new Set();
-      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      const comparison = getStatsPredictionComparisonContext(type, latestEntry, null, latestActualSpecialSet);
+      const previousPrediction = comparison.entry;
       if (!previousPrediction) return new Set();
-      const actualSet = latestActualSpecialSet instanceof Set ? latestActualSpecialSet : buildStatsLatestActualSpecialSet(type, latestEntry);
+      const actualSet = comparison.actualSpecialSet instanceof Set ? comparison.actualSpecialSet : new Set();
       const rankedSpecials = Array.isArray(previousPrediction?.topSpecialRanking)
         ? previousPrediction.topSpecialRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
         : [];
@@ -873,9 +968,10 @@
 
     function getStatsLatestHitSpecialPredictionSet(type, latestEntry = null, latestActualSpecialSet = null) {
       if (!TYPES[type]?.hasSpecial) return new Set();
-      const previousPrediction = findStatsPredictionLogForKy(type, latestEntry?.ky);
+      const comparison = getStatsPredictionComparisonContext(type, latestEntry, null, latestActualSpecialSet);
+      const previousPrediction = comparison.entry;
       if (!previousPrediction) return new Set();
-      const actualSet = latestActualSpecialSet instanceof Set ? latestActualSpecialSet : buildStatsLatestActualSpecialSet(type, latestEntry);
+      const actualSet = comparison.actualSpecialSet instanceof Set ? comparison.actualSpecialSet : new Set();
       const rankedSpecials = Array.isArray(previousPrediction?.topSpecialRanking)
         ? previousPrediction.topSpecialRanking.map(value => Number(value)).filter(value => Number.isInteger(value))
         : [];
@@ -1398,10 +1494,49 @@
       return { key, computation, pending: false };
     }
 
+    function normalizeStatsRecentKenoLevel(value) {
+      const numeric = Number(value);
+      if (!Number.isInteger(numeric)) return 10;
+      return Math.min(10, Math.max(1, numeric));
+    }
+
+    function getStatsRecentKenoMaxSets(level = statsRecentKenoLevelValue) {
+      const normalizedLevel = normalizeStatsRecentKenoLevel(level);
+      if (normalizedLevel <= 6) return 6;
+      if (normalizedLevel <= 8) return 4;
+      return 3;
+    }
+
+    function getStatsRecentKenoLimitText(level = statsRecentKenoLevelValue) {
+      const normalizedLevel = normalizeStatsRecentKenoLevel(level);
+      const maxSets = getStatsRecentKenoMaxSets(normalizedLevel);
+      if (normalizedLevel <= 6) return `Bậc 1-6: tối đa ${maxSets} bộ`;
+      if (normalizedLevel <= 8) return `Bậc 7-8: tối đa ${maxSets} bộ`;
+      return `Bậc 9-10: tối đa ${maxSets} bộ`;
+    }
+
+    function setStatsRecentKenoLevel(value) {
+      statsRecentKenoLevelValue = normalizeStatsRecentKenoLevel(value);
+      const sets = getStatsRecentSelectedSets("KENO");
+      statsRecentSelectedByType.KENO = { sets };
+      setStatsRecentActiveSetIndex("KENO", getStatsRecentActiveSetIndex("KENO"));
+      if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
+    }
+
     function getStatsRecentTicketConfig(type) {
       const normalized = normalizeStatsType(type);
       if (normalized === "KENO") {
-        return { maxSets: 3, mainCount: 10, hasSpecial: false, specialLabel: "", specialMin: 0, specialMax: 0 };
+        const kenoLevel = normalizeStatsRecentKenoLevel(statsRecentKenoLevelValue);
+        statsRecentKenoLevelValue = kenoLevel;
+        return {
+          maxSets: getStatsRecentKenoMaxSets(kenoLevel),
+          mainCount: kenoLevel,
+          hasSpecial: false,
+          specialLabel: "",
+          specialMin: 0,
+          specialMax: 0,
+          kenoLevel,
+        };
       }
       if (normalized === "LOTO_5_35") {
         return { maxSets: 6, mainCount: 5, hasSpecial: true, specialLabel: "ĐB", specialMin: 1, specialMax: 12 };
@@ -1466,10 +1601,16 @@
           });
         statsRecentSelectedByType[key] = { sets: migrated };
       }
-      const sets = Array.isArray(statsRecentSelectedByType[key]?.sets)
+      const sets = (Array.isArray(statsRecentSelectedByType[key]?.sets)
         ? statsRecentSelectedByType[key].sets.map(normalizeStatsRecentTicketSet)
-        : [];
+        : [])
+        .slice(0, config.maxSets)
+        .map(set => ({
+          main: set.main.slice(0, config.mainCount),
+          special: config.hasSpecial ? set.special : null,
+        }));
       statsRecentSelectedByType[key] = { sets };
+      setStatsRecentActiveSetIndex(key, getStatsRecentActiveSetIndex(key));
       return sets;
     }
 
@@ -1491,12 +1632,14 @@
         if (set.main.includes(numeric) || set.special === numeric) return;
         set.special = numeric;
         statsRecentSelectedByType[key] = { sets };
+        if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
         return;
       }
       if (set.main.length < config.mainCount) {
         if (set.main.includes(numeric) || set.special === numeric) return;
         set.main.push(numeric);
         statsRecentSelectedByType[key] = { sets };
+        if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
         return;
       }
       if (
@@ -1508,9 +1651,11 @@
         if (set.main.includes(numeric)) return;
         set.special = numeric;
         statsRecentSelectedByType[key] = { sets };
+        if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
         return;
       }
       statsRecentSelectedByType[key] = { sets };
+      if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
     }
 
     function removeStatsRecentSelectedNumber(type, value, setIndex = null, role = "main") {
@@ -1532,6 +1677,7 @@
         });
       }
       statsRecentSelectedByType[key] = { sets };
+      if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
     }
 
     function clearStatsRecentSelectedNumbers(type) {
@@ -1539,6 +1685,7 @@
       const sets = getStatsRecentSelectedSets(key);
       sets[getStatsRecentActiveSetIndex(key)] = createStatsRecentTicketSet();
       statsRecentSelectedByType[key] = { sets };
+      if (typeof saveStatsRecentSelectedState === "function") saveStatsRecentSelectedState();
     }
 
     const STATS_RECENT_HELP_RULES = {
@@ -1685,6 +1832,23 @@
       `;
     }
 
+    function renderStatsRecentHelpConfigCard(rule) {
+      const mainText = typeof rule.mainCount === "number"
+        ? `${rule.mainCount} số từ ${rule.mainRange}`
+        : `${rule.mainCount}`;
+      const specialText = rule.hasSpecial
+        ? `${rule.specialCount} số từ ${rule.specialRange}`
+        : "Không có";
+      return `
+        <div class="stats-recent100-help-card">
+          <div><span>Loại</span><strong>${escapeHtml(rule.title)}</strong></div>
+          <div><span>${escapeHtml(rule.mainLabel)}</span><strong>${escapeHtml(mainText)}</strong></div>
+          <div><span>Số ĐB</span><strong>${escapeHtml(specialText)}</strong></div>
+          <div><span>Số bộ tối đa</span><strong>${escapeHtml(rule.maxSets)}</strong></div>
+        </div>
+      `;
+    }
+
     function renderStatsRecentHelpPopover(type) {
       const rule = getStatsRecentHelpRule(type);
       const normalizedType = normalizeStatsType(type);
@@ -1706,6 +1870,10 @@
               </div>
             </div>
             <div class="stats-recent100-help-body">
+              <section class="stats-recent100-help-section is-config">
+                <h4>Cấu hình vé</h4>
+                ${renderStatsRecentHelpConfigCard(rule)}
+              </section>
               <section class="stats-recent100-help-section is-choose">
                 <h4>Cách chọn số</h4>
                 ${renderStatsRecentHelpList(rule.chooseLines)}
@@ -1810,15 +1978,15 @@
       };
     }
 
-    function renderStatsModernLegend(type) {
+    function renderStatsModernLegend(type, comparisonLabel = "kỳ trước") {
       const normalizedType = normalizeStatsType(type);
       const markerLabel = normalizedType === "KENO" ? "Kết quả kỳ trước" : "Số ĐB";
       return `
         <div class="stats-modern-legend" aria-label="Chú thích màu">
           <span><i class="stats-modern-dot is-yellow"></i>Số thống kê thường</span>
           <span><i class="stats-modern-dot is-purple"></i>Dự đoán hiện tại</span>
-          <span><i class="stats-modern-dot is-green"></i>Đúng kỳ trước</span>
-          <span><i class="stats-modern-dot is-red"></i>Sai kỳ trước</span>
+          <span><i class="stats-modern-dot is-green"></i>Đúng ${escapeHtml(comparisonLabel)}</span>
+          <span><i class="stats-modern-dot is-red"></i>Sai ${escapeHtml(comparisonLabel)}</span>
           <span><i class="stats-modern-star">★</i>${escapeHtml(markerLabel)}</span>
         </div>
       `;
@@ -1911,6 +2079,7 @@
           data-stats-recent-pick="${value}"
           data-stats-recent-pick-role="${escapeHtml(pickRole)}"
           aria-label="Chọn số ${escapeHtml(label)}"
+          title="${escapeHtml(`${label} • ${formatLiveSyncCount(item?.count || 0)} ${countLabel}`)}"
         >
           ${hasSpecialMarker ? `<span class="stats-modern-number-star" aria-hidden="true">★</span>` : ""}
           <span class="stats-modern-number-value">${escapeHtml(label)}</span>
@@ -1929,12 +2098,13 @@
     }
 
     function renderStatsModernPanelTitle(icon, title, subtitle = "") {
+      const cleanSubtitle = String(subtitle || "").replace(/^[\s•]+|[\s•]+$/g, "").trim();
       return `
         <div class="stats-modern-panel-title">
           <span class="stats-modern-panel-icon">${escapeHtml(icon)}</span>
           <div>
             <h3>${escapeHtml(title)}</h3>
-            ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}
+            ${cleanSubtitle ? `<p>${escapeHtml(cleanSubtitle)}</p>` : ""}
           </div>
         </div>
       `;
@@ -1945,7 +2115,14 @@
       return ["most", "least", "overdue"].includes(key) ? key : "most";
     }
 
-    function renderStatsModernInsightPanel(type, { mostItems = [], leastItems = [], overdueItems = [] } = {}) {
+    function renderStatsModernInsightPanel(type, {
+      mostItems = [],
+      leastItems = [],
+      overdueItems = [],
+      hitNumberSet = null,
+      missedNumberSet = null,
+      currentPredictionSet = null,
+    } = {}) {
       const tabs = [
         { key: "most", label: "Nhiều nhất", items: mostItems, valueKey: "count", unit: "lần" },
         { key: "least", label: "Ít nhất", items: leastItems, valueKey: "count", unit: "lần" },
@@ -1976,7 +2153,7 @@
                 ${pair.map((item, index) => item ? `
                   <div class="stats-modern-rank-cell">
                     <span class="stats-modern-rank-index">${rowIndex + 1 + (index ? rowCount : 0)}</span>
-                    <span class="stats-modern-rank-ball">${escapeHtml(item.label || getStatsDisplayLabel(type, item.value))}</span>
+                    <span class="stats-modern-rank-ball ${getStatsRecent100BallClass(item.value, hitNumberSet, missedNumberSet, currentPredictionSet)}">${escapeHtml(item.label || getStatsDisplayLabel(type, item.value))}</span>
                     <strong>${escapeHtml(`${formatLiveSyncCount(item[activeTab.valueKey] || 0)} ${activeTab.unit}`)}</strong>
                   </div>
                 ` : `<div class="stats-modern-rank-cell is-empty"></div>`).join("")}
@@ -2028,21 +2205,36 @@
       `;
     }
 
-    function renderStatsModernMetrics(type, { mostItems, leastItems, overdueItems, specialMostItems, hitNumberSet, missedNumberSet, countByValue, latestActualSet = null, latestEntry = null }) {
+    function renderStatsModernMetrics(type, {
+      mostItems,
+      leastItems,
+      overdueItems,
+      specialMostItems,
+      hitNumberSet,
+      missedNumberSet,
+      countByValue,
+      latestActualSet = null,
+      latestEntry = null,
+      comparisonLabel = "kỳ trước",
+      comparisonActualSet = null,
+      comparisonEntry = null,
+    }) {
       const hot = getStatsModernMetricItem(mostItems);
       const cold = getStatsModernMetricItem(leastItems);
       const overdue = getStatsModernMetricItem(overdueItems);
       const specialHot = getStatsModernMetricItem(specialMostItems, hot);
-      const hitValue = hitNumberSet instanceof Set ? [...hitNumberSet][0] : null;
-      const missedValue = missedNumberSet instanceof Set ? [...missedNumberSet][0] : null;
-      const hitItem = Number.isInteger(Number(hitValue)) ? { value: Number(hitValue), count: Number(countByValue?.get(Number(hitValue)) || 0) } : null;
-      const missedItem = Number.isInteger(Number(missedValue)) ? { value: Number(missedValue), count: Number(countByValue?.get(Number(missedValue)) || 0) } : null;
-      const latestActualCount = latestActualSet instanceof Set ? latestActualSet.size : 0;
+      const hitCount = hitNumberSet instanceof Set ? hitNumberSet.size : 0;
+      const missedCount = missedNumberSet instanceof Set ? missedNumberSet.size : 0;
+      const scoredCount = hitCount + missedCount;
+      const actualSetForMetric = comparisonActualSet instanceof Set ? comparisonActualSet : latestActualSet;
+      const actualCountForMetric = actualSetForMetric instanceof Set ? actualSetForMetric.size : 0;
+      const actualKyForMetric = comparisonEntry?.actualKy || comparisonEntry?.predictedKy || latestEntry?.ky || "";
+      const actualTitle = comparisonLabel === "kỳ đã chấm" ? "Kỳ đã chấm" : "Kỳ trước";
       const latestActualMetric = normalizeStatsType(type) === "KENO"
         ? renderStatsModernSummaryMetricCard(
-            "Kỳ trước",
-            latestActualCount ? `${latestActualCount} số` : "--",
-            latestEntry?.ky ? `Kỳ ${formatLiveKy(latestEntry.ky)}` : "Chưa có dữ liệu",
+            actualTitle,
+            actualCountForMetric ? `${actualCountForMetric} số` : "--",
+            actualKyForMetric ? `Kỳ ${formatLiveKy(actualKyForMetric)}` : "Chưa có dữ liệu",
             "★",
             "special"
           )
@@ -2053,9 +2245,78 @@
           ${renderStatsModernMetricCard("Lạnh nhất", cold, "count", "❄", "cold", type)}
           ${renderStatsModernMetricCard("Chưa về lâu", overdue, "gap", "⌛", "overdue", type)}
           ${latestActualMetric}
-          ${renderStatsModernMetricCard("Đúng kỳ trước", hitItem, "count", "✓", "hit", type)}
-          ${renderStatsModernMetricCard("Sai kỳ trước", missedItem, "count", "✕", "missed", type)}
+          ${renderStatsModernSummaryMetricCard(
+            `Đúng ${comparisonLabel}`,
+            scoredCount ? `${formatLiveSyncCount(hitCount)}/${formatLiveSyncCount(scoredCount)}` : "--",
+            scoredCount ? `${formatLiveSyncCount(hitCount)} số trùng kết quả` : "Chưa có dữ liệu chấm",
+            "✓",
+            "hit"
+          )}
+          ${renderStatsModernSummaryMetricCard(
+            `Sai ${comparisonLabel}`,
+            scoredCount ? `${formatLiveSyncCount(missedCount)}/${formatLiveSyncCount(scoredCount)}` : "--",
+            scoredCount ? `${formatLiveSyncCount(missedCount)} số không trùng` : "Chưa có dữ liệu chấm",
+            "×",
+            "missed"
+          )}
         </div>
+      `;
+    }
+
+    function getStatsPredictionSetItems(type, predictionSet, countByValue = null) {
+      const values = predictionSet instanceof Set ? [...predictionSet] : [];
+      const countMap = countByValue instanceof Map ? countByValue : new Map();
+      return values
+        .map(value => Number(value))
+        .filter(value => Number.isInteger(value))
+        .sort((a, b) => a - b)
+        .map(value => ({
+          value,
+          count: Number(countMap.get(value) || 0),
+          label: getStatsDisplayLabel(type, value),
+        }));
+    }
+
+    function renderStatsModernPredictionPanel(type, {
+      predictionSet = null,
+      predictionEntry = null,
+      isFallback = false,
+      latestEntry = null,
+      countByValue = null,
+      hitNumberSet = null,
+      missedNumberSet = null,
+    } = {}) {
+      const items = getStatsPredictionSetItems(type, predictionSet, countByValue);
+      const sourceLabel = isFallback
+        ? "Theo thống kê hiện tại"
+        : (predictionEntry ? (predictionEntry?.engineLabel || predictionEntry?.modelLabel || predictionEntry?.strategyLabel || "AI đã lưu") : "");
+      const kyLabel = predictionEntry?.predictedKy
+        ? `Kỳ ${formatLiveKy(predictionEntry.predictedKy)}`
+        : (latestEntry?.ky ? `Sau kỳ ${formatLiveKy(latestEntry.ky)}` : "");
+      const subtitle = [kyLabel, sourceLabel]
+        .map(part => String(part || "").replace(/^[\s•]+|[\s•]+$/g, "").trim())
+        .filter(Boolean)
+        .join(" • ");
+      return `
+        <section class="stats-modern-card stats-modern-prediction-card">
+          ${renderStatsModernPanelTitle("◎", "Dự đoán", subtitle)}
+          ${items.length ? `
+            <div class="stats-modern-prediction-grid ${getStatsRecentGridClass(type)}">
+              ${items.map(item => `
+                <button
+                  type="button"
+                  class="stats-modern-prediction-ball ${getStatsRecent100BallClass(item.value, hitNumberSet, missedNumberSet, predictionSet)}"
+                  data-stats-recent-pick="${Number(item.value)}"
+                  data-stats-recent-pick-role="main"
+                  aria-label="Chọn số dự đoán ${escapeHtml(item.label)}"
+                  title="${escapeHtml(`${item.label} • ${formatLiveSyncCount(item.count)} lần trong thống kê`)}"
+                >
+                  ${escapeHtml(item.label)}
+                </button>
+              `).join("")}
+            </div>
+          ` : `<div class="stats-modern-prediction-empty">Chưa có bộ dự đoán để hiển thị.</div>`}
+        </section>
       `;
     }
 
@@ -2083,7 +2344,24 @@
       `;
     }
 
+    function renderStatsRecentKenoLevelControl(config) {
+      const level = normalizeStatsRecentKenoLevel(config?.kenoLevel || statsRecentKenoLevelValue);
+      return `
+        <div class="stats-modern-keno-level-control">
+          <label for="statsRecentKenoLevel">Bậc</label>
+          <select id="statsRecentKenoLevel" data-stats-recent-keno-level aria-label="Chọn bậc Keno">
+            ${Array.from({ length: 10 }, (_, index) => {
+              const value = index + 1;
+              return `<option value="${value}"${value === level ? " selected" : ""}>Bậc ${value}</option>`;
+            }).join("")}
+          </select>
+          <small>${escapeHtml(getStatsRecentKenoLimitText(level))}</small>
+        </div>
+      `;
+    }
+
     function renderStatsRecentSelectedPanel(type, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null, countByValue = null } = {}) {
+      const normalizedType = normalizeStatsType(type);
       const config = getStatsRecentTicketConfig(type);
       const selectedSets = getStatsRecentSelectedSets(type);
       const activeSetIndex = getStatsRecentActiveSetIndex(type);
@@ -2093,8 +2371,9 @@
         set: selectedSets[index] || createStatsRecentTicketSet(),
       })).filter(({ set }) => set.main.length || set.special !== null);
       const filledSetCount = selectedSets.filter(set => (set?.main?.length || 0) || set?.special !== null).length;
-      const selectedSummary = type === "KENO"
-        ? `Bộ ${activeSetIndex + 1}: ${activeSet.main.length}/${config.mainCount}`
+      const isKeno = normalizedType === "KENO";
+      const selectedSummary = isKeno
+        ? `Bậc ${config.kenoLevel} • Bộ ${activeSetIndex + 1}: ${activeSet.main.length}/${config.mainCount}`
         : `${filledSetCount}/${config.maxSets}`;
       const hasSelection = activeSet.main.length > 0 || activeSet.special !== null;
       const renderTicketBall = (value, setIndex, role = "main") => `
@@ -2115,22 +2394,33 @@
               <strong>Bộ số đang chọn</strong>
               <small>(${selectedSummary})</small>
             </div>
-            <button
-              type="button"
-              class="stats-modern-clear-btn"
-              data-stats-recent-clear="1"
-              ${hasSelection ? "" : "disabled"}
-            >Xóa</button>
-          </div>
-          <div class="stats-modern-set-tabs" aria-label="Chọn bộ số đang thao tác">
-            ${Array.from({ length: config.maxSets }, (_, index) => `
+            <div class="stats-modern-selected-actions">
               <button
                 type="button"
-                class="${index === activeSetIndex ? "is-active" : ""}"
-                data-stats-recent-active-set="${index}"
-                aria-pressed="${index === activeSetIndex ? "true" : "false"}"
-              >Bộ ${index + 1}</button>
-            `).join("")}
+                class="stats-modern-save-btn"
+                data-stats-recent-save="1"
+                ${filledSetCount ? "" : "disabled"}
+              >Lưu</button>
+              <button
+                type="button"
+                class="stats-modern-clear-btn"
+                data-stats-recent-clear="1"
+                ${hasSelection ? "" : "disabled"}
+              >Xóa</button>
+            </div>
+          </div>
+          <div class="stats-modern-selection-controls${isKeno ? " is-keno" : ""}">
+            ${isKeno ? renderStatsRecentKenoLevelControl(config) : ""}
+            <div class="stats-modern-set-tabs" aria-label="Chọn bộ số đang thao tác">
+              ${Array.from({ length: config.maxSets }, (_, index) => `
+                <button
+                  type="button"
+                  class="${index === activeSetIndex ? "is-active" : ""}"
+                  data-stats-recent-active-set="${index}"
+                  aria-pressed="${index === activeSetIndex ? "true" : "false"}"
+                >Bộ ${index + 1}</button>
+              `).join("")}
+            </div>
           </div>
           <div class="stats-modern-selected-list${visibleRows.length ? "" : " is-empty"}">
             ${visibleRows.length ? visibleRows.map(({ index, set }) => `
@@ -2161,13 +2451,46 @@
 
     function getStatsRefreshCountdownText() {
       if (!statsPanelNextRefreshAt) return "--:--";
-      return formatStatsRefreshCountdown(statsPanelNextRefreshAt - Date.now());
+      return formatStatsRefreshCountdown(statsPanelNextRefreshAt - getSyncedNowMs());
+    }
+
+    function getStatsDrawCountdownText(type = "KENO") {
+      const normalizedType = normalizeStatsType(type);
+      const nowValue = getSyncedNowDate();
+      const nextDrawDate = typeof findNextLiveDrawDate === "function"
+        ? findNextLiveDrawDate(normalizedType, nowValue)
+        : null;
+      if (!(nextDrawDate instanceof Date) || Number.isNaN(nextDrawDate.getTime())) return "--:--";
+      return formatStatsRefreshCountdown(nextDrawDate.getTime() - nowValue.getTime());
     }
 
     function updateStatsRefreshCountdownText() {
       document.querySelectorAll("[data-stats-refresh-countdown]").forEach(node => {
         node.textContent = getStatsRefreshCountdownText();
       });
+      document.querySelectorAll("[data-stats-draw-countdown]").forEach(node => {
+        const type = String(node.getAttribute("data-stats-draw-countdown") || "KENO").trim().toUpperCase();
+        node.textContent = getStatsDrawCountdownText(type || "KENO");
+      });
+    }
+
+    function renderStatsKenoLiveHeading(latestEntry = null) {
+      const kyText = formatLiveKy(latestEntry?.ky) || "--";
+      const dateText = String(latestEntry?.draw?.date || "").trim();
+      const timeText = String(latestEntry?.draw?.time || "").trim();
+      const drawDateTimeText = [dateText, timeText].filter(Boolean).join(" ") || "--";
+      return `
+        <div class="stats-modern-keno-live-heading" aria-label="Kỳ Keno mới nhất">
+          <div class="stats-modern-keno-ticket-card">
+            <strong>Kỳ vé ${escapeHtml(kyText)}</strong>
+            <span>Ngày ${escapeHtml(drawDateTimeText)}</span>
+          </div>
+          <div class="stats-modern-keno-next-card" aria-label="Thời gian tới kỳ Keno kế tiếp">
+            <span>Kỳ sau:</span>
+            <strong data-stats-draw-countdown="KENO">${escapeHtml(getStatsDrawCountdownText("KENO"))}</strong>
+          </div>
+        </div>
+      `;
     }
 
     function renderStatsRecent100Table(title, items, valueKey = "count", { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null } = {}) {
@@ -2202,7 +2525,14 @@
       `;
     }
 
-    function renderStatsRecent100Panel(type, entries, { hitNumberSet = null, missedNumberSet = null, currentPredictionSet = null } = {}) {
+    function renderStatsRecent100Panel(type, entries, {
+      hitNumberSet = null,
+      missedNumberSet = null,
+      currentPredictionSet = null,
+      currentPredictionEntry = null,
+      comparisonLabel = "kỳ trước",
+      comparisonContext = null,
+    } = {}) {
       const sourceEntries = Array.isArray(entries) ? entries : [];
       if (!sourceEntries.length) return "";
       statsRecentModeValue = normalizeStatsRecentMode(statsRecentModeValue);
@@ -2221,6 +2551,8 @@
       const typeConfig = TYPES[type] || {};
       const latestEntry = sourceEntries[sourceEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
+      const comparisonActualSet = comparisonContext?.actualSet instanceof Set ? comparisonContext.actualSet : latestActualSet;
+      const comparisonEntry = comparisonContext?.entry || null;
       const recentEntries = filterStatsRecentEntriesByMode(sourceEntries, recentMode, recentWindow);
       const specialFrequencyItems = typeConfig.hasSpecial ? buildStatsFrequencyItems(type, recentEntries, { special: true }) : [];
       const specialCountByValue = new Map(specialFrequencyItems.map(item => [Number(item.value), Number(item.count || 0)]));
@@ -2229,6 +2561,13 @@
       const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
       const specialHitSet = getStatsLatestHitSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
       const specialMissedSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
+      const fallbackPredictionSet = currentPredictionSet instanceof Set && currentPredictionSet.size
+        ? new Set()
+        : buildStatsRecentFallbackPredictionSet(type, { mostItems, overdueItems });
+      const effectiveCurrentPredictionSet = currentPredictionSet instanceof Set && currentPredictionSet.size
+        ? currentPredictionSet
+        : fallbackPredictionSet;
+      const isFallbackPrediction = !(currentPredictionSet instanceof Set && currentPredictionSet.size) && fallbackPredictionSet.size > 0;
       const specialMarkerSet = new Set([
         ...specialCurrentPredictionSet,
         ...specialHitSet,
@@ -2254,6 +2593,9 @@
         : type === "KENO"
           ? "Dải số 1 - 80"
           : "";
+      const mainHeadingHtml = type === "KENO"
+        ? renderStatsKenoLiveHeading(latestEntry)
+        : renderStatsModernPanelTitle(type === "KENO" ? "▥" : "▥", mainPanelTitle, mainPanelSubtitle);
       return `
         <section class="stats-modern-shell ${gridClass}">
           <div class="stats-modern-top">
@@ -2262,10 +2604,15 @@
               <span>${escapeHtml(windowBadge)} gần nhất</span>
             </div>
             <div class="stats-modern-refresh-help">
-              <div class="stats-recent100-refresh-timer stats-modern-refresh" aria-label="Thời gian còn lại tới lần tự làm mới thống kê">
-                <span>Làm mới</span>
-                <strong data-stats-refresh-countdown>${escapeHtml(getStatsRefreshCountdownText())}</strong>
-              </div>
+              <button
+                type="button"
+                class="stats-recent100-refresh-timer stats-modern-refresh"
+                data-stats-manual-refresh="1"
+                aria-label="Cập nhật thống kê mới nhất từ MinhChính"
+                ${statsPanelLoading ? "disabled" : ""}
+              >
+                <span>${statsPanelLoading ? "Đang cập nhật..." : "Làm mới"}</span>
+              </button>
               ${renderStatsRecentHelpPopover(type)}
             </div>
           </div>
@@ -2279,9 +2626,9 @@
           <div class="stats-modern-body">
             <div class="stats-modern-left">
               <section class="stats-modern-card stats-modern-main-card">
-                <div class="stats-modern-main-head">
-                  ${renderStatsModernPanelTitle(type === "KENO" ? "▥" : "▥", mainPanelTitle, mainPanelSubtitle)}
-                  ${renderStatsModernLegend(type)}
+                <div class="stats-modern-main-head ${type === "KENO" ? "is-keno-live-head" : ""}">
+                  ${mainHeadingHtml}
+                  ${renderStatsModernLegend(type, comparisonLabel)}
                 </div>
                 ${pending ? `
                   <div class="stats-modern-loading">Đang tính thống kê trong nền...</div>
@@ -2289,7 +2636,7 @@
                   ${renderStatsModernNumberGrid(type, mainItems, {
                     hitNumberSet,
                     missedNumberSet,
-                    currentPredictionSet,
+                    currentPredictionSet: effectiveCurrentPredictionSet,
                     specialMarkerSet,
                     showSpecialMarker: false,
                     countLabel: TYPES[type]?.threeDigit ? "lần" : "lần",
@@ -2312,7 +2659,7 @@
               ` : ""}
 
               <div data-stats-recent-selected-host>
-                ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet, countByValue })}
+                ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet: effectiveCurrentPredictionSet, countByValue })}
               </div>
             </div>
 
@@ -2322,11 +2669,38 @@
                   ${renderStatsModernPanelTitle("…", "Đang tải")}
                   <div class="stats-modern-loading">Worker đang tính dữ liệu thống kê...</div>
                 </section>
-                ${renderStatsModernConfigCards(type)}
               ` : `
-                ${renderStatsModernInsightPanel(type, { mostItems, leastItems, overdueItems })}
-                ${renderStatsModernMetrics(type, { mostItems, leastItems, overdueItems, specialMostItems, hitNumberSet, missedNumberSet, countByValue, latestActualSet, latestEntry })}
-                ${renderStatsModernConfigCards(type)}
+                ${renderStatsModernPredictionPanel(type, {
+                  predictionSet: effectiveCurrentPredictionSet,
+                  predictionEntry: currentPredictionEntry,
+                  isFallback: isFallbackPrediction,
+                  latestEntry,
+                  countByValue,
+                  hitNumberSet,
+                  missedNumberSet,
+                })}
+                ${renderStatsModernInsightPanel(type, {
+                  mostItems,
+                  leastItems,
+                  overdueItems,
+                  hitNumberSet,
+                  missedNumberSet,
+                  currentPredictionSet: effectiveCurrentPredictionSet,
+                })}
+                ${renderStatsModernMetrics(type, {
+                  mostItems,
+                  leastItems,
+                  overdueItems,
+                  specialMostItems,
+                  hitNumberSet,
+                  missedNumberSet,
+                  countByValue,
+                  latestActualSet,
+                  latestEntry,
+                  comparisonLabel,
+                  comparisonActualSet,
+                  comparisonEntry,
+                })}
               `}
             </aside>
           </div>
@@ -2349,10 +2723,19 @@
       const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
       const { computation } = getStatsRecentComputation(type, allEntries, statsRecentModeValue, statsRecentWindowValue);
+      const fallbackPredictionSet = currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size
+        ? new Set()
+        : buildStatsRecentFallbackPredictionSet(type, {
+            mostItems: computation?.mostItems || [],
+            overdueItems: computation?.overdueItems || [],
+          });
+      const effectiveCurrentPredictionSet = currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size
+        ? currentPredictionHighlight.numbers
+        : fallbackPredictionSet;
       host.innerHTML = renderStatsRecentSelectedPanel(type, {
         hitNumberSet: hitPredictionSet,
         missedNumberSet: missedPredictionSet,
-        currentPredictionSet: currentPredictionHighlight.numbers,
+        currentPredictionSet: effectiveCurrentPredictionSet,
         countByValue: computation?.countByValue || new Map(),
       });
     }
@@ -2389,6 +2772,7 @@
       const latestEntry = allEntries[allEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
       const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
+      const comparisonContext = getStatsPredictionComparisonContext(type, latestEntry, latestActualSet);
       const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
       const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
       out.classList.remove("muted");
@@ -2396,6 +2780,9 @@
         hitNumberSet: hitPredictionSet,
         missedNumberSet: missedPredictionSet,
         currentPredictionSet: currentPredictionHighlight.numbers,
+        currentPredictionEntry: currentPredictionHighlight.entry,
+        comparisonLabel: comparisonContext.label,
+        comparisonContext,
       });
     }
 
@@ -2406,7 +2793,12 @@
       statsPanelError = "";
       renderStatsPanel();
       try {
-        await fetchLiveHistory(type, "all", { force, silent });
+        await fetchLiveHistory(type, "all", {
+          force,
+          silent,
+          repair: type === "KENO",
+          recentDays: type === "KENO" ? 1 : null,
+        });
         if (refreshToken !== statsPanelRefreshToken) return;
         statsPanelLoading = false;
         statsPanelError = "";
@@ -2442,10 +2834,10 @@
     function syncStatsPanelAutoRefreshTimer() {
       stopStatsPanelAutoRefreshTimer();
       if (predictPageModeValue !== PREDICTION_MODE_STATS) return;
-      statsPanelNextRefreshAt = Date.now() + STATS_PANEL_AUTO_REFRESH_MS;
+      statsPanelNextRefreshAt = getSyncedNowMs() + STATS_PANEL_AUTO_REFRESH_MS;
       startStatsPanelRefreshCountdownTimer();
       statsPanelAutoRefreshTimer = window.setInterval(() => {
-        statsPanelNextRefreshAt = Date.now() + STATS_PANEL_AUTO_REFRESH_MS;
+        statsPanelNextRefreshAt = getSyncedNowMs() + STATS_PANEL_AUTO_REFRESH_MS;
         updateStatsRefreshCountdownText();
         if (predictPageModeValue !== PREDICTION_MODE_STATS || statsPanelLoading) return;
         startStatsPanelRefresh({ force: true, silent: true });
@@ -2835,7 +3227,7 @@
       return {
         id: `statsv2_${Date.now()}_${Math.random().toString(16).slice(2)}`,
         action,
-        createdAt: new Date().toISOString(),
+        createdAt: getSyncedIsoString(),
         type: normalizeStatsV2Type(statsV2State.type),
         period: statsV2State.period,
         sort: statsV2State.sort,
@@ -3450,7 +3842,7 @@
         type: payload.type,
         period: payload.period,
         mode: payload.mode,
-        createdAt: new Date().toISOString(),
+        createdAt: getSyncedIsoString(),
         summary,
         topNumbers: getAnalysisTopNumbers(payload),
         snapshot: {
@@ -3885,7 +4277,7 @@
     }
 
     function floorDashboardDate(dateValue) {
-      const next = new Date(dateValue instanceof Date ? dateValue.getTime() : Date.now());
+      const next = new Date(dateValue instanceof Date ? dateValue.getTime() : getSyncedNowMs());
       next.setHours(0, 0, 0, 0);
       return next;
     }
@@ -3941,7 +4333,7 @@
     function formatDashboardRelativeTime(value) {
       const parsed = value instanceof Date ? value : new Date(String(value || "").trim());
       if (!(parsed instanceof Date) || Number.isNaN(parsed.getTime())) return "chưa rõ";
-      const diffMs = Math.max(0, Date.now() - parsed.getTime());
+      const diffMs = Math.max(0, getSyncedNowMs() - parsed.getTime());
       const diffMinutes = Math.floor(diffMs / 60000);
       if (diffMinutes < 1) return "vừa xong";
       if (diffMinutes < 60) return `${diffMinutes} phút trước`;
@@ -3993,7 +4385,7 @@
 
     function getDashboardLatestDate(entries) {
       const latest = (Array.isArray(entries) ? entries : []).at(-1)?.dayStart;
-      return latest instanceof Date && !Number.isNaN(latest.getTime()) ? latest : floorDashboardDate(new Date());
+      return latest instanceof Date && !Number.isNaN(latest.getTime()) ? latest : floorDashboardDate(getSyncedNowDate());
     }
 
     function filterDashboardEntriesInRange(entries, startDate, endDate) {
@@ -4597,7 +4989,7 @@
 
     function getDashboardLatestDate(entries) {
       const latest = getDashboardLatestEntry(entries)?.dayStart;
-      return latest instanceof Date && !Number.isNaN(latest.getTime()) ? latest : floorDashboardDate(new Date());
+      return latest instanceof Date && !Number.isNaN(latest.getTime()) ? latest : floorDashboardDate(getSyncedNowDate());
     }
 
     function getDashboardFamily(type) {

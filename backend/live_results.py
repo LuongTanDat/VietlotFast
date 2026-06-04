@@ -25,6 +25,7 @@ import ai.configs.data_paths as dp
 # ----- Cau hinh crawl va dong bo -----
 # Gom URL nguon, timeout, so ngay lookback va cac hang so cho Keno/full-history.
 VIETLOTT_DAY_URL = "https://xsmn.net/kqxsvietlott/ngay-{date}"
+KENO_LIVE_URL = "https://www.minhchinh.com/truc-tiep-xo-so-tu-chon-keno.html"
 KENO_URL = "https://www.minhchinh.com/xo-so-dien-toan-keno.html"
 LOOKBACK_DAYS = 7
 REQUEST_TIMEOUT = 30
@@ -1612,7 +1613,8 @@ def get_keno_search_date(soup):
     return date_input["value"]
 
 
-def parse_keno_rows(soup):
+def parse_keno_rows(soup, source_url=None):
+    row_source_url = source_url or KENO_URL
     results = []
     rows = soup.select("#containerKQKeno .wrapperKQKeno")
     for row in rows:
@@ -1636,16 +1638,23 @@ def parse_keno_rows(soup):
             "special": None,
             "displayLines": [" ".join(f"{value:02d}" for value in numbers)],
             "importable": True,
-            "sourceUrl": KENO_URL,
+            "sourceUrl": row_source_url,
             "sourceDate": date_value,
         })
     return results
 
 
 def fetch_latest_keno_page(session):
-    response = request_with_retry(session, "get", KENO_URL)
+    response = request_with_retry(session, "get", KENO_LIVE_URL)
     soup = BeautifulSoup(response.text, "html.parser")
-    return get_keno_search_date(soup), parse_keno_rows(soup)
+    results = parse_keno_rows(soup, source_url=KENO_LIVE_URL)
+    try:
+        latest_search_date = get_keno_search_date(soup)
+    except Exception:
+        latest_search_date = str((results[0] if results else {}).get("date", "")).strip()
+    if not latest_search_date:
+        raise RuntimeError("Không tìm thấy ngày Keno mới nhất trên trang trực tiếp MinhChính.")
+    return latest_search_date, results
 
 
 # ----- Parse Keno va MinhChinh -----
@@ -1805,6 +1814,7 @@ def refresh_keno_history_for_requested_range(count_key, now_value=None):
         day_results = fetch_keno_day_results(session, current.date())
         if day_results:
             merge_keno_result_rows(rows_by_ky, day_results)
+            prune_keno_rows_after_latest_fetched(rows_by_ky, current.date(), day_results)
             write_canonical_rows("KENO", rows_by_ky, current.date())
             _, earliest_row = get_latest_and_earliest_rows(rows_by_ky)
             earliest_ky = str(earliest_row.get("Ky", "")).strip()
@@ -1972,6 +1982,28 @@ def merge_keno_result_rows(rows_by_ky, results):
             updated_rows += 1
         rows_by_ky[ky] = row
     return new_rows, updated_rows
+
+
+def prune_keno_rows_after_latest_fetched(rows_by_ky, target_date, results):
+    if not results:
+        return 0
+    target_text = format_csv_date(target_date)
+    fetched_ky_values = [
+        sort_key_from_ky(result.get("ky", ""))
+        for result in results
+        if sort_key_from_ky(result.get("ky", ""))
+    ]
+    if not fetched_ky_values:
+        return 0
+    latest_fetched_ky = max(fetched_ky_values)
+    removed = 0
+    for ky, row in list(rows_by_ky.items()):
+        if str(row.get("Ngay", "")).strip() != target_text:
+            continue
+        if sort_key_from_ky(ky) > latest_fetched_ky:
+            del rows_by_ky[ky]
+            removed += 1
+    return removed
 
 
 def iter_type_dates(type_key, start_date, end_date):
@@ -2699,6 +2731,14 @@ def normalize_keno_schedule_times(rows_by_ky):
         sorted_rows = sorted(day_rows, key=lambda item: sort_key_from_ky(item.get("Ky", "")))
         if not sorted_rows:
             continue
+        expected_weekday = format_csv_weekday(row_date)
+        if expected_weekday:
+            for row in sorted_rows:
+                if str(row.get("Thu", "")).strip() != expected_weekday:
+                    row["Thu"] = expected_weekday
+                    fixed_count += 1
+        if len(sorted_rows) < KENO_FULL_DAY_DRAW_COUNT:
+            continue
         normalized_times = [normalize_draw_time_slot(row.get("Time", "")) for row in sorted_rows]
         has_broken_step = False
         previous_minutes = None
@@ -2721,9 +2761,6 @@ def normalize_keno_schedule_times(rows_by_ky):
             if normalize_draw_time_slot(row.get("Time", "")) != expected_time:
                 row["Time"] = expected_time
                 fixed_count += 1
-            expected_weekday = format_csv_weekday(row_date)
-            if expected_weekday and str(row.get("Thu", "")).strip() != expected_weekday:
-                row["Thu"] = expected_weekday
     return fixed_count
 
 
@@ -3188,6 +3225,8 @@ def sync_all_keno_type(session, allow_bootstrap=True, progress=None, recent_look
         if latest_page_date is not None and target_date == latest_page_date and results and not timeout_state.get("timedOut"):
             latest_page_sync_success = True
         added, updated = merge_keno_result_rows(rows_by_ky, results)
+        if target_date == today and results and not timeout_state.get("timedOut"):
+            prune_keno_rows_after_latest_fetched(rows_by_ky, target_date, results)
         new_rows += page_merge_counts["new"] + added
         updated_rows += page_merge_counts["updated"] + updated
         if progress and (latest_page_date is None or target_date != latest_page_date):

@@ -19,7 +19,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -301,6 +303,7 @@ public class LottoWebServer {
         server.createContext("/api/login", this::handleLogin);
         server.createContext("/api/logout", this::handleLogout);
         server.createContext("/api/store", this::handleStore);
+        server.createContext("/api/time", this::handleServerTime);
         server.createContext("/api/stats-v2", this::handleStatsV2);
         server.createContext("/api/analysis", this::handleAnalysis);
         server.createContext("/api/keno-predict-data", this::handleKenoPredictData);
@@ -419,6 +422,23 @@ public class LottoWebServer {
             return;
         }
         sendJson(ex, 200, "{\"ok\":true,\"username\":\"" + esc(su.username) + "\",\"role\":\"" + esc(su.account.role) + "\"}");
+    }
+
+    private void handleServerTime(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        long nowMs = System.currentTimeMillis();
+        String zone = ZoneId.systemDefault().getId();
+        sendJson(
+                ex,
+                200,
+                "{\"ok\":true,\"serverTimeMs\":" + nowMs
+                        + ",\"serverIso\":\"" + esc(Instant.ofEpochMilli(nowMs).toString()) + "\""
+                        + ",\"timezone\":\"" + esc(zone) + "\"}"
+        );
     }
 
     private void handleRegister(HttpExchange ex) throws IOException {
@@ -1639,6 +1659,10 @@ public class LottoWebServer {
         Headers h = ex.getResponseHeaders();
         addCors(ex);
         h.set("Content-Type", "application/json; charset=UTF-8");
+        long nowMs = System.currentTimeMillis();
+        h.set("X-Server-Time-Ms", String.valueOf(nowMs));
+        h.set("X-Server-Time-Iso", Instant.ofEpochMilli(nowMs).toString());
+        h.set("X-Server-Timezone", ZoneId.systemDefault().getId());
         ex.sendResponseHeaders(status, out.length);
         try (OutputStream os = ex.getResponseBody()) {
             os.write(out);
@@ -1662,6 +1686,7 @@ public class LottoWebServer {
         h.set("Access-Control-Allow-Credentials", "true");
         h.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
         h.set("Access-Control-Allow-Headers", "Content-Type");
+        h.set("Access-Control-Expose-Headers", "X-Server-Time-Ms, X-Server-Time-Iso, X-Server-Timezone");
     }
 
     private Map<String, String> parseForm(HttpExchange ex) throws IOException {

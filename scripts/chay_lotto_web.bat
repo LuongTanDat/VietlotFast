@@ -41,12 +41,12 @@ set "PORT_ACTION="
 for /f "usebackq delims=" %%R in (`powershell -NoProfile -Command ^
   "$conn = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' } | Select-Object -First 1; " ^
   "if (-not $conn) { 'FREE'; exit 0 }; " ^
-  "$pid = [int]$conn.OwningProcess; " ^
-  "$proc = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $pid) -ErrorAction SilentlyContinue; " ^
+  "$owningPid = [int]$conn.OwningProcess; " ^
+  "$proc = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $owningPid) -ErrorAction SilentlyContinue; " ^
   "$name = [string]($proc.Name); " ^
   "$cmd = [string]($proc.CommandLine); " ^
-  "if (($name -match '^java(w)?\.exe$') -and ($cmd -match 'LottoWebServer')) { Stop-Process -Id $pid -Force -ErrorAction Stop; Start-Sleep -Seconds 2; 'RESTART'; exit 0 }; " ^
-  "'BLOCKED|' + $pid + '|' + $name"`) do set "PORT_ACTION=%%R"
+  "if (($name -match '^java(w)?\.exe$') -and ($cmd -match 'LottoWebServer')) { Stop-Process -Id $owningPid -Force -ErrorAction Stop; Start-Sleep -Seconds 2; 'RESTART'; exit 0 }; " ^
+  "'BLOCKED|' + $owningPid + '|' + $name"`) do set "PORT_ACTION=%%R"
 
 if not defined PORT_ACTION set "PORT_ACTION=FREE"
 

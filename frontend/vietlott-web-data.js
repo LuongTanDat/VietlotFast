@@ -137,7 +137,7 @@
         if (normalizeKy(entry?.predictedKy) !== normalizedKy) continue;
         if (entry.resolved && entry.actualKy === normalizedKy) continue;
         entry.resolved = true;
-        entry.resolvedAt = new Date().toISOString();
+        entry.resolvedAt = getSyncedIsoString();
         entry.actualKy = normalizedKy;
         entry.actualDraw = cloneDraw(draw);
         entry.resultMissingData = false;
@@ -178,7 +178,7 @@
       return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : null;
     }
 
-    function isKenoPredictionLogOverdue(entry, dataset = null, nowValue = new Date()) {
+    function isKenoPredictionLogOverdue(entry, dataset = null, nowValue = getSyncedNowDate()) {
       if (!entry || entry.resolved) return false;
       const resultDataset = dataset || buildPredictionResultDataset("KENO");
       const predictedKy = normalizeKy(entry.predictedKy);
@@ -199,7 +199,7 @@
         && fallbackTargetDate.getTime() <= nowValue.getTime();
     }
 
-    function getKenoPredictionHistoryRepairLookbackDays(dataset = null, nowValue = new Date()) {
+    function getKenoPredictionHistoryRepairLookbackDays(dataset = null, nowValue = getSyncedNowDate()) {
       const logs = ensurePredictionLogBucket("KENO");
       if (!logs.length) return 0;
       const resultDataset = dataset || buildPredictionResultDataset("KENO");
@@ -217,7 +217,7 @@
       return Math.min(30, Math.max(3, diffDays + 2));
     }
 
-    function markMissingKenoPredictionResults(dataset = null, nowValue = new Date()) {
+    function markMissingKenoPredictionResults(dataset = null, nowValue = getSyncedNowDate()) {
       const resultDataset = dataset || buildPredictionResultDataset("KENO");
       const logs = ensurePredictionLogBucket("KENO");
       if (!logs.length) return false;
@@ -331,7 +331,7 @@
       const predictedKy = normalizeKy(entry.predictedKy);
       const next = {
         id: String(entry.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-        createdAt: String(entry.createdAt || new Date().toISOString()),
+        createdAt: String(entry.createdAt || getSyncedIsoString()),
         predictedKy,
         strategyKey: String(entry.strategyKey || ""),
         strategyLabel: String(entry.strategyLabel || ""),
@@ -615,13 +615,13 @@
       if (selectedRange === "all") return true;
       const createdAtMs = Date.parse(String(entry?.createdAt || "").trim());
       if (!Number.isFinite(createdAtMs)) return false;
-      const now = new Date();
+      const now = getSyncedNowDate();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
       if (selectedRange === "today") {
         return createdAtMs >= startOfToday;
       }
       const rangeDays = selectedRange === "3d" ? 3 : 7;
-      return createdAtMs >= (Date.now() - (rangeDays * 24 * 60 * 60 * 1000));
+      return createdAtMs >= (getSyncedNowMs() - (rangeDays * 24 * 60 * 60 * 1000));
     }
 
     function formatPredictionHistoryTime(value) {
@@ -903,7 +903,7 @@
     }
 
     async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
-      const nowValue = new Date();
+      const nowValue = getSyncedNowDate();
       const currentDataset = buildPredictionResultDataset("KENO");
       const repairLookbackDays = getKenoPredictionHistoryRepairLookbackDays(currentDataset, nowValue);
       const nextFeed = await fetchLiveHistory("KENO", "all", {
@@ -1107,7 +1107,7 @@
       const statusMeta = getPredictionHistoryEntryStatus(entry);
       const statusClass = statusMeta.className;
       const statusText = statusMeta.label;
-      const countdownState = buildPredictionHistoryCountdownState(entry, new Date());
+      const countdownState = buildPredictionHistoryCountdownState(entry, getSyncedNowDate());
       const titleParts = [entry.typeLabel];
       if (entry.predictedKy) titleParts.push(`Kỳ ${formatLiveKy(entry.predictedKy)}`);
       const createdAtText = formatPredictionHistoryTime(entry.createdAt) || "Không rõ";
@@ -1186,7 +1186,7 @@
                 aria-label="Chép nội dung kỳ này"
               >⧉</button>
               ${countdownState ? `
-                <div class="predict-history-countdown-box">
+                <div class="predict-history-countdown-box" data-prediction-history-countdown="1">
                   <span class="predict-history-countdown-label">Kỳ tiếp theo</span>
                   <span class="predict-history-countdown-ky">${escapeHtml(countdownState.kyText || "Đang chờ")}</span>
                   <span class="predict-history-countdown-prefix">Còn :</span>
@@ -1284,6 +1284,58 @@
       }
       const currentEntry = entries[currentIndex] || null;
       list.innerHTML = `${loadingNoticeHtml}${loadingErrorHtml}${currentEntry ? renderPredictionHistoryEntryHtml(currentEntry, currentIndex) : ""}`;
+    }
+
+    function updatePredictionHistoryCountdownForList(listId, entry, nowValue) {
+      const list = document.getElementById(listId);
+      const box = list?.querySelector("[data-prediction-history-countdown]");
+      if (!box || !entry) return false;
+      const countdownState = buildPredictionHistoryCountdownState(entry, nowValue);
+      if (!countdownState) {
+        box.remove();
+        return true;
+      }
+      const kyEl = box.querySelector(".predict-history-countdown-ky");
+      const timeEl = box.querySelector(".predict-history-countdown-time");
+      const nextKy = countdownState.kyText || "Đang chờ";
+      const nextTime = `${countdownState.countdownText}s`;
+      if (kyEl && kyEl.textContent !== nextKy) kyEl.textContent = nextKy;
+      if (timeEl && timeEl.textContent !== nextTime) timeEl.textContent = nextTime;
+      return true;
+    }
+
+    function updatePredictionHistoryCountdowns() {
+      const nowValue = getSyncedNowDate();
+      if (predictionHistoryPanelOpen) {
+        const selectedType = normalizePredictionHistoryType(predictionHistorySelectedType);
+        const selectedPlayMode = hasPredictBaoMode(selectedType)
+          ? normalizePredictionHistoryPlayMode(predictionHistorySelectedPlayMode)
+          : "normal";
+        const entries = collectPredictionHistoryEntries(
+          selectedType,
+          normalizePredictionHistoryRange(predictionHistorySelectedRange),
+          selectedPlayMode,
+          predictionHistorySelectedBaoLevel,
+          PREDICTION_MODE_NORMAL
+        );
+        const currentIndex = clampPredictionHistoryCurrentIndex(entries.length);
+        updatePredictionHistoryCountdownForList("predictionHistoryList", entries[currentIndex] || null, nowValue);
+      }
+      if (vipPredictionHistoryPanelOpen) {
+        const selectedType = normalizePredictionHistoryType(vipPredictionHistorySelectedType);
+        const selectedPlayMode = hasPredictBaoMode(selectedType)
+          ? normalizePredictionHistoryPlayMode(vipPredictionHistorySelectedPlayMode)
+          : "normal";
+        const entries = collectPredictionHistoryEntries(
+          selectedType,
+          normalizePredictionHistoryRange(vipPredictionHistorySelectedRange),
+          selectedPlayMode,
+          vipPredictionHistorySelectedBaoLevel,
+          PREDICTION_MODE_VIP
+        );
+        const currentIndex = clampVipPredictionHistoryCurrentIndex(entries.length);
+        updatePredictionHistoryCountdownForList("vipPredictionHistoryList", entries[currentIndex] || null, nowValue);
+      }
     }
 
     function togglePredictionHistoryPanel(forceOpen = null) {
@@ -2389,7 +2441,7 @@
     }
 
     function buildXlsxWorkbookBlob(headers, rows, title = "Bang Du Lieu") {
-      const now = new Date().toISOString();
+      const now = getSyncedIsoString();
       const files = {
         "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -2550,7 +2602,7 @@
       return true;
     }
 
-    function finalizeKenoCsvFeed(feed, loadedAt = new Date().toISOString()) {
+    function finalizeKenoCsvFeed(feed, loadedAt = getSyncedIsoString()) {
       feed.order = Object.keys(feed.results).sort((a, b) => kySortValue(a) - kySortValue(b));
       feed.sourceLabels = [...new Set((feed.sourceLabels || []).filter(Boolean))];
       feed.loadedAt = loadedAt;
@@ -2674,13 +2726,13 @@
         for (const [ky, draw] of Object.entries(resultMap)) {
           mergeKenoDraw(next, ky, draw);
         }
-        kenoCsvFeed = finalizeKenoCsvFeed(next, next.loadedAt || new Date().toISOString());
+        kenoCsvFeed = finalizeKenoCsvFeed(next, next.loadedAt || getSyncedIsoString());
       } catch {
         kenoCsvFeed = emptyKenoCsvFeed();
       }
     }
 
-    function setKenoCsvFeed(feed, loadedAt = new Date().toISOString()) {
+    function setKenoCsvFeed(feed, loadedAt = getSyncedIsoString()) {
       kenoCsvFeed = finalizeKenoCsvFeed(feed, loadedAt);
       saveKenoCsvFeedCache();
       updateKenoCsvStatus();
@@ -2718,7 +2770,7 @@
       line(el, message, level);
     }
 
-    function setKenoPredictStatusMeta(detail = "", level = "", loadedAt = new Date().toISOString()) {
+    function setKenoPredictStatusMeta(detail = "", level = "", loadedAt = getSyncedIsoString()) {
       kenoPredictStatusMeta = {
         loadedAt: String(loadedAt || ""),
         detail: String(detail || ""),
@@ -3495,9 +3547,9 @@
       return formatLiveKy(String(nextValue));
     }
 
-    function findNextLiveDrawDate(type, nowValue = new Date()) {
+    function findNextLiveDrawDate(type, nowValue = getSyncedNowDate()) {
       const schedule = LIVE_DRAW_SCHEDULES[String(type || "").trim().toUpperCase()];
-      const now = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date();
+      const now = nowValue instanceof Date ? new Date(nowValue.getTime()) : getSyncedNowDate();
       if (!schedule || Number.isNaN(now.getTime())) return null;
 
       if (schedule.kind === "interval") {
@@ -3540,7 +3592,7 @@
       return null;
     }
 
-    function buildUpcomingLiveMetaParts(type, item = null, nowValue = new Date()) {
+    function buildUpcomingLiveMetaParts(type, item = null, nowValue = getSyncedNowDate()) {
       const nextDrawDate = findNextLiveDrawDate(type, nowValue);
       if (!nextDrawDate) return buildLiveMetaParts(item?.ky, item?.date, item?.time);
       const nextKyText = computeNextLiveKy(item?.ky);
@@ -3571,7 +3623,7 @@
     }
 
     function getNthUpcomingDrawDate(type, baseDate, stepCount = 1) {
-      let cursor = baseDate instanceof Date ? new Date(baseDate.getTime()) : new Date();
+      let cursor = baseDate instanceof Date ? new Date(baseDate.getTime()) : getSyncedNowDate();
       let candidate = null;
       const safeSteps = Math.max(1, Number(stepCount || 1));
       for (let index = 0; index < safeSteps; index += 1) {
@@ -3582,7 +3634,7 @@
       return candidate;
     }
 
-    function buildPredictionHistoryCountdownState(entry, nowValue = new Date()) {
+    function buildPredictionHistoryCountdownState(entry, nowValue = getSyncedNowDate()) {
       if (!entry || entry.resolved || entry.resultMissingData) return null;
       const type = String(entry.type || "").trim().toUpperCase();
       if (!type || !LIVE_DRAW_SCHEDULES[type]) return null;
@@ -3758,12 +3810,48 @@
         .join("");
     }
 
+    function getLiveResultsBoardSignature() {
+      return LIVE_RESULT_TYPES.map(meta => {
+        const item = liveResultsState?.[meta.key];
+        const badge = getLiveUpdateBadge(meta.key);
+        return [
+          meta.key,
+          item ? getLiveResultSignature(item) : "",
+          badge.code || "",
+          badge.label || "",
+          badge.message || "",
+        ].join("~");
+      }).join("|");
+    }
+
+    function updateLiveResultsCountdownText(nowValue = getSyncedNowDate()) {
+      const host = document.getElementById("liveResultGrid");
+      if (!host) return false;
+      let updated = false;
+      host.querySelectorAll("[data-live-countdown-type]").forEach(node => {
+        const type = String(node.getAttribute("data-live-countdown-type") || "").trim().toUpperCase();
+        if (!type) return;
+        const nextText = buildUpcomingLiveMetaParts(type, liveResultsState?.[type] || null, nowValue).join(" • ");
+        if (node.textContent !== nextText) {
+          node.textContent = nextText;
+          updated = true;
+        }
+      });
+      return updated;
+    }
+
     // ----- Giao diện live results và lịch sử CSV -----
     // Render bảng 6 loại vé, status Cập Nhật và nội dung Lịch Sử CSV theo canonical all_day.
-    function renderLiveResultsBoard() {
+    function renderLiveResultsBoard({ force = false } = {}) {
       const host = document.getElementById("liveResultGrid");
       if (!host) return;
-      const nowValue = new Date();
+      const signature = getLiveResultsBoardSignature();
+      const nowValue = getSyncedNowDate();
+      if (!force && host.dataset.liveResultsSignature === signature && host.querySelector("[data-live-countdown-type]")) {
+        updateLiveResultsCountdownText(nowValue);
+        return;
+      }
+      host.dataset.liveResultsSignature = signature;
       host.innerHTML = LIVE_RESULT_TYPES.map(meta => {
         const badge = getLiveUpdateBadge(meta.key);
         const badgeClass = `live-card-badge ${liveUpdateBadgeClass(badge.code)}`.trim();
@@ -3778,7 +3866,7 @@
                 <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
               </div>
               <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
-              ${pendingMetaParts.length ? `<div class="live-card-meta">${escapeHtml(pendingMetaParts.join(" • "))}</div>` : ""}
+              ${pendingMetaParts.length ? `<div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(pendingMetaParts.join(" • "))}</div>` : ""}
               <div class="live-card-empty">Chưa có kết quả live cho loại này.</div>
             </article>
           `;
@@ -3799,7 +3887,7 @@
               <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
             </div>
             <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
-            <div class="live-card-meta">${escapeHtml(metaParts.join(" • "))}</div>
+            <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(metaParts.join(" • "))}</div>
             <div class="live-card-main">${lines}</div>
             <div class="live-card-foot">${escapeHtml(footParts.join(" • "))}</div>
           </article>
@@ -3822,14 +3910,14 @@
     function startLiveDrawCountdown() {
       if (liveDrawCountdownTimer) return;
       liveDrawCountdownTimer = window.setInterval(() => {
+        maybeSyncServerTimeSoon();
         const liveBoardVisible = isHomePageVisible() && isElementNearViewport(document.getElementById("liveBoardSection"));
         const normalPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_NORMAL;
         const vipPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_VIP;
-        if (liveBoardVisible) renderLiveResultsBoard();
+        if (liveBoardVisible && !updateLiveResultsCountdownText()) renderLiveResultsBoard();
         if (normalPredictVisible && predictLastDisplayResult) renderPredictOutput();
         if (vipPredictVisible && vipPredictLastDisplayResult) renderPredictVipOutput();
-        if (predictionHistoryPanelOpen) renderPredictionHistoryPanel();
-        if (vipPredictionHistoryPanelOpen) renderVipPredictionHistoryPanel();
+        if (predictionHistoryPanelOpen || vipPredictionHistoryPanelOpen) updatePredictionHistoryCountdowns();
       }, 1000);
     }
 
@@ -3957,7 +4045,7 @@
       const imported = applyLiveResultsToStore([nextItem]);
       nextItem.imported = imported.has(key) || isLiveResultStored(nextItem);
       if (!samePayload || imported.has(key)) {
-        liveResultsFetchedAt = new Date().toISOString();
+        liveResultsFetchedAt = getSyncedIsoString();
         saveLiveResultsCache();
         startLiveDrawCountdown();
         renderLiveResultsBoard();
@@ -4347,7 +4435,7 @@
         : sync?.latest_date
           ? `Đã cập nhật web ngày ${sync.latest_date}: +${Number(sync.new_rows || 0)} kỳ mới.`
           : "";
-      setKenoPredictStatusMeta(detail, sync?.sync_error ? "warn" : "ok", res?.generated_at || new Date().toISOString());
+      setKenoPredictStatusMeta(detail, sync?.sync_error ? "warn" : "ok", res?.generated_at || getSyncedIsoString());
       return res;
     }
 
@@ -5917,7 +6005,7 @@
               };
             }
           }
-          const predictionCreatedAt = new Date().toISOString();
+          const predictionCreatedAt = getSyncedIsoString();
           const displayResult = {
             ...result,
             createdAt: predictionCreatedAt,
@@ -6210,7 +6298,7 @@
         const isPredictorV2Vip = adaptiveVipMeta.active;
         const displayResult = applyVipPredictionProfile({
           ...result,
-          createdAt: new Date().toISOString(),
+          createdAt: getSyncedIsoString(),
           // predictor_v2 integration start
           engine: isPredictorV2Vip ? adaptiveVipMeta.key : engineMeta.key,
           engineKey: isPredictorV2Vip ? adaptiveVipMeta.key : engineMeta.key,

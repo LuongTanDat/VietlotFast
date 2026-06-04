@@ -110,6 +110,8 @@
     const STATS_SELECTED_DAY_WINDOW_KEY = "vietlott_stats_selected_day_window_v1";
     const STATS_DATE_FROM_KEY = "vietlott_stats_date_from_v1";
     const STATS_DATE_TO_KEY = "vietlott_stats_date_to_v1";
+    const STATS_RECENT_KENO_LEVEL_KEY = "vietlott_stats_recent_keno_level_v1";
+    const STATS_RECENT_SELECTED_SETS_KEY = "vietlott_stats_recent_selected_sets_v1";
     const STATS_V2_UI_KEY = "vietlott_stats_v2_ui_v1";
     const ANALYSIS_UI_KEY = "vietlott_analysis_ui_v1";
     const LIVE_RESULTS_CACHE_KEY = "vietlott_live_results_v1";
@@ -194,7 +196,7 @@
       { value: "jackpot", label: "Giá trị Độc đắc" },
       { value: "frequency", label: "Tần suất" },
     ];
-    const STATS_PANEL_AUTO_REFRESH_MS = 60000;
+    const STATS_PANEL_AUTO_REFRESH_MS = 180000;
     const STATS_RECENT_MODE_OPTIONS = [
       { value: "day", label: "Ngày" },
       { value: "draw", label: "Kỳ" },
@@ -468,6 +470,7 @@
     let statsPanelNextRefreshAt = 0;
     let statsRecentModeValue = "draw";
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
+    let statsRecentKenoLevelValue = 10;
     let statsRecentSelectedByType = Object.create(null);
     let statsRecentActiveSetByType = Object.create(null);
     let statsModernInsightTab = "most";
@@ -576,6 +579,75 @@
       /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || "") &&
       String(location.port || "") === "8080"
     );
+    const SERVER_TIME_SYNC_MS = 5 * 60 * 1000;
+    let serverTimeOffsetMs = 0;
+    let serverTimeSyncedAtMs = 0;
+    let serverTimeSyncPromise = null;
+
+    function applyServerTimeSync(serverTimeMs, clientReceivedAtMs = Date.now()) {
+      const numeric = Number(serverTimeMs);
+      if (!Number.isFinite(numeric) || numeric <= 0) return false;
+      serverTimeOffsetMs = Math.round(numeric - Number(clientReceivedAtMs || Date.now()));
+      serverTimeSyncedAtMs = Date.now();
+      return true;
+    }
+
+    function syncServerTimeFromHeaders(headers, clientReceivedAtMs = Date.now()) {
+      if (!headers || typeof headers.get !== "function") return false;
+      return applyServerTimeSync(headers.get("X-Server-Time-Ms"), clientReceivedAtMs);
+    }
+
+    function getSyncedNowMs() {
+      return Date.now() + serverTimeOffsetMs;
+    }
+
+    function getSyncedNowDate() {
+      return new Date(getSyncedNowMs());
+    }
+
+    function getSyncedIsoString() {
+      return getSyncedNowDate().toISOString();
+    }
+
+    function shouldSyncServerTime(force = false) {
+      if (IS_LOCAL_MODE) return false;
+      if (force || !serverTimeSyncedAtMs) return true;
+      return Date.now() - serverTimeSyncedAtMs > SERVER_TIME_SYNC_MS;
+    }
+
+    async function syncServerTime({ force = false } = {}) {
+      if (!shouldSyncServerTime(force)) return true;
+      if (serverTimeSyncPromise) return serverTimeSyncPromise;
+      serverTimeSyncPromise = fetch("/api/time", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      }).then(async response => {
+        const receivedAtMs = Date.now();
+        let synced = syncServerTimeFromHeaders(response.headers, receivedAtMs);
+        let payload = {};
+        try {
+          payload = JSON.parse(await response.text() || "{}");
+        } catch {
+          payload = {};
+        }
+        if (!synced) synced = applyServerTimeSync(payload.serverTimeMs, receivedAtMs);
+        return !!synced;
+      }).catch(() => false).finally(() => {
+        serverTimeSyncPromise = null;
+      });
+      return serverTimeSyncPromise;
+    }
+
+    function maybeSyncServerTimeSoon() {
+      if (shouldSyncServerTime(false)) void syncServerTime({ force: false });
+    }
+
+    window.getSyncedNowMs = getSyncedNowMs;
+    window.getSyncedNowDate = getSyncedNowDate;
+    window.getSyncedIsoString = getSyncedIsoString;
+    window.syncServerTime = syncServerTime;
+
     const APP_PAGE_PATHS = {
       home: "/",
       wheel: "/vong-quay",
@@ -820,6 +892,7 @@
         statsSelectedDayWindow = normalizeStatsDayWindow(localStorage.getItem(STATS_SELECTED_DAY_WINDOW_KEY) || "30");
         statsDateFrom = String(localStorage.getItem(STATS_DATE_FROM_KEY) || "").trim();
         statsDateTo = String(localStorage.getItem(STATS_DATE_TO_KEY) || "").trim();
+        statsRecentKenoLevelValue = normalizeStatsRecentKenoLevel(localStorage.getItem(STATS_RECENT_KENO_LEVEL_KEY) || statsRecentKenoLevelValue);
       } catch {}
     }
 
@@ -829,7 +902,44 @@
         localStorage.setItem(STATS_SELECTED_DAY_WINDOW_KEY, normalizeStatsDayWindow(statsSelectedDayWindow));
         localStorage.setItem(STATS_DATE_FROM_KEY, String(statsDateFrom || "").trim());
         localStorage.setItem(STATS_DATE_TO_KEY, String(statsDateTo || "").trim());
+        localStorage.setItem(STATS_RECENT_KENO_LEVEL_KEY, String(normalizeStatsRecentKenoLevel(statsRecentKenoLevelValue)));
       } catch {}
+    }
+
+    function readStatsRecentSelectedState() {
+      try {
+        const saved = readJsonLocal(STATS_RECENT_SELECTED_SETS_KEY, {});
+        const selectedByType = saved?.selectedByType && typeof saved.selectedByType === "object"
+          ? saved.selectedByType
+          : saved;
+        statsRecentSelectedByType = selectedByType && typeof selectedByType === "object"
+          ? selectedByType
+          : Object.create(null);
+        statsRecentActiveSetByType = saved?.activeSetByType && typeof saved.activeSetByType === "object"
+          ? saved.activeSetByType
+          : Object.create(null);
+      } catch {
+        statsRecentSelectedByType = Object.create(null);
+        statsRecentActiveSetByType = Object.create(null);
+      }
+    }
+
+    function saveStatsRecentSelectedState() {
+      try {
+        writeJsonLocal(STATS_RECENT_SELECTED_SETS_KEY, {
+          version: 1,
+          updatedAt: getSyncedIsoString(),
+          selectedByType: statsRecentSelectedByType && typeof statsRecentSelectedByType === "object"
+            ? statsRecentSelectedByType
+            : {},
+          activeSetByType: statsRecentActiveSetByType && typeof statsRecentActiveSetByType === "object"
+            ? statsRecentActiveSetByType
+            : {},
+        });
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     function ensureChartStatsPresetForType() {
@@ -896,6 +1006,7 @@
     predictPageModeValue = readPredictPageMode();
     readVipPredictState();
     readStatsUiState();
+    readStatsRecentSelectedState();
     readChartStatsUiState();
     readDashboardUiState();
 
@@ -1027,7 +1138,7 @@
     }
 
     function resetLiveUpdateBadgesForManualRun({ render = true } = {}) {
-      const updatedAt = new Date().toISOString();
+      const updatedAt = getSyncedIsoString();
       const nextState = {};
       LIVE_RESULT_TYPES.forEach(meta => {
         nextState[meta.key] = {
@@ -1043,7 +1154,7 @@
       if (render) renderLiveResultsBoard();
     }
 
-    function isWithinKenoBadgeWindow(now = new Date()) {
+    function isWithinKenoBadgeWindow(now = getSyncedNowDate()) {
       const minutes = now.getHours() * 60 + now.getMinutes();
       return minutes >= 360 && minutes <= 1320;
     }
@@ -1056,7 +1167,7 @@
           code: "success",
           label: key === "KENO" ? "Hoàn Tất" : "Hoàn tất",
           message: "",
-          updatedAt: new Date().toISOString(),
+          updatedAt: getSyncedIsoString(),
         };
       }
       if (key === "KENO") {
@@ -1066,7 +1177,7 @@
             code: "failure",
             label: "Thất Bại",
             message: errorMessage,
-            updatedAt: new Date().toISOString(),
+            updatedAt: getSyncedIsoString(),
           };
         }
         return {
@@ -1074,7 +1185,7 @@
           code: "outside_hours",
           label: "Thử Lại Trong Khung Giờ 6:00 - 22:00",
           message: errorMessage,
-          updatedAt: new Date().toISOString(),
+          updatedAt: getSyncedIsoString(),
         };
       }
       return {
@@ -1082,7 +1193,7 @@
         code: "retry",
         label: label || "Thử Lại",
         message: errorMessage,
-        updatedAt: new Date().toISOString(),
+        updatedAt: getSyncedIsoString(),
       };
     }
 
@@ -1098,7 +1209,7 @@
           code: String(progressState.resultCode || "").trim().toLowerCase(),
           label: String(progressState.resultLabel || "").trim() || defaultLiveUpdateBadge(key).label,
           message: String(progressState.resultMessage || progressState.error || "").trim(),
-          updatedAt: String(progressState.updatedAt || "").trim() || new Date().toISOString(),
+          updatedAt: String(progressState.updatedAt || "").trim() || getSyncedIsoString(),
         };
       } else if (liveState === "done") {
         nextBadge = buildManualLiveUpdateBadge(key, { hasError: false });
@@ -1113,7 +1224,7 @@
           code: "running",
           label: "Đang cập nhật",
           message: "",
-          updatedAt: String(progressState.updatedAt || "").trim() || new Date().toISOString(),
+          updatedAt: String(progressState.updatedAt || "").trim() || getSyncedIsoString(),
         };
       } else if (liveState === "pending") {
         nextBadge = {
@@ -1121,7 +1232,7 @@
           code: "pending",
           label: "Chờ cập nhật",
           message: "",
-          updatedAt: String(progressState.updatedAt || "").trim() || new Date().toISOString(),
+          updatedAt: String(progressState.updatedAt || "").trim() || getSyncedIsoString(),
         };
       }
       if (!nextBadge) return false;
@@ -1484,6 +1595,8 @@
         }
         throw err;
       }
+      const responseReceivedAtMs = Date.now();
+      syncServerTimeFromHeaders(res.headers, responseReceivedAtMs);
       const text = await res.text();
       let payload = {};
       try {
@@ -1856,7 +1969,7 @@
         return line(out, "Hãy nhập người chuyển.", "warn");
       }
 
-      const createdAt = new Date();
+      const createdAt = getSyncedNowDate();
       const entry = {
         id: `pp_${createdAt.getTime()}`,
         packageId: selectedPackage?.id || "",
@@ -2286,7 +2399,7 @@
       store.luckyWheelExchangeDayKey = getLuckyWheelTodayKey();
       store.luckyWheelDailyExchangeSpins = Math.max(0, Number(store.luckyWheelDailyExchangeSpins || 0)) + state.spins;
       if (!Array.isArray(store.luckyWheelTopupHistory)) store.luckyWheelTopupHistory = [];
-      const topupAt = new Date();
+      const topupAt = getSyncedNowDate();
       store.luckyWheelTopupHistory.unshift({
         at: topupAt.toISOString(),
         spins: state.spins,
@@ -2298,7 +2411,7 @@
         store.luckyWheelTopupHistory.pop();
       }
       if (store.luckyWheelStoredSpins >= LUCKY_WHEEL_MAX_SPINS) {
-        store.luckyWheelLastRegenAt = new Date().toISOString();
+        store.luckyWheelLastRegenAt = getSyncedIsoString();
       }
 
       saveStore();
@@ -2314,20 +2427,20 @@
 
     function getLuckyWheelTodayKey() {
       try {
-        return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+        return getSyncedNowDate().toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
       } catch {
-        return new Date().toISOString().slice(0, 10);
+        return getSyncedIsoString().slice(0, 10);
       }
     }
 
     function getLuckyWheelNextDayResetMs() {
       try {
-        const nowInTz = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+        const nowInTz = new Date(getSyncedNowDate().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
         const nextReset = new Date(nowInTz);
         nextReset.setHours(24, 0, 0, 0);
         return Math.max(0, nextReset.getTime() - nowInTz.getTime());
       } catch {
-        const now = new Date();
+        const now = getSyncedNowDate();
         const nextReset = new Date(now);
         nextReset.setHours(24, 0, 0, 0);
         return Math.max(0, nextReset.getTime() - now.getTime());
@@ -2381,7 +2494,7 @@
         store.luckyWheelStoredSpins = Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(parsedStoredSpins)));
       }
       if (!String(store.luckyWheelLastRegenAt || "").trim()) {
-        store.luckyWheelLastRegenAt = new Date().toISOString();
+        store.luckyWheelLastRegenAt = getSyncedIsoString();
         changed = true;
       }
       store.luckyWheelBonusSpins = Math.max(0, Number(store.luckyWheelBonusSpins || 0));
@@ -2403,7 +2516,7 @@
     function syncLuckyWheelSpins() {
       ensureLuckyWheelState();
       let changed = false;
-      const now = Date.now();
+      const now = getSyncedNowMs();
       let storedSpins = Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(store.luckyWheelStoredSpins || 0))));
       let lastRegenAt = parseLuckyWheelTimestamp(store.luckyWheelLastRegenAt);
       if (!Number.isFinite(lastRegenAt)) {
@@ -2457,7 +2570,7 @@
       }
       store.luckyWheelStoredSpins = snapshot.available - required;
       if (snapshot.available >= snapshot.max) {
-        store.luckyWheelLastRegenAt = new Date().toISOString();
+        store.luckyWheelLastRegenAt = getSyncedIsoString();
       }
       return {
         ok: true,
@@ -2960,13 +3073,13 @@
       if (bonusSpins > 0) {
         store.luckyWheelStoredSpins = Math.min(LUCKY_WHEEL_MAX_SPINS, snapshot.available + bonusSpins);
         if (store.luckyWheelStoredSpins >= LUCKY_WHEEL_MAX_SPINS) {
-          store.luckyWheelLastRegenAt = new Date().toISOString();
+          store.luckyWheelLastRegenAt = getSyncedIsoString();
         }
       }
       store.luckyWheelSpinCount = Math.max(0, Number(store.luckyWheelSpinCount || 0)) + safeMultiplier;
       store.luckyWheelMilestoneDayKey = getLuckyWheelTodayKey();
       store.luckyWheelDailySpinCount = Math.max(0, Number(store.luckyWheelDailySpinCount || 0)) + safeMultiplier;
-      const now = new Date();
+      const now = getSyncedNowDate();
       const historyEntry = {
         at: now.toISOString(),
         label: displaySegment.label,
@@ -3971,6 +4084,21 @@
         renderStatsPanel();
       });
     }
+    document.addEventListener("change", event => {
+      const kenoLevelSelect = event.target.closest("[data-stats-recent-keno-level]");
+      if (!kenoLevelSelect) return;
+      setStatsRecentKenoLevel(kenoLevelSelect.value);
+      saveStatsUiState();
+      renderStatsRecentSelectedHostOnly();
+    });
+    document.addEventListener("click", event => {
+      const manualRefreshButton = event.target.closest("[data-stats-manual-refresh]");
+      if (manualRefreshButton) {
+        event.preventDefault();
+        startStatsPanelRefresh({ force: true, silent: true });
+        return;
+      }
+    });
     document.addEventListener("click", event => {
       const recentWindowButton = event.target.closest("[data-stats-recent-window]");
       if (!recentWindowButton) return;
@@ -4033,9 +4161,16 @@
         renderStatsRecentSelectedHostOnly();
         return;
       }
+      const saveButton = event.target.closest("[data-stats-recent-save]");
+      if (saveButton) {
+        saveStatsRecentSelectedState();
+        renderStatsRecentSelectedHostOnly();
+        return;
+      }
       const activeSetButton = event.target.closest("[data-stats-recent-active-set]");
       if (activeSetButton) {
         setStatsRecentActiveSetIndex(statsSelectedType, activeSetButton.dataset.statsRecentActiveSet);
+        saveStatsRecentSelectedState();
         renderStatsRecentSelectedHostOnly();
         return;
       }
