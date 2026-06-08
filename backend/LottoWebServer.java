@@ -1809,6 +1809,33 @@ public class LottoWebServer {
         return trimmed;
     }
 
+    private static String normalizeStoredJsonObjectText(String jsonText) {
+        String trimmed = nvl(jsonText).trim();
+        if (trimmed.isEmpty()) return "{}";
+        try {
+            return requireValidJsonObjectText(trimmed);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        String unescaped = trimmed;
+        if (unescaped.startsWith("\"") && unescaped.endsWith("\"") && unescaped.length() >= 2) {
+            unescaped = unescaped.substring(1, unescaped.length() - 1);
+        }
+        unescaped = unescaped
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\")
+                .replace("\\n", "\n")
+                .replace("\\r", "\r")
+                .replace("\\t", "\t");
+        try {
+            return requireValidJsonObjectText(unescaped);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        System.err.println("Store JSON không hợp lệ, fallback về {}.");
+        return "{}";
+    }
+
     private static List<String> buildPythonCommand(Path scriptFile) {
         List<String> command = new ArrayList<>();
         Path pythonExe = resolvePreferredPythonExecutable();
@@ -2063,7 +2090,17 @@ public class LottoWebServer {
                  PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
                 ps.setString(1, user);
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) return rs.getString(1);
+                    if (rs.next()) {
+                        String raw = rs.getString(1);
+                        String normalized = normalizeStoredJsonObjectText(raw);
+                        if (!normalized.equals(nvl(raw).trim())) {
+                            try {
+                                setStore(user, normalized);
+                            } catch (RuntimeException ignored) {
+                            }
+                        }
+                        return normalized;
+                    }
                 }
             } catch (SQLException e) {
                 throw new RuntimeException(e);

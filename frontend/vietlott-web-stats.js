@@ -868,7 +868,18 @@
       return logs[0] || null;
     }
 
-    function getStatsPredictionComparisonContext(type, latestEntry = null, latestActualSet = null, latestActualSpecialSet = null) {
+    function buildStatsNeutralPredictionComparisonContext(label = "kỳ gần nhất") {
+      return {
+        entry: null,
+        isLatestEntry: false,
+        actualSet: new Set(),
+        actualSpecialSet: new Set(),
+        label,
+      };
+    }
+
+    function getStatsPredictionComparisonContext(type, latestEntry = null, latestActualSet = null, latestActualSpecialSet = null, options = {}) {
+      const allowResolvedFallback = options?.allowResolvedFallback !== false;
       const latestKy = latestEntry?.ky;
       const directEntry = findStatsPredictionLogForKy(type, latestKy);
       if (directEntry) {
@@ -880,16 +891,9 @@
           label: "kỳ trước",
         };
       }
+      if (!allowResolvedFallback) return buildStatsNeutralPredictionComparisonContext();
       const fallbackEntry = findStatsLatestResolvedPredictionLog(type);
-      if (!fallbackEntry) {
-        return {
-          entry: null,
-          isLatestEntry: false,
-          actualSet: new Set(),
-          actualSpecialSet: new Set(),
-          label: "kỳ trước",
-        };
-      }
+      if (!fallbackEntry) return buildStatsNeutralPredictionComparisonContext("kỳ trước");
       return {
         entry: fallbackEntry,
         isLatestEntry: false,
@@ -1946,9 +1950,12 @@
       return `${min} - ${max}`;
     }
 
-    function getStatsModernOrderedItems(type, countByValue, fallbackItems = [], { special = false, limit = null } = {}) {
+    function getStatsModernOrderedItems(type, countByValue, fallbackItems = [], { special = false, limit = null, displayMode = statsRecentDisplayModeValue } = {}) {
       const config = TYPES[type] || {};
       const map = countByValue instanceof Map ? countByValue : new Map();
+      const normalizedDisplayMode = typeof normalizeStatsRecentDisplayMode === "function"
+        ? normalizeStatsRecentDisplayMode(displayMode)
+        : (String(displayMode || "").trim().toLowerCase() === "count" ? "count" : "order");
       if (TYPES[type]?.threeDigit && !special) {
         return (Array.isArray(fallbackItems) ? fallbackItems : [])
           .slice(0, Number(limit || 50))
@@ -1960,11 +1967,22 @@
       }
       const min = special ? config.specialMin : config.mainMin;
       const max = special ? config.specialMax : config.mainMax;
-      return range(min, max).map(value => ({
+      const numberOrderedItems = range(min, max).map(value => ({
         value: Number(value),
         count: Number(map.get(Number(value)) || 0),
         label: getStatsDisplayLabel(type, value, special),
       }));
+      if (normalizedDisplayMode === "count") {
+        const rankedItems = Array.isArray(fallbackItems) && fallbackItems.length
+          ? fallbackItems
+          : numberOrderedItems;
+        return rankedItems.map(item => ({
+          value: Number(item?.value),
+          count: Number(item?.count || 0),
+          label: getStatsDisplayLabel(type, item?.value, special),
+        }));
+      }
+      return numberOrderedItems;
     }
 
     function getStatsModernMetricItem(items, fallback = null) {
@@ -1979,14 +1997,12 @@
     }
 
     function renderStatsModernLegend(type, comparisonLabel = "kỳ trước") {
-      const normalizedType = normalizeStatsType(type);
-      const markerLabel = normalizedType === "KENO" ? "Kết quả kỳ trước" : "Số ĐB";
+      const markerLabel = "Kết quả kỳ trước";
       return `
         <div class="stats-modern-legend" aria-label="Chú thích màu">
-          <span><i class="stats-modern-dot is-yellow"></i>Số thống kê thường</span>
-          <span><i class="stats-modern-dot is-purple"></i>Dự đoán hiện tại</span>
-          <span><i class="stats-modern-dot is-green"></i>Đúng ${escapeHtml(comparisonLabel)}</span>
-          <span><i class="stats-modern-dot is-red"></i>Sai ${escapeHtml(comparisonLabel)}</span>
+          <span><i class="stats-modern-dot is-purple"></i>Nền dự đoán hiện tại</span>
+          <span><i class="stats-modern-badge is-hit">✓</i>Đúng ${escapeHtml(comparisonLabel)}</span>
+          <span><i class="stats-modern-badge is-missed">×</i>Sai ${escapeHtml(comparisonLabel)}</span>
           <span><i class="stats-modern-star">★</i>${escapeHtml(markerLabel)}</span>
         </div>
       `;
@@ -2036,6 +2052,31 @@
                 data-stats-recent-mode="${escapeHtml(option.value)}"
                 role="menuitemradio"
                 aria-checked="${option.value === recentMode ? "true" : "false"}"
+              >${escapeHtml(option.label)}</button>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStatsModernDisplayModePicker(displayMode = statsRecentDisplayModeValue) {
+      const normalizedDisplayMode = typeof normalizeStatsRecentDisplayMode === "function"
+        ? normalizeStatsRecentDisplayMode(displayMode)
+        : (String(displayMode || "").trim().toLowerCase() === "count" ? "count" : "order");
+      const options = [
+        { value: "order", label: "Số thứ tự" },
+        { value: "count", label: "Số lần" },
+      ];
+      return `
+        <div class="stats-modern-display-control" aria-label="Chọn cách hiển thị bảng số">
+          <span class="stats-modern-display-label">Hiển thị</span>
+          <div class="stats-modern-display-buttons" role="group" aria-label="Đổi cách hiển thị">
+            ${options.map(option => `
+              <button
+                type="button"
+                class="stats-modern-display-btn${option.value === normalizedDisplayMode ? " is-active" : ""}"
+                data-stats-display-mode="${escapeHtml(option.value)}"
+                aria-pressed="${option.value === normalizedDisplayMode ? "true" : "false"}"
               >${escapeHtml(option.label)}</button>
             `).join("")}
           </div>
@@ -2229,7 +2270,9 @@
       const actualSetForMetric = comparisonActualSet instanceof Set ? comparisonActualSet : latestActualSet;
       const actualCountForMetric = actualSetForMetric instanceof Set ? actualSetForMetric.size : 0;
       const actualKyForMetric = comparisonEntry?.actualKy || comparisonEntry?.predictedKy || latestEntry?.ky || "";
-      const actualTitle = comparisonLabel === "kỳ đã chấm" ? "Kỳ đã chấm" : "Kỳ trước";
+      const actualTitle = comparisonLabel === "kỳ đã chấm"
+        ? "Kỳ đã chấm"
+        : (comparisonLabel === "kỳ gần nhất" ? "Kỳ gần nhất" : "Kỳ trước");
       const latestActualMetric = normalizeStatsType(type) === "KENO"
         ? renderStatsModernSummaryMetricCard(
             actualTitle,
@@ -2481,13 +2524,17 @@
       const drawDateTimeText = [dateText, timeText].filter(Boolean).join(" ") || "--";
       return `
         <div class="stats-modern-keno-live-heading" aria-label="Kỳ Keno mới nhất">
-          <div class="stats-modern-keno-ticket-card">
-            <strong>Kỳ vé ${escapeHtml(kyText)}</strong>
-            <span>Ngày ${escapeHtml(drawDateTimeText)}</span>
-          </div>
-          <div class="stats-modern-keno-next-card" aria-label="Thời gian tới kỳ Keno kế tiếp">
-            <span>Kỳ sau:</span>
-            <strong data-stats-draw-countdown="KENO">${escapeHtml(getStatsDrawCountdownText("KENO"))}</strong>
+          <div class="stats-modern-keno-ticket-card is-summary">
+            <div class="stats-modern-keno-ticket-main">
+              <span class="stats-modern-keno-ticket-eyebrow">Kỳ mới nhất</span>
+              <strong>Kỳ vé ${escapeHtml(kyText)}</strong>
+              <span class="stats-modern-keno-ticket-meta">${escapeHtml(drawDateTimeText)}</span>
+            </div>
+            <div class="stats-modern-keno-ticket-divider" aria-hidden="true"></div>
+            <div class="stats-modern-keno-ticket-side" aria-label="Thời gian tới kỳ Keno kế tiếp">
+              <span class="stats-modern-keno-ticket-side-label">Kỳ sau</span>
+              <strong data-stats-draw-countdown="KENO">${escapeHtml(getStatsDrawCountdownText("KENO"))}</strong>
+            </div>
           </div>
         </div>
       `;
@@ -2551,37 +2598,56 @@
       const typeConfig = TYPES[type] || {};
       const latestEntry = sourceEntries[sourceEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
-      const comparisonActualSet = comparisonContext?.actualSet instanceof Set ? comparisonContext.actualSet : latestActualSet;
-      const comparisonEntry = comparisonContext?.entry || null;
       const recentEntries = filterStatsRecentEntriesByMode(sourceEntries, recentMode, recentWindow);
       const specialFrequencyItems = typeConfig.hasSpecial ? buildStatsFrequencyItems(type, recentEntries, { special: true }) : [];
       const specialCountByValue = new Map(specialFrequencyItems.map(item => [Number(item.value), Number(item.count || 0)]));
       const specialMostItems = specialFrequencyItems.slice(0, STATS_RECENT100_SIDE_LIMIT);
       const specialCurrentPredictionSet = getStatsLatestSpecialPredictionHighlight(type, latestEntry).numbers;
       const latestActualSpecialSet = buildStatsLatestActualSpecialSet(type, latestEntry);
-      const specialHitSet = getStatsLatestHitSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
-      const specialMissedSet = getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet);
       const fallbackPredictionSet = currentPredictionSet instanceof Set && currentPredictionSet.size
         ? new Set()
         : buildStatsRecentFallbackPredictionSet(type, { mostItems, overdueItems });
       const effectiveCurrentPredictionSet = currentPredictionSet instanceof Set && currentPredictionSet.size
         ? currentPredictionSet
         : fallbackPredictionSet;
-      const isFallbackPrediction = !(currentPredictionSet instanceof Set && currentPredictionSet.size) && fallbackPredictionSet.size > 0;
-      const specialMarkerSet = new Set([
-        ...specialCurrentPredictionSet,
-        ...specialHitSet,
-        ...specialMissedSet,
-        ...(type === "KENO" ? [...latestActualSet] : []),
-        ...(typeConfig.hasSpecial ? specialMostItems.slice(0, 4).map(item => Number(item.value)) : []),
-      ]);
+      const currentPredictionSource = typeof getPredictionDisplaySource === "function"
+        ? getPredictionDisplaySource(currentPredictionEntry, effectiveCurrentPredictionSet)
+        : (currentPredictionEntry ? "ai_log" : (effectiveCurrentPredictionSet instanceof Set && effectiveCurrentPredictionSet.size ? "stats_fallback" : "none"));
+      const isFallbackPrediction = currentPredictionSource === "stats_fallback";
+      const effectiveComparisonContext = currentPredictionSource === "ai_log"
+        ? (comparisonContext && typeof comparisonContext === "object"
+          ? comparisonContext
+          : buildStatsNeutralPredictionComparisonContext("kỳ trước"))
+        : buildStatsNeutralPredictionComparisonContext("kỳ gần nhất");
+      const effectiveHitNumberSet = currentPredictionSource === "ai_log"
+        ? (hitNumberSet instanceof Set ? hitNumberSet : new Set())
+        : new Set();
+      const effectiveMissedNumberSet = currentPredictionSource === "ai_log"
+        ? (missedNumberSet instanceof Set ? missedNumberSet : new Set())
+        : new Set();
+      const effectiveSpecialHitSet = currentPredictionSource === "ai_log"
+        ? getStatsLatestHitSpecialPredictionSet(type, latestEntry, latestActualSpecialSet)
+        : new Set();
+      const effectiveSpecialMissedSet = currentPredictionSource === "ai_log"
+        ? getStatsLatestMissedSpecialPredictionSet(type, latestEntry, latestActualSpecialSet)
+        : new Set();
+      const comparisonActualSet = effectiveComparisonContext.actualSet instanceof Set
+        ? effectiveComparisonContext.actualSet
+        : latestActualSet;
+      const comparisonEntry = effectiveComparisonContext.entry || null;
+      const mainResultMarkerSet = latestActualSet instanceof Set ? latestActualSet : new Set();
+      const specialResultMarkerSet = latestActualSpecialSet instanceof Set ? latestActualSpecialSet : new Set();
       const titleText = getStatsRecentPanelTitle(recentWindow, recentMode);
       const windowBadge = getStatsRecentWindowLabel(recentWindow, recentMode);
+      const displayMode = typeof normalizeStatsRecentDisplayMode === "function"
+        ? normalizeStatsRecentDisplayMode(statsRecentDisplayModeValue)
+        : (String(statsRecentDisplayModeValue || "").trim().toLowerCase() === "count" ? "count" : "order");
       const mainItems = getStatsModernOrderedItems(type, countByValue, displayItems, {
+        displayMode,
         limit: TYPES[type]?.threeDigit ? 50 : null,
       });
       const specialItems = typeConfig.hasSpecial
-        ? getStatsModernOrderedItems(type, specialCountByValue, specialFrequencyItems, { special: true })
+        ? getStatsModernOrderedItems(type, specialCountByValue, specialFrequencyItems, { special: true, displayMode })
         : [];
       const mainPanelTitle = TYPES[type]?.threeDigit
         ? (type === "MAX_3D_PRO" ? "Tần suất 100 kỳ gần nhất" : "Số nổi bật 3D")
@@ -2620,6 +2686,7 @@
           <div class="stats-modern-controls">
             ${renderStatsModernTypePicker(type, currentTypeMeta)}
             ${renderStatsModernModePicker(recentMode)}
+            ${renderStatsModernDisplayModePicker(displayMode)}
             ${renderStatsModernWindowButtons(recentWindowOptions, recentWindow, recentMode)}
           </div>
 
@@ -2628,16 +2695,16 @@
               <section class="stats-modern-card stats-modern-main-card">
                 <div class="stats-modern-main-head ${type === "KENO" ? "is-keno-live-head" : ""}">
                   ${mainHeadingHtml}
-                  ${renderStatsModernLegend(type, comparisonLabel)}
+                  ${renderStatsModernLegend(type, effectiveComparisonContext.label)}
                 </div>
                 ${pending ? `
                   <div class="stats-modern-loading">Đang tính thống kê trong nền...</div>
                 ` : `
                   ${renderStatsModernNumberGrid(type, mainItems, {
-                    hitNumberSet,
-                    missedNumberSet,
+                    hitNumberSet: effectiveHitNumberSet,
+                    missedNumberSet: effectiveMissedNumberSet,
                     currentPredictionSet: effectiveCurrentPredictionSet,
-                    specialMarkerSet,
+                    specialMarkerSet: mainResultMarkerSet,
                     showSpecialMarker: false,
                     countLabel: TYPES[type]?.threeDigit ? "lần" : "lần",
                   })}
@@ -2646,11 +2713,12 @@
 
               ${typeConfig.hasSpecial ? `
                 <section class="stats-modern-card stats-modern-special-card">
-                  ${renderStatsModernPanelTitle("★", `${type === "LOTO_6_55" ? "Số ĐB T7" : "Số đặc biệt"} (${getStatsModernRangeText(type, { special: true })})`)}
+                  ${renderStatsModernPanelTitle("◆", `${type === "LOTO_6_55" ? "Số ĐB T7" : "Số đặc biệt"} (${getStatsModernRangeText(type, { special: true })})`)}
                   ${renderStatsModernNumberGrid(type, specialItems, {
-                    hitNumberSet: specialHitSet,
-                    missedNumberSet: specialMissedSet,
+                    hitNumberSet: effectiveSpecialHitSet,
+                    missedNumberSet: effectiveSpecialMissedSet,
                     currentPredictionSet: specialCurrentPredictionSet,
+                    specialMarkerSet: specialResultMarkerSet,
                     pickRole: "special",
                     compact: true,
                     showSpecialMarker: false,
@@ -2659,7 +2727,12 @@
               ` : ""}
 
               <div data-stats-recent-selected-host>
-                ${renderStatsRecentSelectedPanel(type, { hitNumberSet, missedNumberSet, currentPredictionSet: effectiveCurrentPredictionSet, countByValue })}
+                ${renderStatsRecentSelectedPanel(type, {
+                  hitNumberSet: effectiveHitNumberSet,
+                  missedNumberSet: effectiveMissedNumberSet,
+                  currentPredictionSet: effectiveCurrentPredictionSet,
+                  countByValue,
+                })}
               </div>
             </div>
 
@@ -2676,15 +2749,15 @@
                   isFallback: isFallbackPrediction,
                   latestEntry,
                   countByValue,
-                  hitNumberSet,
-                  missedNumberSet,
+                  hitNumberSet: effectiveHitNumberSet,
+                  missedNumberSet: effectiveMissedNumberSet,
                 })}
                 ${renderStatsModernInsightPanel(type, {
                   mostItems,
                   leastItems,
                   overdueItems,
-                  hitNumberSet,
-                  missedNumberSet,
+                  hitNumberSet: effectiveHitNumberSet,
+                  missedNumberSet: effectiveMissedNumberSet,
                   currentPredictionSet: effectiveCurrentPredictionSet,
                 })}
                 ${renderStatsModernMetrics(type, {
@@ -2692,12 +2765,12 @@
                   leastItems,
                   overdueItems,
                   specialMostItems,
-                  hitNumberSet,
-                  missedNumberSet,
+                  hitNumberSet: effectiveHitNumberSet,
+                  missedNumberSet: effectiveMissedNumberSet,
                   countByValue,
                   latestActualSet,
                   latestEntry,
-                  comparisonLabel,
+                  comparisonLabel: effectiveComparisonContext.label,
                   comparisonActualSet,
                   comparisonEntry,
                 })}
@@ -2720,8 +2793,6 @@
       const latestEntry = allEntries[allEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
       const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
-      const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
-      const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
       const { computation } = getStatsRecentComputation(type, allEntries, statsRecentModeValue, statsRecentWindowValue);
       const fallbackPredictionSet = currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size
         ? new Set()
@@ -2729,6 +2800,15 @@
             mostItems: computation?.mostItems || [],
             overdueItems: computation?.overdueItems || [],
           });
+      const currentPredictionSource = typeof getPredictionDisplaySource === "function"
+        ? getPredictionDisplaySource(currentPredictionHighlight.entry, currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size ? currentPredictionHighlight.numbers : fallbackPredictionSet)
+        : (currentPredictionHighlight.entry ? "ai_log" : (fallbackPredictionSet instanceof Set && fallbackPredictionSet.size ? "stats_fallback" : "none"));
+      const hitPredictionSet = currentPredictionSource === "ai_log"
+        ? getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet)
+        : new Set();
+      const missedPredictionSet = currentPredictionSource === "ai_log"
+        ? getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet)
+        : new Set();
       const effectiveCurrentPredictionSet = currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size
         ? currentPredictionHighlight.numbers
         : fallbackPredictionSet;
@@ -2772,9 +2852,19 @@
       const latestEntry = allEntries[allEntries.length - 1] || null;
       const latestActualSet = buildStatsLatestActualNumberSet(type, latestEntry);
       const currentPredictionHighlight = getStatsLatestPredictionHighlight(type, latestEntry);
-      const comparisonContext = getStatsPredictionComparisonContext(type, latestEntry, latestActualSet);
-      const hitPredictionSet = getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet);
-      const missedPredictionSet = getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet);
+      const currentPredictionSource = typeof getPredictionDisplaySource === "function"
+        ? getPredictionDisplaySource(currentPredictionHighlight.entry, currentPredictionHighlight.numbers)
+        : (currentPredictionHighlight.entry ? "ai_log" : (currentPredictionHighlight.numbers instanceof Set && currentPredictionHighlight.numbers.size ? "stats_fallback" : "none"));
+      const hasAiPredictionEntry = currentPredictionSource === "ai_log";
+      const comparisonContext = hasAiPredictionEntry
+        ? getStatsPredictionComparisonContext(type, latestEntry, latestActualSet)
+        : buildStatsNeutralPredictionComparisonContext("kỳ gần nhất");
+      const hitPredictionSet = hasAiPredictionEntry
+        ? getStatsLatestHitPredictionSet(type, latestEntry, latestActualSet)
+        : new Set();
+      const missedPredictionSet = hasAiPredictionEntry
+        ? getStatsLatestMissedPredictionSet(type, latestEntry, latestActualSet)
+        : new Set();
       out.classList.remove("muted");
       out.innerHTML = renderStatsRecent100Panel(type, allEntries, {
         hitNumberSet: hitPredictionSet,

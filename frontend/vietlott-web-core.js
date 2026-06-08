@@ -110,6 +110,7 @@
     const STATS_SELECTED_DAY_WINDOW_KEY = "vietlott_stats_selected_day_window_v1";
     const STATS_DATE_FROM_KEY = "vietlott_stats_date_from_v1";
     const STATS_DATE_TO_KEY = "vietlott_stats_date_to_v1";
+    const STATS_RECENT_DISPLAY_MODE_KEY = "vietlott_stats_recent_display_mode_v1";
     const STATS_RECENT_KENO_LEVEL_KEY = "vietlott_stats_recent_keno_level_v1";
     const STATS_RECENT_SELECTED_SETS_KEY = "vietlott_stats_recent_selected_sets_v1";
     const STATS_V2_UI_KEY = "vietlott_stats_v2_ui_v1";
@@ -427,6 +428,14 @@
     let currentUser = null;
     let currentUserRole = "user";
     let store = emptyStore();
+    let storeSaveState = {
+      pending: false,
+      ok: true,
+      message: "",
+      reason: "",
+      savedAt: "",
+      failedAt: "",
+    };
     let accountEditMode = false;
     let kenoCsvFeed = { results: {}, order: [], sourceLabels: [], loadedAt: "" };
     let kenoPredictStatusMeta = { loadedAt: "", detail: "", level: "" };
@@ -470,6 +479,7 @@
     let statsPanelNextRefreshAt = 0;
     let statsRecentModeValue = "draw";
     let statsRecentWindowValue = STATS_RECENT_WINDOW_DEFAULT;
+    let statsRecentDisplayModeValue = "order";
     let statsRecentKenoLevelValue = 10;
     let statsRecentSelectedByType = Object.create(null);
     let statsRecentActiveSetByType = Object.create(null);
@@ -886,12 +896,17 @@
       return STATS_DAY_WINDOWS.includes(normalized) ? normalized : "30";
     }
 
+    function normalizeStatsRecentDisplayMode(value) {
+      return String(value || "").trim().toLowerCase() === "count" ? "count" : "order";
+    }
+
     function readStatsUiState() {
       try {
         statsSelectedType = normalizeStatsType(localStorage.getItem(STATS_SELECTED_TYPE_KEY) || "KENO");
         statsSelectedDayWindow = normalizeStatsDayWindow(localStorage.getItem(STATS_SELECTED_DAY_WINDOW_KEY) || "30");
         statsDateFrom = String(localStorage.getItem(STATS_DATE_FROM_KEY) || "").trim();
         statsDateTo = String(localStorage.getItem(STATS_DATE_TO_KEY) || "").trim();
+        statsRecentDisplayModeValue = normalizeStatsRecentDisplayMode(localStorage.getItem(STATS_RECENT_DISPLAY_MODE_KEY) || statsRecentDisplayModeValue);
         statsRecentKenoLevelValue = normalizeStatsRecentKenoLevel(localStorage.getItem(STATS_RECENT_KENO_LEVEL_KEY) || statsRecentKenoLevelValue);
       } catch {}
     }
@@ -902,6 +917,7 @@
         localStorage.setItem(STATS_SELECTED_DAY_WINDOW_KEY, normalizeStatsDayWindow(statsSelectedDayWindow));
         localStorage.setItem(STATS_DATE_FROM_KEY, String(statsDateFrom || "").trim());
         localStorage.setItem(STATS_DATE_TO_KEY, String(statsDateTo || "").trim());
+        localStorage.setItem(STATS_RECENT_DISPLAY_MODE_KEY, normalizeStatsRecentDisplayMode(statsRecentDisplayModeValue));
         localStorage.setItem(STATS_RECENT_KENO_LEVEL_KEY, String(normalizeStatsRecentKenoLevel(statsRecentKenoLevelValue)));
       } catch {}
     }
@@ -1691,9 +1707,36 @@
     }
 
     // ---abc--- Store / Session / Persistence ---
+    function updateStoreSaveState(patch = {}) {
+      storeSaveState = {
+        ...storeSaveState,
+        ...(patch && typeof patch === "object" ? patch : {}),
+      };
+      const snapshot = { ...storeSaveState };
+      window.__storeSaveState = snapshot;
+      try {
+        window.dispatchEvent(new CustomEvent("store-save-status", { detail: snapshot }));
+      } catch {}
+      return snapshot;
+    }
+
+    function getStoreSaveState() {
+      return { ...storeSaveState };
+    }
+
+    window.getStoreSaveState = getStoreSaveState;
+
     async function loadStoreFromServer() {
       if (!currentUser) {
         store = emptyStore();
+        updateStoreSaveState({
+          pending: false,
+          ok: true,
+          message: "",
+          reason: "no_user",
+          savedAt: "",
+          failedAt: "",
+        });
         renderCurrencyBar();
         return;
       }
@@ -1739,14 +1782,50 @@
       renderCurrencyBar();
     }
 
-    function saveStore() {
-      if (!currentUser) return;
+    async function saveStore(options = {}) {
+      if (!currentUser) return false;
+      const reason = String(options?.reason || "").trim() || "unspecified";
       if (IS_LOCAL_MODE) {
         setLocalStoreForUser(currentUser, store);
-        return;
+        updateStoreSaveState({
+          pending: false,
+          ok: true,
+          message: "",
+          reason,
+          savedAt: getSyncedIsoString(),
+          failedAt: "",
+        });
+        return true;
       }
-      api("/api/store", "POST", { store: JSON.stringify(store) })
-        .catch(() => {});
+      updateStoreSaveState({
+        pending: true,
+        ok: storeSaveState.ok,
+        message: "",
+        reason,
+      });
+      try {
+        await api("/api/store", "POST", { store: JSON.stringify(store) });
+        updateStoreSaveState({
+          pending: false,
+          ok: true,
+          message: "",
+          reason,
+          savedAt: getSyncedIsoString(),
+          failedAt: "",
+        });
+        return true;
+      } catch (error) {
+        const message = String(error?.message || error || "Không lưu được dữ liệu tài khoản.");
+        console.error(`[store-save:${reason}]`, error);
+        updateStoreSaveState({
+          pending: false,
+          ok: false,
+          message,
+          reason,
+          failedAt: getSyncedIsoString(),
+        });
+        return false;
+      }
     }
 
     function renderCurrencyBar() {
@@ -4114,6 +4193,15 @@
       if (nextMode === statsRecentModeValue) return;
       statsRecentModeValue = nextMode;
       statsRecentWindowValue = normalizeStatsRecentWindow(statsRecentWindowValue, statsRecentModeValue);
+      renderStatsPanel();
+    });
+    document.addEventListener("click", event => {
+      const displayModeButton = event.target.closest("[data-stats-display-mode]");
+      if (!displayModeButton) return;
+      const nextMode = normalizeStatsRecentDisplayMode(displayModeButton.dataset.statsDisplayMode);
+      if (nextMode === statsRecentDisplayModeValue) return;
+      statsRecentDisplayModeValue = nextMode;
+      saveStatsUiState();
       renderStatsPanel();
     });
     document.addEventListener("click", event => {

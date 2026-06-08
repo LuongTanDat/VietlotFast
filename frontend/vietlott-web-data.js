@@ -258,6 +258,19 @@
       return { className: "waiting", label: "Chờ kết quả", shortLabel: "Chờ KQ" };
     }
 
+    function hasPredictionLogEntry(entry) {
+      return !!(entry && Array.isArray(entry?.tickets) && entry.tickets.length);
+    }
+
+    function getPredictionDisplaySource(predictionEntry = null, fallbackSet = null) {
+      if (hasPredictionLogEntry(predictionEntry)) return "ai_log";
+      if (fallbackSet instanceof Set && fallbackSet.size) return "stats_fallback";
+      return "none";
+    }
+
+    window.hasPredictionLogEntry = hasPredictionLogEntry;
+    window.getPredictionDisplaySource = getPredictionDisplaySource;
+
     function findNextKenoKyAfterDate(dataset, afterDate) {
       if (!(afterDate instanceof Date) || Number.isNaN(afterDate.getTime())) return null;
       for (const ky of (dataset?.order || [])) {
@@ -6006,7 +6019,7 @@
             }
           }
           const predictionCreatedAt = getSyncedIsoString();
-          const displayResult = {
+          let displayResult = {
             ...result,
             createdAt: predictionCreatedAt,
             engine: engineMeta.key,
@@ -6069,7 +6082,19 @@
                 predictionMode: PREDICTION_MODE_NORMAL,
                 vipProfile: "",
               });
-              saveStore();
+              const saved = await saveStore({ reason: `${type.toLowerCase()}_prediction_log` });
+              if (!saved) {
+                const saveWarning = "Chưa lưu được prediction log vào tài khoản; nếu tải lại trang lúc này thì lịch sử dự đoán có thể không được giữ lại.";
+                displayResult = {
+                  ...displayResult,
+                  storeSaveFailed: true,
+                  storeSaveMessage: saveWarning,
+                  notes: [saveWarning, ...(Array.isArray(displayResult?.notes) ? displayResult.notes : [])],
+                };
+                if (type === "KENO" && typeof setKenoPredictStatusMeta === "function") {
+                  setKenoPredictStatusMeta(saveWarning, "warn");
+                }
+              }
             }
           }
           stopPredictLoading(engineMeta.key, Date.now() - predictStartedAt);
@@ -6296,7 +6321,7 @@
         }
         const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
         const isPredictorV2Vip = adaptiveVipMeta.active;
-        const displayResult = applyVipPredictionProfile({
+        let displayResult = applyVipPredictionProfile({
           ...result,
           createdAt: getSyncedIsoString(),
           // predictor_v2 integration start
@@ -6353,7 +6378,19 @@
               predictionMode: PREDICTION_MODE_VIP,
               vipProfile: String(displayResult?.vipProfile || "strict_select"),
             });
-            saveStore();
+            const saved = await saveStore({ reason: `${type.toLowerCase()}_vip_prediction_log` });
+            if (!saved) {
+              const saveWarning = "Chưa lưu được prediction log Vip vào tài khoản; nếu tải lại trang lúc này thì lịch sử dự đoán có thể không được giữ lại.";
+              displayResult = {
+                ...displayResult,
+                storeSaveFailed: true,
+                storeSaveMessage: saveWarning,
+                notes: [saveWarning, ...(Array.isArray(displayResult?.notes) ? displayResult.notes : [])],
+              };
+              if (type === "KENO" && typeof setKenoPredictStatusMeta === "function") {
+                setKenoPredictStatusMeta(saveWarning, "warn");
+              }
+            }
           }
         }
         stopPredictLoading(engineMeta.key, Date.now() - startedAt);

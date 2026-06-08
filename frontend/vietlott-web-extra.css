@@ -8,6 +8,20 @@
     .stats-modern-shell {
       position: relative;
       overflow: visible;
+      --stats-base-border: rgba(63, 103, 148, 0.84);
+      --stats-base-bg:
+        radial-gradient(circle at 50% 16%, rgba(111, 173, 255, 0.12), transparent 42%),
+        linear-gradient(180deg, rgba(13, 25, 44, 0.98), rgba(8, 17, 32, 0.98));
+      --stats-prediction-border: rgba(150, 112, 255, 0.96);
+      --stats-prediction-bg:
+        radial-gradient(circle at 50% 16%, rgba(228, 212, 255, 0.22), transparent 36%),
+        linear-gradient(145deg, #7c3aed 0%, #5b21b6 58%, #24104b 100%);
+      --stats-hit-border: rgba(68, 220, 126, 0.98);
+      --stats-hit-glow: rgba(34, 197, 94, 0.26);
+      --stats-missed-border: rgba(255, 104, 104, 0.98);
+      --stats-missed-glow: rgba(239, 68, 68, 0.26);
+      --stats-special-border: rgba(255, 208, 74, 0.92);
+      --stats-special-glow: rgba(245, 158, 11, 0.34);
       padding: 24px;
       border: 1px solid rgba(41, 83, 122, 0.72);
       border-radius: 24px;
@@ -141,10 +155,10 @@
 
     .stats-modern-controls {
       display: grid;
-      grid-template-columns: minmax(180px, 220px) minmax(190px, 240px) minmax(0, 1fr);
-      gap: 18px;
-      margin-bottom: 18px;
-      padding: 12px;
+      grid-template-columns: minmax(150px, 188px) minmax(150px, 188px) minmax(210px, 250px) minmax(0, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 10px;
       border: 1px solid rgba(49, 82, 115, 0.48);
       border-radius: 14px;
       background: rgba(8, 21, 38, 0.54);
@@ -157,14 +171,14 @@
 
     .stats-modern-select-trigger {
       width: 100%;
-      min-height: 46px;
+      min-height: 42px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 7px 10px 7px 14px;
-      border: 1px solid rgba(73, 111, 148, 0.8);
-      border-radius: 11px;
+      gap: 8px;
+      padding: 6px 8px 6px 12px;
+      border: 1px solid rgba(73, 111, 148, 0.74);
+      border-radius: 10px;
       background:
         radial-gradient(circle at 18% 0%, rgba(255, 206, 71, 0.08), transparent 34%),
         linear-gradient(180deg, rgba(8, 24, 43, 0.96), rgba(4, 13, 27, 0.96));
@@ -190,7 +204,7 @@
 
     .stats-modern-select-label {
       color: #8fa7bf;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 900;
       letter-spacing: 0.06em;
       line-height: 1;
@@ -200,12 +214,65 @@
     .stats-modern-select-value {
       overflow: hidden;
       color: #f7fbff;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 900;
       letter-spacing: 0;
       line-height: 1.15;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .stats-modern-display-control {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 5px 8px 5px 12px;
+      border: 1px solid rgba(73, 111, 148, 0.74);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(255, 206, 71, 0.08), transparent 34%),
+        linear-gradient(180deg, rgba(8, 24, 43, 0.96), rgba(4, 13, 27, 0.96));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .stats-modern-display-label {
+      color: #8fa7bf;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .stats-modern-display-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .stats-modern-display-btn {
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid rgba(51, 82, 112, 0.78);
+      border-radius: 999px;
+      background: rgba(5, 16, 31, 0.92);
+      color: #d8e5f3;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .stats-modern-display-btn:hover,
+    .stats-modern-display-btn.is-active {
+      border-color: rgba(255, 211, 87, 0.95);
+      background: linear-gradient(180deg, #ffe77b, #f2a826);
+      color: #07101d;
+      box-shadow: 0 0 16px rgba(255, 182, 47, 0.24);
     }
 
     .stats-modern-chevron {
@@ -364,69 +431,92 @@
     .stats-modern-keno-live-heading {
       display: flex;
       align-items: stretch;
-      gap: 8px;
+      width: 100%;
+      max-width: 460px;
       min-width: 0;
-      flex-wrap: wrap;
     }
 
     .stats-modern-keno-ticket-card {
-      min-width: 190px;
-      height: 58px;
+      width: 100%;
+      min-height: 68px;
       box-sizing: border-box;
       display: grid;
-      place-items: center;
-      gap: 3px;
-      padding: 7px 18px;
+      grid-template-columns: minmax(0, 1fr) auto minmax(96px, 120px);
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px 10px 16px;
       border: 1px solid rgba(255, 238, 170, 0.95);
-      border-radius: 4px;
-      background: linear-gradient(180deg, #fff9dc 0%, #fff1b9 100%);
-      color: #b00000;
-      text-align: center;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+      border-radius: 10px;
+      background:
+        linear-gradient(90deg, rgba(255, 248, 216, 0.98) 0%, rgba(255, 242, 188, 0.98) 62%, rgba(255, 236, 166, 0.98) 100%);
+      color: #3a2200;
+      text-align: left;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.84);
     }
 
-    .stats-modern-keno-ticket-card strong,
-    .stats-modern-keno-ticket-card span {
+    .stats-modern-keno-ticket-main,
+    .stats-modern-keno-ticket-side {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .stats-modern-keno-ticket-eyebrow,
+    .stats-modern-keno-ticket-side-label {
+      display: block;
+      color: rgba(79, 48, 0, 0.82);
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-shadow: none;
+    }
+
+    .stats-modern-keno-ticket-main strong {
       display: block;
       color: #b00000;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 900;
-      line-height: 1.15;
+      line-height: 1.05;
       letter-spacing: 0;
       text-shadow: none;
     }
 
-    .stats-modern-keno-next-card {
-      min-width: 100px;
-      height: 58px;
-      box-sizing: border-box;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 7px 12px;
-      border: 1px solid #ff9d00;
-      border-radius: 4px;
-      background: linear-gradient(180deg, #fffdf2 0%, #fff3c4 100%);
-      color: #2b1900;
+    .stats-modern-keno-ticket-meta {
+      display: block;
+      color: #8e1f00;
       font-size: 13px;
       font-weight: 800;
-      line-height: 1;
-      white-space: nowrap;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      line-height: 1.15;
+      text-shadow: none;
     }
 
-    .stats-modern-keno-next-card strong {
+    .stats-modern-keno-ticket-divider {
+      width: 1px;
+      align-self: stretch;
+      background: linear-gradient(180deg, rgba(255, 157, 0, 0), rgba(255, 157, 0, 0.72), rgba(255, 157, 0, 0));
+    }
+
+    .stats-modern-keno-ticket-side {
+      justify-items: center;
+      align-content: center;
+      text-align: center;
+    }
+
+    .stats-modern-keno-ticket-side strong {
       color: #ff1f1f;
-      font-size: 14px;
+      font-size: 22px;
       font-weight: 900;
       letter-spacing: 0;
+      line-height: 1;
+      text-shadow: none;
     }
 
     .stats-modern-legend {
       display: grid;
-      grid-template-columns: repeat(3, max-content);
-      justify-content: flex-end;
+      grid-template-columns: repeat(2, minmax(0, max-content));
+      justify-content: end;
       align-items: center;
       column-gap: 16px;
       row-gap: 8px;
@@ -439,6 +529,7 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
+      min-width: 0;
       white-space: nowrap;
     }
 
@@ -454,6 +545,11 @@
     .stats-modern-dot.is-yellow,
     .stats-modern-help-dot.is-yellow {
       background: linear-gradient(135deg, #ffe67a, #ffb733);
+    }
+
+    .stats-modern-dot.is-slate,
+    .stats-modern-help-dot.is-slate {
+      background: linear-gradient(135deg, #a8c4e3, #4f79ab);
     }
 
     .stats-modern-dot.is-purple,
@@ -474,6 +570,32 @@
     .stats-modern-star {
       color: #ffcf35;
       text-shadow: 0 0 14px rgba(255, 202, 52, 0.55);
+    }
+
+    .stats-modern-badge {
+      min-width: 18px;
+      height: 18px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0 5px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.08);
+    }
+
+    .stats-modern-badge.is-hit {
+      border-color: var(--stats-hit-border);
+      background: rgba(7, 43, 22, 0.96);
+      color: #b9f8cb;
+    }
+
+    .stats-modern-badge.is-missed {
+      border-color: var(--stats-missed-border);
+      background: rgba(64, 16, 16, 0.96);
+      color: #ffc0c0;
     }
 
     .stats-modern-number-grid {
@@ -504,19 +626,18 @@
       place-items: center;
       gap: 2px;
       padding: 8px 8px 7px;
-      border: 1px solid rgba(244, 174, 25, 0.78);
+      border: 1px solid var(--stats-base-border);
       border-radius: 8px;
-      background:
-        radial-gradient(circle at 50% 18%, rgba(255, 221, 110, 0.1), transparent 38%),
-        linear-gradient(180deg, rgba(74, 51, 10, 0.94), rgba(36, 25, 6, 0.96));
-      color: #fff6cf;
+      background: var(--stats-base-bg);
+      color: #eef6ff;
       cursor: pointer;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.24);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
     }
 
     .stats-modern-number:hover {
       transform: translateY(-1px);
-      box-shadow: 0 0 12px rgba(255, 198, 47, 0.18), 0 8px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 12px rgba(96, 165, 250, 0.16), 0 8px 20px rgba(0, 0, 0, 0.3);
     }
 
     .stats-modern-number-value {
@@ -528,7 +649,7 @@
     }
 
     .stats-modern-number-count {
-      color: #fff3d6;
+      color: #cfe0f4;
       font-weight: 800;
       font-size: 13px;
       line-height: 1.1;
@@ -546,52 +667,38 @@
 
     .stats-modern-number.is-current-prediction,
     .stats-modern-picked-ball.is-current-prediction {
-      border-color: rgba(191, 109, 255, 0.95);
-      background:
-        radial-gradient(circle at 50% 18%, rgba(233, 193, 255, 0.32), rgba(233, 193, 255, 0) 34%),
-        linear-gradient(145deg, #8d43df 0%, #6624bd 58%, #281052 100%);
+      border-color: var(--stats-prediction-border);
+      background: var(--stats-prediction-bg);
       color: #fff;
-      box-shadow: 0 0 12px rgba(174, 86, 255, 0.28);
+      box-shadow: 0 0 12px rgba(124, 58, 237, 0.28);
     }
 
     .stats-modern-number.is-previous-hit,
     .stats-modern-picked-ball.is-previous-hit {
-      border-color: rgba(116, 237, 124, 0.95);
-      background:
-        radial-gradient(circle at 50% 18%, rgba(169, 255, 176, 0.26), rgba(169, 255, 176, 0) 34%),
-        linear-gradient(145deg, #1e9a5f 0%, #0c713f 58%, #06361f 100%);
-      color: #f1fff2;
-      box-shadow: 0 0 12px rgba(74, 230, 95, 0.24);
+      border-color: var(--stats-hit-border);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18), 0 0 12px var(--stats-hit-glow);
     }
 
     .stats-modern-number.is-previous-missed,
     .stats-modern-picked-ball.is-previous-missed {
-      border-color: rgba(255, 97, 82, 0.95);
-      background:
-        radial-gradient(circle at 50% 18%, rgba(255, 154, 142, 0.3), rgba(255, 154, 142, 0) 34%),
-        linear-gradient(145deg, #d2453b 0%, #961d1a 58%, #43100f 100%);
-      color: #fff;
-      box-shadow: 0 0 12px rgba(255, 70, 56, 0.24);
+      border-color: var(--stats-missed-border);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.18), 0 0 12px var(--stats-missed-glow);
     }
 
     .stats-modern-number.is-current-prediction.is-previous-hit,
     .stats-modern-picked-ball.is-current-prediction.is-previous-hit {
-      border-color: rgba(133, 255, 191, 0.96);
-      background:
-        radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 30%),
-        linear-gradient(135deg, #7f39cc 0%, #5b20ad 45%, #15904b 56%, #0a552c 100%);
+      border-color: var(--stats-hit-border);
+      background: var(--stats-prediction-bg);
       color: #fff;
-      box-shadow: 0 0 12px rgba(139, 92, 246, 0.24), 0 0 12px rgba(45, 212, 112, 0.18);
+      box-shadow: 0 0 12px rgba(124, 58, 237, 0.2), 0 0 12px var(--stats-hit-glow);
     }
 
     .stats-modern-number.is-current-prediction.is-previous-missed,
     .stats-modern-picked-ball.is-current-prediction.is-previous-missed {
-      border-color: rgba(255, 136, 205, 0.96);
-      background:
-        radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 30%),
-        linear-gradient(135deg, #7f39cc 0%, #5b20ad 45%, #cf3030 56%, #681919 100%);
+      border-color: var(--stats-missed-border);
+      background: var(--stats-prediction-bg);
       color: #fff;
-      box-shadow: 0 0 12px rgba(139, 92, 246, 0.22), 0 0 12px rgba(248, 80, 80, 0.18);
+      box-shadow: 0 0 12px rgba(124, 58, 237, 0.2), 0 0 12px var(--stats-missed-glow);
     }
 
     .stats-modern-prediction-card {
@@ -616,6 +723,7 @@
     }
 
     .stats-modern-prediction-ball {
+      position: relative;
       width: 36px;
       height: 36px;
       min-width: 36px;
@@ -624,14 +732,12 @@
       place-items: center;
       margin: 0;
       padding: 0;
-      border: 1px solid rgba(206, 151, 255, 0.96);
+      border: 1px solid var(--stats-base-border);
       border-radius: 50%;
       appearance: none;
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.42) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #8e45df 0%, #6424bc 56%, #271052 100%);
+      background: var(--stats-base-bg);
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 8px rgba(142, 69, 223, 0.3);
-      color: #ffffff;
+      color: #eef6ff;
       cursor: pointer;
       font: inherit;
       font-size: 14px;
@@ -654,26 +760,27 @@
 
     .stats-modern-prediction-ball:hover,
     .stats-modern-prediction-ball:focus-visible {
-      border-color: rgba(235, 217, 255, 1);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 0 12px rgba(183, 108, 255, 0.36);
+      border-color: rgba(187, 220, 255, 0.98);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 0 12px rgba(96, 165, 250, 0.28);
       outline: none;
       transform: translateY(-1px);
     }
 
+    .stats-modern-prediction-ball.is-current-prediction {
+      border-color: var(--stats-prediction-border);
+      background: var(--stats-prediction-bg);
+      color: #fff;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 10px rgba(124, 58, 237, 0.28);
+    }
+
     .stats-modern-prediction-ball.is-previous-hit {
-      border-color: rgba(133, 255, 196, 0.96);
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.4) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #1fa66d 0%, #08734d 56%, #064333 100%);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px rgba(34, 197, 94, 0.28);
+      border-color: var(--stats-hit-border);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px var(--stats-hit-glow);
     }
 
     .stats-modern-prediction-ball.is-previous-missed {
-      border-color: rgba(255, 151, 194, 0.96);
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.4) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #d63d64 0%, #ad173b 56%, #641727 100%);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px rgba(244, 63, 94, 0.26);
+      border-color: var(--stats-missed-border);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px var(--stats-missed-glow);
     }
 
     .stats-modern-prediction-empty {
@@ -696,12 +803,12 @@
       height: 24px;
       display: grid;
       place-items: center;
-      border: 1px solid rgba(255, 233, 110, 0.92);
+      border: 1px solid var(--stats-special-border);
       border-radius: 50%;
       background: rgba(24, 28, 37, 0.95);
       color: #ffd43b;
       font-size: 15px;
-      box-shadow: 0 0 14px rgba(255, 210, 42, 0.36);
+      box-shadow: 0 0 14px var(--stats-special-glow);
     }
 
     .stats-modern-special-card {
@@ -940,6 +1047,7 @@
     }
 
     .stats-modern-picked-ball {
+      position: relative;
       box-sizing: border-box;
       width: 32px;
       height: 32px;
@@ -954,13 +1062,11 @@
       justify-content: center;
       margin: 0;
       padding: 0;
-      border: 1px solid rgba(206, 151, 255, 0.96);
+      border: 1px solid var(--stats-base-border);
       border-radius: 50%;
       appearance: none;
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.42) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #8e45df 0%, #6424bc 56%, #271052 100%);
-      color: #ffffff;
+      background: var(--stats-base-bg);
+      color: #eef6ff;
       font-size: 13px;
       font-weight: 900;
       line-height: 1;
@@ -971,26 +1077,20 @@
     }
 
     .stats-modern-picked-ball.is-current-prediction {
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.42) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #8e45df 0%, #6424bc 56%, #271052 100%);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 8px rgba(142, 69, 223, 0.3);
+      border-color: var(--stats-prediction-border);
+      background: var(--stats-prediction-bg);
+      color: #fff;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 8px rgba(124, 58, 237, 0.3);
     }
 
     .stats-modern-picked-ball.is-previous-hit {
-      border-color: rgba(133, 255, 196, 0.96);
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.4) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #1fa66d 0%, #08734d 56%, #064333 100%);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px rgba(34, 197, 94, 0.28);
+      border-color: var(--stats-hit-border);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px var(--stats-hit-glow);
     }
 
     .stats-modern-picked-ball.is-previous-missed {
-      border-color: rgba(255, 151, 194, 0.96);
-      background:
-        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.4) 0 4px, rgba(255, 255, 255, 0) 5px),
-        linear-gradient(145deg, #d63d64 0%, #ad173b 56%, #641727 100%);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px rgba(244, 63, 94, 0.26);
+      border-color: var(--stats-missed-border);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 0 9px var(--stats-missed-glow);
     }
 
     .stats-modern-picked-ball:hover,
@@ -1084,49 +1184,118 @@
     }
 
     .stats-modern-rank-ball {
+      position: relative;
       min-width: 38px;
       padding: 2px 9px;
+      border: 1px solid var(--stats-base-border);
       border-radius: 999px;
-      background: rgba(255, 194, 44, 0.18);
-      color: #ffe79a;
+      background: rgba(21, 37, 59, 0.88);
+      color: #d9e8f9;
       font-weight: 900;
       text-align: center;
     }
 
     .stats-modern-rank-ball.is-current-prediction {
-      background:
-        radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 38%),
-        linear-gradient(145deg, #8e45df 0%, #6424bc 58%, #2b125b 100%);
+      border-color: var(--stats-prediction-border);
+      background: var(--stats-prediction-bg);
       color: #fff;
-      box-shadow: 0 0 10px rgba(142, 69, 223, 0.28);
+      box-shadow: 0 0 10px rgba(124, 58, 237, 0.28);
     }
 
     .stats-modern-rank-ball.is-previous-hit {
-      background:
-        radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 38%),
-        linear-gradient(145deg, #1fa66d 0%, #08734d 58%, #064333 100%);
-      color: #edfff5;
-      box-shadow: 0 0 10px rgba(34, 197, 94, 0.25);
+      border-color: var(--stats-hit-border);
+      box-shadow: 0 0 10px var(--stats-hit-glow);
     }
 
     .stats-modern-rank-ball.is-previous-missed {
-      background:
-        radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 38%),
-        linear-gradient(145deg, #d63d64 0%, #ad173b 58%, #641727 100%);
-      color: #fff;
-      box-shadow: 0 0 10px rgba(244, 63, 94, 0.24);
+      border-color: var(--stats-missed-border);
+      box-shadow: 0 0 10px var(--stats-missed-glow);
     }
 
     .stats-modern-rank-ball.is-current-prediction.is-previous-hit {
-      background:
-        radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 36%),
-        linear-gradient(135deg, #7f39cc 0%, #5b20ad 45%, #15904b 56%, #0a552c 100%);
+      border-color: var(--stats-hit-border);
+      background: var(--stats-prediction-bg);
+      color: #fff;
     }
 
     .stats-modern-rank-ball.is-current-prediction.is-previous-missed {
-      background:
-        radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 36%),
-        linear-gradient(135deg, #7f39cc 0%, #5b20ad 45%, #cf3030 56%, #681919 100%);
+      border-color: var(--stats-missed-border);
+      background: var(--stats-prediction-bg);
+      color: #fff;
+    }
+
+    .stats-modern-number::after {
+      content: "";
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      min-width: 16px;
+      height: 16px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .stats-modern-prediction-ball,
+    .stats-modern-picked-ball,
+    .stats-modern-rank-ball {
+      overflow: visible;
+    }
+
+    .stats-modern-prediction-ball::after,
+    .stats-modern-picked-ball::after,
+    .stats-modern-rank-ball::after {
+      content: "";
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      left: auto;
+      min-width: 14px;
+      height: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      border-radius: 999px;
+      font-size: 8px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 2;
+      box-shadow: 0 0 10px rgba(8, 15, 24, 0.42);
+    }
+
+    .stats-modern-number.is-previous-hit::after,
+    .stats-modern-prediction-ball.is-previous-hit::after,
+    .stats-modern-picked-ball.is-previous-hit::after,
+    .stats-modern-rank-ball.is-previous-hit::after {
+      content: "✓";
+      display: inline-flex;
+      border: 1px solid var(--stats-hit-border);
+      background: rgba(7, 43, 22, 0.96);
+      color: #b9f8cb;
+    }
+
+    .stats-modern-number.is-previous-missed::after,
+    .stats-modern-prediction-ball.is-previous-missed::after,
+    .stats-modern-picked-ball.is-previous-missed::after,
+    .stats-modern-rank-ball.is-previous-missed::after {
+      content: "×";
+      display: inline-flex;
+      border: 1px solid var(--stats-missed-border);
+      background: rgba(64, 16, 16, 0.96);
+      color: #ffc0c0;
     }
 
     .stats-modern-rank-cell strong {
@@ -1304,7 +1473,7 @@
     }
 
     .stats-modern-controls {
-      grid-template-columns: minmax(160px, 190px) minmax(170px, 210px) minmax(0, 1fr);
+      grid-template-columns: minmax(132px, 150px) minmax(132px, 150px) minmax(190px, 220px) minmax(0, 1fr);
       gap: 10px;
       padding: 10px;
       margin-bottom: 14px;
@@ -1324,6 +1493,18 @@
 
     .stats-modern-select-value {
       font-size: 13px;
+    }
+
+    .stats-modern-display-control {
+      min-height: 40px;
+      gap: 8px;
+      padding: 5px 7px 5px 10px;
+    }
+
+    .stats-modern-display-btn {
+      min-height: 28px;
+      padding: 0 8px;
+      font-size: 11px;
     }
 
     .stats-modern-chevron {
@@ -1412,6 +1593,13 @@
       height: 10px;
     }
 
+    .stats-modern-badge {
+      min-width: 15px;
+      height: 15px;
+      padding: 0 4px;
+      font-size: 9px;
+    }
+
     .stats-modern-number-grid {
       gap: 7px;
     }
@@ -1447,12 +1635,40 @@
       font-size: 10px;
     }
 
+    .stats-modern-number::after {
+      top: 3px;
+      left: 3px;
+      min-width: 13px;
+      height: 13px;
+      padding: 0 3px;
+      font-size: 8px;
+    }
+
+    .stats-modern-prediction-ball::after,
+    .stats-modern-picked-ball::after,
+    .stats-modern-rank-ball::after {
+      top: -4px;
+      right: -4px;
+      min-width: 11px;
+      height: 11px;
+      padding: 0 2px;
+      font-size: 7px;
+    }
+
     .stats-modern-special-card .stats-modern-panel-title {
       margin-bottom: 8px;
     }
 
     .stats-modern-special-card .stats-modern-number-grid {
       grid-template-columns: repeat(12, minmax(42px, 1fr));
+    }
+
+    .stats-modern-number-star {
+      top: -6px;
+      right: -5px;
+      width: 19px;
+      height: 19px;
+      font-size: 11px;
     }
 
     .stats-modern-number.is-compact {
@@ -1882,15 +2098,28 @@
 
       .stats-modern-keno-live-heading {
         width: 100%;
+        max-width: none;
       }
 
       .stats-modern-keno-ticket-card {
         min-width: 0;
-        flex: 1 1 180px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        padding: 12px 13px;
       }
 
-      .stats-modern-keno-next-card {
-        flex: 0 0 auto;
+      .stats-modern-keno-ticket-divider {
+        width: 100%;
+        height: 1px;
+      }
+
+      .stats-modern-keno-ticket-side {
+        justify-items: center;
+        text-align: center;
+      }
+
+      .stats-modern-keno-ticket-side strong {
+        font-size: 18px;
       }
 
       .stats-modern-title-wrap {

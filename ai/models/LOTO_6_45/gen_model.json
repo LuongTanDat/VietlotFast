@@ -9,7 +9,7 @@
   "latestKy": "1520",
   "latestDate": "07/06/2026",
   "latestTime": "",
-  "lastTrainedAt": "2026-06-07T21:43:40",
+  "lastTrainedAt": "2026-06-08T21:26:19",
   "trainingSamples": 96,
   "currentChampion": {
     "key": "markov_transition",
