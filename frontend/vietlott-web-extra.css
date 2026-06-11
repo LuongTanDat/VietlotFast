@@ -155,7 +155,7 @@
 
     .stats-modern-controls {
       display: grid;
-      grid-template-columns: minmax(150px, 188px) minmax(150px, 188px) minmax(210px, 250px) minmax(0, 1fr);
+      grid-template-columns: minmax(150px, 182px) minmax(150px, 182px) minmax(150px, 182px) minmax(0, 1fr);
       gap: 12px;
       margin-bottom: 16px;
       padding: 10px;
@@ -220,59 +220,6 @@
       line-height: 1.15;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .stats-modern-display-control {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      align-items: center;
-      gap: 10px;
-      min-height: 42px;
-      padding: 5px 8px 5px 12px;
-      border: 1px solid rgba(73, 111, 148, 0.74);
-      border-radius: 10px;
-      background:
-        radial-gradient(circle at 18% 0%, rgba(255, 206, 71, 0.08), transparent 34%),
-        linear-gradient(180deg, rgba(8, 24, 43, 0.96), rgba(4, 13, 27, 0.96));
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
-
-    .stats-modern-display-label {
-      color: #8fa7bf;
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: 0.06em;
-      line-height: 1;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .stats-modern-display-buttons {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .stats-modern-display-btn {
-      min-height: 30px;
-      padding: 0 10px;
-      border: 1px solid rgba(51, 82, 112, 0.78);
-      border-radius: 999px;
-      background: rgba(5, 16, 31, 0.92);
-      color: #d8e5f3;
-      font-size: 12px;
-      font-weight: 800;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .stats-modern-display-btn:hover,
-    .stats-modern-display-btn.is-active {
-      border-color: rgba(255, 211, 87, 0.95);
-      background: linear-gradient(180deg, #ffe77b, #f2a826);
-      color: #07101d;
-      box-shadow: 0 0 16px rgba(255, 182, 47, 0.24);
     }
 
     .stats-modern-chevron {
@@ -1473,7 +1420,7 @@
     }
 
     .stats-modern-controls {
-      grid-template-columns: minmax(132px, 150px) minmax(132px, 150px) minmax(190px, 220px) minmax(0, 1fr);
+      grid-template-columns: minmax(132px, 150px) minmax(132px, 150px) minmax(132px, 150px) minmax(0, 1fr);
       gap: 10px;
       padding: 10px;
       margin-bottom: 14px;
@@ -1493,18 +1440,6 @@
 
     .stats-modern-select-value {
       font-size: 13px;
-    }
-
-    .stats-modern-display-control {
-      min-height: 40px;
-      gap: 8px;
-      padding: 5px 7px 5px 10px;
-    }
-
-    .stats-modern-display-btn {
-      min-height: 28px;
-      padding: 0 8px;
-      font-size: 11px;
     }
 
     .stats-modern-chevron {

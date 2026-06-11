@@ -367,6 +367,8 @@
       return Array.isArray(PREDICT_BAO_LEVELS[normalizedType]) && PREDICT_BAO_LEVELS[normalizedType].length > 0;
     }
     const MAX_PREDICTION_LOGS_PER_TYPE = 180;
+    const STORE_PERSIST_PREDICTION_BACKTEST_KEYS = ["avgHitRate", "avgHits", "samples", "recentAvgHitRate", "agreementScore", "cooldownPenalty", "stabilityScore"];
+    const STORE_PERSIST_RESULT_SUMMARY_KEYS = ["ticketCount", "bestMainHits", "avgMainHits", "specialHits", "thresholdTicketHits", "prizeTicketHits"];
     const MAX_PAYPAL_TOPUPS = 24;
     const PAYPAL_REAL_RATE = 1.25;
     const PAYPAL_TOPUP_PACKAGES = [
@@ -1785,6 +1787,8 @@
     async function saveStore(options = {}) {
       if (!currentUser) return false;
       const reason = String(options?.reason || "").trim() || "unspecified";
+      const snapshotText = JSON.stringify(buildPersistableStoreSnapshot(store));
+      const payloadBytes = estimateStorePayloadBytes(snapshotText);
       if (IS_LOCAL_MODE) {
         setLocalStoreForUser(currentUser, store);
         updateStoreSaveState({
@@ -1804,7 +1808,7 @@
         reason,
       });
       try {
-        await api("/api/store", "POST", { store: JSON.stringify(store) });
+        await api("/api/store", "POST", { store: snapshotText });
         updateStoreSaveState({
           pending: false,
           ok: true,
@@ -1816,7 +1820,7 @@
         return true;
       } catch (error) {
         const message = String(error?.message || error || "Không lưu được dữ liệu tài khoản.");
-        console.error(`[store-save:${reason}]`, error);
+        console.error(`[store-save:${reason}] payloadBytes=${payloadBytes}`, error);
         updateStoreSaveState({
           pending: false,
           ok: false,
@@ -5484,6 +5488,78 @@
         store.predictionLogs[type] = [];
       }
       return Array.isArray(store.predictionLogs?.[type]) ? store.predictionLogs[type] : [];
+    }
+
+    function pickStorePersistFields(source, keys) {
+      if (!source || typeof source !== "object" || !Array.isArray(keys) || !keys.length) return null;
+      const next = {};
+      keys.forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) return;
+        const value = source[key];
+        if (value == null || value === "") return;
+        next[key] = value;
+      });
+      return Object.keys(next).length ? next : null;
+    }
+
+    function compactPredictionLogForStore(entry) {
+      if (!entry || typeof entry !== "object") return null;
+      return {
+        id: String(entry.id || ""),
+        createdAt: String(entry.createdAt || ""),
+        predictedKy: normalizeKy(entry.predictedKy),
+        strategyLabel: String(entry.strategyLabel || ""),
+        modelLabel: String(entry.modelLabel || ""),
+        engineLabel: String(entry.engineLabel || ""),
+        riskMode: normalizePredictRiskMode(entry.riskMode || "balanced"),
+        riskModeLabel: String(entry.riskModeLabel || getPredictRiskModeMeta(entry.riskMode || "balanced").label),
+        riskModeSummary: String(entry.riskModeSummary || getPredictRiskModeMeta(entry.riskMode || "balanced").summary),
+        confidence: Number(entry.confidence || 0),
+        stabilityScore: Number(entry.stabilityScore || entry.backtest?.stabilityScore || 0),
+        recentCount: Number(entry.recentCount || 0),
+        drawCount: Number(entry.drawCount || 0),
+        historyCount: Number(entry.historyCount || 0),
+        bundleCount: Number(entry.bundleCount || 0),
+        pickSize: Number(entry.pickSize || 0),
+        playMode: String(entry.playMode || "").trim().toLowerCase(),
+        baoLevel: Number.isInteger(Number(entry.baoLevel)) ? Number(entry.baoLevel) : null,
+        predictionMode: normalizePredictionMode(entry.predictionMode || PREDICTION_MODE_NORMAL),
+        vipProfile: String(entry.vipProfile || ""),
+        tickets: Array.isArray(entry.tickets) ? entry.tickets.map(clonePredictionTicket).filter(Boolean) : [],
+        ticketSources: Array.isArray(entry.ticketSources) ? entry.ticketSources.map(item => String(item || "").trim()) : [],
+        topMainRanking: Array.isArray(entry.topMainRanking) ? entry.topMainRanking.map(Number).filter(Number.isInteger) : [],
+        topSpecialRanking: Array.isArray(entry.topSpecialRanking) ? entry.topSpecialRanking.map(Number).filter(Number.isInteger) : [],
+        backtest: pickStorePersistFields(entry.backtest, STORE_PERSIST_PREDICTION_BACKTEST_KEYS),
+        metaSelectionMode: String(entry.metaSelectionMode || ""),
+        metaPreferredEngine: String(entry.metaPreferredEngine || ""),
+        metaSummary: String(entry.metaSummary || ""),
+        resolved: !!entry.resolved,
+        resolvedAt: String(entry.resolvedAt || ""),
+        actualKy: String(entry.actualKy || ""),
+        resultMissingData: !!entry.resultMissingData,
+        resultMissingReason: String(entry.resultMissingReason || ""),
+        resultMissingCheckedAt: String(entry.resultMissingCheckedAt || ""),
+        actualDraw: entry.actualDraw ? cloneDraw(entry.actualDraw) : null,
+        resultSummary: pickStorePersistFields(entry.resultSummary, STORE_PERSIST_RESULT_SUMMARY_KEYS),
+      };
+    }
+
+    function buildPersistableStoreSnapshot(sourceStore = store) {
+      return {
+        ...sourceStore,
+        predictionLogs: Object.fromEntries(PREDICTION_LOG_TYPES.map(type => {
+          const logs = Array.isArray(sourceStore?.predictionLogs?.[type]) ? sourceStore.predictionLogs[type] : [];
+          return [type, logs.map(compactPredictionLogForStore).filter(Boolean)];
+        })),
+      };
+    }
+
+    function estimateStorePayloadBytes(text) {
+      try {
+        return new TextEncoder().encode(String(text || "")).length;
+      } catch {
+        return String(text || "").length;
+      }
     }
 
     function getNextPredictionKy(type, dataset = null) {

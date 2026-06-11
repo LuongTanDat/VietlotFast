@@ -2067,16 +2067,24 @@
         { value: "order", label: "Số thứ tự" },
         { value: "count", label: "Số lần" },
       ];
+      const label = options.find(option => option.value === normalizedDisplayMode)?.label || "Số thứ tự";
       return `
-        <div class="stats-modern-display-control" aria-label="Chọn cách hiển thị bảng số">
-          <span class="stats-modern-display-label">Hiển thị</span>
-          <div class="stats-modern-display-buttons" role="group" aria-label="Đổi cách hiển thị">
+        <div class="stats-modern-select" aria-label="Chọn cách hiển thị bảng số">
+          <button type="button" class="stats-modern-select-trigger" aria-haspopup="menu">
+            <span class="stats-modern-select-text">
+              <span class="stats-modern-select-label">Hiển thị</span>
+              <strong class="stats-modern-select-value">${escapeHtml(label)}</strong>
+            </span>
+            <span class="stats-modern-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="stats-modern-select-menu" role="menu">
             ${options.map(option => `
               <button
                 type="button"
-                class="stats-modern-display-btn${option.value === normalizedDisplayMode ? " is-active" : ""}"
+                class="stats-modern-select-option${option.value === normalizedDisplayMode ? " is-active" : ""}"
                 data-stats-display-mode="${escapeHtml(option.value)}"
-                aria-pressed="${option.value === normalizedDisplayMode ? "true" : "false"}"
+                role="menuitemradio"
+                aria-checked="${option.value === normalizedDisplayMode ? "true" : "false"}"
               >${escapeHtml(option.label)}</button>
             `).join("")}
           </div>
