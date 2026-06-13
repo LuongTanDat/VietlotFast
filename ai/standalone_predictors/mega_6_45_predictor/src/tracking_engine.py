@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -45,7 +46,9 @@ def read_json(path: Path, default: Any) -> Any:
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp_path, path)
 
 
 def load_tracking_state(path: str | Path) -> dict[str, Any]:

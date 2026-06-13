@@ -33,6 +33,13 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _normalize_draw_id(value: Any) -> int:
+    if isinstance(value, int):
+        return value
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return int(digits or "0")
+
+
 def _read_json(path: Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -104,7 +111,11 @@ def _public_status_payload(status: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _inspect_artifacts(feature_names: list[str] | None = None, sequence_length: int | None = None) -> dict[str, Any]:
+def _inspect_artifacts(
+    feature_names: list[str] | None = None,
+    sequence_length: int | None = None,
+    target_draw_id: Any | None = None,
+) -> dict[str, Any]:
     paths = _model_paths()
     meta = _read_json(paths["meta"], {})
     status = {
@@ -144,6 +155,16 @@ def _inspect_artifacts(feature_names: list[str] | None = None, sequence_length: 
         status["deep_status_reason"] = "feature schema version mismatch"
         status["deep_status_line"] = _status_line(False, status["deep_status"], status["deep_status_reason"], meta)
         return status
+    if target_draw_id:
+        trained_draw_id = _normalize_draw_id(meta.get("trained_on_latest_draw_id"))
+        target_draw_id_int = _normalize_draw_id(target_draw_id)
+        if trained_draw_id and target_draw_id_int and trained_draw_id >= target_draw_id_int:
+            status["deep_status"] = "future_artifact_rejected"
+            status["deep_status_reason"] = (
+                f"artifact trained_on_latest_draw_id={trained_draw_id} is not before target_draw_id={target_draw_id_int}"
+            )
+            status["deep_status_line"] = _status_line(False, status["deep_status"], status["deep_status_reason"], meta)
+            return status
     if sequence_length is not None and int(meta.get("sequence_length", 0) or 0) != int(sequence_length):
         status["deep_status"] = "artifacts_invalid"
         status["deep_status_reason"] = "sequence length mismatch"
@@ -252,7 +273,7 @@ def score_candidates(
     tracking_state: dict[str, Any] | None = None,
     config_payload: dict[str, Any] | None = None,
 ):
-    del target, tracking_state
+    del tracking_state
     main_numbers = [int(number) for number in list(main_numbers or range(1, 36))]
     bonus_numbers = [int(number) for number in list(bonus_numbers or range(1, 13))]
     config_payload = config_payload or cfg.load_config()
@@ -288,7 +309,12 @@ def score_candidates(
             **_public_status_payload(status),
         }
 
-    status = _inspect_artifacts(feature_names=list(sample["feature_names"]), sequence_length=int(sample["sequence_length"]))
+    target_draw_id = (target or {}).get("target_draw_id") if isinstance(target, dict) else None
+    status = _inspect_artifacts(
+        feature_names=list(sample["feature_names"]),
+        sequence_length=int(sample["sequence_length"]),
+        target_draw_id=target_draw_id,
+    )
     if not bool(status.get("deep_enabled")):
         return {
             "available": False,

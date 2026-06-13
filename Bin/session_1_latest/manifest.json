@@ -1,12 +1,21 @@
 {
-  "time": "2026-05-11T00:22:26",
-  "action": "replace",
-  "reason": "Thêm tab Phân Tích và API /api/analysis",
-  "files": [
+  "created_at": "2026-06-11T11:25:13.9383843+07:00",
+  "action": "refactor",
+  "reason": "Controlled self-learning ML pipeline, leakage-safe backtest, immutable prediction ledger, backend/frontend API integration",
+  "affected_files": [
+    "ai/predictors/ai_predict.py",
+    "ai/standalone_predictors/loto_5_35_predictor/src/backtest.py",
+    "ai/standalone_predictors/loto_5_35_predictor/src/predictor_api.py",
+    "ai/standalone_predictors/loto_5_35_predictor/src/deep_model.py",
+    "ai/standalone_predictors/mega_6_45_predictor/src/backtest.py",
+    "ai/standalone_predictors/mega_6_45_predictor/src/predictor_api.py",
+    "ai/standalone_predictors/mega_6_45_predictor/src/deep_model.py",
+    "ai/standalone_predictors/power_6_55_predictor/src/backtest.py",
+    "ai/standalone_predictors/power_6_55_predictor/src/predictor_api.py",
+    "ai/standalone_predictors/power_6_55_predictor/src/deep_model.py",
     "backend/LottoWebServer.java",
     "frontend/vietlott-web.html",
-    "frontend/vietlott-web.css",
     "frontend/vietlott-web.js",
-    "docs/NhatKyThayDoi.md"
+    "frontend/vietlott-web.css"
   ]
 }

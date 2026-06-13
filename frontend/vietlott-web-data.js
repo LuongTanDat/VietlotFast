@@ -371,6 +371,16 @@
         baoLevel: Number.isInteger(Number(entry.baoLevel)) ? Number(entry.baoLevel) : null,
         predictionMode: normalizePredictionMode(entry.predictionMode || PREDICTION_MODE_NORMAL),
         vipProfile: String(entry.vipProfile || ""),
+        predictionId: String(entry.predictionId || ""),
+        predictionStatus: String(entry.predictionStatus || ""),
+        dataCutoffDrawId: String(entry.dataCutoffDrawId || ""),
+        payloadChecksum: String(entry.payloadChecksum || ""),
+        modelRole: String(entry.modelRole || ""),
+        probabilitySummary: entry.probabilitySummary || null,
+        calibratedProbability: Array.isArray(entry.calibratedProbability) ? entry.calibratedProbability : [],
+        specialCalibratedProbability: Array.isArray(entry.specialCalibratedProbability) ? entry.specialCalibratedProbability : [],
+        ticketQualityScore: Number(entry.ticketQualityScore || 0),
+        scoreMetrics: entry.scoreMetrics && typeof entry.scoreMetrics === "object" ? entry.scoreMetrics : null,
         tickets: (entry.tickets || []).map(clonePredictionTicket).filter(Boolean),
         ticketSources: Array.isArray(entry.ticketSources) ? entry.ticketSources.map(item => String(item || "").trim()) : [],
           topMainRanking: Array.isArray(entry.topMainRanking) ? entry.topMainRanking.map(Number) : [],
@@ -915,6 +925,67 @@
       return [mainText, specialText].filter(Boolean).join(" • ");
     }
 
+    function syncLedgerRowsIntoPredictionHistory(type, rows) {
+      const logs = ensurePredictionLogBucket(type);
+      if (!logs.length || !Array.isArray(rows) || !rows.length) return false;
+      const byPredictionId = new Map(
+        rows
+          .filter(row => String(row?.prediction_id || "").trim())
+          .map(row => [String(row.prediction_id).trim(), row])
+      );
+      let changed = false;
+      logs.forEach(entry => {
+        const predictionId = String(entry?.predictionId || "").trim();
+        const row = byPredictionId.get(predictionId);
+        if (!predictionId || !row) return;
+        const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+        const scoreMetrics = row.score_metrics && typeof row.score_metrics === "object" ? row.score_metrics : {};
+        const nextScoreMetrics = row.latest_score_id
+          ? {
+              ...scoreMetrics,
+              hit_count: Number(row.score_hit_count || 0),
+              special_hit: Number(row.score_special_hit || 0),
+              brier_score: Number(row.score_brier_score || 0),
+              log_loss: Number(row.score_log_loss || 0),
+              lift: Number(row.score_lift || 0),
+              actual_draw_id: String(row.actual_draw_id || ""),
+              scored_at: String(row.scored_at || ""),
+            }
+          : null;
+        const updates = {
+          predictionStatus: String(row.status || entry.predictionStatus || ""),
+          dataCutoffDrawId: String(row.data_cutoff_draw_id || entry.dataCutoffDrawId || ""),
+          payloadChecksum: String(row.payload_checksum || entry.payloadChecksum || ""),
+          modelVersion: String(row.model_version || payload.modelVersion || entry.modelVersion || ""),
+          probabilitySummary: payload.probabilitySummary || entry.probabilitySummary || null,
+          calibratedProbability: Array.isArray(payload.calibratedProbability)
+            ? payload.calibratedProbability
+            : entry.calibratedProbability,
+          specialCalibratedProbability: Array.isArray(payload.specialCalibratedProbability)
+            ? payload.specialCalibratedProbability
+            : entry.specialCalibratedProbability,
+          scoreMetrics: nextScoreMetrics,
+        };
+        Object.entries(updates).forEach(([key, value]) => {
+          if (JSON.stringify(entry[key] ?? null) === JSON.stringify(value ?? null)) return;
+          entry[key] = value;
+          changed = true;
+        });
+      });
+      return changed;
+    }
+
+    async function refreshPredictionLedgerForHistory(type) {
+      if (IS_LOCAL_MODE) return false;
+      try {
+        const response = await api(`/api/ml/predictions?type=${encodeURIComponent(type)}`);
+        return syncLedgerRowsIntoPredictionHistory(type, response?.predictions || []);
+      } catch (error) {
+        if ([404, 405].includes(Number(error?.status || 0))) return false;
+        throw error;
+      }
+    }
+
     async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
       const nowValue = getSyncedNowDate();
       const currentDataset = buildPredictionResultDataset("KENO");
@@ -929,8 +1000,9 @@
         throw new Error(nextFeed.repairErrors.join(" • "));
       }
       const predictionLogsBeforeReconcile = getPredictionLogsSignature(store.predictionLogs?.KENO || []);
+      const ledgerChanged = await refreshPredictionLedgerForHistory("KENO");
       reconcilePredictionLogsForType("KENO");
-      if (getPredictionLogsSignature(store.predictionLogs?.KENO || []) !== predictionLogsBeforeReconcile) {
+      if (ledgerChanged || getPredictionLogsSignature(store.predictionLogs?.KENO || []) !== predictionLogsBeforeReconcile) {
         saveStore();
       }
     }
@@ -944,8 +1016,9 @@
       }
       await fetchLiveHistory(normalizedType, "all", { force: true, silent });
       const before = getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []);
+      const ledgerChanged = await refreshPredictionLedgerForHistory(normalizedType);
       reconcilePredictionLogsForType(normalizedType);
-      if (getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []) !== before) {
+      if (ledgerChanged || getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []) !== before) {
         saveStore();
       }
     }
@@ -1139,6 +1212,33 @@
         `<div class="predict-history-info-chip"><span class="predict-history-info-label">Thời gian</span><strong class="predict-history-info-value">${escapeHtml(createdAtText)}</strong></div>`,
         engineParts.length
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">AI</span><strong class="predict-history-info-value">${escapeHtml(engineParts.join(" • "))}</strong></div>`
+          : "",
+        entry.predictionStatus
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Ledger</span><strong class="predict-history-info-value">${escapeHtml(String(entry.predictionStatus).toUpperCase())}</strong></div>`
+          : "",
+        entry.dataCutoffDrawId
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Cutoff</span><strong class="predict-history-info-value">${escapeHtml(formatLiveKy(entry.dataCutoffDrawId))}</strong></div>`
+          : "",
+        entry.modelVersion
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Model</span><strong class="predict-history-info-value">${escapeHtml(entry.modelVersion)}</strong></div>`
+          : "",
+        Number(entry.probabilitySummary?.mainProbabilitySum || 0) > 0
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Calibrated p</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
+          : "",
+        Number(entry.ticketQualityScore || 0) > 0
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Quality score</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.ticketQualityScore || 0).toFixed(2))}</strong></div>`
+          : "",
+        entry.scoreMetrics
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Mean Hit</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.hit_count || 0).toFixed(0))}</strong></div>`
+          : "",
+        Number(entry.scoreMetrics?.brier_score || 0) > 0
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Brier</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.brier_score).toFixed(5))}</strong></div>`
+          : "",
+        Number(entry.scoreMetrics?.log_loss || 0) > 0
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Log Loss</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.log_loss).toFixed(5))}</strong></div>`
+          : "",
+        entry.scoreMetrics && Number.isFinite(Number(entry.scoreMetrics.lift))
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Lift</span><strong class="predict-history-info-value">${escapeHtml(`${(Number(entry.scoreMetrics.lift) * 100).toFixed(2)}%`)}</strong></div>`
           : "",
       ].filter(Boolean).join("");
       const topMainHtml = topMainRanking.length
@@ -3069,6 +3169,44 @@
         addMetricCard("Số kỳ train", formatCount(result.historyCount), result?.latestKy ? `Mới nhất ${formatLiveKy(result.latestKy)}` : "");
       }
       addMetricCard("Độ khớp backtest", backtestText, `${backtestMeta}${comparedMetaSuffix}`, "", backtestDelta);
+      const probabilitySummary = result?.probabilitySummary || {};
+      const controlledMetrics = result?.backtest?.metrics || result?.backtest?.winner_summary || result?.backtest || {};
+      const randomBaseline = result?.randomBaseline || result?.backtest?.random_baseline || {};
+      if (result?.predictionStatus || result?.predictionId) {
+        addMetricCard(
+          "Ledger",
+          String(result?.predictionStatus || "locked").toUpperCase(),
+          [result?.predictionId ? `ID ${String(result.predictionId).slice(0, 8)}` : "", result?.dataCutoffDrawId ? `Cutoff ${formatLiveKy(result.dataCutoffDrawId)}` : ""].filter(Boolean).join(" • ")
+        );
+      }
+      if (result?.modelVersion) {
+        addMetricCard("Model version", String(result.modelVersion), result?.modelRole ? String(result.modelRole) : "Champion hiện hành");
+      }
+      if (Number(probabilitySummary?.mainProbabilitySum || 0) > 0) {
+        addMetricCard(
+          "Calibrated probability",
+          `Σp=${Number(probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`,
+          `Main K=${Number(probabilitySummary.mainDrawSize || result?.pickSize || 0)} • capped simplex`
+        );
+      }
+      const meanHitValue = Number(controlledMetrics.mean_hit ?? controlledMetrics.average_hits ?? controlledMetrics.avgHits ?? 0);
+      const brierValue = Number(controlledMetrics.brier_score ?? controlledMetrics.brierScore ?? NaN);
+      const logLossValue = Number(controlledMetrics.log_loss ?? controlledMetrics.logLoss ?? NaN);
+      const liftValue = Number(controlledMetrics.lift ?? NaN);
+      if (Number.isFinite(meanHitValue) && meanHitValue > 0) {
+        const baselineHits = Number(randomBaseline.expected_hits || controlledMetrics.expected_random_hits || 0);
+        addMetricCard("Mean Hit", meanHitValue.toFixed(3), baselineHits ? `Ngẫu nhiên ${baselineHits.toFixed(3)}` : "So sánh cùng kỳ");
+      }
+      if (Number.isFinite(brierValue) && brierValue > 0) {
+        addMetricCard("Brier Score", brierValue.toFixed(5), "Thấp hơn là tốt hơn");
+      }
+      if (Number.isFinite(logLossValue) && logLossValue > 0) {
+        addMetricCard("Log Loss", logLossValue.toFixed(5), "Xác suất được chặn 1e-6");
+      }
+      if (Number.isFinite(liftValue)) {
+        addMetricCard("Lift", `${(liftValue * 100).toFixed(2)}%`, liftValue > 0 ? "Vượt baseline ngẫu nhiên" : "Chưa vượt baseline ngẫu nhiên");
+        if (liftValue <= 0) addNote("Cảnh báo: backtest hiện chưa vượt baseline ngẫu nhiên trên cùng các kỳ.");
+      }
       if (isAiGenEngine) {
         const confidence = Number(result?.confidence || 0);
         const stabilityScore = parseMetricRate(result?.stabilityScore ?? backtest?.stabilityScore);
@@ -6081,6 +6219,15 @@
                 stabilityScore: Number((result?.stabilityScore ?? result?.backtest?.stabilityScore) || 0),
                 predictionMode: PREDICTION_MODE_NORMAL,
                 vipProfile: "",
+                predictionId: String(result?.predictionId || ""),
+                predictionStatus: String(result?.predictionStatus || ""),
+                dataCutoffDrawId: String(result?.dataCutoffDrawId || result?.data_cutoff_draw_id || ""),
+                payloadChecksum: String(result?.payloadChecksum || ""),
+                modelRole: String(result?.modelRole || result?.champion?.status || "champion"),
+                probabilitySummary: result?.probabilitySummary || null,
+                calibratedProbability: Array.isArray(result?.calibratedProbability) ? result.calibratedProbability : [],
+                specialCalibratedProbability: Array.isArray(result?.specialCalibratedProbability) ? result.specialCalibratedProbability : [],
+                ticketQualityScore: Number(result?.ticketQualityScore ?? result?.qualityScore ?? result?.quality_score ?? 0),
               });
               const saved = await saveStore({ reason: `${type.toLowerCase()}_prediction_log` });
               if (!saved) {
@@ -6377,6 +6524,15 @@
               stabilityScore: Number((result?.stabilityScore ?? result?.backtest?.stabilityScore) || 0),
               predictionMode: PREDICTION_MODE_VIP,
               vipProfile: String(displayResult?.vipProfile || "strict_select"),
+              predictionId: String(result?.predictionId || ""),
+              predictionStatus: String(result?.predictionStatus || ""),
+              dataCutoffDrawId: String(result?.dataCutoffDrawId || result?.data_cutoff_draw_id || ""),
+              payloadChecksum: String(result?.payloadChecksum || ""),
+              modelRole: String(result?.modelRole || result?.champion?.status || "champion"),
+              probabilitySummary: result?.probabilitySummary || null,
+              calibratedProbability: Array.isArray(result?.calibratedProbability) ? result.calibratedProbability : [],
+              specialCalibratedProbability: Array.isArray(result?.specialCalibratedProbability) ? result.specialCalibratedProbability : [],
+              ticketQualityScore: Number(result?.ticketQualityScore ?? result?.qualityScore ?? result?.quality_score ?? 0),
             });
             const saved = await saveStore({ reason: `${type.toLowerCase()}_vip_prediction_log` });
             if (!saved) {

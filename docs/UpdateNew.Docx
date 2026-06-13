@@ -1,0 +1,468 @@
+Hãy mở và triển khai trực tiếp trên repository:
+
+`https://github.com/LuongTanDat/VietlotFast.git`
+
+Mục tiêu là nâng cấp hệ thống dự đoán hiện tại thành pipeline tự học có kiểm soát, chống rò rỉ dữ liệu và có khả năng đánh giá trung thực so với dự đoán ngẫu nhiên.
+
+Không chỉ lập kế hoạch. Hãy đọc code, triển khai, chạy kiểm thử, sửa lỗi và báo cáo kết quả cuối cùng.
+
+# 1. Kiểm tra trước khi sửa
+
+1. Làm việc trên phiên bản mới nhất của nhánh `main`.
+2. Kiểm tra trạng thái repository và không làm mất thay đổi chưa lưu của người dùng.
+3. Đọc đầy đủ theo thứ tự:
+
+   * `docs/QuyTac.md`
+   * `docs/KienTrucDuAn.md`
+   * `docs/NhatKyThayDoi.md`
+   * `docs/HuongDanCodex.md`
+4. Tuân thủ quy tắc backup trong `Bin/` trước khi đổi tên, thay thế hoặc ghi đè mạnh file quan trọng.
+5. Không sửa các snapshot trong `Bin/` như mã nguồn đang chạy.
+6. Không xóa model, CSV, database hoặc state hiện tại.
+7. Giữ tương thích với giao diện và các API đang hoạt động.
+8. Trước khi chỉnh sửa, báo ngắn gọn những file dự kiến bị ảnh hưởng.
+
+# 2. Phạm vi ban đầu
+
+Chỉ áp dụng pipeline mới cho:
+
+* `LOTO_5_35`
+* `LOTO_6_45`
+* `LOTO_6_55`
+
+Giữ nguyên Keno, Max 3D và Max 3D Pro trong lần triển khai này.
+
+Tận dụng ba predictor hiện tại:
+
+```text
+ai/standalone_predictors/loto_5_35_predictor
+ai/standalone_predictors/mega_6_45_predictor
+ai/standalone_predictors/power_6_55_predictor
+```
+
+Giữ `ai/predictors/ai_predict.py` làm cổng điều phối. Không tạo một hệ thống dự đoán mới tách rời các predictor đang có.
+
+# 3. Sửa lỗi backtest trước tiên
+
+Backtest hiện tại có nguy cơ dùng model deep đã được huấn luyện đến kỳ mới nhất để dự đoán lại các kỳ cũ.
+
+Hãy sửa toàn bộ backtest của ba predictor theo quy tắc:
+
+```text
+Dự đoán kỳ t chỉ được sử dụng:
+- Dữ liệu trước kỳ t.
+- Tracking được xây dựng từ các kỳ trước t.
+- Scaler fit bằng dữ liệu trước t.
+- Model được huấn luyện bằng dữ liệu trước t.
+- Cấu hình và trọng số được chọn mà không dùng kết quả kỳ t.
+```
+
+Yêu cầu:
+
+* Thêm walk-forward backtest đúng thời gian.
+* Hỗ trợ `expanding window`.
+* Có tùy chọn `rolling window`.
+* Model deep trong backtest phải được huấn luyện lại theo từng fold hoặc theo khoảng retrain cấu hình được, nhưng luôn chỉ dùng lịch sử trước target.
+* Không được tải model champion hiện tại vào fold quá khứ nếu `trained_on_latest_draw_id >= target_draw_id`.
+* Scaler, calibration và feature selection phải fit riêng trong từng fold.
+* Tracking state phải được mô phỏng tuần tự.
+* Thêm chế độ `fast` cho test và `full` cho đánh giá chính thức.
+* Lưu kết quả dự đoán của từng fold để kiểm tra lại.
+* Thêm test chứng minh việc thay đổi dữ liệu tương lai không làm thay đổi dự đoán quá khứ.
+
+Không dùng kết quả backtest cũ để promote model.
+
+# 4. Module đánh giá dùng chung
+
+Tạo package mới phù hợp với kiến trúc hiện tại, ưu tiên:
+
+```text
+ai/evaluation/
+```
+
+Bao gồm:
+
+```text
+metrics.py
+baselines.py
+probability.py
+walk_forward.py
+statistical_tests.py
+```
+
+Triển khai:
+
+## Xác suất baseline
+
+Với `N` số và kết quả có `K` số:
+
+[
+p_0=\frac{K}{N}
+]
+
+## Phân phối số khớp ngẫu nhiên
+
+Với bộ dự đoán `R` số:
+
+[
+P(H=h)=
+\frac{\binom{K}{h}\binom{N-K}{R-h}}
+{\binom{N}{R}}
+]
+
+[
+E(H)=\frac{RK}{N}
+]
+
+## Brier Score
+
+[
+BS=\frac{1}{TN}
+\sum_{t=1}^{T}\sum_{i=1}^{N}(p_{t,i}-y_{t,i})^2
+]
+
+## Log Loss
+
+[
+LL=-\frac{1}{TN}\sum_{t,i}
+[y_{t,i}\ln p_{t,i}+(1-y_{t,i})\ln(1-p_{t,i})]
+]
+
+Chặn xác suất trong:
+
+[
+[10^{-6},1-10^{-6}]
+]
+
+## Lift
+
+[
+Lift=\frac{MeanHit}{RK/N}-1
+]
+
+Bổ sung:
+
+* Mean Hit.
+* Phân phối khớp 0, 1, 2...
+* Calibration error.
+* Paired bootstrap confidence interval.
+* Paired permutation test.
+* So sánh trên cùng các kỳ.
+* Seed cố định và có thể tái tạo.
+
+# 5. Chuẩn hóa xác suất
+
+Phân biệt rõ:
+
+```text
+raw_score
+ranking_score
+calibrated_probability
+ticket_quality_score
+```
+
+Không gọi heuristic score hoặc quality score là xác suất.
+
+Xác suất biên của các số chính phải thỏa:
+
+[
+0\le p_i\le1
+]
+
+[
+\sum_{i=1}^{N}p_i=K
+]
+
+Triển khai phép chiếu vector xác suất lên capped simplex:
+
+[
+p^*=\arg\min_p\sum_i(p_i-q_i)^2
+]
+
+với:
+
+[
+0\le p_i\le1,\qquad \sum_i p_i=K
+]
+
+Yêu cầu:
+
+* Calibration chỉ học từ dữ liệu validation quá khứ.
+* Ưu tiên Platt scaling.
+* Chỉ dùng isotonic khi đủ dữ liệu.
+* Sau calibration phải chiếu lại để tổng xác suất bằng `K`.
+* Số đặc biệt của 5/35 và 6/55 phải dùng đầu xác suất riêng.
+* Không tính xác suất của cả bộ bằng cách nhân xác suất từng số.
+
+# 6. Prediction Ledger trong SQLite
+
+Mở rộng `runtime/lotto_web.db` bằng migration không phá dữ liệu hiện tại.
+
+Tạo tối thiểu các bảng:
+
+```text
+prediction_runs
+prediction_scores
+model_registry
+training_runs
+```
+
+`prediction_runs` cần lưu:
+
+```text
+prediction_id
+username
+game_type
+target_draw_id
+created_at
+data_cutoff_draw_id
+model_id
+model_version
+feature_version
+config_hash
+random_seed
+prediction_mode
+engine
+status
+probabilities_json
+tickets_json
+payload_json
+payload_checksum
+```
+
+Trạng thái:
+
+```text
+locked
+scored
+void
+```
+
+Yêu cầu:
+
+* Mỗi lần dự đoán tạo một bản ghi mới.
+* Không ghi đè dự đoán cũ.
+* Dự đoán được khóa ngay khi tạo thành công.
+* Trường dự đoán đã khóa không được sửa.
+* Khi có kết quả thật, ghi đánh giá vào `prediction_scores`.
+* Không sửa payload dự đoán để gắn kết quả.
+* Có transaction, `busy_timeout`, index và khóa chống ghi trùng.
+* Lưu checksum để phát hiện payload bị thay đổi.
+* Lưu cả lỗi hoặc fallback engine đã sử dụng.
+* Dữ liệu lịch sử phía frontend hiện tại vẫn hoạt động để giữ tương thích.
+
+Có thể dùng SQLite trigger kết hợp kiểm tra ở application layer để bảo vệ bản ghi đã khóa.
+
+# 7. Tách dự đoán khỏi tác dụng phụ
+
+Hiện tại thao tác dự đoán có thể đồng thời:
+
+* Đồng bộ kết quả cũ.
+* Cập nhật tracking.
+* Ghi last prediction.
+* Ghi metrics.
+* Tạo dự đoán mới.
+
+Hãy tách rõ:
+
+```text
+score_pending_predictions()
+predict_pure()
+lock_prediction()
+train_candidate()
+promote_candidate()
+```
+
+Yêu cầu:
+
+* Hàm xây dựng dự đoán phải có chế độ pure, không ghi file hoặc database.
+* Chấm dự đoán đang chờ phải chạy riêng trước hoặc sau dự đoán.
+* `last_prediction.json` chỉ còn là cache tương thích, không phải nguồn dữ liệu chính.
+* Ghi state phải atomic.
+* Hai request đồng thời không được làm mất lịch sử.
+* API cũ vẫn dùng được.
+
+# 8. Model registry
+
+Không để retrain ghi đè trực tiếp model đang vận hành.
+
+Mỗi game cần có vai trò:
+
+```text
+champion
+candidate
+archived
+rejected
+```
+
+Mỗi model lưu:
+
+```text
+model_id
+version
+game_type
+trained_at
+trained_data_cutoff
+feature_version
+config_hash
+artifact_paths
+validation_metrics
+outer_backtest_metrics
+status
+promotion_reason
+```
+
+Quy trình:
+
+```text
+Kết quả mới
+→ Chấm prediction đã khóa
+→ Kiểm tra drift
+→ Huấn luyện candidate
+→ Walk-forward validation
+→ So sánh candidate với champion
+→ Promote hoặc reject
+```
+
+Chỉ promote khi:
+
+* Candidate được đánh giá trên cùng kỳ với champion.
+* Brier Score tốt hơn.
+* Log Loss không suy giảm đáng kể.
+* Không thua baseline ngẫu nhiên.
+* Khoảng tin cậy đạt điều kiện cấu hình.
+* Đủ số kỳ tối thiểu.
+* Không phát hiện leakage.
+* Không chỉ tốt trong một đoạn thời gian ngắn.
+
+Promotion phải atomic và có rollback. Model cũ chuyển thành `archived`, không bị xóa.
+
+Khi chưa đủ bằng chứng, giữ nguyên champion và ghi lý do từ chối candidate.
+
+# 9. Cập nhật API backend
+
+Giữ nguyên API cũ để không phá frontend.
+
+Bổ sung API phù hợp với kiến trúc Java server hiện tại:
+
+```text
+GET  /api/ml/status
+GET  /api/ml/predictions
+POST /api/ml/backtest
+POST /api/ml/score-pending
+POST /api/ml/train-candidate
+POST /api/ml/promote
+POST /api/ml/rollback
+```
+
+Yêu cầu:
+
+* Route train, promote và rollback chỉ dành cho admin.
+* Validate đầy đủ game type và tham số.
+* Không truyền lệnh shell trực tiếp từ input.
+* Trả JSON thống nhất.
+* Có timeout và thông báo lỗi rõ ràng.
+* Không làm hỏng `/api/ai-predict` và `/api/ai-score`.
+
+# 10. Cập nhật frontend
+
+Tận dụng giao diện lịch sử dự đoán hiện tại. Không thiết kế lại toàn bộ trang.
+
+Bổ sung hiển thị:
+
+* Trạng thái `locked` hoặc `scored`.
+* Data cutoff.
+* Model version.
+* Champion hoặc candidate.
+* Calibrated probability.
+* Mean Hit.
+* Brier Score.
+* Log Loss.
+* Baseline ngẫu nhiên.
+* Lift và khoảng tin cậy.
+* Lý do candidate được duyệt hoặc bị từ chối.
+* Cảnh báo khi chưa đủ dữ liệu.
+* Cảnh báo khi chưa vượt baseline.
+
+Không hiển thị cam kết trúng. Không gọi `qualityScore` là xác suất.
+
+# 11. Dependency
+
+Dự án đang sử dụng `requests` nhưng chưa có khai báo dependency dùng chung rõ ràng.
+
+Hãy:
+
+* Tạo hoặc cập nhật file dependency Python phù hợp ở cấp dự án.
+* Bao gồm tối thiểu dependency thực sự đang dùng.
+* Không thêm thư viện lớn nếu standard library hoặc code hiện tại đã đáp ứng.
+* Cập nhật hướng dẫn cài dependency.
+* Đảm bảo test không lỗi chỉ vì thiếu `requests`.
+
+# 12. Kiểm thử bắt buộc
+
+Viết test cho:
+
+* Hypergeometric baseline.
+* Brier Score.
+* Log Loss.
+* Lift.
+* Capped-simplex projection.
+* Tổng xác suất chính bằng `K`.
+* Xác suất nằm trong `[0,1]`.
+* Walk-forward không dùng tương lai.
+* Model deep của tương lai bị từ chối trong fold quá khứ.
+* Scaler chỉ fit trên training history.
+* Prediction đã khóa không sửa được.
+* Nhiều prediction cùng kỳ không ghi đè nhau.
+* Chấm prediction là idempotent.
+* Candidate không tự động thay champion.
+* Promote và rollback.
+* API phân quyền admin.
+* Tương thích payload API cũ.
+* Sinh vé đúng kích thước, không trùng số và đủ đa dạng.
+* Dữ liệu ngẫu nhiên không tạo tuyên bố lợi thế giả.
+
+Chạy:
+
+```text
+Toàn bộ tests/
+Test riêng của ba standalone predictor
+Test migration SQLite
+Test compile Java backend
+Smoke test API
+Smoke test giao diện dự đoán và lịch sử
+```
+
+# 13. Tiêu chí hoàn thành
+
+Chỉ xem là hoàn thành khi:
+
+1. Không còn dùng model huấn luyện bằng dữ liệu tương lai trong backtest.
+2. Prediction được lưu bất biến trong SQLite.
+3. Có baseline ngẫu nhiên chính xác.
+4. Có Brier, Log Loss, Lift và confidence interval.
+5. Candidate không ghi đè champion.
+6. Có promote và rollback.
+7. API cũ vẫn hoạt động.
+8. Frontend hiện tại không bị lỗi.
+9. Các test mới và test cũ đều chạy qua.
+10. Tài liệu và nhật ký thay đổi được cập nhật.
+
+# 14. Báo cáo cuối cùng
+
+Sau khi triển khai, báo cáo:
+
+* Những file đã sửa hoặc thêm.
+* Migration database đã thực hiện.
+* Cách backtest mới ngăn leakage.
+* Kết quả kiểm thử.
+* Kết quả backtest mới của từng game.
+* So sánh với baseline ngẫu nhiên.
+* Model nào đang là champion.
+* Candidate nào bị từ chối và lý do.
+* Những hạn chế còn lại.
+* Hướng dẫn ngắn cách chạy train, backtest, score pending, promote và rollback.
+
+Nếu backtest mới cho kết quả thấp hơn báo cáo cũ, không cố làm đẹp chỉ số. Hãy giải thích rằng kết quả cũ có thể bị ảnh hưởng bởi data leakage.
+
+Ưu tiên tính đúng, khả năng tái tạo và đánh giá trung thực. Không tối ưu điểm quá khứ bằng cách học thuộc dữ liệu.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -237,7 +238,10 @@ def read_json(path: Path, default):
 
 def write_json(path: Path, payload) -> None:
     ensure_directories()
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp_path, path)
 
 
 def load_config():

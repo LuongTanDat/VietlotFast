@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     predict_parser.add_argument("--slot", default=None, help='Optional slot override such as "13:00" or "21:00".')
     predict_parser.add_argument("--bundle-count", default=3, type=int, help="Requested total number of VIP tickets including the main ticket.")
     predict_parser.add_argument("--blend-mode", default=None, help="Optional blend mode such as heuristic_only, deep_only, or blended.")
+    predict_parser.add_argument("--pure", action="store_true", help="Generate without writing tracking, metrics, or last_prediction state.")
 
     update_parser = subparsers.add_parser("update", help="Update tracking state after the actual draw is known.")
     update_parser.add_argument("--csv", default="data/loto_5_35.csv", help="Path to the Loto 5/35 CSV history.")
@@ -29,6 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     backtest_parser = subparsers.add_parser("backtest", help="Run quick chronological backtesting.")
     backtest_parser.add_argument("--csv", default="data/loto_5_35.csv", help="Path to the Loto 5/35 CSV history.")
+    backtest_parser.add_argument("--mode", default="fast", choices=["fast", "full"], help="Backtest scope.")
+    backtest_parser.add_argument("--window", default="expanding", choices=["expanding", "rolling"], help="Walk-forward window type.")
+    backtest_parser.add_argument("--rolling-window", default=None, type=int, help="Training draw count for rolling windows.")
+    backtest_parser.add_argument("--min-history", default=24, type=int, help="Minimum historical draws before first fold.")
+    backtest_parser.add_argument("--retrain-interval", default=1, type=int, help="Deep retrain interval metadata for leakage audit.")
+    backtest_parser.add_argument("--output", default=None, help="Optional JSON path for fold-level audit results.")
+    backtest_parser.add_argument("--persist-metrics", action="store_true", help="Update legacy metrics.json cache after backtest.")
 
     retrain_parser = subparsers.add_parser("retrain-deep", help="Train or retrain the real CNN/RNN deep model.")
     retrain_parser.add_argument("--csv", default="data/loto_5_35.csv", help="Path to the Loto 5/35 CSV history.")
@@ -51,7 +59,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "predict":
-        payload = predictor_api.predict(args.csv, project_root=PROJECT_ROOT, slot=args.slot, bundle_count=args.bundle_count, blend_mode=args.blend_mode)
+        payload = predictor_api.predict(args.csv, project_root=PROJECT_ROOT, slot=args.slot, bundle_count=args.bundle_count, blend_mode=args.blend_mode, pure=args.pure)
     elif args.command == "update":
         actual_draw = {"ky": str(args.actual_ky)} if args.actual_ky else None
         payload = predictor_api.update_after_actual(args.csv, actual_draw=actual_draw)
@@ -64,7 +72,16 @@ def main() -> int:
     elif args.command == "audit-assembly":
         payload = predictor_api.audit_assembly(csv_path=args.csv, slot=args.slot, bundle_count=args.bundle_count)
     else:
-        payload = run_backtest(args.csv)
+        payload = run_backtest(
+            args.csv,
+            min_history=args.min_history,
+            mode=args.mode,
+            window=args.window,
+            rolling_window=args.rolling_window,
+            retrain_interval=args.retrain_interval,
+            output_path=args.output,
+            persist_metrics=args.persist_metrics,
+        )
 
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0

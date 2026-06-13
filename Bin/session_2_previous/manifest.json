@@ -1,13 +1,12 @@
 {
-  "time": "2026-05-10T22:42:48",
+  "time": "2026-05-11T00:22:26",
   "action": "replace",
-  "reason": "Mở rộng combo Thống Kê V2 tới 5 số, riêng Keno tới 10 số.",
-  "affected": [
-    "frontend/vietlott-web.js",
+  "reason": "Thêm tab Phân Tích và API /api/analysis",
+  "files": [
     "backend/LottoWebServer.java",
-    "ai/stats/stats_v2.py",
-    "tests/test_stats_v2.py",
+    "frontend/vietlott-web.html",
+    "frontend/vietlott-web.css",
+    "frontend/vietlott-web.js",
     "docs/NhatKyThayDoi.md"
-  ],
-  "note": "Snapshot trước khi sửa theo docs/QuyTac.md."
+  ]
 }

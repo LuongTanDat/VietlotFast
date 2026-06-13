@@ -39,11 +39,29 @@ def _tracking_summary(state):
     }
 
 
-def predict(csv_path=None, project_root=None, game="loto_5_35", slot=None, bundle_count=3, requested_engine="", risk_mode="balanced", blend_mode=None):
+def predict(
+    csv_path=None,
+    project_root=None,
+    game="loto_5_35",
+    slot=None,
+    bundle_count=3,
+    requested_engine="",
+    risk_mode="balanced",
+    blend_mode=None,
+    pure=False,
+    tracking_state_override=None,
+):
     _ = project_root
     config_payload = cfg.load_config()
     draws = csv_loader.load_history(game, csv_path=csv_path)
-    sync_result = online_learning.synchronize_with_latest_actual(draws, config_payload, csv_path=csv_path)
+    if pure:
+        sync_result = {
+            "updated": False,
+            "tracking_state": deepcopy(tracking_state_override) if tracking_state_override is not None else tracking_engine.load_tracking_state(),
+            "message": "Pure prediction mode: no tracking, metric, or last_prediction writes.",
+        }
+    else:
+        sync_result = online_learning.synchronize_with_latest_actual(draws, config_payload, csv_path=csv_path)
     tracking_state = sync_result.get("tracking_state") or tracking_engine.load_tracking_state()
     target = csv_loader.infer_next_target_draw(draws, slot)
     analysis = heuristic_engine.build_prediction_snapshot(
@@ -66,13 +84,14 @@ def predict(csv_path=None, project_root=None, game="loto_5_35", slot=None, bundl
     disagreement = dict(selection.get("disagreementAnalysis") or analysis.get("disagreementAnalysis") or {})
     sync_summary = csv_loader.build_sync_summary_for_path(draws, csv_path)
     backtest_summary = backtest.run_quick_backtest(draws, config_payload)
-    metrics_payload = cfg.load_metrics()
-    metrics_payload["last_backtest_run"] = {
-        **backtest_summary,
-        "game": "loto_5_35",
-        "predictorVersion": cfg.PREDICTOR_VERSION,
-    }
-    cfg.save_metrics(metrics_payload)
+    if not pure:
+        metrics_payload = cfg.load_metrics()
+        metrics_payload["last_backtest_run"] = {
+            **backtest_summary,
+            "game": "loto_5_35",
+            "predictorVersion": cfg.PREDICTOR_VERSION,
+        }
+        cfg.save_metrics(metrics_payload)
     result = {
         "ok": True,
         "ready": True,
@@ -218,6 +237,7 @@ def predict(csv_path=None, project_root=None, game="loto_5_35", slot=None, bundl
             "latest_draw_date": str(sync_summary.get("latestDate", "")),
             "latest_draw_slot": str(sync_summary.get("latestTime", "")),
         },
+        "pure": bool(pure),
     }
     result["notes"] = _build_result_notes(selection, analysis.get("regime") or {}, sync_result, analysis.get("deep") or {}, bundle_count)
 
@@ -236,7 +256,8 @@ def predict(csv_path=None, project_root=None, game="loto_5_35", slot=None, bundl
         "quality_score": float(result["quality_score"]),
         "tickets": list(result["tickets"]),
     }
-    cfg.save_last_prediction(last_prediction_payload)
+    if not pure:
+        cfg.save_last_prediction(last_prediction_payload)
     return result
 
 
@@ -249,6 +270,20 @@ def predict_next_vip(game="loto_5_35", slot=None, bundle_count=3, requested_engi
         requested_engine=requested_engine,
         risk_mode=risk_mode,
         blend_mode=blend_mode,
+    )
+
+
+def predict_pure(csv_path=None, game="loto_5_35", slot=None, bundle_count=3, requested_engine="", risk_mode="balanced", blend_mode=None, tracking_state=None):
+    return predict(
+        csv_path=csv_path,
+        game=game,
+        slot=slot,
+        bundle_count=bundle_count,
+        requested_engine=requested_engine,
+        risk_mode=risk_mode,
+        blend_mode=blend_mode,
+        pure=True,
+        tracking_state_override=tracking_state,
     )
 
 

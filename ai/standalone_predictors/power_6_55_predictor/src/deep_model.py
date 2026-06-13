@@ -46,6 +46,13 @@ def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _normalize_draw_id(value: Any) -> int:
+    if isinstance(value, int):
+        return value
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return int(digits or "0")
+
+
 def _model_paths(project_root: Path) -> dict[str, Path]:
     models_dir = project_root / "models"
     return {
@@ -159,6 +166,17 @@ def _inspect_artifacts(
         status["deep_status_reason"] = "feature schema version mismatch"
         status["deep_status_line"] = _status_line(False, status["deep_status"], status["deep_status_reason"], meta)
         return status
+    target_draw_id = feature_flags.get("backtest_target_draw_id") or feature_flags.get("_backtest_target_draw_id")
+    if target_draw_id:
+        trained_draw_id = _normalize_draw_id(meta.get("trained_on_latest_draw_id"))
+        target_draw_id_int = _normalize_draw_id(target_draw_id)
+        if trained_draw_id and target_draw_id_int and trained_draw_id >= target_draw_id_int:
+            status["deep_status"] = "future_artifact_rejected"
+            status["deep_status_reason"] = (
+                f"artifact trained_on_latest_draw_id={trained_draw_id} is not before target_draw_id={target_draw_id_int}"
+            )
+            status["deep_status_line"] = _status_line(False, status["deep_status"], status["deep_status_reason"], meta)
+            return status
     if sequence_length is not None and int(meta.get("sequence_length", 0) or 0) != int(sequence_length):
         status["deep_status"] = "artifacts_invalid"
         status["deep_status_reason"] = "sequence length mismatch"

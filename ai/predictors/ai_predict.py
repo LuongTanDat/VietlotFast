@@ -19,11 +19,16 @@ if str(STANDALONE_PREDICTORS_ROOT) not in sys.path:
 import ai.configs.data_paths as dp
 import ai.predictors.number_scoring as ns
 import backend.live_results as lr
+from ai.evaluation.baselines import random_baseline_summary
+from ai.evaluation.probability import scores_to_probabilities
+from ai import ml_pipeline
+from ai import prediction_ledger
 
 
 # ----- Cau hinh AI -----
 # Tap trung cac hang so cho predictor classic, AI Gen Local va nguong du lieu toi thieu.
 AI_SUPPORTED_TYPES = ("KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO")
+CONTROLLED_ML_TYPES = ("KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55")
 AI_ENGINE_CLASSIC = "classic"
 AI_ENGINE_GEN_LOCAL = "gen_local"
 AI_ENGINE_LUAN_SO = "luan_so"
@@ -231,7 +236,7 @@ def build_loto_6_45_vip_prediction(bundle_count, requested_engine="", risk_mode=
     csv_path = dp.get_canonical_csv_read_path("LOTO_6_45")
     requested_total = max(1, int(bundle_count or 1))
     backup_count = max(2, requested_total - 1)
-    prediction = mega_645_predictor_api.predict(csv_path, project_root=standalone_root, backup_count=backup_count)
+    prediction = mega_645_predictor_api.predict_pure(csv_path, project_root=standalone_root, backup_count=backup_count)
     dataset = dict(prediction.get("dataset") or {})
     sync = dict(prediction.get("sync") or {})
     metrics = dict((mega_645_predictor_api.load_runtime_state(standalone_root).get("metrics") or {}))
@@ -340,7 +345,7 @@ def build_loto_5_35_vip_prediction(bundle_count, requested_engine="", risk_mode=
     prediction = _run_standalone_predict_cli(
         standalone_root,
         csv_path,
-        extra_args=["--bundle-count", str(requested_total)],
+        extra_args=["--bundle-count", str(requested_total), "--pure"],
     )
     result = attach_risk_mode_metadata(prediction, risk_mode)
     result["predictionMode"] = PREDICTION_MODE_VIP
@@ -421,7 +426,7 @@ def _pick_special_for_ticket(ticket_numbers, preferred_values, special_min=1, sp
 def build_loto_6_55_vip_prediction(bundle_count, requested_engine="", risk_mode="balanced"):
     standalone_root = STANDALONE_PREDICTORS_ROOT / "power_6_55_predictor"
     csv_path = dp.get_canonical_csv_read_path("LOTO_6_55")
-    prediction = _run_standalone_predict_cli(standalone_root, csv_path)
+    prediction = _run_standalone_predict_cli(standalone_root, csv_path, extra_args=["--pure"])
 
     dataset = dict(prediction.get("dataset") or {})
     sync = dict(prediction.get("sync") or {})
@@ -902,6 +907,21 @@ def sync_ai_history(type_key):
         raise ValueError("Loại AI không được hỗ trợ.")
     rows_by_ky, meta = load_ai_source_rows(type_key)
     return build_sync_summary(type_key, rows_by_ky, meta)
+
+
+def build_readonly_sync_summary(type_key):
+    if type_key not in AI_SUPPORTED_TYPES:
+        raise ValueError("Loại AI không được hỗ trợ.")
+    path = canonical_history_path(type_key)
+    if type_key == "KENO":
+        rows_by_ky, _ = lr.load_keno_csv_rows(path, return_info=True)
+    else:
+        rows_by_ky, _ = lr.load_csv_rows(path, return_info=True)
+        if not is_three_digit_type(type_key):
+            rows_by_ky, _ = lr.filter_rows_for_type(type_key, rows_by_ky)
+    meta = read_ai_source_meta(type_key)
+    normalized_meta, _ = lr.normalize_meta_from_rows(type_key, meta, rows_by_ky)
+    return build_sync_summary(type_key, rows_by_ky, normalized_meta)
 
 
 def parse_numeric_draws(rows_by_ky):
@@ -3068,6 +3088,125 @@ def build_prediction_bundles(ranking, pick_size, bundle_count):
     return [sorted(bundle) for bundle in bundles]
 
 
+def _controlled_probability_config(type_key):
+    if type_key == "KENO":
+        return {"universe_size": 80, "draw_size": 20, "special_universe_size": 0}
+    if type_key == "LOTO_5_35":
+        return {"universe_size": 35, "draw_size": 5, "special_universe_size": 12}
+    if type_key == "LOTO_6_45":
+        return {"universe_size": 45, "draw_size": 6, "special_universe_size": 0}
+    if type_key == "LOTO_6_55":
+        return {"universe_size": 55, "draw_size": 6, "special_universe_size": 55}
+    return {}
+
+
+def _ranking_scores_from_payload(payload, field_name, universe_size):
+    raw_items = list(payload.get(field_name) or [])
+    scores = {}
+    rank_value = len(raw_items)
+    for item in raw_items:
+        if isinstance(item, dict):
+            number = item.get("number")
+            score = item.get("score")
+        else:
+            number = item
+            score = rank_value
+        try:
+            number = int(number)
+        except Exception:
+            rank_value -= 1
+            continue
+        if 1 <= number <= int(universe_size):
+            try:
+                scores[number] = float(score)
+            except Exception:
+                scores[number] = float(rank_value)
+        rank_value -= 1
+    if not scores:
+        for ticket in list(payload.get("tickets") or []):
+            for index, value in enumerate(list((ticket or {}).get("main") or [])):
+                try:
+                    number = int(value)
+                except Exception:
+                    continue
+                scores[number] = max(float(scores.get(number, 0.0)), float(int(universe_size) - index))
+    return scores
+
+
+def _format_probability_list(probability_map):
+    return [
+        {"number": int(number), "probability": round(float(probability), 8)}
+        for number, probability in sorted(dict(probability_map or {}).items(), key=lambda item: int(item[0]))
+    ]
+
+
+def attach_controlled_probability_metadata(payload):
+    result = dict(payload or {})
+    type_key = str(result.get("type") or "").strip().upper()
+    cfg = _controlled_probability_config(type_key)
+    if not cfg:
+        return result
+    universe_size = int(cfg["universe_size"])
+    draw_size = int(cfg["draw_size"])
+    ranking_score = _ranking_scores_from_payload(result, "top_main_candidates", universe_size)
+    if not ranking_score:
+        ranking_score = _ranking_scores_from_payload(result, "topRanking", universe_size)
+    calibrated = scores_to_probabilities(ranking_score, draw_size, 1, universe_size)
+    probability_rows = _format_probability_list(calibrated)
+    score_payload = {str(key): float(value) for key, value in ranking_score.items()}
+    result["rawScore"] = {str(key): float(value) for key, value in ranking_score.items()}
+    result["raw_score"] = score_payload
+    result["rankingScore"] = score_payload
+    result["ranking_score"] = score_payload
+    result["calibratedProbability"] = probability_rows
+    result["calibrated_probability"] = probability_rows
+    result["probabilities"] = {str(key): float(value) for key, value in calibrated.items()}
+    result["ticketQualityScore"] = float(result.get("qualityScore") or result.get("quality_score") or 0.0)
+    result["ticket_quality_score"] = result["ticketQualityScore"]
+    result["probabilitySummary"] = {
+        "mainProbabilitySum": round(sum(float(value) for value in calibrated.values()), 8),
+        "mainDrawSize": draw_size,
+        "mainUniverseSize": universe_size,
+        "method": "ranking_to_capped_simplex",
+        "note": "calibratedProbability is a marginal number probability; ticketQualityScore is not a probability.",
+    }
+    special_universe = int(cfg.get("special_universe_size") or 0)
+    if special_universe:
+        special_scores = _ranking_scores_from_payload(result, "topSpecialRanking", special_universe)
+        if not special_scores:
+            special_scores = _ranking_scores_from_payload(result, "top_bonus_candidates", special_universe)
+        if special_scores:
+            special_probs = scores_to_probabilities(special_scores, 1, 1, special_universe)
+            special_rows = _format_probability_list(special_probs)
+            result["specialCalibratedProbability"] = special_rows
+            result["special_calibrated_probability"] = special_rows
+            result["specialProbabilities"] = {str(key): float(value) for key, value in special_probs.items()}
+            result["special_probabilities"] = {str(key): float(value) for key, value in special_probs.items()}
+            result["probabilitySummary"]["specialProbabilitySum"] = round(sum(float(value) for value in special_probs.values()), 8)
+    prediction_size = int(result.get("pickSize") or draw_size)
+    result["randomBaseline"] = random_baseline_summary(universe_size, draw_size, prediction_size)
+    return result
+
+
+def finalize_controlled_prediction_payload(payload, username="", lock_ledger=True):
+    result = attach_controlled_probability_metadata(payload)
+    type_key = str(result.get("type") or "").strip().upper()
+    if type_key not in CONTROLLED_ML_TYPES or not bool(lock_ledger):
+        return result
+    try:
+        locked = prediction_ledger.lock_prediction(result, username=username)
+        result["predictionId"] = locked["prediction_id"]
+        result["predictionStatus"] = locked["status"]
+        result["dataCutoffDrawId"] = locked["data_cutoff_draw_id"]
+        result["payloadChecksum"] = locked["payload_checksum"]
+    except Exception as exc:
+        result["predictionStatus"] = "lock_failed"
+        result["ledgerError"] = str(exc)
+        notes = list(result.get("notes") or [])
+        result["notes"] = [f"Prediction ledger lock failed: {exc}", *notes]
+    return result
+
+
 def summarize_sync_notes(sync_summary):
     notes = []
     errors = list(sync_summary.get("errors", []))
@@ -3594,8 +3733,8 @@ def build_numeric_prediction(type_key, bundle_count):
     }
 
 
-def build_keno_prediction(bundle_count, order):
-    sync_summary = sync_ai_history("KENO")
+def build_keno_prediction(bundle_count, order, sync_summary=None):
+    sync_summary = sync_summary or sync_ai_history("KENO")
     if not sync_summary_is_ready(sync_summary):
         return build_bootstrap_pending_payload("KENO", sync_summary, bundle_count, order)
     draws = load_ai_draws("KENO")
@@ -3659,7 +3798,7 @@ def build_keno_prediction(bundle_count, order):
 
 # ----- API du doan cong khai -----
 # Day la lop public ma Java server goi toi khi can lay payload predict_json/sync_json/train_json.
-def predict_json(type_key, bundle_count, keno_level=None, engine=AI_ENGINE_CLASSIC, risk_mode=AI_RISK_MODE_BALANCED, prediction_mode=PREDICTION_MODE_NORMAL):
+def _predict_json_unlocked(type_key, bundle_count, keno_level=None, engine=AI_ENGINE_CLASSIC, risk_mode=AI_RISK_MODE_BALANCED, prediction_mode=PREDICTION_MODE_NORMAL, pure=False):
     if type_key not in AI_SUPPORTED_TYPES:
         raise ValueError("Loại AI không được hỗ trợ.")
     engine = normalize_engine(engine)
@@ -3673,13 +3812,16 @@ def predict_json(type_key, bundle_count, keno_level=None, engine=AI_ENGINE_CLASS
         max_bundles = max(1, 80 // order)
         if bundle_count > max_bundles:
             raise ValueError(f"Số bộ Keno tối đa cho bậc {order} là {max_bundles}.")
+        if pure and engine != AI_ENGINE_CLASSIC:
+            raise ValueError("Keno pure hiện chỉ hỗ trợ engine classic để tránh ghi state/model.")
         if engine == AI_ENGINE_LUAN_SO:
             payload = attach_risk_mode_metadata(build_luan_so_prediction("KENO", bundle_count, order), risk_mode)
             return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
         if engine == AI_ENGINE_GEN_LOCAL:
             payload = attach_risk_mode_metadata(build_keno_gen_local_prediction(bundle_count, order), risk_mode)
             return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
-        payload = attach_risk_mode_metadata(build_keno_prediction(bundle_count, order), risk_mode)
+        sync_summary = build_readonly_sync_summary("KENO") if pure else None
+        payload = attach_risk_mode_metadata(build_keno_prediction(bundle_count, order, sync_summary=sync_summary), risk_mode)
         return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
     # predictor_v2 integration start
     if type_key == "LOTO_5_35" and prediction_mode == PREDICTION_MODE_VIP:
@@ -3768,6 +3910,25 @@ def predict_json(type_key, bundle_count, keno_level=None, engine=AI_ENGINE_CLASS
         return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
     payload = attach_risk_mode_metadata(build_numeric_prediction(type_key, bundle_count), risk_mode)
     return apply_vip_prediction_profile(payload, bundle_count) if prediction_mode == PREDICTION_MODE_VIP else payload
+
+
+def predict_json(
+    type_key,
+    bundle_count,
+    keno_level=None,
+    engine=AI_ENGINE_CLASSIC,
+    risk_mode=AI_RISK_MODE_BALANCED,
+    prediction_mode=PREDICTION_MODE_NORMAL,
+    username="",
+    lock_ledger=True,
+    pure=False,
+):
+    payload = _predict_json_unlocked(type_key, bundle_count, keno_level, engine, risk_mode, prediction_mode, pure=pure)
+    if pure:
+        payload = dict(payload or {})
+        payload["purePrediction"] = True
+        lock_ledger = False
+    return finalize_controlled_prediction_payload(payload, username=username, lock_ledger=lock_ledger)
 
 
 def sync_json(type_key):
@@ -4185,6 +4346,96 @@ def extract_export_csv_arg(extra_args):
     return export_csv, remaining
 
 
+def extract_username_arg(extra_args):
+    username = ""
+    remaining = []
+    for raw in extra_args:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        if text.startswith("--username="):
+            username = text.split("=", 1)[1].strip()
+            continue
+        remaining.append(text)
+    return username, remaining
+
+
+def extract_no_ledger_lock_arg(extra_args):
+    lock_ledger = True
+    remaining = []
+    for raw in extra_args:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        if text == "--no-ledger-lock":
+            lock_ledger = False
+            continue
+        if text.startswith("--ledger-lock="):
+            lowered = text.split("=", 1)[1].strip().lower()
+            lock_ledger = lowered not in {"0", "false", "off", "no"}
+            continue
+        remaining.append(text)
+    return lock_ledger, remaining
+
+
+def extract_pure_arg(extra_args):
+    pure = False
+    remaining = []
+    for raw in extra_args:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        if text == "--pure":
+            pure = True
+            continue
+        if text.startswith("--pure="):
+            lowered = text.split("=", 1)[1].strip().lower()
+            pure = lowered not in {"0", "false", "off", "no"}
+            continue
+        remaining.append(text)
+    return pure, remaining
+
+
+def extract_ml_common_args(extra_args):
+    options = {
+        "mode": "fast",
+        "window": "expanding",
+        "rolling_window": None,
+        "min_history": None,
+        "retrain_interval": None,
+        "model_id": "",
+        "force": False,
+    }
+    remaining = []
+    for raw in extra_args:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        if text.startswith("--mode="):
+            options["mode"] = text.split("=", 1)[1].strip().lower()
+            continue
+        if text.startswith("--window="):
+            options["window"] = text.split("=", 1)[1].strip().lower()
+            continue
+        if text.startswith("--rolling-window="):
+            options["rolling_window"] = int(text.split("=", 1)[1])
+            continue
+        if text.startswith("--min-history="):
+            options["min_history"] = int(text.split("=", 1)[1])
+            continue
+        if text.startswith("--retrain-interval="):
+            options["retrain_interval"] = int(text.split("=", 1)[1])
+            continue
+        if text.startswith("--model-id="):
+            options["model_id"] = text.split("=", 1)[1].strip()
+            continue
+        if text == "--force":
+            options["force"] = True
+            continue
+        remaining.append(text)
+    return options, remaining
+
+
 # ----- Diem vao CLI -----
 # Ho tro goi file truc tiep tu terminal de predict, sync va train model.
 def main():
@@ -4201,8 +4452,21 @@ def main():
             engine, remaining = extract_engine_arg(extra_args)
             risk_mode, remaining = extract_risk_mode_arg(remaining)
             prediction_mode, remaining = extract_prediction_mode_arg(remaining)
+            username, remaining = extract_username_arg(remaining)
+            lock_ledger, remaining = extract_no_ledger_lock_arg(remaining)
+            pure, remaining = extract_pure_arg(remaining)
             keno_level = remaining[0] if remaining else None
-            payload = predict_json(type_key, bundle_count, keno_level, engine, risk_mode, prediction_mode)
+            payload = predict_json(
+                type_key,
+                bundle_count,
+                keno_level,
+                engine,
+                risk_mode,
+                prediction_mode,
+                username=username,
+                lock_ledger=lock_ledger,
+                pure=pure,
+            )
         elif mode in {"sync_json", "sync-json", "sync"}:
             if len(sys.argv) < 3:
                 raise ValueError("Thiếu tham số: ai_predict.py sync_json TYPE")
@@ -4250,6 +4514,55 @@ def main():
             if remaining:
                 raise ValueError("Tham số score_csv không hợp lệ.")
             payload = score_csv(type_key, recent_window, weights, co_top_k, include_backtest, backtest_top_k, limit, top_only)
+        elif mode in {"ml_status", "ml-status"}:
+            type_key = str(sys.argv[2]).strip().upper() if len(sys.argv) >= 3 else None
+            payload = ml_pipeline.status(type_key)
+        elif mode in {"ml_predictions", "ml-predictions"}:
+            type_key = str(sys.argv[2]).strip().upper() if len(sys.argv) >= 3 and not str(sys.argv[2]).startswith("--") else None
+            option_start = 3 if type_key else 2
+            username, remaining = extract_username_arg(list(sys.argv[option_start:]))
+            if remaining:
+                raise ValueError("Tham số ml_predictions không hợp lệ.")
+            payload = ml_pipeline.predictions(type_key, username=username or None)
+        elif mode in {"ml_backtest", "ml-backtest"}:
+            if len(sys.argv) < 3:
+                raise ValueError("Thiếu tham số: ai_predict.py ml_backtest TYPE")
+            type_key = str(sys.argv[2]).strip().upper()
+            options, remaining = extract_ml_common_args(list(sys.argv[3:]))
+            if remaining:
+                raise ValueError("Tham số ml_backtest không hợp lệ.")
+            payload = ml_pipeline.run_backtest(
+                type_key,
+                mode=str(options["mode"]),
+                window=str(options["window"]),
+                rolling_window=options["rolling_window"],
+                min_history=options["min_history"],
+                retrain_interval=options["retrain_interval"],
+            )
+        elif mode in {"ml_score_pending", "ml-score-pending"}:
+            if len(sys.argv) < 3:
+                raise ValueError("Thiếu tham số: ai_predict.py ml_score_pending TYPE")
+            payload = ml_pipeline.score_pending_predictions(str(sys.argv[2]).strip().upper())
+        elif mode in {"ml_train_candidate", "ml-train-candidate"}:
+            if len(sys.argv) < 3:
+                raise ValueError("Thiếu tham số: ai_predict.py ml_train_candidate TYPE")
+            type_key = str(sys.argv[2]).strip().upper()
+            options, remaining = extract_ml_common_args(list(sys.argv[3:]))
+            if remaining:
+                raise ValueError("Tham số ml_train_candidate không hợp lệ.")
+            payload = ml_pipeline.train_candidate(type_key, mode=str(options["mode"]))
+        elif mode in {"ml_promote", "ml-promote"}:
+            if len(sys.argv) < 3:
+                raise ValueError("Thiếu tham số: ai_predict.py ml_promote TYPE --model-id=ID")
+            type_key = str(sys.argv[2]).strip().upper()
+            options, remaining = extract_ml_common_args(list(sys.argv[3:]))
+            if remaining or not options["model_id"]:
+                raise ValueError("Thiếu hoặc sai tham số --model-id cho ml_promote.")
+            payload = ml_pipeline.promote_candidate(type_key, str(options["model_id"]), force=bool(options["force"]))
+        elif mode in {"ml_rollback", "ml-rollback"}:
+            if len(sys.argv) < 3:
+                raise ValueError("Thiếu tham số: ai_predict.py ml_rollback TYPE")
+            payload = ml_pipeline.rollback(str(sys.argv[2]).strip().upper())
         else:
             payload = {
                 "ok": False,

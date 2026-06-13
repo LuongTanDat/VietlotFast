@@ -45,6 +45,7 @@ public class LottoWebServer {
     private static final long KENO_PREDICT_TIMEOUT_SECONDS = 180;
     private static final long AI_PREDICT_TIMEOUT_SECONDS = 240;
     private static final long AI_SCORE_TIMEOUT_SECONDS = 420;
+    private static final long AI_ML_TIMEOUT_SECONDS = 900;
     private static final long STATS_V2_TIMEOUT_SECONDS = 180;
     private static final long ANALYSIS_TIMEOUT_SECONDS = 180;
     private static final int KENO_MIN_ORDER = 1;
@@ -60,6 +61,9 @@ public class LottoWebServer {
     )));
     private static final Set<String> AI_PREDICT_RISK_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "stable", "balanced", "aggressive"
+    )));
+    private static final Set<String> ML_TYPE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
+            "KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55"
     )));
     private static final Set<String> ANALYSIS_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "overview", "general", "distribution", "ratios", "latest_draw", "consecutive",
@@ -310,6 +314,13 @@ public class LottoWebServer {
         server.createContext("/api/keno-predict", this::handleKenoPredict);
         server.createContext("/api/ai-predict", this::handleAiPredict);
         server.createContext("/api/ai-score", this::handleAiScore);
+        server.createContext("/api/ml/status", this::handleMlStatus);
+        server.createContext("/api/ml/predictions", this::handleMlPredictions);
+        server.createContext("/api/ml/backtest", this::handleMlBacktest);
+        server.createContext("/api/ml/score-pending", this::handleMlScorePending);
+        server.createContext("/api/ml/train-candidate", this::handleMlTrainCandidate);
+        server.createContext("/api/ml/promote", this::handleMlPromote);
+        server.createContext("/api/ml/rollback", this::handleMlRollback);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
         server.createContext("/api/live-results-progress", this::handleLiveResultsProgress);
@@ -1151,6 +1162,7 @@ public class LottoWebServer {
         command.add("--engine=" + engine);
         command.add("--risk-mode=" + riskMode);
         command.add("--prediction-mode=" + predictionMode);
+        command.add("--username=" + su.username);
 
         String payload = runPythonJsonCommand(
                 ex,
@@ -1271,6 +1283,229 @@ public class LottoWebServer {
                 "Không chạy được number scoring: ",
                 null
         );
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private Path aiPredictScriptFile() {
+        return rootDir.resolve("ai").resolve("predictors").resolve("ai_predict.py");
+    }
+
+    private boolean validateMlType(HttpExchange ex, String type) throws IOException {
+        if (!ML_TYPE_KEYS.contains(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Loại ML không hợp lệ\"}");
+            return false;
+        }
+        return true;
+    }
+
+    private String runAiMlCommand(HttpExchange ex, List<String> command, String timeoutMessage) throws IOException {
+        return runPythonJsonCommand(
+                ex,
+                rootDir,
+                command,
+                AI_ML_TIMEOUT_SECONDS,
+                timeoutMessage,
+                "ML pipeline không trả dữ liệu",
+                "ML pipeline exited with error",
+                "Tiến trình ML bị gián đoạn",
+                "Không chạy được ML pipeline: ",
+                null
+        );
+    }
+
+    private boolean appendOptionalPositiveArg(HttpExchange ex, List<String> command, String flagName, String value, String errorMessage) throws IOException {
+        String raw = nvl(value).trim();
+        if (isBlank(raw)) return true;
+        int parsed = parseStrictPositiveInt(raw);
+        if (parsed <= 0) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"" + esc(errorMessage) + "\"}");
+            return false;
+        }
+        command.add(flagName + "=" + parsed);
+        return true;
+    }
+
+    private void handleMlStatus(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!isBlank(type) && !validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_status");
+        if (!isBlank(type)) command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML status quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlPredictions(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!isBlank(type) && !validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_predictions");
+        if (!isBlank(type)) command.add(type);
+        command.add("--username=" + su.username);
+        String payload = runAiMlCommand(ex, command, "ML predictions quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlBacktest(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String mode = "full".equalsIgnoreCase(nvl(f.get("mode")).trim()) ? "full" : "fast";
+        String window = "rolling".equalsIgnoreCase(nvl(f.get("window")).trim()) ? "rolling" : "expanding";
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_backtest");
+        command.add(type);
+        command.add("--mode=" + mode);
+        command.add("--window=" + window);
+        if (!appendOptionalPositiveArg(ex, command, "--rolling-window", f.get("rollingWindow"), "rollingWindow không hợp lệ")) return;
+        if (!appendOptionalPositiveArg(ex, command, "--min-history", f.get("minHistory"), "minHistory không hợp lệ")) return;
+        if (!appendOptionalPositiveArg(ex, command, "--retrain-interval", f.get("retrainInterval"), "retrainInterval không hợp lệ")) return;
+        String payload = runAiMlCommand(ex, command, "ML backtest quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlScorePending(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_score_pending");
+        command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML score pending quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlTrainCandidate(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String mode = "full".equalsIgnoreCase(nvl(f.get("mode")).trim()) ? "full" : "fast";
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_train_candidate");
+        command.add(type);
+        command.add("--mode=" + mode);
+        String payload = runAiMlCommand(ex, command, "ML train candidate quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlPromote(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String modelId = nvl(f.get("modelId")).trim();
+        if (isBlank(modelId)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu modelId\"}");
+            return;
+        }
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_promote");
+        command.add(type);
+        command.add("--model-id=" + modelId);
+        String payload = runAiMlCommand(ex, command, "ML promote quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlRollback(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_rollback");
+        command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML rollback quá thời gian chờ");
         if (payload == null) return;
         sendJson(ex, 200, payload);
     }
