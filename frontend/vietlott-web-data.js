@@ -4061,6 +4061,7 @@
     function startLiveDrawCountdown() {
       if (liveDrawCountdownTimer) return;
       liveDrawCountdownTimer = window.setInterval(() => {
+        if (document.hidden) return;
         maybeSyncServerTimeSoon();
         const liveBoardVisible = isHomePageVisible() && isElementNearViewport(document.getElementById("liveBoardSection"));
         const normalPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_NORMAL;
@@ -4456,6 +4457,7 @@
       const delay = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 120000;
       if (liveAutoTimer) clearInterval(liveAutoTimer);
       liveAutoTimer = setInterval(() => {
+        if (document.hidden) return;
         syncLiveResults({ silent: true });
       }, delay);
       updateLiveAutoButton();

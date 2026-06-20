@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -83,6 +84,7 @@ public class LottoWebServer {
     private final Path dbFile;
     private final DatabaseRepo repo;
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
+    private final Map<Path, StaticAsset> staticAssetCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
 
     // ----- Helper lồng bên trong -----
@@ -98,6 +100,22 @@ public class LottoWebServer {
             this.exitCode = exitCode;
             this.stdout = stdout;
             this.stderr = stderr;
+        }
+    }
+
+    private static final class StaticAsset {
+        final long lastModified;
+        final long size;
+        final byte[] raw;
+        final byte[] gzip;
+        final String etag;
+
+        StaticAsset(long lastModified, long size, byte[] raw, byte[] gzip, String etag) {
+            this.lastModified = lastModified;
+            this.size = size;
+            this.raw = raw;
+            this.gzip = gzip;
+            this.etag = etag;
         }
     }
 
@@ -343,7 +361,7 @@ public class LottoWebServer {
     // ----- Tài nguyên tĩnh -----
     // Phục vụ file HTML chính, favicon và phản hồi 404 cơ bản.
     private void serveIndex(HttpExchange ex) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -359,20 +377,11 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(htmlFile);
-        Headers h = ex.getResponseHeaders();
-        h.set("Content-Type", "text/html; charset=UTF-8");
-        h.set("Cache-Control", "no-store, no-cache, must-revalidate");
-        h.set("Pragma", "no-cache");
-        h.set("Expires", "0");
-        ex.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = ex.getResponseBody()) {
-            os.write(bytes);
-        }
+        serveCachedAsset(ex, htmlFile, "text/html; charset=UTF-8", "no-cache, must-revalidate");
     }
 
     private void serveFavicon(HttpExchange ex) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -380,17 +389,11 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(faviconFile);
-        Headers h = ex.getResponseHeaders();
-        h.set("Content-Type", "image/svg+xml");
-        ex.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = ex.getResponseBody()) {
-            os.write(bytes);
-        }
+        serveCachedAsset(ex, faviconFile, "image/svg+xml", "private, max-age=86400");
     }
 
     private void serveStaticTextFile(HttpExchange ex, Path file, String contentType) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -398,12 +401,51 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(file);
+        serveCachedAsset(ex, file, contentType, "private, max-age=300, must-revalidate");
+    }
+
+    private boolean isGetOrHead(HttpExchange ex) {
+        String method = ex.getRequestMethod();
+        return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
+    }
+
+    private StaticAsset loadStaticAsset(Path file) throws IOException {
+        Path key = file.toAbsolutePath().normalize();
+        long lastModified = Files.getLastModifiedTime(key).toMillis();
+        long size = Files.size(key);
+        StaticAsset cached = staticAssetCache.get(key);
+        if (cached != null && cached.lastModified == lastModified && cached.size == size) {
+            return cached;
+        }
+        byte[] raw = Files.readAllBytes(key);
+        byte[] gzip = raw.length >= 1024 ? gzip(raw) : raw;
+        String etag = "\"" + Long.toHexString(lastModified) + "-" + Long.toHexString(size) + "\"";
+        StaticAsset next = new StaticAsset(lastModified, size, raw, gzip, etag);
+        staticAssetCache.put(key, next);
+        return next;
+    }
+
+    private void serveCachedAsset(HttpExchange ex, Path file, String contentType, String cacheControl) throws IOException {
+        StaticAsset asset = loadStaticAsset(file);
         Headers h = ex.getResponseHeaders();
         h.set("Content-Type", contentType);
-        h.set("Cache-Control", "no-store, no-cache, must-revalidate");
-        h.set("Pragma", "no-cache");
-        h.set("Expires", "0");
+        h.set("Cache-Control", cacheControl);
+        h.set("ETag", asset.etag);
+        h.add("Vary", "Accept-Encoding");
+        if (asset.etag.equals(ex.getRequestHeaders().getFirst("If-None-Match"))) {
+            ex.sendResponseHeaders(304, -1);
+            ex.close();
+            return;
+        }
+        boolean useGzip = acceptsGzip(ex) && asset.gzip.length < asset.raw.length;
+        byte[] bytes = useGzip ? asset.gzip : asset.raw;
+        if (useGzip) h.set("Content-Encoding", "gzip");
+        if ("HEAD".equalsIgnoreCase(ex.getRequestMethod())) {
+            h.set("Content-Length", String.valueOf(bytes.length));
+            ex.sendResponseHeaders(200, -1);
+            ex.close();
+            return;
+        }
         ex.sendResponseHeaders(200, bytes.length);
         try (OutputStream os = ex.getResponseBody()) {
             os.write(bytes);
@@ -1890,10 +1932,16 @@ public class LottoWebServer {
     // ----- Tiện ích HTTP và parse dữ liệu -----
     // Gom các hàm gửi JSON, parse query/form, CORS, validate chuỗi và xử lý session.
     private void sendJson(HttpExchange ex, int status, String json) throws IOException {
-        byte[] out = json.getBytes(StandardCharsets.UTF_8);
+        byte[] raw = json.getBytes(StandardCharsets.UTF_8);
+        byte[] compressed = raw.length >= 1024 ? gzip(raw) : raw;
+        boolean useGzip = acceptsGzip(ex) && compressed.length < raw.length;
+        byte[] out = useGzip ? compressed : raw;
         Headers h = ex.getResponseHeaders();
         addCors(ex);
         h.set("Content-Type", "application/json; charset=UTF-8");
+        h.set("Cache-Control", "no-store");
+        h.add("Vary", "Accept-Encoding");
+        if (useGzip) h.set("Content-Encoding", "gzip");
         long nowMs = System.currentTimeMillis();
         h.set("X-Server-Time-Ms", String.valueOf(nowMs));
         h.set("X-Server-Time-Iso", Instant.ofEpochMilli(nowMs).toString());
@@ -1902,6 +1950,19 @@ public class LottoWebServer {
         try (OutputStream os = ex.getResponseBody()) {
             os.write(out);
         }
+    }
+
+    private boolean acceptsGzip(HttpExchange ex) {
+        String value = ex.getRequestHeaders().getFirst("Accept-Encoding");
+        return value != null && value.toLowerCase(Locale.ROOT).contains("gzip");
+    }
+
+    private static byte[] gzip(byte[] input) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(256, input.length / 3));
+        try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
+            gzip.write(input);
+        }
+        return out.toByteArray();
     }
 
     private boolean handleOptions(HttpExchange ex) throws IOException {

@@ -438,6 +438,10 @@
       savedAt: "",
       failedAt: "",
     };
+    let storeSaveLoopPromise = null;
+    let pendingStoreSave = null;
+    let lastSavedStoreSnapshotText = "";
+    let storeSaveGeneration = 0;
     let accountEditMode = false;
     let kenoCsvFeed = { results: {}, order: [], sourceLabels: [], loadedAt: "" };
     let kenoPredictStatusMeta = { loadedAt: "", detail: "", level: "" };
@@ -700,6 +704,13 @@
         rect.top <= viewportHeight + margin &&
         rect.right >= -margin &&
         rect.left <= viewportWidth + margin;
+    }
+
+    function runWhenBrowserIdle(callback, timeoutMs = 1200) {
+      if (typeof window.requestIdleCallback === "function") {
+        return window.requestIdleCallback(callback, { timeout: timeoutMs });
+      }
+      return window.setTimeout(callback, Math.min(120, Math.max(0, timeoutMs)));
     }
 
     function isHomePageVisible() {
@@ -1729,6 +1740,9 @@
     window.getStoreSaveState = getStoreSaveState;
 
     async function loadStoreFromServer() {
+      storeSaveGeneration += 1;
+      pendingStoreSave = null;
+      lastSavedStoreSnapshotText = "";
       if (!currentUser) {
         store = emptyStore();
         updateStoreSaveState({
@@ -1777,20 +1791,65 @@
         : null;
       const predictionLogsBeforeReconcile = getPredictionLogsSignature(base.predictionLogs);
       store = base;
+      lastSavedStoreSnapshotText = JSON.stringify(buildPersistableStoreSnapshot(base));
       reconcileAllPredictionLogs();
       if (getPredictionLogsSignature(store.predictionLogs) !== predictionLogsBeforeReconcile) {
-        saveStore();
+        saveStore({ reason: "reconcile_prediction_logs" });
       }
       renderCurrencyBar();
+    }
+
+    async function flushStoreSaveQueue() {
+      let allSaved = true;
+      while (pendingStoreSave) {
+        const request = pendingStoreSave;
+        pendingStoreSave = null;
+        if (request.username !== currentUser || request.generation !== storeSaveGeneration) continue;
+        if (request.snapshotText === lastSavedStoreSnapshotText) continue;
+        updateStoreSaveState({
+          pending: true,
+          ok: storeSaveState.ok,
+          message: "",
+          reason: request.reason,
+        });
+        try {
+          await api("/api/store", "POST", { store: request.snapshotText });
+          if (request.username !== currentUser || request.generation !== storeSaveGeneration) continue;
+          lastSavedStoreSnapshotText = request.snapshotText;
+          updateStoreSaveState({
+            pending: !!pendingStoreSave,
+            ok: true,
+            message: "",
+            reason: request.reason,
+            savedAt: getSyncedIsoString(),
+            failedAt: "",
+          });
+        } catch (error) {
+          allSaved = false;
+          if (request.username !== currentUser || request.generation !== storeSaveGeneration) continue;
+          const message = String(error?.message || error || "Không lưu được dữ liệu tài khoản.");
+          console.error(`[store-save:${request.reason}] payloadBytes=${request.payloadBytes}`, error);
+          updateStoreSaveState({
+            pending: !!pendingStoreSave,
+            ok: false,
+            message,
+            reason: request.reason,
+            failedAt: getSyncedIsoString(),
+          });
+        }
+      }
+      return allSaved;
     }
 
     async function saveStore(options = {}) {
       if (!currentUser) return false;
       const reason = String(options?.reason || "").trim() || "unspecified";
       const snapshotText = JSON.stringify(buildPersistableStoreSnapshot(store));
-      const payloadBytes = estimateStorePayloadBytes(snapshotText);
       if (IS_LOCAL_MODE) {
-        setLocalStoreForUser(currentUser, store);
+        if (snapshotText !== lastSavedStoreSnapshotText) {
+          setLocalStoreForUser(currentUser, store);
+          lastSavedStoreSnapshotText = snapshotText;
+        }
         updateStoreSaveState({
           pending: false,
           ok: true,
@@ -1801,35 +1860,20 @@
         });
         return true;
       }
-      updateStoreSaveState({
-        pending: true,
-        ok: storeSaveState.ok,
-        message: "",
+      if (snapshotText === lastSavedStoreSnapshotText && !storeSaveLoopPromise) return true;
+      pendingStoreSave = {
+        username: currentUser,
+        generation: storeSaveGeneration,
+        snapshotText,
+        payloadBytes: estimateStorePayloadBytes(snapshotText),
         reason,
-      });
-      try {
-        await api("/api/store", "POST", { store: snapshotText });
-        updateStoreSaveState({
-          pending: false,
-          ok: true,
-          message: "",
-          reason,
-          savedAt: getSyncedIsoString(),
-          failedAt: "",
+      };
+      if (!storeSaveLoopPromise) {
+        storeSaveLoopPromise = flushStoreSaveQueue().finally(() => {
+          storeSaveLoopPromise = null;
         });
-        return true;
-      } catch (error) {
-        const message = String(error?.message || error || "Không lưu được dữ liệu tài khoản.");
-        console.error(`[store-save:${reason}] payloadBytes=${payloadBytes}`, error);
-        updateStoreSaveState({
-          pending: false,
-          ok: false,
-          message,
-          reason,
-          failedAt: getSyncedIsoString(),
-        });
-        return false;
       }
+      return storeSaveLoopPromise;
     }
 
     function renderCurrencyBar() {
@@ -3226,6 +3270,7 @@
     function startLuckyWheelUiTimer() {
       if (luckyWheelUiTimer) clearInterval(luckyWheelUiTimer);
       luckyWheelUiTimer = window.setInterval(() => {
+        if (document.hidden) return;
         const topupOverlay = document.getElementById("luckyWheelTopupOverlay");
         const topupOpen = !!topupOverlay && !topupOverlay.hidden;
         const wheelVisible = getCurrentAppPageMode() === "wheel" && isElementActuallyVisible(document.getElementById("luckyWheelSection"));
@@ -3733,7 +3778,6 @@
       startLuckyWheelUiTimer();
       restoreKenoCsvFeedCache();
       updateKenoCsvStatus();
-      await refreshKenoPredictionDataForHistory({ silent: true });
       restoreLiveResultsCache();
       restoreLiveUpdateBadgeCache();
       clearLegacyLiveHistoryCache();
@@ -3745,16 +3789,21 @@
       syncKenoTrainingConfigFromUi();
       renderKenoTrainingToggle();
       if (kenoTrainingEnabled) startKenoTrainingLoop();
-      window.setTimeout(() => {
+      runWhenBrowserIdle(async () => {
         if (!currentUser) return;
-        syncLiveResults({ silent: true }).catch(() => {});
-      }, 1200);
+        await syncLiveResults({ silent: true }).catch(() => {});
+        if (!currentUser) return;
+        await refreshKenoPredictionDataForHistory({ silent: true }).catch(() => {});
+      }, 800);
     }
 
     async function logout() {
       try { await api("/api/logout", "POST"); } catch {}
       currentUser = null;
       currentUserRole = "user";
+      storeSaveGeneration += 1;
+      pendingStoreSave = null;
+      lastSavedStoreSnapshotText = "";
       store = emptyStore();
       selectedPaypalTopupPackageId = PAYPAL_TOPUP_PACKAGES[1]?.id || PAYPAL_TOPUP_PACKAGES[0]?.id || "";
       luckyWheelRotation = 0;
@@ -5386,7 +5435,7 @@
       setAuthMode(true);
     })().finally(() => {
       const elapsed = Date.now() - bootStartAt;
-      const wait = Math.max(200, 900 - elapsed);
+      const wait = Math.max(0, 250 - elapsed);
       hidePageLoader(wait);
     });
 

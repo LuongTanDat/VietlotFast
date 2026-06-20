@@ -1099,6 +1099,8 @@
     }
     .auth-card {
       width: min(860px, 100%);
+      min-width: 0;
+      max-width: 100%;
       background: #fff;
       border-radius: 14px;
       border: 1px solid #d5e2f1;
@@ -1106,8 +1108,9 @@
       padding: 0;
       overflow: hidden;
     }
-    .auth-layout { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 490px; }
+    .auth-layout { display: grid; grid-template-columns: 1.05fr 1fr; min-width: 0; min-height: 490px; }
     .auth-left {
+      min-width: 0;
       padding: 22px 20px;
       background: linear-gradient(150deg, #0d4f91, #0b6dc2 60%, #2f86d6);
       color: #eef7ff;
@@ -1136,7 +1139,7 @@
       font-size: 12px;
       font-weight: 700;
     }
-    .auth-right { padding: 14px; display: flex; flex-direction: column; justify-content: center; }
+    .auth-right { min-width: 0; padding: 14px; display: flex; flex-direction: column; justify-content: center; }
     .auth-title {
       font-size: 28px;
       font-weight: 900;
@@ -1149,6 +1152,17 @@
     .auth-switch button { box-shadow: none; font-weight: 800; }
     .auth-switch button.inactive { background: #dce6f4; color: #29415e; }
     .auth-msg { font-size: 13px; min-height: 20px; }
+    #loginForm,
+    #registerForm {
+      min-width: 0;
+    }
+    #recoverAdminBtn {
+      min-width: 0;
+      height: auto;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.25;
+    }
     .password-wrap { position: relative; }
     .password-wrap input { padding-right: 42px; }
     .pw-toggle {
@@ -1214,12 +1228,19 @@
       font-weight: 800;
       line-height: 1;
     }
-    .currency-chip ion-icon {
+    .currency-chip .currency-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
       font-size: 16px;
       color: #7de4ff;
+      font-weight: 900;
     }
-    .currency-chip.paypal ion-icon {
+    .currency-chip.paypal .currency-icon {
       color: #7ea8ff;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
     }
     .whoami-pill {
       position: relative;

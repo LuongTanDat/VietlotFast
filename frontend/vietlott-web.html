@@ -8,6 +8,9 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css" />
   <link rel="stylesheet" href="/vietlott-web-extra.css" />
+  <link rel="preload" href="/vietlott-web-stats.js" as="script" />
+  <link rel="preload" href="/vietlott-web-data.js" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js" as="script" />
 </head>
 <body>
   <!-- ---abc--- Loader / Boot Layer --- -->
@@ -151,11 +154,11 @@
       <div class="top-right">
         <div class="currency-bar">
           <span class="currency-chip">
-            <ion-icon name="diamond-outline"></ion-icon>
+            <span class="currency-icon" aria-hidden="true">◆</span>
             <span id="diamondBalance">0</span>
           </span>
           <span class="currency-chip paypal">
-            <ion-icon name="logo-paypal"></ion-icon>
+            <span class="currency-icon" aria-hidden="true">P</span>
             <span id="paypalBalance">0</span>
           </span>
         </div>
@@ -1145,11 +1148,9 @@
     </div>
   </div>
   <!-- ------ App Scripts --- -->
-  <script src="/vietlott-web-stats.js"></script>
-  <script src="/vietlott-web-data.js"></script>
-  <script src="/vietlott-web-core.js"></script>
-<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+  <script defer src="/vietlott-web-stats.js"></script>
+  <script defer src="/vietlott-web-data.js"></script>
+  <script defer src="/vietlott-web-core.js"></script>
 
 </body>
 </html>

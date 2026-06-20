@@ -5,31 +5,46 @@ set "PROJECT_ROOT=%~dp0.."
 for %%I in ("%PROJECT_ROOT%") do set "PROJECT_ROOT=%%~fI"
 
 rem ----- Tim Java va javac -----
-rem Kiem tra duong dan Java 17 de dam bao web server co the bien dich va chay duoc.
+rem Uu tien JDK da cau hinh, sau do thu cac duong dan pho bien va PATH.
 set "JAVA_EXE="
 set "JAVAC_EXE="
 set "PWSH_EXE=C:\Program Files (x86)\PowerShell\7\pwsh.exe"
 for %%J in (
+  "%JAVA_HOME%\bin\java.exe"
   "C:\Program Files (x86)\Android\openjdk\jdk-17.0.14\bin\java.exe"
   "C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\java.exe"
+  "C:\java-1.8.0-openjdk-1.8.0.392-1.b08.redhat.windows.x86_64\bin\java.exe"
 ) do (
   if not defined JAVA_EXE if exist %%~J set "JAVA_EXE=%%~J"
 )
 for %%J in (
+  "%JAVA_HOME%\bin\javac.exe"
   "C:\Program Files (x86)\Android\openjdk\jdk-17.0.14\bin\javac.exe"
   "C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\javac.exe"
+  "C:\java-1.8.0-openjdk-1.8.0.392-1.b08.redhat.windows.x86_64\bin\javac.exe"
 ) do (
   if not defined JAVAC_EXE if exist %%~J set "JAVAC_EXE=%%~J"
 )
 
+if not defined JAVAC_EXE (
+  for /f "delims=" %%J in ('where javac.exe 2^>nul') do (
+    if not defined JAVAC_EXE set "JAVAC_EXE=%%~fJ"
+  )
+)
+if not defined JAVA_EXE if defined JAVAC_EXE (
+  for %%D in ("!JAVAC_EXE!") do (
+    if exist "%%~dpDjava.exe" set "JAVA_EXE=%%~dpDjava.exe"
+  )
+)
+
 if not defined JAVA_EXE (
-  echo Khong tim thay Java 17 tren may nay.
-  echo Hay mo lai cho minh de minh sua duong dan Java.
+  echo Khong tim thay java.exe cua JDK tren may nay.
+  echo Hay cai JDK hoac dat bien JAVA_HOME.
   pause
   exit /b 1
 )
 if not defined JAVAC_EXE (
-  echo Khong tim thay javac.exe cua Java 17 tren may nay.
+  echo Khong tim thay javac.exe cua JDK tren may nay.
   pause
   exit /b 1
 )
@@ -71,8 +86,11 @@ rem ----- Bien dich server Java -----
 rem Bien dich lai LottoWebServer.java moi lan chay de tranh lech phien ban giao dien va backend.
 if not exist "%PROJECT_ROOT%\backend\bin" mkdir "%PROJECT_ROOT%\backend\bin"
 echo Dang bien dich backend\LottoWebServer.java...
-"%JAVAC_EXE%" -encoding UTF-8 -d "%PROJECT_ROOT%\backend\bin" "%PROJECT_ROOT%\backend\LottoWebServer.java"
-if errorlevel 1 (
+pushd "%PROJECT_ROOT%"
+"%JAVAC_EXE%" -encoding UTF-8 -d "backend\bin" "backend\LottoWebServer.java"
+set "COMPILE_EXIT=!ERRORLEVEL!"
+if not "!COMPILE_EXIT!"=="0" (
+  popd
   echo Bien dich that bai.
   pause
   exit /b 1
@@ -81,7 +99,8 @@ if errorlevel 1 (
 rem ----- Khoi dong server -----
 rem Mo mot cua so rieng de chay LottoWebServer voi classpath SQLite hien tai.
 echo Dang khoi dong Lotto Web Server...
-start "Lotto Web Server" /D "%PROJECT_ROOT%" "%PWSH_EXE%" -NoExit -Command "Set-Location -LiteralPath '%PROJECT_ROOT%'; & '%JAVA_EXE%' -cp 'backend\bin;backend\lib\sqlite-jdbc-3.51.2.0.jar' LottoWebServer"
+start "Lotto Web Server" "%PWSH_EXE%" -NoExit -Command "& '%JAVA_EXE%' -cp 'backend\bin;backend\lib\sqlite-jdbc-3.51.2.0.jar' LottoWebServer"
+popd
 
 rem ----- Kiem tra server da san sang hay chua -----
 rem Thu ping localhost:8080 trong vai giay truoc khi mo trinh duyet.
