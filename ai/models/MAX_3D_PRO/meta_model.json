@@ -2,27 +2,27 @@
   "type": "MAX_3D_PRO",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "max_3d_pro_all_day.csv",
-  "historyCount": 742,
-  "latestKy": "742",
-  "latestDate": "20/06/2026",
+  "historyCount": 745,
+  "latestKy": "745",
+  "latestDate": "27/06/2026",
   "latestTime": "",
-  "lastLearnedKy": "742",
-  "lastLearnedAt": "2026-06-22T21:02:43",
+  "lastLearnedKy": "745",
+  "lastLearnedAt": "2026-06-27T21:16:15",
   "metaState": "volatile",
-  "stabilityScore": 0.671999,
-  "driftScore": 0.356523,
+  "stabilityScore": 0.668705,
+  "driftScore": 0.360104,
   "rankingOverlap": 0.0,
   "preferredEngine": "gen_local",
   "weights": {
-    "gen_local": 0.430616,
-    "luan_so": 0.250851,
-    "both_combo": 0.318533
+    "gen_local": 0.430409,
+    "luan_so": 0.25103,
+    "both_combo": 0.318561
   },
-  "weightShift": 0.000515,
+  "weightShift": 0.000196,
   "rewards": {
-    "gen_local": 0.233837,
+    "gen_local": 0.242324,
     "luan_so": 0.0,
-    "both_combo": 0.103263
+    "both_combo": 0.10701
   },
   "rewardHistory": [
     {
@@ -616,24 +616,72 @@
         "both_combo": 0.318533
       },
       "weightShift": 0.000515
+    },
+    {
+      "ky": "743",
+      "learnedAt": "2026-06-24T21:38:30",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.230947,
+        "luan_so": 0.0,
+        "both_combo": 0.101986
+      },
+      "weights": {
+        "gen_local": 0.429992,
+        "luan_so": 0.251343,
+        "both_combo": 0.318665
+      },
+      "weightShift": 0.000624
+    },
+    {
+      "ky": "744",
+      "learnedAt": "2026-06-25T21:46:54",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.242173,
+        "luan_so": 0.0,
+        "both_combo": 0.106944
+      },
+      "weights": {
+        "gen_local": 0.430213,
+        "luan_so": 0.251177,
+        "both_combo": 0.31861
+      },
+      "weightShift": 0.000221
+    },
+    {
+      "ky": "745",
+      "learnedAt": "2026-06-27T21:16:15",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.242324,
+        "luan_so": 0.0,
+        "both_combo": 0.10701
+      },
+      "weights": {
+        "gen_local": 0.430409,
+        "luan_so": 0.25103,
+        "both_combo": 0.318561
+      },
+      "weightShift": 0.000196
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.362803,
+      "confidence": 0.370292,
       "backtest": {
         "avgHits": 0.1562,
         "avgHitRate": 0.013021,
-        "veryRecentAvgHitRate": 0.0,
-        "recentAvgHitRate": 0.003472,
-        "mediumRecentAvgHitRate": 0.00744,
+        "veryRecentAvgHitRate": 0.008333,
+        "recentAvgHitRate": 0.006944,
+        "mediumRecentAvgHitRate": 0.008929,
         "samples": 96,
         "stability": 0.934878,
-        "recentConsistency": 0.955357,
-        "agreementScore": 0.672917,
-        "cooldownPenalty": 0.98869,
+        "recentConsistency": 0.996429,
+        "agreementScore": 0.641389,
+        "cooldownPenalty": 0.999095,
         "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.356506
+        "adaptiveScore": 0.36543
       },
       "champion": {
         "key": "3d_weekday_digits",
@@ -641,18 +689,18 @@
         "samples": 96,
         "avgHits": 0.1562,
         "avgHitRate": 0.013021,
-        "veryRecentAvgHitRate": 0.0,
-        "recentAvgHitRate": 0.003472,
-        "mediumRecentAvgHitRate": 0.00744,
+        "veryRecentAvgHitRate": 0.008333,
+        "recentAvgHitRate": 0.006944,
+        "mediumRecentAvgHitRate": 0.008929,
         "stability": 0.934878,
-        "recentConsistency": 0.955357,
-        "agreementScore": 0.672917,
+        "recentConsistency": 0.996429,
+        "agreementScore": 0.641389,
         "sampleFactor": 1.0,
-        "cooldownPenalty": 0.98869,
+        "cooldownPenalty": 0.999095,
         "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.356506,
-        "learnedWeight": 0.357536,
-        "rawScore": 0.356506
+        "adaptiveScore": 0.36543,
+        "learnedWeight": 0.358306,
+        "rawScore": 0.36543
       }
     },
     "luan_so": {

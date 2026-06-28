@@ -2,27 +2,27 @@
   "type": "LOTO_6_45",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "mega_6_45_all_day.csv",
-  "historyCount": 1525,
-  "latestKy": "1526",
-  "latestDate": "21/06/2026",
+  "historyCount": 1527,
+  "latestKy": "1528",
+  "latestDate": "26/06/2026",
   "latestTime": "",
-  "lastLearnedKy": "1526",
-  "lastLearnedAt": "2026-06-22T21:01:47",
+  "lastLearnedKy": "1528",
+  "lastLearnedAt": "2026-06-27T21:15:18",
   "metaState": "volatile",
-  "stabilityScore": 0.59388,
-  "driftScore": 0.441435,
+  "stabilityScore": 0.460575,
+  "driftScore": 0.586332,
   "rankingOverlap": 0.0,
   "preferredEngine": "gen_local",
   "weights": {
-    "gen_local": 0.46259,
-    "luan_so": 0.226762,
-    "both_combo": 0.310647
+    "gen_local": 0.464389,
+    "luan_so": 0.225439,
+    "both_combo": 0.310172
   },
-  "weightShift": 0.000975,
+  "weightShift": 0.000918,
   "rewards": {
-    "gen_local": 0.295407,
+    "gen_local": 0.322744,
     "luan_so": 0.0,
-    "both_combo": 0.130452
+    "both_combo": 0.142524
   },
   "rewardHistory": [
     {
@@ -568,43 +568,75 @@
         "both_combo": 0.310647
       },
       "weightShift": 0.000975
+    },
+    {
+      "ky": "1527",
+      "learnedAt": "2026-06-24T21:37:36",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.320138,
+        "luan_so": 0.0,
+        "both_combo": 0.141373
+      },
+      "weights": {
+        "gen_local": 0.463471,
+        "luan_so": 0.226114,
+        "both_combo": 0.310415
+      },
+      "weightShift": 0.00088
+    },
+    {
+      "ky": "1528",
+      "learnedAt": "2026-06-27T21:15:18",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.322744,
+        "luan_so": 0.0,
+        "both_combo": 0.142524
+      },
+      "weights": {
+        "gen_local": 0.464389,
+        "luan_so": 0.225439,
+        "both_combo": 0.310172
+      },
+      "weightShift": 0.000918
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.383841,
+      "confidence": 0.402592,
       "backtest": {
-        "avgHits": 0.8125,
-        "avgHitRate": 0.135417,
-        "veryRecentAvgHitRate": 0.116667,
-        "recentAvgHitRate": 0.125,
-        "mediumRecentAvgHitRate": 0.127976,
+        "avgHits": 0.8854,
+        "avgHitRate": 0.147569,
+        "veryRecentAvgHitRate": 0.166667,
+        "recentAvgHitRate": 0.138889,
+        "mediumRecentAvgHitRate": 0.16369,
         "samples": 96,
-        "stability": 0.762768,
-        "recentConsistency": 0.932143,
-        "agreementScore": 0.610043,
-        "cooldownPenalty": 0.98281,
-        "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.39905
+        "stability": 0.741488,
+        "recentConsistency": 0.982143,
+        "agreementScore": 0.54594,
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.998095,
+        "adaptiveScore": 0.422143
       },
       "champion": {
-        "key": "gap_recovery",
-        "label": "Gap recovery",
+        "key": "markov_transition",
+        "label": "Markov transition",
         "samples": 96,
-        "avgHits": 0.8125,
-        "avgHitRate": 0.135417,
-        "veryRecentAvgHitRate": 0.116667,
-        "recentAvgHitRate": 0.125,
-        "mediumRecentAvgHitRate": 0.127976,
-        "stability": 0.762768,
-        "recentConsistency": 0.932143,
-        "agreementScore": 0.610043,
+        "avgHits": 0.8854,
+        "avgHitRate": 0.147569,
+        "veryRecentAvgHitRate": 0.166667,
+        "recentAvgHitRate": 0.138889,
+        "mediumRecentAvgHitRate": 0.16369,
+        "stability": 0.741488,
+        "recentConsistency": 0.982143,
+        "agreementScore": 0.54594,
         "sampleFactor": 1.0,
-        "cooldownPenalty": 0.98281,
-        "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.39905,
-        "learnedWeight": 0.278948,
-        "rawScore": 0.39905
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.998095,
+        "adaptiveScore": 0.422143,
+        "learnedWeight": 0.278057,
+        "rawScore": 0.422143
       }
     },
     "luan_so": {
