@@ -1,0 +1,517 @@
+BAO CAO NUT VA CHUC NANG NUT - DU AN LOTTO
+Ngay lap: 2026-07-09
+
+Pham vi ra soat:
+- frontend/vietlott-web.html: nut tinh tren giao dien.
+- frontend/vietlott-web-core.js: bind su kien click/change va dieu huong UI.
+- frontend/vietlott-web-data.js: luong du doan, live data, prize panel, data table.
+- frontend/vietlott-web-stats.js: thong ke, thong ke V2, dashboard, phan tich.
+
+Ghi chu:
+- "Handler" la ham/chuc nang JS chinh duoc goi khi bam nut.
+- Cac nut sinh dong bang JS duoc ghi theo selector data-*.
+- Cac nut placeholder/chua gan click rieng duoc danh dau ro.
+
+============================================================
+1. Dang nhap / dang ky / phien nguoi dung
+============================================================
+
+showLoginBtn - "Dang nhap"
+- Chuc nang: Chuyen form xac thuc sang che do dang nhap.
+- Handler: setAuthMode(true).
+
+showRegisterBtn - "Dang ky"
+- Chuc nang: Chuyen form xac thuc sang che do tao tai khoan.
+- Handler: setAuthMode(false).
+
+toggleLoginPass - nut mat/than trong form dang nhap
+- Chuc nang: An/hien mat khau dang nhap.
+- Handler: bindPasswordToggle("toggleLoginPass", "loginPass").
+
+loginBtn - "Dang nhap"
+- Chuc nang: Goi /api/login, luu thong tin ghi nho neu duoc chon, vao ung dung bang enterApp().
+- Handler: api("/api/login", "POST", ...), enterApp(username, role).
+
+recoverAdminBtn - "Quen mat khau admin"
+- Chuc nang: Dat lai mat khau admin cuc bo, goi /api/recover-admin.
+- Handler: api("/api/recover-admin", "POST", ...).
+
+toggleRegPass - nut mat/than trong form dang ky
+- Chuc nang: An/hien mat khau dang ky.
+- Handler: bindPasswordToggle("toggleRegPass", "regPass").
+
+toggleRegPass2 - nut mat/than nhap lai mat khau
+- Chuc nang: An/hien mat khau nhap lai.
+- Handler: bindPasswordToggle("toggleRegPass2", "regPass2").
+
+registerBtn - "Tao tai khoan"
+- Chuc nang: Validate username/mat khau, goi /api/register, sau do chuyen ve form dang nhap.
+- Handler: api("/api/register", "POST", ...), setAuthMode(true).
+
+logoutBtn - "Dang xuat"
+- Chuc nang: Goi /api/logout, xoa/luu lai trang thai can thiet va quay ve man dang nhap.
+- Handler: logout().
+
+themeToggleBtn - nut doi giao dien sang/toi
+- Chuc nang: Doi class theme tren body va luu vao localStorage.
+- Handler: applyTheme(next).
+
+============================================================
+2. Menu chinh va dieu huong trang
+============================================================
+
+menuToggleBtn - "Mo menu"
+- Chuc nang: Mo side menu va overlay.
+- Handler: openSideMenu().
+
+sideMenuCloseBtn - nut dong side menu
+- Chuc nang: Dong side menu va overlay.
+- Handler: closeSideMenu().
+
+sideMenuOverlay - vung nen sau menu
+- Chuc nang: Bam nen de dong side menu.
+- Handler: closeSideMenu().
+
+homeMenuBtn - "Trang chu"
+- Chuc nang: Dieu huong ve trang chu.
+- Handler: navigateToAppPage("home").
+
+paypalDepositMenuBtn - "Nap tien tai khoan"
+- Chuc nang: Mo man nap tien PayPal.
+- Handler: navigateToAppPage("deposit").
+
+dataTableMenuBtn - "Bang Du Lieu"
+- Chuc nang: Mo man bang du lieu canonical CSV.
+- Handler: navigateToAppPage("data").
+
+luckyWheelMenuBtn - "Vong Quay May Man"
+- Chuc nang: Mo man vong quay.
+- Handler: navigateToAppPage("wheel").
+
+openAccountBtn - "Quan ly tai khoan"
+- Chuc nang: Chi hien cho admin; mo popup quan ly tai khoan.
+- Handler: openAccountManager().
+
+Nut side-link chua co id rieng:
+- "Thong tin tai khoan"
+- "Nhat ki hoat dong"
+- "Lich su hoan tien"
+- "Cap bac Tai khoan"
+- "Chuong trinh Affiliates"
+- Trang thai: Co hien tren menu nhung khong thay handler click rieng trong frontend hien tai.
+
+============================================================
+3. Bang du lieu canonical CSV
+============================================================
+
+dataTableRefreshBtn - "Hien thi"
+- Chuc nang: Tai/lap lai du lieu bang theo loai xo so, gioi han dong va bo loc ngay/thang/nam.
+- Handler: loadDataTableRows({ force: true }).
+
+dataTableDownloadBtn - "Tai Xuong"
+- Chuc nang: Xuat bang hien tai thanh file Excel/CSV tai ve.
+- Handler: downloadDataTableExcel().
+
+dataTableClearFilterBtn - "Xoa loc"
+- Chuc nang: Xoa cac bo loc ngay, thu, thang, nam va nap lai bang.
+- Handler: resetDataTableDateFilters(), loadDataTableRows().
+
+Cac select/bo loc lien quan:
+- dataTableType: doi loai du lieu can xem.
+- dataTableLimit: doi so dong hien thi.
+- dataTableWeekday/dataTableDay/dataTableMonth/dataTableYear: loc theo lich.
+
+============================================================
+4. Nap tien PayPal / tai san tai khoan
+============================================================
+
+depositCreateBtn - "Tao yeu cau nap"
+- Chuc nang: Tao yeu cau nap PayPal, tinh ty le/bonus va ghi lich su nap.
+- Handler: submitPaypalTopupRequest().
+
+depositClearBtn - "Lam moi form"
+- Chuc nang: Xoa noi dung form nap tien, reset goi nap va thong bao.
+- Handler: resetPaypalDepositForm().
+
+Nut goi nap dong - selector .deposit-package-item, data-package-id
+- Chuc nang: Chon goi nap/bonus PayPal.
+- Handler: setSelectedPaypalTopupPackage(packageId).
+
+============================================================
+5. Vong Quay May Man
+============================================================
+
+spinMultiplier1 / spinMultiplier3 / spinMultiplier5 / spinMultiplier10
+- Chuc nang: Chon so lan quay nhan x1, x3, x5, x10.
+- Handler: setLuckyWheelSpinMultiplier(button.dataset.multiplier).
+
+luckyWheelSpinBtn - "QUAY TU DONG"
+- Chuc nang: Bat/tat che do quay tu dong theo luot quay hien co.
+- Handler: toggleLuckyWheelAutoMode().
+
+luckyWheelCenterBtn - nut giua vong quay
+- Chuc nang: Quay mot lan ngay lap tuc; ho tro click, Enter va Space.
+- Handler: spinLuckyWheel().
+
+luckyWheelAutoBtn - "Mua Them Luot Quay"
+- Chuc nang: Mo hop thoai doi PayPal lay them luot quay.
+- Handler: openLuckyWheelTopup().
+
+luckyWheelTopupCloseBtn - nut dong hop thoai doi luot
+- Chuc nang: Dong hop thoai doi luot.
+- Handler: closeLuckyWheelTopup().
+
+luckyWheelTopupCancelBtn - "Huy"
+- Chuc nang: Huy thao tac doi luot, dong hop thoai.
+- Handler: closeLuckyWheelTopup().
+
+luckyWheelTopupConfirmBtn - "Xac nhan doi"
+- Chuc nang: Tru PayPal, cong luot quay, ghi lich su doi luot.
+- Handler: confirmLuckyWheelTopupExchange().
+
+Nut tang/giam so luot trong hop thoai doi luot
+- Chuc nang: Tang/giam so luot muon doi, ho tro bam giu.
+- Handler: bindLuckyWheelTopupStepButton(), setLuckyWheelTopupSpins().
+
+============================================================
+6. Cap nhat ket qua live va lich su CSV
+============================================================
+
+liveSyncBtn - "Cap Nhat"
+- Chuc nang: Chay dong bo/cap nhat ket qua live, sua canonical neu can.
+- Handler: syncLiveResults({ repairCanonical: true }).
+- API lien quan: /api/live-results-start, /api/live-results-progress, /api/live-results.
+
+liveHistoryBtn - "Xem lich su CSV"
+- Chuc nang: Tai lich su CSV theo loai va so ky dang chon.
+- Handler: refreshCurrentLiveHistory({ force: true }).
+- API lien quan: /api/live-history.
+
+liveHistoryRefreshBtn - "Cap Nhat" trong khung lich su
+- Chuc nang: Cap nhat nhanh cua so lich su gan day.
+- Handler: refreshRecentLiveHistoryWindow().
+
+showPrizeBtn - "Xem Co Cau Thuong"
+- Chuc nang: Render bang co cau thuong/luat trung thuong cho loai xo so dang chon.
+- Handler: renderPrizePanel().
+
+============================================================
+7. Tab che do du doan / thong ke
+============================================================
+
+data-predict-mode-tab="normal" - "Du Doan Thuong"
+- Chuc nang: Mo man du doan thuong.
+- Handler: savePredictPageMode("normal"), renderPredictModeTabs().
+
+data-predict-mode-tab="vip" - "Du Doan Vip"
+- Chuc nang: Mo man du doan Vip.
+- Handler: savePredictPageMode("vip"), renderPredictModeTabs().
+
+data-predict-mode-tab="stats" - "Thong Ke"
+- Chuc nang: Mo panel thong ke gan day va nap du lieu thong ke.
+- Handler: startStatsPanelRefresh({ force: true, silent: true }).
+
+data-predict-mode-tab="stats-v2" - "Thong Ke V2"
+- Chuc nang: Mo panel Thong Ke V2 va goi /api/stats-v2.
+- Handler: loadStatsV2({ force: true, silent: true }).
+
+data-predict-mode-tab="charts" - "Bieu Do"
+- Chuc nang: Mo panel bieu do thong ke.
+- Handler: startChartStatsRefresh({ silent: true }).
+
+data-predict-mode-tab="dashboard" - "Dashboard"
+- Chuc nang: Mo dashboard tong hop.
+- Handler: startDashboardRefresh({ silent: true }).
+
+data-predict-mode-tab="analysis" - "Phan Tich"
+- Chuc nang: Mo panel phan tich va goi /api/analysis neu can.
+- Handler: initAnalysisPanel(), loadAnalysis(), startAnalysisAutoRefresh().
+
+============================================================
+8. Du doan thuong
+============================================================
+
+predictionHistoryToggleBtn - "Lich Su"
+- Chuc nang: Mo/dong panel lich su du doan thuong.
+- Handler: togglePredictionHistoryPanel().
+
+kenoTrainingToggleBtn - "Huan Luyen: Tat/Bat"
+- Chuc nang: Bat/tat cau hinh huan luyen Keno khi loai du doan la KENO.
+- Handler: syncKenoTrainingConfigFromUi(), setKenoTrainingEnabled().
+
+data-pd-engine="both" - "Ca 2"
+- Chuc nang: Chon engine ket hop Luan So va AI Gen.
+- Handler: cap nhat predictEngineValue, syncKenoUiHints().
+
+data-pd-engine="luan_so" - "Luan So"
+- Chuc nang: Chon engine Luan So.
+- Handler: cap nhat predictEngineValue, syncKenoUiHints().
+
+data-pd-engine="gen_local" - "AI Gen"
+- Chuc nang: Chon engine AI Gen Local.
+- Handler: cap nhat predictEngineValue, syncKenoUiHints().
+
+data-pd-risk-mode="stable" - "On Dinh"
+- Chuc nang: Chon che do rui ro on dinh.
+- Handler: savePredictRiskMode("stable"), renderPredictRiskModeChoice().
+
+data-pd-risk-mode="balanced" - "Can Bang"
+- Chuc nang: Chon che do rui ro can bang.
+- Handler: savePredictRiskMode("balanced"), renderPredictRiskModeChoice().
+
+data-pd-risk-mode="aggressive" - "Tan Cong"
+- Chuc nang: Chon che do rui ro tan cong.
+- Handler: savePredictRiskMode("aggressive"), renderPredictRiskModeChoice().
+
+predictBtn - "Du doan"
+- Chuc nang: Lay type, so bo, bac Keno, engine; chay luong du doan va render ket qua.
+- Handler: runPredictFlow({ type, count, kenoLevel, engineKey, triggerMode: "manual" }).
+- API lien quan: /api/ai-predict, /api/keno-predict, /api/ml/predictions tuy che do.
+
+============================================================
+9. Du doan Vip
+============================================================
+
+vipPredictionHistoryToggleBtn - "Lich Su Vip"
+- Chuc nang: Mo/dong panel lich su du doan Vip.
+- Handler: toggleVipPredictionHistoryPanel().
+
+data-vip-pd-engine="both" - "Ca 2"
+- Chuc nang: Chon engine Vip ket hop.
+- Handler: cap nhat vipPredictEngineValue, syncVipUiHints().
+
+data-vip-pd-engine="luan_so" - "Luan So"
+- Chuc nang: Chon engine Vip Luan So.
+- Handler: cap nhat vipPredictEngineValue, syncVipUiHints().
+
+data-vip-pd-engine="gen_local" - "AI Gen"
+- Chuc nang: Chon engine Vip AI Gen Local.
+- Handler: cap nhat vipPredictEngineValue, syncVipUiHints().
+
+data-vip-pd-risk-mode="stable" - "On Dinh"
+- Chuc nang: Chon rui ro Vip on dinh.
+- Handler: saveVipPredictState(), renderVipPredictRiskModeChoice().
+
+data-vip-pd-risk-mode="balanced" - "Can Bang"
+- Chuc nang: Chon rui ro Vip can bang.
+- Handler: saveVipPredictState(), renderVipPredictRiskModeChoice().
+
+data-vip-pd-risk-mode="aggressive" - "Tan Cong"
+- Chuc nang: Chon rui ro Vip tan cong.
+- Handler: saveVipPredictState(), renderVipPredictRiskModeChoice().
+
+vipPredictBtn - "Du doan Vip"
+- Chuc nang: Chay luong du doan Vip va render ket qua Vip.
+- Handler: runVipPredictFlow().
+
+============================================================
+10. Lich su du doan
+============================================================
+
+predictionHistoryCloseBtn / vipPredictionHistoryCloseBtn
+- Chuc nang: Dong popup lich su du doan thuong/Vip.
+- Handler: togglePredictionHistoryPanel(false), toggleVipPredictionHistoryPanel(false).
+
+predictionHistoryPrevBtn / vipPredictionHistoryPrevBtn
+- Chuc nang: Lui ve ban ghi/khoang lich su truoc.
+- Handler: giam currentIndex va render lai panel.
+
+predictionHistoryNextBtn / vipPredictionHistoryNextBtn
+- Chuc nang: Tien den ban ghi/khoang lich su sau.
+- Handler: tang currentIndex va render lai panel.
+
+predictionHistoryRefreshBtn / vipPredictionHistoryRefreshBtn
+- Chuc nang: Tai lai lich su du doan tu ledger/store.
+- Handler: startPredictionHistoryRefresh(), startVipPredictionHistoryRefresh().
+
+data-prediction-history-type / data-vip-prediction-history-type
+- Chuc nang: Loc lich su theo loai xo so.
+- Handler: normalizePredictionHistoryType(), render panel, refresh neu can.
+
+data-prediction-history-range / data-vip-prediction-history-range
+- Chuc nang: Loc lich su theo khoang 2 ky, hom nay, 3 ngay, 7 ngay, tat ca.
+- Handler: normalizePredictionHistoryRange(), render panel.
+
+data-prediction-history-playmode / data-vip-prediction-history-playmode
+- Chuc nang: Loc lich su theo choi thuong/choi bao.
+- Handler: normalizePredictionHistoryPlayMode(), render panel.
+
+data-prediction-history-toggle
+- Chuc nang: Mo/thu gon chi tiet mot muc lich su.
+- Handler: them/xoa key trong predictionHistoryExpandedKeys.
+
+data-prediction-history-copy
+- Chuc nang: Copy noi dung mot ky du doan vao clipboard.
+- Handler: buildPredictionHistoryCopyText(), copyTextToClipboard().
+
+============================================================
+11. Thong Ke gan day
+============================================================
+
+data-stats-manual-refresh
+- Chuc nang: Lam moi panel thong ke gan day.
+- Handler: startStatsPanelRefresh({ force: true, silent: true }).
+
+data-stats-recent-type
+- Chuc nang: Doi loai xo so trong panel thong ke.
+- Handler: normalizeStatsType(), renderStatsPanel(), startStatsPanelRefresh().
+
+data-stats-recent-mode
+- Chuc nang: Doi che do thong ke gan day.
+- Handler: normalizeStatsRecentMode(), renderStatsPanel().
+
+data-stats-display-mode
+- Chuc nang: Doi cach hien thi danh sach/luoi/nhom thong ke.
+- Handler: normalizeStatsRecentDisplayMode(), saveStatsUiState(), renderStatsPanel().
+
+data-stats-recent-window
+- Chuc nang: Doi so ky/khoang thoi gian thong ke.
+- Handler: normalizeStatsRecentWindow(), renderStatsPanel().
+
+data-stats-modern-insight-tab
+- Chuc nang: Doi tab insight thong ke hien dai.
+- Handler: normalizeStatsModernInsightTab(), renderStatsPanel().
+
+data-stats-modern-insight-toggle
+- Chuc nang: Mo rong/thu gon insight.
+- Handler: dao statsModernInsightExpanded, renderStatsPanel().
+
+data-stats-recent-pick
+- Chuc nang: Them so vao bo so dang chon trong panel thong ke.
+- Handler: addStatsRecentSelectedNumber(), renderStatsRecentSelectedHostOnly().
+
+data-stats-recent-selected-remove
+- Chuc nang: Xoa mot so khoi bo so dang chon.
+- Handler: removeStatsRecentSelectedNumber(), renderStatsRecentSelectedHostOnly().
+
+data-stats-recent-clear
+- Chuc nang: Xoa toan bo bo so dang chon cua loai hien tai.
+- Handler: clearStatsRecentSelectedNumbers(), renderStatsRecentSelectedHostOnly().
+
+data-stats-recent-save
+- Chuc nang: Luu bo so dang chon vao localStorage.
+- Handler: saveStatsRecentSelectedState().
+
+data-stats-recent-active-set
+- Chuc nang: Doi bo so dang active khi co nhieu bo.
+- Handler: setStatsRecentActiveSetIndex(), saveStatsRecentSelectedState().
+
+data-stats-recent-help-toggle / data-stats-recent-help-close
+- Chuc nang: Mo/dong popover huong dan/chu thich thong ke.
+- Handler: setStatsRecentHelpOpen(), closeStatsRecentHelpPopovers().
+
+============================================================
+12. Thong Ke V2
+============================================================
+
+data-stats-v2-period
+- Chuc nang: Doi ky thong ke V2, xoa selection cu va tai lai du lieu.
+- Handler: normalizeStatsV2Period(), clearStatsV2Selection(), loadStatsV2().
+
+data-stats-v2-combo
+- Chuc nang: Doi kich thuoc combo thong ke V2.
+- Handler: normalizeStatsV2ComboSize(), clearStatsV2Selection(), loadStatsV2().
+
+data-stats-v2-loto535-view
+- Chuc nang: Doi view rieng cua Loto 5/35 trong Thong Ke V2.
+- Handler: normalizeStatsV2Loto535View(), renderStatsV2Panel().
+
+data-stats-v2-group
+- Chuc nang: Doi nhom so chinh/so dac biet trong Loto 5/35.
+- Handler: normalizeStatsV2Group(), loadStatsV2().
+
+data-stats-v2-item
+- Chuc nang: Chon/bo chon mot item thong ke V2 trong bang/row.
+- Handler: toggleStatsV2Selection().
+
+statsV2SaveBtn - "Luu lai"
+- Chuc nang: Luu selection Thong Ke V2 vao lich su/favorite.
+- Handler: saveStatsV2Favorite().
+
+statsV2BuyBtn - "Mua ngay"
+- Chuc nang: Tao hanh dong mua/ghi lich su cho selection Thong Ke V2.
+- Handler: buyStatsV2Selection().
+
+============================================================
+13. Dashboard
+============================================================
+
+lottoDashboardRefreshBtn - "Lam moi"
+- Chuc nang: Tai lai dashboard theo loai xo so dang chon.
+- Handler: startDashboardRefresh({ force: true, silent: false }).
+
+lottoDashboardSettingsBtn - nut cai dat
+- Chuc nang: Cuon sang panel bieu do/thiet lap lien quan.
+- Handler: scrollIntoView("#predictRootCharts").
+
+lottoDashboardStatusBtn - nut trang thai du lieu
+- Chuc nang: Nut hien thi trang thai loading/loi/co du lieu/chua co du lieu.
+- Handler: Khong co click handler rieng; duoc cap nhat trong renderDashboardPanel().
+
+data-dashboard-activity-view="day/week/month"
+- Chuc nang: Doi bieu do hoat dong theo ngay/tuan/thang.
+- Handler: normalizeDashboardActivityViewMode(), saveDashboardUiState(), renderDashboardPanel().
+
+data-dashboard-distribution-view
+- Chuc nang: Doi kieu phan bo trong dashboard: range, parity, temperature, head, tail tuy loai.
+- Handler: normalizeDashboardDistributionViewMode(), saveDashboardUiState(), renderDashboardPanel().
+
+============================================================
+14. Phan Tich
+============================================================
+
+analysisRefreshBtn - "Cap nhat"
+- Chuc nang: Goi lai API phan tich theo bo loc hien tai.
+- Handler: loadAnalysis({ force: true, silent: false }).
+- API lien quan: /api/analysis.
+
+analysisSaveBtn - "Luu phan tich"
+- Chuc nang: Luu payload/ket qua phan tich vao lich su local.
+- Handler: saveAnalysisHistory().
+
+============================================================
+15. Quan ly tai khoan admin
+============================================================
+
+toggleAccountEditBtn - "Sua"
+- Chuc nang: Bat/tat che do sua danh sach tai khoan.
+- Handler: doi accountEditMode, renderAccountRows().
+
+saveAccountEditBtn - "Luu"
+- Chuc nang: Luu thay doi ten, role, quyen truy cap, diamond, paypal cho tung tai khoan.
+- Handler/API: /api/admin/rename-user, /api/admin/update-user, /api/admin/update-assets.
+
+closeAccountBtn - "Dong"
+- Chuc nang: Dong popup quan ly tai khoan va tat che do sua.
+- Handler: closeAccountManager().
+
+btn-reset trong bang tai khoan - "Doi mat khau"
+- Chuc nang: Doi mat khau cho user khac user dang dang nhap.
+- Handler/API: /api/admin/reset-password.
+
+btn-delete trong bang tai khoan - "Xoa"
+- Chuc nang: Xoa tai khoan sau khi confirm; khong cho xoa user dang dang nhap.
+- Handler/API: /api/admin/delete-user.
+
+============================================================
+16. Tong ket nhanh cac nut can luu y
+============================================================
+
+Nut co chuc nang day du:
+- Dang nhap/dang ky/admin recovery.
+- Menu home/deposit/data/wheel.
+- Nap tien PayPal.
+- Vong quay va doi luot quay.
+- Live update, live history, data table.
+- Du doan thuong/Vip, lich su du doan.
+- Thong ke gan day, Thong Ke V2, dashboard, phan tich.
+- Quan ly tai khoan admin.
+
+Nut hien dang la placeholder hoac chi hien trang thai:
+- Side menu: Thong tin tai khoan, Nhat ki hoat dong, Lich su hoan tien, Cap bac Tai khoan, Chuong trinh Affiliates.
+- lottoDashboardStatusBtn: chi la nut/indicator trang thai, khong co click handler rieng.
+
+Ket luan:
+- Giao dien co he thong nut lon va phan lon da duoc gan handler ro rang.
+- Cac nut quan trong deu map ve ham JS/API tuong ung.
+- Neu can phat trien tiep, nen uu tien hoan thien cac side-link placeholder hoac doi chung thanh item disabled de nguoi dung khong bam nham.
