@@ -59,6 +59,106 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertIn("if (document.hidden) return;", core)
         self.assertGreaterEqual(data.count("if (document.hidden) return;"), 2)
 
+    def test_prediction_results_are_not_rebuilt_every_second(self):
+        source = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        start = source.index("function startLiveDrawCountdown")
+        end = source.index("function formatCountdownSeconds", start)
+        timer_block = source[start:end]
+
+        self.assertNotIn("renderPredictOutput()", timer_block)
+        self.assertNotIn("renderPredictVipOutput()", timer_block)
+        self.assertIn("updateLiveResultsCountdownText()", timer_block)
+
+    def test_heavy_keno_history_is_loaded_on_demand(self):
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        start = core.index("async function enterApp")
+        end = core.index("async function logout", start)
+        block = core[start:end]
+
+        self.assertNotIn("restoreKenoCsvFeedCache();", block)
+        self.assertNotIn("refreshKenoPredictionDataForHistory", block)
+        self.assertIn("hasCachedLiveResults", block)
+
+    def test_hidden_auxiliary_pages_are_not_rendered_on_login(self):
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        start = core.index("async function enterApp")
+        end = core.index("async function logout", start)
+        block = core[start:end]
+
+        self.assertNotIn("renderLuckyWheelPanel();", block)
+        self.assertNotIn("renderPaypalDepositSection();", block)
+        self.assertIn("applyAppPageLayout();", block)
+
+    def test_hidden_stats_tabs_are_initialized_on_demand(self):
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        start = core.index("const initialPdType")
+        end = core.index("const vipTypeSelect", start)
+        block = core[start:end]
+
+        for renderer in (
+            "renderStatsPanel();",
+            "renderStatsV2Panel();",
+            "renderChartStatsPanel();",
+            "renderDashboardPanel();",
+        ):
+            self.assertIn(renderer, block)
+        self.assertNotIn("renderAnalysis(null);\n      renderChartStatsPanel();", block)
+
+    def test_live_history_has_java_csv_fast_path(self):
+        source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
+
+        self.assertIn("buildCanonicalHistoryPayload", source)
+        self.assertIn("parseCanonicalDrawIds", source)
+        self.assertIn('"X-Lotto-History-Source", "java-csv"', source)
+
+    def test_prediction_history_requests_only_needed_draw_ids(self):
+        source = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        start = source.index("async function fetchPredictionHistoryDraws")
+        end = source.index("async function refreshKenoPredictionDataForHistory", start)
+        block = source[start:end]
+
+        self.assertIn('drawIds: drawIds.join(",")', block)
+        self.assertNotIn('fetchLiveHistory(type, "all"', block)
+
+    def test_heavy_analysis_endpoints_use_versioned_cache(self):
+        source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
+
+        self.assertIn("heavyApiCache", source)
+        self.assertIn('heavyApiCacheKey("stats-v2"', source)
+        self.assertIn('heavyApiCacheKey("analysis"', source)
+        self.assertIn("canonicalDataVersion", source)
+        self.assertIn('"X-Lotto-Cache", "HIT"', source)
+
+    def test_large_prediction_records_render_collapsed(self):
+        source = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+
+        self.assertIn("canCollapseTickets", source)
+        self.assertIn("allTickets.slice(0, ticketLimit)", source)
+        self.assertIn("data-prediction-history-toggle", source)
+
+    def test_stats_prediction_cycle_is_persisted_and_scored(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+
+        self.assertIn("function ensureStatsPredictionCycle", stats)
+        self.assertIn("predictionMode: PREDICTION_MODE_STATS", stats)
+        self.assertIn("sourceEntries.slice(0, -1)", stats)
+        self.assertIn("await scorePendingPredictionLedger(type)", stats)
+        self.assertIn('api("/api/ml/score-pending", "POST", { type })', data)
+        self.assertIn("findLegacyLedgerRow", data)
+        compact_start = core.index("function compactPredictionLogForStore")
+        compact_end = core.index("function buildPersistableStoreSnapshot", compact_start)
+        compact_block = core[compact_start:compact_end]
+        self.assertIn('predictionId: String(entry.predictionId || "")', compact_block)
+        self.assertIn("scoreMetrics:", compact_block)
+
+    def test_live_update_log_keeps_only_latest_run(self):
+        source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
+
+        self.assertIn("ProcessBuilder.Redirect.to(logFile)", source)
+        self.assertNotIn("ProcessBuilder.Redirect.appendTo(logFile)", source)
+
     def test_windows_launcher_falls_back_to_installed_jdk(self):
         source = (ROOT / "scripts" / "chay_lotto_web.bat").read_text(encoding="utf-8")
 

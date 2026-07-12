@@ -736,7 +736,11 @@
 
     function getStatsLatestPredictionHighlight(type, latestEntry = null) {
       const logs = ensurePredictionLogBucket(type)
-        .filter(entry => Array.isArray(entry?.tickets) && entry.tickets.length);
+        .filter(entry =>
+          getPredictionEntryMode(entry) === PREDICTION_MODE_STATS &&
+          Array.isArray(entry?.tickets) &&
+          entry.tickets.length
+        );
       if (!logs.length) return { entry: null, numbers: new Set() };
       const latestKyValue = kySortValue(latestEntry?.ky) || 0;
       const targetNextKyValue = latestKyValue + 1;
@@ -770,11 +774,10 @@
     }
 
     function buildStatsRecentFallbackPredictionSet(type, { mostItems = [], overdueItems = [] } = {}) {
-      if (normalizeStatsType(type) !== "KENO") return new Set();
       const ordered = [];
       const seen = new Set();
-      const limit = 20;
-      const sources = [mostItems, overdueItems];
+      const limit = getStatsPredictionMainLimit(type);
+      const sources = [mostItems, overdueItems, mostItems];
       for (let index = 0; ordered.length < limit; index++) {
         let pushed = false;
         for (const source of sources) {
@@ -794,7 +797,11 @@
     function getStatsLatestSpecialPredictionHighlight(type, latestEntry = null) {
       if (!TYPES[type]?.hasSpecial) return { entry: null, numbers: new Set() };
       const logs = ensurePredictionLogBucket(type)
-        .filter(entry => Array.isArray(entry?.tickets) && entry.tickets.length);
+        .filter(entry =>
+          getPredictionEntryMode(entry) === PREDICTION_MODE_STATS &&
+          Array.isArray(entry?.tickets) &&
+          entry.tickets.length
+        );
       if (!logs.length) return { entry: null, numbers: new Set() };
       const targetNextKyValue = (kySortValue(latestEntry?.ky) || 0) + 1;
       const preferredLogs = targetNextKyValue
@@ -831,6 +838,7 @@
       if (!normalizedKy) return null;
       const logs = ensurePredictionLogBucket(type)
         .filter(entry =>
+          getPredictionEntryMode(entry) === PREDICTION_MODE_STATS &&
           Array.isArray(entry?.tickets) &&
           entry.tickets.length &&
           (
@@ -854,6 +862,7 @@
     function findStatsLatestResolvedPredictionLog(type) {
       const logs = ensurePredictionLogBucket(type)
         .filter(entry =>
+          getPredictionEntryMode(entry) === PREDICTION_MODE_STATS &&
           Array.isArray(entry?.tickets) &&
           entry.tickets.length &&
           entry?.resolved &&
@@ -905,6 +914,101 @@
 
     function getStatsPredictionMainLimit(type) {
       return normalizeStatsType(type) === "KENO" ? 20 : 10;
+    }
+
+    function buildStatsAutomaticPrediction(type, sourceEntries) {
+      const entries = Array.isArray(sourceEntries) ? sourceEntries : [];
+      if (!entries.length) return { main: [], special: [] };
+      const recentEntries = filterStatsRecentEntriesByMode(
+        entries,
+        statsRecentModeValue,
+        statsRecentWindowValue,
+      );
+      const mainFrequency = buildStatsFrequencyItems(type, recentEntries);
+      const mainOverdue = buildStatsOverdueItems(type, mainFrequency, entries);
+      const main = [...buildStatsRecentFallbackPredictionSet(type, {
+        mostItems: mainFrequency,
+        overdueItems: mainOverdue,
+      })];
+      let special = [];
+      if (TYPES[type]?.hasSpecial) {
+        const specialFrequency = buildStatsFrequencyItems(type, recentEntries, { special: true });
+        const specialOverdue = buildStatsOverdueItems(type, specialFrequency, entries, { special: true });
+        special = [...collectOrderedHighlightNumbers(
+          specialFrequency.map(item => item.value),
+          specialOverdue.map(item => item.value),
+          4,
+        )];
+      }
+      return { main, special };
+    }
+
+    function hasStatsPredictionForKy(type, ky) {
+      const normalizedKy = normalizeKy(ky);
+      if (!normalizedKy) return false;
+      return ensurePredictionLogBucket(type).some(entry =>
+        getPredictionEntryMode(entry) === PREDICTION_MODE_STATS &&
+        normalizeKy(entry?.predictedKy) === normalizedKy &&
+        Array.isArray(entry?.tickets) &&
+        entry.tickets.length
+      );
+    }
+
+    function createStatsPredictionLog(type, predictedKy, sourceEntries, actualEntry = null) {
+      const prediction = buildStatsAutomaticPrediction(type, sourceEntries);
+      if (!prediction.main.length) return false;
+      const special = prediction.special[0];
+      const windowLabel = getStatsRecentWindowLabel(statsRecentWindowValue, statsRecentModeValue);
+      const resolved = !!actualEntry?.draw;
+      upsertPredictionLog(type, {
+        id: `stats_${type}_${String(normalizeKy(predictedKy) || "").replace(/\D/g, "")}`,
+        createdAt: getSyncedIsoString(),
+        predictedKy,
+        predictionMode: PREDICTION_MODE_STATS,
+        strategyKey: "stats_frequency_overdue_v1",
+        strategyLabel: `Thống kê ${windowLabel}`,
+        modelKey: "stats_frequency_overdue_v1",
+        modelLabel: `Thống kê ${windowLabel}`,
+        engineKey: "stats_auto",
+        engineLabel: "Tần suất + gan",
+        playMode: "stats",
+        pickSize: prediction.main.length,
+        bundleCount: 1,
+        tickets: [{
+          main: prediction.main,
+          special: Number.isInteger(special) ? special : null,
+          playMode: "stats",
+        }],
+        topMainRanking: prediction.main,
+        topSpecialRanking: prediction.special,
+        resolved,
+        resolvedAt: resolved ? getSyncedIsoString() : "",
+        actualKy: resolved ? normalizeKy(actualEntry.ky) : "",
+        actualDraw: resolved ? actualEntry.draw : null,
+      });
+      if (resolved) refreshResolvedPredictionSummaries(type);
+      return true;
+    }
+
+    function ensureStatsPredictionCycle(type, entries) {
+      const sourceEntries = Array.isArray(entries) ? entries : [];
+      if (sourceEntries.length < 2) return false;
+      const latestEntry = sourceEntries[sourceEntries.length - 1];
+      const latestKy = normalizeKy(latestEntry?.ky);
+      if (!latestKy) return false;
+      let changed = false;
+
+      // Use only draws before the target so the reconstructed score has no data leakage.
+      if (!hasStatsPredictionForKy(type, latestKy)) {
+        changed = createStatsPredictionLog(type, latestKy, sourceEntries.slice(0, -1), latestEntry) || changed;
+      }
+
+      const nextKyValue = kySortValue(latestKy) + 1;
+      const nextKy = nextKyValue ? `#${String(nextKyValue).padStart(4, "0")}` : null;
+      if (nextKy && !hasStatsPredictionForKy(type, nextKy)) {
+        changed = createStatsPredictionLog(type, nextKy, sourceEntries) || changed;
+      }
+      return changed;
     }
 
     function collectStatsPredictionMainSet(type, entry) {
@@ -2897,6 +3001,19 @@
           repair: type === "KENO",
           recentDays: type === "KENO" ? 1 : null,
         });
+        if (refreshToken !== statsPanelRefreshToken) return;
+        let storeChanged = false;
+        try {
+          const ledgerScored = await scorePendingPredictionLedger(type);
+          const ledgerChanged = await refreshPredictionLedgerForHistory(type);
+          storeChanged = ledgerScored || ledgerChanged;
+        } catch (ledgerError) {
+          console.warn("Không thể đồng bộ chấm điểm prediction ledger:", ledgerError);
+        }
+        reconcilePredictionLogsForType(type);
+        const refreshedEntries = buildStatsEntriesForFeed(type, getLiveHistoryFeed(type));
+        storeChanged = ensureStatsPredictionCycle(type, refreshedEntries) || storeChanged;
+        if (storeChanged) await saveStore({ reason: `${type.toLowerCase()}_stats_prediction_cycle` });
         if (refreshToken !== statsPanelRefreshToken) return;
         statsPanelLoading = false;
         statsPanelError = "";

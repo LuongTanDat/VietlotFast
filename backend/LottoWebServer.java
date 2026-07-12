@@ -20,8 +20,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +51,8 @@ public class LottoWebServer {
     private static final long AI_ML_TIMEOUT_SECONDS = 900;
     private static final long STATS_V2_TIMEOUT_SECONDS = 180;
     private static final long ANALYSIS_TIMEOUT_SECONDS = 180;
+    private static final long HEAVY_API_CACHE_TTL_MS = 5 * 60 * 1000L;
+    private static final int HEAVY_API_CACHE_MAX_ENTRIES = 128;
     private static final int KENO_MIN_ORDER = 1;
     private static final int KENO_MAX_ORDER = 10;
     private static final Set<String> LIVE_TYPE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
@@ -85,6 +89,7 @@ public class LottoWebServer {
     private final DatabaseRepo repo;
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
     private final Map<Path, StaticAsset> staticAssetCache = new ConcurrentHashMap<>();
+    private final Map<String, TimedJsonPayload> heavyApiCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
 
     // ----- Helper lồng bên trong -----
@@ -116,6 +121,29 @@ public class LottoWebServer {
             this.raw = raw;
             this.gzip = gzip;
             this.etag = etag;
+        }
+    }
+
+    private static final class CanonicalHistoryRow {
+        String ky = "";
+        String date = "";
+        String time = "";
+        List<Integer> main = new ArrayList<>();
+        Integer special = null;
+        List<String> displayLines = new ArrayList<>();
+        String label = "";
+        String sourceUrl = "";
+        String sourceDate = "";
+        LocalDate parsedDate = null;
+    }
+
+    private static final class TimedJsonPayload {
+        final String payload;
+        final long expiresAtMs;
+
+        TimedJsonPayload(String payload, long expiresAtMs) {
+            this.payload = payload;
+            this.expiresAtMs = expiresAtMs;
         }
     }
 
@@ -587,6 +615,46 @@ public class LottoWebServer {
         sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
     }
 
+    private String getHeavyApiCachedPayload(String key) {
+        TimedJsonPayload cached = heavyApiCache.get(key);
+        if (cached == null) return null;
+        if (cached.expiresAtMs <= System.currentTimeMillis()) {
+            heavyApiCache.remove(key, cached);
+            return null;
+        }
+        return cached.payload;
+    }
+
+    private void putHeavyApiCachedPayload(String key, String payload) {
+        if (isBlank(key) || isBlank(payload)) return;
+        if (heavyApiCache.size() >= HEAVY_API_CACHE_MAX_ENTRIES) heavyApiCache.clear();
+        heavyApiCache.put(key, new TimedJsonPayload(payload, System.currentTimeMillis() + HEAVY_API_CACHE_TTL_MS));
+    }
+
+    private String canonicalDataVersion(String type) {
+        String defaultCsv = canonicalDefaultCsv(type);
+        if (defaultCsv.isEmpty()) return "missing";
+        Path csvFile = resolveRegistryDataPath("canonical." + type + ".csv", defaultCsv, null);
+        try {
+            return Files.getLastModifiedTime(csvFile).toMillis() + ":" + Files.size(csvFile);
+        } catch (IOException ignored) {
+            return "missing";
+        }
+    }
+
+    private String heavyApiCacheKey(String namespace, HttpExchange ex, String type) {
+        String rawQuery = ex.getRequestURI() == null ? "" : nvl(ex.getRequestURI().getRawQuery());
+        return namespace + "|" + rawQuery + "|" + canonicalDataVersion(type);
+    }
+
+    private boolean sendHeavyApiCacheHit(HttpExchange ex, String cacheKey) throws IOException {
+        String cachedPayload = getHeavyApiCachedPayload(cacheKey);
+        if (cachedPayload == null) return false;
+        ex.getResponseHeaders().set("X-Lotto-Cache", "HIT");
+        sendJson(ex, 200, cachedPayload);
+        return true;
+    }
+
     private void handleStatsV2(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAuth(ex, true);
@@ -656,6 +724,9 @@ public class LottoWebServer {
             return;
         }
 
+        String cacheKey = heavyApiCacheKey("stats-v2", ex, type);
+        if (sendHeavyApiCacheHit(ex, cacheKey)) return;
+
         List<String> command = buildPythonCommand(scriptFile);
         command.add("stats_json");
         command.add("--type");
@@ -690,6 +761,8 @@ public class LottoWebServer {
                 null
         );
         if (payload == null) return;
+        putHeavyApiCachedPayload(cacheKey, payload);
+        ex.getResponseHeaders().set("X-Lotto-Cache", "MISS");
         sendJson(ex, 200, payload);
     }
 
@@ -786,6 +859,9 @@ public class LottoWebServer {
             }
         }
 
+        String cacheKey = heavyApiCacheKey("analysis", ex, type);
+        if (sendHeavyApiCacheHit(ex, cacheKey)) return;
+
         List<String> command = buildPythonCommand(scriptFile);
         command.add("analysis_json");
         command.add("--type");
@@ -834,6 +910,8 @@ public class LottoWebServer {
                 null
         );
         if (payload == null) return;
+        putHeavyApiCachedPayload(cacheKey, payload);
+        ex.getResponseHeaders().set("X-Lotto-Cache", "MISS");
         sendJson(ex, 200, payload);
     }
 
@@ -964,6 +1042,280 @@ public class LottoWebServer {
         sendJson(ex, 200, readLiveResultsProgressJson());
     }
 
+    private List<String> parseCanonicalCsvLine(String line) {
+        List<String> cells = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        String value = nvl(line);
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (ch == '"') {
+                if (quoted && index + 1 < value.length() && value.charAt(index + 1) == '"') {
+                    current.append('"');
+                    index++;
+                } else {
+                    quoted = !quoted;
+                }
+                continue;
+            }
+            if (ch == ',' && !quoted) {
+                cells.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        cells.add(current.toString());
+        return cells;
+    }
+
+    private int canonicalColumnIndex(Map<String, Integer> columns, String name) {
+        Integer index = columns.get(name);
+        return index == null ? -1 : index;
+    }
+
+    private String canonicalCell(List<String> cells, Map<String, Integer> columns, String name) {
+        int index = canonicalColumnIndex(columns, name);
+        if (index < 0 || index >= cells.size()) return "";
+        return nvl(cells.get(index)).trim();
+    }
+
+    private LocalDate parseCanonicalDate(String value) {
+        try {
+            return LocalDate.parse(nvl(value).trim(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private List<Integer> parseCanonicalNumbers(String value) {
+        List<Integer> numbers = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\d+").matcher(nvl(value));
+        while (matcher.find()) {
+            try {
+                numbers.add(Integer.parseInt(matcher.group()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return numbers;
+    }
+
+    private List<String> parseCanonicalDisplayLines(String value) {
+        List<String> lines = new ArrayList<>();
+        for (String part : nvl(value).split("\\s*\\|\\|\\s*")) {
+            String line = part.trim();
+            if (!line.isEmpty()) lines.add(line);
+        }
+        return lines;
+    }
+
+    private String canonicalTypeLabel(String type) {
+        switch (nvl(type)) {
+            case "LOTO_5_35": return "Loto_5/35";
+            case "LOTO_6_45": return "Mega_6/45";
+            case "LOTO_6_55": return "Power_6/55";
+            case "KENO": return "Keno";
+            case "MAX_3D": return "Max 3D";
+            case "MAX_3D_PRO": return "Max 3D Pro";
+            default: return nvl(type);
+        }
+    }
+
+    private String canonicalDefaultCsv(String type) {
+        switch (nvl(type)) {
+            case "LOTO_5_35": return "data/canonical/loto_5_35_all_day.csv";
+            case "LOTO_6_45": return "data/canonical/mega_6_45_all_day.csv";
+            case "LOTO_6_55": return "data/canonical/power_6_55_all_day.csv";
+            case "KENO": return "data/canonical/keno_all_day.csv";
+            case "MAX_3D": return "data/canonical/max_3d_all_day.csv";
+            case "MAX_3D_PRO": return "data/canonical/max_3d_pro_all_day.csv";
+            default: return "";
+        }
+    }
+
+    private String jsonIntegerArray(List<Integer> values) {
+        StringBuilder out = new StringBuilder("[");
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) out.append(',');
+            out.append(values.get(index));
+        }
+        return out.append(']').toString();
+    }
+
+    private String jsonStringArray(List<String> values) {
+        StringBuilder out = new StringBuilder("[");
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) out.append(',');
+            out.append('"').append(esc(values.get(index))).append('"');
+        }
+        return out.append(']').toString();
+    }
+
+    private String canonicalHistoryRowJson(CanonicalHistoryRow row) {
+        return "{"
+                + "\"ky\":\"" + esc(row.ky) + "\","
+                + "\"date\":\"" + esc(row.date) + "\","
+                + "\"time\":\"" + esc(row.time) + "\","
+                + "\"main\":" + jsonIntegerArray(row.main) + ","
+                + "\"special\":" + (row.special == null ? "null" : row.special) + ","
+                + "\"displayLines\":" + jsonStringArray(row.displayLines) + ","
+                + "\"label\":\"" + esc(row.label) + "\","
+                + "\"sourceUrl\":\"" + esc(row.sourceUrl) + "\","
+                + "\"sourceDate\":\"" + esc(row.sourceDate) + "\""
+                + "}";
+    }
+
+    private String canonicalHistoryRangeLabel(String type, String count) {
+        if (!"KENO".equals(type)) return "";
+        switch (nvl(count)) {
+            case "today": return "Hôm Nay";
+            case "3d": return "3 Ngày";
+            case "1w": return "1 Tuần";
+            case "1m": return "1 Tháng";
+            case "3m": return "3 Tháng";
+            case "6m": return "6 Tháng";
+            case "1y": return "1 Năm";
+            case "all": return "Tất cả Kỳ";
+            default: return "";
+        }
+    }
+
+    private LocalDate canonicalHistoryStartDate(String count, LocalDate today) {
+        switch (nvl(count)) {
+            case "today": return today;
+            case "3d": return today.minusDays(2);
+            case "1w": return today.minusDays(6);
+            case "1m": return today.withDayOfMonth(1);
+            case "3m": return today.minusMonths(2).withDayOfMonth(1);
+            case "6m": return today.minusMonths(5).withDayOfMonth(1);
+            case "1y": return today.withDayOfYear(1);
+            default: return null;
+        }
+    }
+
+    private Set<String> parseCanonicalDrawIds(String value) {
+        Set<String> drawIds = new LinkedHashSet<>();
+        for (String part : nvl(value).split(",")) {
+            String normalized = part.replaceAll("\\D", "");
+            if (!normalized.isEmpty()) drawIds.add(normalized);
+            if (drawIds.size() >= 240) break;
+        }
+        return drawIds;
+    }
+
+    private String buildCanonicalHistoryPayload(String type, String count, Set<String> selectedDrawIds) throws IOException {
+        String defaultCsv = canonicalDefaultCsv(type);
+        if (defaultCsv.isEmpty()) return null;
+        Path csvFile = resolveRegistryDataPath("canonical." + type + ".csv", defaultCsv, null);
+        if (!Files.exists(csvFile)) return null;
+
+        List<CanonicalHistoryRow> allRows = new ArrayList<>();
+        try (BufferedReader reader = Files.newBufferedReader(csvFile, StandardCharsets.UTF_8)) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) return null;
+            List<String> headers = parseCanonicalCsvLine(headerLine.replace("\uFEFF", ""));
+            Map<String, Integer> columns = new LinkedHashMap<>();
+            for (int index = 0; index < headers.size(); index++) {
+                columns.put(nvl(headers.get(index)).trim(), index);
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                List<String> cells = parseCanonicalCsvLine(line);
+                CanonicalHistoryRow row = new CanonicalHistoryRow();
+                row.ky = canonicalCell(cells, columns, "Kỳ");
+                row.date = canonicalCell(cells, columns, "Ngày");
+                row.time = canonicalCell(cells, columns, "Giờ");
+                row.main = parseCanonicalNumbers(canonicalCell(cells, columns, "Bộ Số"));
+                String specialRaw = canonicalCell(cells, columns, "ĐB");
+                if (!specialRaw.isEmpty()) {
+                    try {
+                        row.special = Integer.parseInt(specialRaw.replaceAll("\\D", ""));
+                    } catch (NumberFormatException ignored) {
+                        row.special = null;
+                    }
+                }
+                row.displayLines = parseCanonicalDisplayLines(canonicalCell(cells, columns, "Hiển thị"));
+                if (row.main.isEmpty() && ("MAX_3D".equals(type) || "MAX_3D_PRO".equals(type))) {
+                    Set<Integer> unique = new TreeSet<>();
+                    for (String displayLine : row.displayLines) {
+                        Matcher matcher = Pattern.compile("(?<!\\d)\\d{3}(?!\\d)").matcher(displayLine);
+                        while (matcher.find()) unique.add(Integer.parseInt(matcher.group()));
+                    }
+                    row.main = new ArrayList<>(unique);
+                }
+                row.label = canonicalCell(cells, columns, "Loại");
+                if (row.label.isEmpty()) row.label = canonicalTypeLabel(type);
+                row.sourceUrl = canonicalCell(cells, columns, "Link cập nhật");
+                row.sourceDate = canonicalCell(cells, columns, "Ngày cập nhật");
+                if (row.sourceDate.isEmpty()) row.sourceDate = row.date;
+                row.parsedDate = parseCanonicalDate(row.date);
+                if (!row.ky.isEmpty()) allRows.add(row);
+            }
+        }
+
+        if (allRows.isEmpty()) return null;
+        LocalDate today = LocalDate.now();
+        long todayCount = allRows.stream().filter(row -> today.equals(row.parsedDate)).count();
+        List<CanonicalHistoryRow> selectedRows = new ArrayList<>();
+        LocalDate startDate = "KENO".equals(type) ? canonicalHistoryStartDate(count, today) : null;
+        if (selectedDrawIds != null && !selectedDrawIds.isEmpty()) {
+            for (CanonicalHistoryRow row : allRows) {
+                if (selectedDrawIds.contains(row.ky.replaceAll("\\D", ""))) selectedRows.add(row);
+            }
+        } else if (startDate != null) {
+            for (CanonicalHistoryRow row : allRows) {
+                if (row.parsedDate == null || row.parsedDate.isBefore(startDate) || row.parsedDate.isAfter(today)) continue;
+                selectedRows.add(row);
+            }
+        } else if ("all".equals(count)) {
+            selectedRows.addAll(allRows);
+        } else {
+            int limit;
+            try {
+                limit = Math.max(1, Integer.parseInt(count));
+            } catch (NumberFormatException ignored) {
+                limit = 20;
+            }
+            selectedRows.addAll(allRows.subList(0, Math.min(limit, allRows.size())));
+        }
+
+        CanonicalHistoryRow latest = allRows.get(0);
+        CanonicalHistoryRow earliest = allRows.get(allRows.size() - 1);
+        StringBuilder historyJson = new StringBuilder("[");
+        for (int index = 0; index < selectedRows.size(); index++) {
+            if (index > 0) historyJson.append(',');
+            historyJson.append(canonicalHistoryRowJson(selectedRows.get(index)));
+        }
+        historyJson.append(']');
+        String fileName = csvFile.getFileName().toString();
+        String responseCount = selectedDrawIds != null && !selectedDrawIds.isEmpty() ? "selected" : count;
+        return "{"
+                + "\"ok\":true,\"mode\":\"canonical_history_fast\","
+                + "\"type\":\"" + esc(type) + "\","
+                + "\"label\":\"" + esc(canonicalTypeLabel(type)) + "\","
+                + "\"count\":\"" + esc(responseCount) + "\","
+                + "\"returnedCount\":" + selectedRows.size() + ","
+                + "\"canonicalCount\":" + allRows.size() + ","
+                + "\"canonicalFile\":\"" + esc(fileName) + "\","
+                + "\"allCount\":" + allRows.size() + ","
+                + "\"todayCount\":" + todayCount + ","
+                + "\"allFile\":\"" + esc(fileName) + "\","
+                + "\"todayFile\":\"" + esc(fileName) + "\","
+                + "\"latestKy\":\"" + esc(latest.ky) + "\","
+                + "\"latestDate\":\"" + esc(latest.date) + "\","
+                + "\"latestTime\":\"" + esc(latest.time) + "\","
+                + "\"effectiveEarliestKy\":\"" + esc(earliest.ky) + "\","
+                + "\"effectiveEarliestDate\":\"" + esc(earliest.date) + "\","
+                + "\"rangeLabel\":\"" + esc(selectedDrawIds != null && !selectedDrawIds.isEmpty() ? "" : canonicalHistoryRangeLabel(type, count)) + "\","
+                + "\"historyNote\":\"\",\"repairAttempted\":false,"
+                + "\"repairNewRows\":0,\"repairRepairedDates\":0,\"repairRepairedKyGaps\":0,\"repairErrors\":[],"
+                + "\"fetchedAt\":\"" + esc(LocalDateTime.now().withNano(0).toString()) + "\","
+                + "\"history\":" + historyJson
+                + "}";
+    }
+
     private void handleLiveHistory(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAuth(ex, true);
@@ -982,6 +1334,7 @@ public class LottoWebServer {
         Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
         String type = normalizeLiveType(query.get("type"));
         String count = nvl(query.get("count")).trim().toLowerCase(Locale.ROOT);
+        Set<String> selectedDrawIds = parseCanonicalDrawIds(query.get("drawIds"));
         if (isBlank(type)) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu loại lịch sử\"}");
             return;
@@ -1009,6 +1362,19 @@ public class LottoWebServer {
             } catch (NumberFormatException exNumber) {
                 sendJson(ex, 400, "{\"ok\":false,\"message\":\"recentDays không hợp lệ\"}");
                 return;
+            }
+        }
+
+        if (!repairCanonical && recentDays == null) {
+            try {
+                String fastPayload = buildCanonicalHistoryPayload(type, count, selectedDrawIds);
+                if (fastPayload != null) {
+                    ex.getResponseHeaders().set("X-Lotto-History-Source", "java-csv");
+                    sendJson(ex, 200, fastPayload);
+                    return;
+                }
+            } catch (RuntimeException | IOException fastReadError) {
+                System.err.println("Fast canonical history fallback for " + type + ": " + rootCauseMsg(fastReadError));
             }
         }
 
@@ -1895,7 +2261,8 @@ public class LottoWebServer {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(rootDir.toFile());
         pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+        // Chỉ giữ log của lần cập nhật gần nhất để tránh file lớn làm OneDrive đồng bộ liên tục.
+        pb.redirectOutput(ProcessBuilder.Redirect.to(logFile));
         pb.start();
     }
 

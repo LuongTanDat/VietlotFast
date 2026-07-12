@@ -663,6 +663,7 @@
 
     function renderPredictionHistoryNumberToken(number, { isHit = false, isMiss = false, special = false, type = "" } = {}) {
       const classNames = ["predict-hit-number"];
+      if (special) classNames.push("is-special");
       if (special && isHit) classNames.push("is-special-hit");
       else if (isHit) classNames.push("is-hit");
       else if (isMiss) classNames.push("is-miss");
@@ -735,7 +736,7 @@
         return `${label}${mainHtml}${metaHtml}`;
       }
       if (TYPES[type]?.hasSpecial && Number.isInteger(cloned.special)) {
-        return `${label}${mainHtml}<span class="predict-hit-divider">|</span><span class="predict-hit-label">ĐB</span>${renderPredictionHistoryNumberList([cloned.special], entry, { special: true })}${metaHtml}`;
+        return `${label}${mainHtml}<span class="predict-hit-divider" aria-hidden="true">|</span>${renderPredictionHistoryNumberList([cloned.special], entry, { special: true })}${metaHtml}`;
       }
       return `${label}${mainHtml}${metaHtml}`;
     }
@@ -766,7 +767,18 @@
         const html = renderPredictionHistoryNumberList(entry.actualDraw.main, entry, { perRow: 10, highlight: false });
         return html ? `<div class="predict-history-line predict-history-line-keno"><strong>Kết quả thật:</strong> ${html}</div>` : "";
       }
-      return `<div class="predict-history-line"><strong>Kết quả thật:</strong> ${escapeHtml(formatLiveHistoryDraw(entry.type, entry.actualDraw))}</div>`;
+      if (Array.isArray(entry.actualDraw.main) && entry.actualDraw.main.length) {
+        const mainHtml = renderPredictionHistoryNumberList(entry.actualDraw.main, entry, { highlight: false });
+        const specialHtml = TYPES[entry.type]?.hasSpecial && Number.isInteger(Number(entry.actualDraw.special))
+          ? `<span class="predict-hit-divider" aria-hidden="true">|</span>${renderPredictionHistoryNumberList([entry.actualDraw.special], entry, { special: true, highlight: false })}`
+          : "";
+        return `<div class="predict-history-line"><strong>Kết quả thật:</strong> ${mainHtml}${specialHtml}</div>`;
+      }
+      const fallbackText = String(formatLiveHistoryDraw(entry.type, entry.actualDraw) || "")
+        .replace(/ĐB|DB/giu, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      return `<div class="predict-history-line"><strong>Kết quả thật:</strong> ${escapeHtml(fallbackText)}</div>`;
     }
 
     function formatPredictionHistoryTicketMetaPlainText(type, index, entry) {
@@ -799,7 +811,7 @@
         return `${prefix}: ${mainText}${metaText}`;
       }
       if (TYPES[type]?.hasSpecial && Number.isInteger(cloned.special)) {
-        return `${prefix}: ${mainText} | ĐB ${formatPredictNumber(cloned.special, type)}${metaText}`;
+        return `${prefix}: ${mainText} | ${formatPredictNumber(cloned.special, type)}${metaText}`;
       }
       return `${prefix}: ${mainText}${metaText}`;
     }
@@ -833,7 +845,7 @@
         const specialRows = formatPredictionHistoryPlainNumberRows(entry.topSpecialRanking, 10, entry.type);
         const specialParts = specialRows.split("\n").filter(Boolean);
         if (specialParts.length) {
-          topLines.push(`Top ĐB: ${specialParts.shift()}`);
+          topLines.push(`Số phụ ưu tiên: ${specialParts.shift()}`);
           specialParts.forEach(part => topLines.push(part));
         }
       }
@@ -894,7 +906,7 @@
         parts.push(`${summary.prizeTicketHits} vé có giải`);
       }
       if (TYPES[type]?.hasSpecial && Number(summary.specialHits || 0) > 0) {
-        parts.push(`${summary.specialHits} ${unitLabel} trúng ĐB`);
+        parts.push(`${summary.specialHits} ${unitLabel} trúng số phụ`);
       }
       return parts.length ? parts.join(" • ") : "Chưa có số khớp nổi bật.";
     }
@@ -920,7 +932,7 @@
         : "";
       const special = topSummary.topSpecial || {};
       const specialText = TYPES[type]?.hasSpecial && special.total
-        ? `${escapeHtml(`Top ĐB ${special.matched}/${special.total} = ${formatPredictionPercent(special.rate)}`)} ${formatPredictionTrendHtml(special.trend)}`.trim()
+        ? `${escapeHtml(`Số phụ ${special.matched}/${special.total} = ${formatPredictionPercent(special.rate)}`)} ${formatPredictionTrendHtml(special.trend)}`.trim()
         : "";
       return [mainText, specialText].filter(Boolean).join(" • ");
     }
@@ -933,11 +945,35 @@
           .filter(row => String(row?.prediction_id || "").trim())
           .map(row => [String(row.prediction_id).trim(), row])
       );
+      const claimedPredictionIds = new Set();
+      const findLegacyLedgerRow = entry => {
+        const entryTime = Date.parse(String(entry?.createdAt || "")) || 0;
+        if (!entryTime) return null;
+        const entryMode = normalizePredictionMode(entry?.predictionMode || PREDICTION_MODE_NORMAL);
+        return rows
+          .filter(row => {
+            const rowId = String(row?.prediction_id || "").trim();
+            if (!rowId || claimedPredictionIds.has(rowId)) return false;
+            if (normalizePredictionMode(row?.prediction_mode || PREDICTION_MODE_NORMAL) !== entryMode) return false;
+            const rowTime = Date.parse(String(row?.created_at || "")) || 0;
+            return rowTime && Math.abs(rowTime - entryTime) <= 120000;
+          })
+          .sort((a, b) => {
+            const targetKy = kySortValue(entry?.predictedKyOriginal || entry?.predictedKy);
+            const aTargetDelta = targetKy && kySortValue(a?.target_draw_id) === targetKy ? 0 : 1;
+            const bTargetDelta = targetKy && kySortValue(b?.target_draw_id) === targetKy ? 0 : 1;
+            if (aTargetDelta !== bTargetDelta) return aTargetDelta - bTargetDelta;
+            return Math.abs((Date.parse(String(a?.created_at || "")) || 0) - entryTime)
+              - Math.abs((Date.parse(String(b?.created_at || "")) || 0) - entryTime);
+          })[0] || null;
+      };
       let changed = false;
       logs.forEach(entry => {
         const predictionId = String(entry?.predictionId || "").trim();
-        const row = byPredictionId.get(predictionId);
-        if (!predictionId || !row) return;
+        const row = byPredictionId.get(predictionId) || (!predictionId ? findLegacyLedgerRow(entry) : null);
+        if (!row) return;
+        const resolvedPredictionId = String(row.prediction_id || predictionId).trim();
+        if (resolvedPredictionId) claimedPredictionIds.add(resolvedPredictionId);
         const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
         const scoreMetrics = row.score_metrics && typeof row.score_metrics === "object" ? row.score_metrics : {};
         const nextScoreMetrics = row.latest_score_id
@@ -953,6 +989,7 @@
             }
           : null;
         const updates = {
+          predictionId: resolvedPredictionId,
           predictionStatus: String(row.status || entry.predictionStatus || ""),
           dataCutoffDrawId: String(row.data_cutoff_draw_id || entry.dataCutoffDrawId || ""),
           payloadChecksum: String(row.payload_checksum || entry.payloadChecksum || ""),
@@ -986,19 +1023,54 @@
       }
     }
 
-    async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
-      const nowValue = getSyncedNowDate();
-      const currentDataset = buildPredictionResultDataset("KENO");
-      const repairLookbackDays = getKenoPredictionHistoryRepairLookbackDays(currentDataset, nowValue);
-      const nextFeed = await fetchLiveHistory("KENO", "all", {
-        force: true,
-        silent,
-        repair: repairLookbackDays > 0,
-        recentDays: repairLookbackDays > 0 ? repairLookbackDays : null,
-      });
-      if (nextFeed?.repairAttempted && Array.isArray(nextFeed.repairErrors) && nextFeed.repairErrors.length) {
-        throw new Error(nextFeed.repairErrors.join(" • "));
+    async function scorePendingPredictionLedger(type) {
+      if (IS_LOCAL_MODE || !PREDICTION_LOG_TYPES.includes(type)) return false;
+      try {
+        const response = await api("/api/ml/score-pending", "POST", { type });
+        return Array.isArray(response?.scored) && response.scored.length > 0;
+      } catch (error) {
+        if ([404, 405].includes(Number(error?.status || 0))) return false;
+        throw error;
       }
+    }
+
+    async function fetchPredictionHistoryDraws(type) {
+      const logs = Array.isArray(store.predictionLogs?.[type]) ? store.predictionLogs[type] : [];
+      const drawIds = [...new Set(logs
+        .filter(entry => !entry?.resolved || !entry?.actualDraw)
+        .map(entry => String(normalizeKy(entry?.predictedKy) || "").replace(/\D/g, ""))
+        .filter(Boolean))]
+        .slice(-MAX_PREDICTION_LOGS_PER_TYPE);
+      if (!drawIds.length || IS_LOCAL_MODE) return getLiveHistoryFeed(type);
+      const params = new URLSearchParams({
+        type,
+        count: "all",
+        drawIds: drawIds.join(","),
+      });
+      const res = await api(`/api/live-history?${params.toString()}`);
+      const nextFeed = buildLiveHistoryFeedFromResponse(
+        type,
+        Array.isArray(res?.history) ? res.history : [],
+        String(res?.fetchedAt || ""),
+        String(res?.count || "selected"),
+        {
+          canonicalCount: res?.canonicalCount,
+          canonicalFile: res?.canonicalFile,
+          allCount: res?.allCount,
+          todayCount: res?.todayCount,
+          allFile: res?.allFile,
+          todayFile: res?.todayFile,
+          latestKy: res?.latestKy,
+          latestDate: res?.latestDate,
+          latestTime: res?.latestTime,
+        }
+      );
+      setLiveHistoryFeed(type, nextFeed);
+      return nextFeed;
+    }
+
+    async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
+      await fetchPredictionHistoryDraws("KENO");
       const predictionLogsBeforeReconcile = getPredictionLogsSignature(store.predictionLogs?.KENO || []);
       const ledgerChanged = await refreshPredictionLedgerForHistory("KENO");
       reconcilePredictionLogsForType("KENO");
@@ -1014,7 +1086,7 @@
         await refreshKenoPredictionDataForHistory({ silent });
         return;
       }
-      await fetchLiveHistory(normalizedType, "all", { force: true, silent });
+      await fetchPredictionHistoryDraws(normalizedType);
       const before = getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []);
       const ledgerChanged = await refreshPredictionLedgerForHistory(normalizedType);
       reconcilePredictionLogsForType(normalizedType);
@@ -1141,8 +1213,8 @@
     }
 
     function getPredictionHistoryCollapsedTicketLimit(type) {
-      if (type === "KENO") return 5;
-      return 6;
+      if (type === "KENO") return 10;
+      return 12;
     }
 
     function shouldCollapsePredictionHistoryEntry(entry) {
@@ -1194,7 +1266,7 @@
       const statusClass = statusMeta.className;
       const statusText = statusMeta.label;
       const countdownState = buildPredictionHistoryCountdownState(entry, getSyncedNowDate());
-      const titleParts = [entry.typeLabel];
+      const titleParts = [String(entry.typeLabel || "").replace(/_/g, " ")];
       if (entry.predictedKy) titleParts.push(`Kỳ ${formatLiveKy(entry.predictedKy)}`);
       const createdAtText = formatPredictionHistoryTime(entry.createdAt) || "Không rõ";
       const engineParts = [
@@ -1208,28 +1280,30 @@
       const topSpecialRanking = Array.isArray(entry.topSpecialRanking)
         ? entry.topSpecialRanking
         : [];
-      const infoCards = [
+      const primaryInfoCards = [
         `<div class="predict-history-info-chip"><span class="predict-history-info-label">Thời gian</span><strong class="predict-history-info-value">${escapeHtml(createdAtText)}</strong></div>`,
         engineParts.length
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">AI</span><strong class="predict-history-info-value">${escapeHtml(engineParts.join(" • "))}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Cấu hình AI</span><strong class="predict-history-info-value">${escapeHtml(engineParts.join(" • "))}</strong></div>`
           : "",
         entry.predictionStatus
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Ledger</span><strong class="predict-history-info-value">${escapeHtml(String(entry.predictionStatus).toUpperCase())}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Trạng thái</span><strong class="predict-history-info-value">${escapeHtml(String(entry.predictionStatus).toUpperCase())}</strong></div>`
           : "",
         entry.dataCutoffDrawId
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Cutoff</span><strong class="predict-history-info-value">${escapeHtml(formatLiveKy(entry.dataCutoffDrawId))}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Dữ liệu đến kỳ</span><strong class="predict-history-info-value">${escapeHtml(formatLiveKy(entry.dataCutoffDrawId))}</strong></div>`
           : "",
         entry.modelVersion
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Model</span><strong class="predict-history-info-value">${escapeHtml(entry.modelVersion)}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Mô hình</span><strong class="predict-history-info-value">${escapeHtml(entry.modelVersion)}</strong></div>`
           : "",
+      ].filter(Boolean).join("");
+      const metricInfoCards = [
         Number(entry.probabilitySummary?.mainProbabilitySum || 0) > 0
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Calibrated p</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Tổng xác suất</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
           : "",
         Number(entry.ticketQualityScore || 0) > 0
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Quality score</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.ticketQualityScore || 0).toFixed(2))}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Điểm chất lượng</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.ticketQualityScore || 0).toFixed(2))}</strong></div>`
           : "",
         entry.scoreMetrics
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Mean Hit</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.hit_count || 0).toFixed(0))}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Trung bình trúng</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.hit_count || 0).toFixed(0))}</strong></div>`
           : "",
         Number(entry.scoreMetrics?.brier_score || 0) > 0
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Brier</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.brier_score).toFixed(5))}</strong></div>`
@@ -1259,21 +1333,27 @@
         topSpecialHtml
           ? `
             <div class="predict-history-stat-card">
-              <div class="predict-history-stat-label">Top ĐB</div>
+              <div class="predict-history-stat-label">Số phụ ưu tiên</div>
               <div class="predict-history-stat-value">${topSpecialHtml}</div>
             </div>
           `
           : "",
       ].filter(Boolean).join("");
       const topBlockCount = [topMainHtml, topSpecialHtml].filter(Boolean).length;
-      const ticketSlice = Array.isArray(entry.tickets)
-        ? entry.tickets
-        : [];
+      const allTickets = Array.isArray(entry.tickets) ? entry.tickets : [];
+      const entryKey = getPredictionHistoryEntryKey(entry);
+      const ticketLimit = getPredictionHistoryCollapsedTicketLimit(entry.type);
+      const canCollapseTickets = allTickets.length > ticketLimit;
+      const ticketsExpanded = canCollapseTickets && predictionHistoryExpandedKeys.has(entryKey);
+      const ticketSlice = ticketsExpanded ? allTickets : allTickets.slice(0, ticketLimit);
       const ticketLines = ticketSlice.length
         ? ticketSlice.map((ticket, index) => {
             const html = formatPredictionHistoryTicketHtml(entry.type, ticket, index, entry);
             return html ? `<div class="predict-history-ticket">${html}</div>` : "";
           }).filter(Boolean).join("")
+        : "";
+      const ticketToggleHtml = canCollapseTickets
+        ? `<div class="predict-history-more-row"><button type="button" class="predict-history-more-btn" data-prediction-history-toggle="${escapeHtml(entryKey)}">${ticketsExpanded ? "Thu gọn" : `Xem thêm ${allTickets.length - ticketSlice.length} bộ`}</button></div>`
         : "";
       const actualDrawLine = formatPredictionHistoryActualDrawHtml(entry);
       const actualMetaLine = entry.resolved && (entry.actualKy || entry.resolvedAt)
@@ -1287,7 +1367,7 @@
         ? `<div class="predict-history-note predict-history-note-warning">Đã rà canonical history nhưng chưa tìm thấy kết quả thật cho kỳ này.</div>`
         : "";
       return `
-        <article class="predict-history-item">
+        <article class="predict-history-item${ticketsExpanded ? " is-expanded" : ""}">
           <div class="predict-history-top">
             <div class="predict-history-type">${escapeHtml(titleParts.join(" • "))}</div>
             <div class="predict-history-side">
@@ -1309,15 +1389,17 @@
               <span class="predict-history-status ${statusClass}">${escapeHtml(statusText)}</span>
             </div>
           </div>
-          ${infoCards ? `<div class="predict-history-info-row">${infoCards}</div>` : ""}
+          ${primaryInfoCards ? `<div class="predict-history-info-row predict-history-info-row-primary">${primaryInfoCards}</div>` : ""}
+          ${metricInfoCards ? `<div class="predict-history-info-row predict-history-info-row-metrics">${metricInfoCards}</div>` : ""}
           ${topBlocks ? `
             <div class="predict-history-section predict-history-top-section">
               <div class="predict-history-top-grid${topBlockCount <= 1 ? " is-single" : ""}">${topBlocks}</div>
             </div>
           ` : ""}
           <div class="predict-history-section predict-history-ticket-section">
-            <div class="predict-history-section-title">Bộ số dự đoán</div>
+            <div class="predict-history-section-title">Bộ số dự đoán${allTickets.length ? ` • ${allTickets.length} bộ` : ""}</div>
             <div class="predict-history-tickets">${ticketLines || `<div class="predict-history-note">Không có bộ số để hiển thị.</div>`}</div>
+            ${ticketToggleHtml}
             ${missingNote}
           </div>
           ${entry.resolved ? `
@@ -2825,6 +2907,7 @@
     }
 
     function restoreKenoCsvFeedCache() {
+      kenoCsvFeedCacheRestored = true;
       try {
         const raw = localStorage.getItem(LOCAL_KENO_CSV_CACHE_KEY);
         if (!raw) {
@@ -3593,7 +3676,7 @@
     function formatPredictVipOutput(result = vipPredictLastDisplayResult) {
       const type = String(result?.type || "").trim().toUpperCase();
       if (!result || !AI_PREDICT_TYPES.has(type)) {
-        return "Chọn cấu hình Vip rồi bấm Dự đoán Vip để xem bộ ưu tiên chính và thống kê riêng.";
+        return "Chưa có kết quả dự đoán VIP.";
       }
       return formatAiPredictionText(result);
     }
@@ -3655,12 +3738,25 @@
       return day === 0 ? "Chủ nhật" : `Thứ ${day + 1}`;
     }
 
+    function formatLiveWeekdayShortFromDate(dateValue) {
+      if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return "";
+      const day = dateValue.getDay();
+      return day === 0 ? "CN" : `T${day + 1}`;
+    }
+
     function formatLiveDateFromDate(dateValue) {
       if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return "";
       const day = String(dateValue.getDate()).padStart(2, "0");
       const month = String(dateValue.getMonth() + 1).padStart(2, "0");
       const year = dateValue.getFullYear();
       return `${day}/${month}/${year}`;
+    }
+
+    function formatLiveDateShortFromDate(dateValue) {
+      if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) return "";
+      const day = String(dateValue.getDate()).padStart(2, "0");
+      const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+      return `${day}/${month}`;
     }
 
     function parseScheduleTimeToMinutes(value) {
@@ -3745,14 +3841,15 @@
 
     function buildUpcomingLiveMetaParts(type, item = null, nowValue = getSyncedNowDate()) {
       const nextDrawDate = findNextLiveDrawDate(type, nowValue);
-      if (!nextDrawDate) return buildLiveMetaParts(item?.ky, item?.date, item?.time);
+      if (!nextDrawDate) return buildLiveCardMetaParts(item?.ky, item?.date, item?.time);
       const nextKyText = computeNextLiveKy(item?.ky);
       const parts = [];
       if (nextKyText) parts.push(`Kỳ ${nextKyText}`);
-      const weekdayText = formatLiveWeekdayFromDate(nextDrawDate);
-      if (weekdayText) parts.push(weekdayText);
-      const dateText = formatLiveDateFromDate(nextDrawDate);
-      if (dateText) parts.push(dateText);
+      const dayDateText = [
+        formatLiveWeekdayShortFromDate(nextDrawDate),
+        formatLiveDateShortFromDate(nextDrawDate)
+      ].filter(Boolean).join(" ");
+      if (dayDateText) parts.push(dayDateText);
       const timeText = `${String(nextDrawDate.getHours()).padStart(2, "0")}:${String(nextDrawDate.getMinutes()).padStart(2, "0")}`;
       if (timeText) parts.push(timeText);
       parts.push(formatDrawCountdown(nextDrawDate.getTime() - nowValue.getTime()));
@@ -3825,6 +3922,20 @@
       if (kyText) parts.push(`Kỳ ${kyText}`);
       if (weekdayText) parts.push(weekdayText);
       if (dateText) parts.push(String(dateText).trim());
+      if (timeText) parts.push(String(timeText).trim());
+      return parts.filter(Boolean);
+    }
+
+    function buildLiveCardMetaParts(ky, dateText, timeText) {
+      const parts = [];
+      const kyText = formatLiveKy(ky);
+      const parsedDate = parseLiveDate(dateText);
+      if (kyText) parts.push(`Kỳ ${kyText}`);
+      if (parsedDate) {
+        parts.push(`${formatLiveWeekdayShortFromDate(parsedDate)} ${formatLiveDateShortFromDate(parsedDate)}`.trim());
+      } else if (dateText) {
+        parts.push(String(dateText).trim());
+      }
       if (timeText) parts.push(String(timeText).trim());
       return parts.filter(Boolean);
     }
@@ -3944,6 +4055,44 @@
       btn.classList.toggle("secondary", !running);
     }
 
+    function renderLiveNumberToken(typeKey, rawValue, { special = false } = {}) {
+      const number = Number(rawValue);
+      const text = Number.isFinite(number) ? formatPredictNumber(number, typeKey) : String(rawValue || "").trim();
+      const isThreeDigit = TYPES[typeKey]?.threeDigit;
+      return `<span class="live-card-number${isThreeDigit ? " is-three-digit" : ""}${special ? " is-special" : ""}">${escapeHtml(text)}</span>`;
+    }
+
+    function renderLiveInlineResultLine(typeKey, lineText, index = 0) {
+      const normalizedLineText = String(lineText || "")
+        .replace(/ĐB|DB/giu, "")
+        .replace(/\s{2,}/g, " ");
+      const parts = normalizedLineText.split(/(\b\d{1,3}\b)/g);
+      if (TYPES[typeKey]?.threeDigit) {
+        const firstNumberIndex = parts.findIndex(part => /^\d{1,3}$/.test(part));
+        if (firstNumberIndex >= 0) {
+          const labelText = parts.slice(0, firstNumberIndex).join("").trim();
+          const isSpecialPrize = /đặc\s*biệt/iu.test(labelText);
+          const numbersHtml = parts.slice(firstNumberIndex).map(part => {
+            if (/^\d{1,3}$/.test(part)) return renderLiveNumberToken(typeKey, part, { special: isSpecialPrize });
+            const text = String(part || "").trim();
+            return text ? `<span class="live-card-text-segment">${escapeHtml(text)}</span>` : "";
+          }).join("");
+          return `<div class="live-card-line ${index === 0 ? "primary" : ""}"><span class="live-card-text-segment live-card-prize-label">${escapeHtml(labelText)}</span><span class="live-card-number-group">${numbersHtml}</span></div>`;
+        }
+      }
+      let afterSpecialDivider = false;
+      const html = parts.map(part => {
+        if (/^\d{1,3}$/.test(part)) {
+          return renderLiveNumberToken(typeKey, part, {
+            special: !!TYPES[typeKey]?.hasSpecial && afterSpecialDivider,
+          });
+        }
+        if (TYPES[typeKey]?.hasSpecial && String(part || "").includes("|")) afterSpecialDivider = true;
+        return `<span class="live-card-text-segment">${escapeHtml(part)}</span>`;
+      }).join("");
+      return `<div class="live-card-line ${index === 0 ? "primary" : ""}">${html}</div>`;
+    }
+
     function renderLiveCardMainLines(typeKey, item) {
       if (typeKey === "KENO" && Array.isArray(item?.main) && item.main.length) {
         const sorted = [...item.main].map(Number).filter(Number.isFinite).sort((a, b) => a - b);
@@ -3953,11 +4102,11 @@
         }
         return rows
           .filter(row => row.length)
-          .map(row => `<div class="live-card-line primary keno-row">${escapeHtml(row.map(formatPredictNumber).join(" "))}</div>`)
+          .map(row => `<div class="live-card-line primary keno-row">${row.map(value => renderLiveNumberToken(typeKey, value)).join("")}</div>`)
           .join("");
       }
       return (item?.displayLines || [])
-        .map((lineText, index) => `<div class="live-card-line ${index === 0 ? "primary" : ""}">${escapeHtml(lineText)}</div>`)
+        .map((lineText, index) => renderLiveInlineResultLine(typeKey, lineText, index))
         .join("");
     }
 
@@ -4007,17 +4156,20 @@
         const badge = getLiveUpdateBadge(meta.key);
         const badgeClass = `live-card-badge ${liveUpdateBadgeClass(badge.code)}`.trim();
         const badgeText = badge.label || "Chờ cập nhật";
+        const cardClass = `live-card${TYPES[meta.key]?.threeDigit ? " is-three-digit" : ""}`;
         const item = liveResultsState?.[meta.key];
         if (!item) {
           const pendingMetaParts = buildUpcomingLiveMetaParts(meta.key, null, nowValue);
           return `
-            <article class="live-card pending">
+            <article class="${cardClass} pending">
               <div class="live-card-top">
-                <span class="live-card-chip">Live</span>
+                <div class="live-card-info-row">
+                  <span class="live-card-chip">Live</span>
+                  <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
+                  ${pendingMetaParts.length ? `<div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(pendingMetaParts.join(" • "))}</div>` : ""}
+                </div>
                 <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
               </div>
-              <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
-              ${pendingMetaParts.length ? `<div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(pendingMetaParts.join(" • "))}</div>` : ""}
               <div class="live-card-empty">Chưa có kết quả live cho loại này.</div>
             </article>
           `;
@@ -4032,13 +4184,15 @@
         }
         const footParts = [item.sourceDate ? `Nguồn ngày ${item.sourceDate}` : "", sourceHost].filter(Boolean);
         return `
-          <article class="live-card" data-live-type="${meta.key}">
+          <article class="${cardClass}" data-live-type="${meta.key}">
             <div class="live-card-top">
-              <span class="live-card-chip">Live</span>
+              <div class="live-card-info-row">
+                <span class="live-card-chip">Live</span>
+                <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
+                <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(metaParts.join(" • "))}</div>
+              </div>
               <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
             </div>
-            <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
-            <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(metaParts.join(" • "))}</div>
             <div class="live-card-main">${lines}</div>
             <div class="live-card-foot">${escapeHtml(footParts.join(" • "))}</div>
           </article>
@@ -4064,11 +4218,7 @@
         if (document.hidden) return;
         maybeSyncServerTimeSoon();
         const liveBoardVisible = isHomePageVisible() && isElementNearViewport(document.getElementById("liveBoardSection"));
-        const normalPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_NORMAL;
-        const vipPredictVisible = isHomePageVisible() && predictPageModeValue === PREDICTION_MODE_VIP;
         if (liveBoardVisible && !updateLiveResultsCountdownText()) renderLiveResultsBoard();
-        if (normalPredictVisible && predictLastDisplayResult) renderPredictOutput();
-        if (vipPredictVisible && vipPredictLastDisplayResult) renderPredictVipOutput();
         if (predictionHistoryPanelOpen || vipPredictionHistoryPanelOpen) updatePredictionHistoryCountdowns();
       }, 1000);
     }
@@ -4845,6 +4995,41 @@
     function specialBall(hit) {
       return ball(hit ? "ball-special-hit" : "ball-special-miss");
     }
+    function renderPrizeResult(total, hit, specialHit = false) {
+      return `
+        <span class="prize-result-line">
+          <span class="prize-result-main">${mainBalls(total, hit)}</span>
+          ${specialHit ? `<span class="prize-result-plus">+</span><span class="prize-result-special">${specialBall(true)}</span>` : ""}
+        </span>
+      `;
+    }
+    function renderLotto535Match(mainHitCount, specialHit = false) {
+      const safeMainHitCount = Math.max(0, Number(mainHitCount || 0));
+      const main = safeMainHitCount > 0 ? mainBalls(safeMainHitCount, safeMainHitCount) : "";
+      const plus = safeMainHitCount > 0 && specialHit ? "+" : "";
+      return `
+        <span class="prize-match-line">
+          <span class="prize-match-main">${main}</span>
+          <span class="prize-match-plus">${plus}</span>
+          <span class="prize-match-special">${specialHit ? specialBall(true) : ""}</span>
+        </span>
+      `;
+    }
+    function renderPrizeLegend(items) {
+      const legendItems = items.map(([ballClass, label]) => `
+        <span class="prize-legend-item">
+          ${ball(ballClass)}
+          <span>${escapeHtml(label)}</span>
+        </span>
+      `).join("");
+      return `
+        <div class="prize-note prize-legend">
+          <span class="prize-legend-title">Ghi chú</span>
+          ${legendItems}
+          <span class="prize-legend-rule">Các số không theo thứ tự.</span>
+        </div>
+      `;
+    }
     function formatPrizeCurrency(value) {
       return `${Math.max(0, Number(value || 0)).toLocaleString("vi-VN")} VNĐ`;
     }
@@ -4882,7 +5067,7 @@
     }
     function buildBaoNote(type) {
       if (type === "LOTO_5_35") {
-        return `<b>Ghi chú Bao Vé:</b> Tính theo bao số chính, giá vé cơ bản 10.000 VNĐ/vé con. Riêng số đặc biệt của Lotto 5/35 không được “bao” trong bảng này và vẫn phải khớp theo từng vé phát sinh.`;
+        return `<b>Ghi chú Bao Vé:</b> Tính theo bao số chính, giá vé cơ bản 10.000 VNĐ/vé con.`;
       }
       if (type === "LOTO_6_55") {
         return `<b>Ghi chú Bao Vé:</b> Tính theo bao 6 số chính, giá vé cơ bản 10.000 VNĐ/vé con. Jackpot 2 của Power 6/55 vẫn phụ thuộc thêm số đặc biệt trên từng vé con.`;
@@ -5178,7 +5363,7 @@
         </article>
       `);
       return buildPrizeSection(
-        "Phần 2: Bao Vé",
+        "Bao Vé",
         escapeHtml(type === "LOTO_5_35" ? "Hiển thị theo brochure Lotto 5/35" : (type === "LOTO_6_55" ? "Hiển thị theo brochure Power 6/55" : "Hiển thị theo brochure Mega 6/45")),
         `
           <div class="bao-prize-grid">${cards.join("")}</div>
@@ -5302,54 +5487,53 @@
       }
       if (type === "LOTO_5_35") {
         const regularSection = buildPrizeSection(
-          "Phần 1: Vé Thường",
+          "Vé Thường",
           "Cơ cấu thưởng chuẩn của Lotto 5/35",
           `
             <div class="prize-table-wrap">
-              <table class="prize-table">
+              <table class="prize-table prize-table-lotto-535">
+                <colgroup>
+                  <col class="prize-col-name">
+                  <col class="prize-col-match">
+                  <col class="prize-col-value">
+                </colgroup>
                 <thead>
                   <tr>
-                    <th rowspan="2">Giải thưởng</th>
-                    <th colspan="2" class="group">Kết quả</th>
-                    <th rowspan="2">Giá trị giải thưởng (VNĐ)</th>
-                  </tr>
-                  <tr>
-                    <th>Các số chính</th>
-                    <th>Số đặc biệt</th>
+                    <th>Giải</th>
+                    <th>Trúng khớp</th>
+                    <th>Giá trị giải thưởng (VNĐ)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>Giải Độc Đắc</td><td>${mainBalls(5, 5)}</td><td>${specialBall(true)}</td><td>(Tối thiểu 6 tỷ và tích lũy)</td></tr>
-                  <tr><td>Giải Nhất</td><td>${mainBalls(5, 5)}</td><td>${specialBall(false)}</td><td>10.000.000 *</td></tr>
-                  <tr><td>Giải Nhì</td><td>${mainBalls(5, 4)}</td><td>${specialBall(true)}</td><td>5.000.000 *</td></tr>
-                  <tr><td>Giải Ba</td><td>${mainBalls(5, 4)}</td><td>${specialBall(false)}</td><td>500.000 *</td></tr>
-                  <tr><td>Giải Tư</td><td>${mainBalls(5, 3)}</td><td>${specialBall(true)}</td><td>100.000 *</td></tr>
-                  <tr><td>Giải Năm</td><td>${mainBalls(5, 3)}</td><td>${specialBall(false)}</td><td>30.000 *</td></tr>
+                  <tr><td>Giải Độc Đắc</td><td>${renderLotto535Match(5, true)}</td><td>(Tối thiểu 6 tỷ và tích lũy)</td></tr>
+                  <tr><td>Giải Nhất</td><td>${renderLotto535Match(5)}</td><td>10.000.000 *</td></tr>
+                  <tr><td>Giải Nhì</td><td>${renderLotto535Match(4, true)}</td><td>5.000.000 *</td></tr>
+                  <tr><td>Giải Ba</td><td>${renderLotto535Match(4)}</td><td>500.000 *</td></tr>
+                  <tr><td>Giải Tư</td><td>${renderLotto535Match(3, true)}</td><td>100.000 *</td></tr>
+                  <tr><td>Giải Năm</td><td>${renderLotto535Match(3)}</td><td>30.000 *</td></tr>
                   <tr>
                     <td>Giải Khuyến Khích</td>
                     <td class="prize-lines">
-                      <div>${mainBalls(5, 2)}</div>
-                      <div>${mainBalls(5, 1)}</div>
-                      <div>${mainBalls(5, 0)}</div>
-                    </td>
-                    <td class="prize-lines">
-                      <div>${specialBall(true)}</div>
-                      <div>${specialBall(true)}</div>
-                      <div>${specialBall(true)}</div>
+                      <div>${renderLotto535Match(2, true)}</div>
+                      <div>${renderLotto535Match(1, true)}</div>
+                      <div>${renderLotto535Match(0, true)}</div>
                     </td>
                     <td>10.000 *</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <div class="prize-note"><b>Ghi chú:</b> ${ball("ball-main-hit")} bóng đỏ: số chính trúng | ${ball("ball-special-hit")} bóng vàng: số đặc biệt trúng | ${ball("ball-main-miss")} bóng đen/xám: số không trúng.<br><b> Các số không theo thứ tự. </b></div>
+            ${renderPrizeLegend([
+              ["ball-main-hit", "Bóng xanh: số chính trúng"],
+              ["ball-special-hit", "Bóng cam: số đặc biệt trúng"]
+            ])}
           `
         );
         return `<div class="prize-sections">${regularSection}${renderBaoPrizeTable(type)}</div>`;
       }
       if (type === "LOTO_6_45") {
         const regularSection = buildPrizeSection(
-          "Phần 1: Vé Thường",
+          "Vé Thường",
           "Cơ cấu thưởng chuẩn của Mega 6/45",
           `
             <div class="prize-table-wrap">
@@ -5369,13 +5553,16 @@
                 </tbody>
               </table>
             </div>
-            <div class="prize-note"><b>Ghi chú:</b> ${ball("ball-main-hit")} bóng đỏ: số trúng | ${ball("ball-main-miss")} bóng đen/xám: số không trúng.<br><b> Các số không theo thứ tự. </b></div>
+            ${renderPrizeLegend([
+              ["ball-main-hit", "Bóng xanh: số trúng"],
+              ["ball-main-miss", "Bóng đen/xám: số không trúng"]
+            ])}
           `
         );
         return `<div class="prize-sections">${regularSection}${renderBaoPrizeTable(type)}</div>`;
       }
       const regularSection = buildPrizeSection(
-        "Phần 1: Vé Thường",
+        "Vé Thường",
         "Cơ cấu thưởng chuẩn của Power 6/55",
         `
           <div class="prize-table-wrap">
@@ -5388,27 +5575,91 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td>Giải Jackpot 1</td><td>${mainBalls(6, 6)}</td><td>(Tối thiểu 30 tỷ và tích lũy)</td></tr>
-                <tr><td>Giải Jackpot 2</td><td>${mainBalls(6, 5)} + ${specialBall(true)}</td><td>(Tối thiểu 3 tỷ và tích lũy)</td></tr>
-                <tr><td>Giải Nhất</td><td>${mainBalls(6, 5)}</td><td>40.000.000</td></tr>
-                <tr><td>Giải Nhì</td><td>${mainBalls(6, 4)}</td><td>500.000</td></tr>
-                <tr><td>Giải Ba</td><td>${mainBalls(6, 3)}</td><td>50.000</td></tr>
+                <tr><td>Giải Jackpot 1</td><td>${renderPrizeResult(6, 6)}</td><td>(Tối thiểu 30 tỷ và tích lũy)</td></tr>
+                <tr><td>Giải Jackpot 2</td><td>${renderPrizeResult(6, 5, true)}</td><td>(Tối thiểu 3 tỷ và tích lũy)</td></tr>
+                <tr><td>Giải Nhất</td><td>${renderPrizeResult(6, 5)}</td><td>40.000.000</td></tr>
+                <tr><td>Giải Nhì</td><td>${renderPrizeResult(6, 4)}</td><td>500.000</td></tr>
+                <tr><td>Giải Ba</td><td>${renderPrizeResult(6, 3)}</td><td>50.000</td></tr>
               </tbody>
             </table>
           </div>
-          <div class="prize-note"><b>Ghi chú:</b> ${ball("ball-main-hit")} bóng đỏ: số chính trúng | ${ball("ball-special-hit")} bóng vàng: số đặc biệt trúng (Jackpot 2) | ${ball("ball-main-miss")} bóng đen/xám: số không trúng.<br><b> Các số không theo thứ tự. </b></div>
+          ${renderPrizeLegend([
+            ["ball-main-hit", "Bóng xanh: số chính trúng"],
+            ["ball-special-hit", "Bóng cam: số đặc biệt trúng (Jackpot 2)"],
+            ["ball-main-miss", "Bóng đen/xám: số không trúng"]
+          ])}
         `
       );
       return `<div class="prize-sections">${regularSection}${renderBaoPrizeTable(type)}</div>`;
+    }
+    let currentPrizePartIndex = 0;
+    function setPrizePart(out, index) {
+      const safeIndex = Math.max(0, Number(index || 0));
+      currentPrizePartIndex = safeIndex;
+      const sections = out ? [...out.querySelectorAll(".prize-sections > .prize-section")] : [];
+      const buttons = [...document.querySelectorAll("#prizePartTabs .prize-part-tab")];
+      sections.forEach((section, sectionIndex) => {
+        section.classList.toggle("is-hidden", sectionIndex !== safeIndex);
+      });
+      buttons.forEach((button, buttonIndex) => {
+        const active = buttonIndex === safeIndex;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    }
+    function applyPrizePartTabs(out) {
+      const host = out?.querySelector(".prize-sections");
+      const buttons = [...document.querySelectorAll("#prizePartTabs .prize-part-tab")];
+      if (!host) {
+        currentPrizePartIndex = 0;
+        buttons.forEach((button, index) => {
+          const available = index === 0;
+          button.disabled = !available;
+          button.classList.toggle("is-disabled", !available);
+          button.title = available ? "Bảng thưởng hiện tại" : "Loại vé này chưa có phần Bao Vé.";
+        });
+        setPrizePart(out, 0);
+        return;
+      }
+      const sections = [...host.querySelectorAll(":scope > .prize-section")];
+      buttons.forEach((button, index) => {
+        const available = index < sections.length;
+        button.disabled = !available;
+        button.classList.toggle("is-disabled", !available);
+        button.title = available
+          ? (sections[index].querySelector(".prize-section-title")?.textContent?.trim() || button.textContent.trim())
+          : "Loại vé này chưa có phần Bao Vé.";
+      });
+      if (currentPrizePartIndex >= sections.length) currentPrizePartIndex = 0;
+      setPrizePart(out, currentPrizePartIndex);
+    }
+    function bindPrizePartTabs() {
+      const tabs = document.getElementById("prizePartTabs");
+      if (!tabs || tabs.dataset.bound) return;
+      tabs.dataset.bound = "1";
+      tabs.addEventListener("click", event => {
+        const button = event.target.closest("[data-prize-part]");
+        if (!button || button.disabled) return;
+        const out = document.getElementById("prizeOut");
+        if (!out?.classList.contains("prize-box")) {
+          currentPrizePartIndex = Number(button.dataset.prizePart || 0);
+          renderPrizePanel();
+          return;
+        }
+        setPrizePart(out, Number(button.dataset.prizePart || 0));
+      });
     }
     function renderPrizePanel() {
       const type = document.getElementById("prizeType").value;
       const out = document.getElementById("prizeOut");
       out.className = "result-box prize-box";
       out.innerHTML = renderPrizeTable(type);
+      out.classList.toggle("is-section-layout", !!out.querySelector(":scope > .prize-sections"));
+      applyPrizePartTabs(out);
     }
     document.getElementById("showPrizeBtn").onclick = () => renderPrizePanel();
     document.getElementById("prizeType").onchange = () => renderPrizePanel();
+    bindPrizePartTabs();
 
     function range(min, max) {
       const out = [];
@@ -6175,11 +6426,11 @@
             vipProfile: "",
           };
           if (result?.ready !== false && PREDICTION_LOG_TYPES.includes(type)) {
-            if (type === "KENO" && (result?.sync || result?.latestKy || result?.nextKy)) {
-              await refreshKenoPredictionDataForHistory({ silent: true });
-            }
+            if (type === "KENO" && !kenoCsvFeedCacheRestored) restoreKenoCsvFeedCache();
             const predictionDataset = buildPredictionResultDataset(type);
-            const predictedKy = normalizeKy(result?.nextKy) || getNextPredictionKy(type, predictionDataset);
+            const latestKyValue = kySortValue(result?.latestKy);
+            const predictedKyFromLatest = latestKyValue > 0 ? `#${String(latestKyValue + 1).padStart(4, "0")}` : null;
+            const predictedKy = normalizeKy(result?.nextKy) || predictedKyFromLatest || getNextPredictionKy(type, predictionDataset);
             if (predictedKy) {
               upsertPredictionLog(type, {
                 createdAt: predictionCreatedAt,

@@ -83,6 +83,14 @@
       1: { 1: "20.000" }
     };
     const TYPE_KEYS = Object.keys(TYPES);
+    const PRIZE_TYPE_SHORT_LABELS = {
+      LOTO_5_35: "5/35",
+      LOTO_6_45: "6/45",
+      LOTO_6_55: "6/55",
+      KENO: "Keno",
+      MAX_3D: "3D",
+      MAX_3D_PRO: "3D Pro"
+    };
     const REMEMBER_KEY = "vietlott_web_remember_v1";
     const THEME_KEY = "vietlott_web_theme_v1";
     const LOCAL_USERS_KEY = "vietlott_local_users_v1";
@@ -444,6 +452,7 @@
     let storeSaveGeneration = 0;
     let accountEditMode = false;
     let kenoCsvFeed = { results: {}, order: [], sourceLabels: [], loadedAt: "" };
+    let kenoCsvFeedCacheRestored = false;
     let kenoPredictStatusMeta = { loadedAt: "", detail: "", level: "" };
     let liveResultsState = {};
     let liveUpdateBadgeState = {};
@@ -585,6 +594,7 @@
     let luckyWheelSpinning = false;
     let luckyWheelAutoMode = false;
     let luckyWheelUiTimer = null;
+    let luckyWheelResizeFrame = 0;
     let luckyWheelLastAvailable = null;
     let luckyWheelSpinMultiplier = 1;
     let luckyWheelSelectedTopupSpins = 0;
@@ -1758,6 +1768,7 @@
       }
       const res = await api("/api/store");
       const parsed = res.store || {};
+      const serverStoreSnapshotText = JSON.stringify(parsed);
       const base = emptyStore();
       base.diamondBalance = Math.max(0, Number(parsed.diamondBalance || 0));
       base.paypalBalance = Math.max(0, Number(parsed.paypalBalance || 0));
@@ -1768,7 +1779,8 @@
         base.pickOrder[t] = parsed.pickOrder?.[t] || Object.keys(base.picks[t]);
       }
       for (const t of PREDICTION_LOG_TYPES) {
-        base.predictionLogs[t] = Array.isArray(parsed.predictionLogs?.[t]) ? parsed.predictionLogs[t] : [];
+        const logs = Array.isArray(parsed.predictionLogs?.[t]) ? parsed.predictionLogs[t] : [];
+        base.predictionLogs[t] = logs.slice(-MAX_PREDICTION_LOGS_PER_TYPE);
       }
       base.statsV2Favorites = Array.isArray(parsed.statsV2Favorites) ? parsed.statsV2Favorites : [];
       base.statsV2History = Array.isArray(parsed.statsV2History) ? parsed.statsV2History : [];
@@ -1791,10 +1803,13 @@
         : null;
       const predictionLogsBeforeReconcile = getPredictionLogsSignature(base.predictionLogs);
       store = base;
-      lastSavedStoreSnapshotText = JSON.stringify(buildPersistableStoreSnapshot(base));
+      const compactSnapshotText = JSON.stringify(buildPersistableStoreSnapshot(base));
+      const needsStoreCompaction = compactSnapshotText !== serverStoreSnapshotText;
+      lastSavedStoreSnapshotText = needsStoreCompaction ? serverStoreSnapshotText : compactSnapshotText;
       reconcileAllPredictionLogs();
-      if (getPredictionLogsSignature(store.predictionLogs) !== predictionLogsBeforeReconcile) {
-        saveStore({ reason: "reconcile_prediction_logs" });
+      const predictionLogsChanged = getPredictionLogsSignature(store.predictionLogs) !== predictionLogsBeforeReconcile;
+      if (predictionLogsChanged || needsStoreCompaction) {
+        saveStore({ reason: predictionLogsChanged ? "reconcile_prediction_logs" : "compact_store_payload" });
       }
       renderCurrencyBar();
     }
@@ -3372,6 +3387,9 @@
       setPrimaryContentVisible(true);
       setAuxiliarySectionsVisible("");
       setSideMenuActiveButton("homeMenuBtn");
+      renderPrizePanel();
+      renderLiveResultsBoard();
+      renderLiveHistoryOutput();
     }
 
     function scrollToAppSection(sectionId, menuButtonId = "") {
@@ -3385,7 +3403,7 @@
     function fillTypeSelect(id) {
       const el = document.getElementById(id);
       if (!el) return;
-      el.innerHTML = TYPE_KEYS.map(k => `<option value="${k}">${TYPES[k].label}</option>`).join("");
+      el.innerHTML = TYPE_KEYS.map(k => `<option value="${k}">${id === "prizeType" ? (PRIZE_TYPE_SHORT_LABELS[k] || TYPES[k].label) : TYPES[k].label}</option>`).join("");
     }
 
     function fillLiveHistoryTypeSelect() {
@@ -3733,7 +3751,12 @@
       applyAppPageLayout();
     });
     window.addEventListener("resize", () => {
-      renderLuckyWheelLabels();
+      if (getCurrentAppPageMode() !== "wheel" || !isElementActuallyVisible(document.getElementById("luckyWheelSection"))) return;
+      if (luckyWheelResizeFrame) window.cancelAnimationFrame(luckyWheelResizeFrame);
+      luckyWheelResizeFrame = window.requestAnimationFrame(() => {
+        luckyWheelResizeFrame = 0;
+        renderLuckyWheelLabels();
+      });
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
@@ -3772,18 +3795,12 @@
       document.getElementById("openAccountBtn").style.display = currentUserRole === "admin" ? "inline-block" : "none";
       document.getElementById("authOverlay").style.display = "none";
       document.getElementById("appShell").style.display = "block";
-      renderPrizePanel();
-      renderPaypalDepositSection();
-      renderLuckyWheelPanel();
       startLuckyWheelUiTimer();
-      restoreKenoCsvFeedCache();
       updateKenoCsvStatus();
       restoreLiveResultsCache();
       restoreLiveUpdateBadgeCache();
       clearLegacyLiveHistoryCache();
       clearLiveHistoryState();
-      renderLiveResultsBoard();
-      renderLiveHistoryOutput();
       renderPredictionHistoryPanel();
       applyAppPageLayout();
       syncKenoTrainingConfigFromUi();
@@ -3791,9 +3808,10 @@
       if (kenoTrainingEnabled) startKenoTrainingLoop();
       runWhenBrowserIdle(async () => {
         if (!currentUser) return;
-        await syncLiveResults({ silent: true }).catch(() => {});
-        if (!currentUser) return;
-        await refreshKenoPredictionDataForHistory({ silent: true }).catch(() => {});
+        const hasCachedLiveResults = Object.keys(liveResultsState || {}).length > 0;
+        if (!hasCachedLiveResults) {
+          await syncLiveResults({ silent: true }).catch(() => {});
+        }
       }, 800);
     }
 
@@ -4036,10 +4054,13 @@
     function syncVipPredictBaoOptions() {
       const select = document.getElementById("vipPdBaoLevel");
       const row = document.getElementById("vipPdBaoRow");
+      const playModeRow = document.getElementById("vipPdPlayModeRow");
       const typeKey = String(vipPredictTypeValue || document.getElementById("vipPdType")?.value || "").trim().toUpperCase();
       const options = hasPredictBaoMode(typeKey) ? PREDICT_BAO_LEVELS[typeKey] : [];
       if (!select || !row) return;
-      if (!options.length || vipPredictPlayModeValue !== "bao") {
+      const shouldShow = options.length > 0 && vipPredictPlayModeValue === "bao";
+      if (playModeRow) playModeRow.classList.toggle("has-bao", shouldShow);
+      if (!shouldShow) {
         select.innerHTML = "";
         vipPredictBaoLevelValue = "";
         row.style.display = "none";
@@ -4081,9 +4102,9 @@
         }
       }
       if (baoSelect) baoSelect.disabled = isKenoPredict || !hasBaoMode || vipPredictPlayModeValue !== "bao";
-      if (subRow) subRow.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+      if (subRow) subRow.style.removeProperty("grid-template-columns");
       if (kenoLevelBox) kenoLevelBox.style.display = isKenoPredict ? "grid" : "none";
-      if (engineBox) engineBox.style.gridColumn = isKenoPredict ? "" : (isAiPredict ? "1 / -1" : "");
+      if (engineBox) engineBox.style.removeProperty("grid-column");
       enforceVipPredictEngineVisibility(isKenoPredict, isAiPredict);
       syncVipPredictBaoOptions();
       renderVipPredictEngineChoice();
@@ -4103,18 +4124,22 @@
         const nextMode = savePredictPageMode(button.dataset.predictModeTab || PREDICTION_MODE_NORMAL);
         renderPredictModeTabs();
         if (nextMode === PREDICTION_MODE_STATS) {
+          renderStatsPanel();
           startStatsPanelRefresh({ force: true, silent: true });
         } else if (nextMode === PREDICTION_MODE_STATS_V2) {
+          renderStatsV2Panel();
           loadStatsV2({ force: true, silent: true });
           window.setTimeout(() => {
             document.getElementById("predictRootStatsV2")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }, 40);
         } else if (nextMode === PREDICTION_MODE_CHARTS) {
+          renderChartStatsPanel();
           startChartStatsRefresh({ silent: true });
           window.setTimeout(() => {
             document.getElementById("predictRootCharts")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }, 40);
         } else if (nextMode === PREDICTION_MODE_DASHBOARD) {
+          renderDashboardPanel();
           startDashboardRefresh({ silent: true });
           window.setTimeout(() => {
             document.getElementById("predictRootDashboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -5009,21 +5034,21 @@
       renderPredictModeTabs();
       renderStatsTypeTabs();
       renderStatsWindowTabs();
-      renderStatsPanel();
-      renderStatsV2Panel();
-      renderAnalysis(null);
-      renderChartStatsPanel();
-      renderDashboardPanel();
       renderKenoTrainingToggle();
       if (predictPageModeValue === PREDICTION_MODE_STATS) {
+        renderStatsPanel();
         startStatsPanelRefresh({ force: true, silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_STATS_V2) {
+        renderStatsV2Panel();
         loadStatsV2({ force: true, silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_CHARTS) {
+        renderChartStatsPanel();
         startChartStatsRefresh({ silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_DASHBOARD) {
+        renderDashboardPanel();
         startDashboardRefresh({ silent: true });
       } else if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) {
+        renderAnalysis(null);
         loadAnalysis({ force: true, silent: true });
       }
     }
@@ -5557,12 +5582,10 @@
         id: String(entry.id || ""),
         createdAt: String(entry.createdAt || ""),
         predictedKy: normalizeKy(entry.predictedKy),
-        strategyLabel: String(entry.strategyLabel || ""),
         modelLabel: String(entry.modelLabel || ""),
         engineLabel: String(entry.engineLabel || ""),
         riskMode: normalizePredictRiskMode(entry.riskMode || "balanced"),
         riskModeLabel: String(entry.riskModeLabel || getPredictRiskModeMeta(entry.riskMode || "balanced").label),
-        riskModeSummary: String(entry.riskModeSummary || getPredictRiskModeMeta(entry.riskMode || "balanced").summary),
         confidence: Number(entry.confidence || 0),
         stabilityScore: Number(entry.stabilityScore || entry.backtest?.stabilityScore || 0),
         recentCount: Number(entry.recentCount || 0),
@@ -5574,14 +5597,19 @@
         baoLevel: Number.isInteger(Number(entry.baoLevel)) ? Number(entry.baoLevel) : null,
         predictionMode: normalizePredictionMode(entry.predictionMode || PREDICTION_MODE_NORMAL),
         vipProfile: String(entry.vipProfile || ""),
+        predictionId: String(entry.predictionId || ""),
+        predictionStatus: String(entry.predictionStatus || ""),
+        dataCutoffDrawId: String(entry.dataCutoffDrawId || ""),
+        payloadChecksum: String(entry.payloadChecksum || ""),
+        modelVersion: String(entry.modelVersion || ""),
+        modelRole: String(entry.modelRole || ""),
+        scoreMetrics: entry.scoreMetrics && typeof entry.scoreMetrics === "object" ? entry.scoreMetrics : null,
         tickets: Array.isArray(entry.tickets) ? entry.tickets.map(clonePredictionTicket).filter(Boolean) : [],
         ticketSources: Array.isArray(entry.ticketSources) ? entry.ticketSources.map(item => String(item || "").trim()) : [],
         topMainRanking: Array.isArray(entry.topMainRanking) ? entry.topMainRanking.map(Number).filter(Number.isInteger) : [],
         topSpecialRanking: Array.isArray(entry.topSpecialRanking) ? entry.topSpecialRanking.map(Number).filter(Number.isInteger) : [],
-        backtest: pickStorePersistFields(entry.backtest, STORE_PERSIST_PREDICTION_BACKTEST_KEYS),
         metaSelectionMode: String(entry.metaSelectionMode || ""),
         metaPreferredEngine: String(entry.metaPreferredEngine || ""),
-        metaSummary: String(entry.metaSummary || ""),
         resolved: !!entry.resolved,
         resolvedAt: String(entry.resolvedAt || ""),
         actualKy: String(entry.actualKy || ""),
