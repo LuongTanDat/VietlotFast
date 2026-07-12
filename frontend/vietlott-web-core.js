@@ -1721,10 +1721,13 @@
     function applyTheme(theme) {
       const isLight = theme === "light";
       document.body.classList.toggle("light-theme", isLight);
+      document.documentElement.style.colorScheme = isLight ? "light" : "dark";
       const btn = document.getElementById("themeToggleBtn");
       if (btn) {
         btn.textContent = isLight ? "☀️" : "🌙";
         btn.title = isLight ? "Đang sáng, bấm để chuyển tối" : "Đang tối, bấm để chuyển sáng";
+        btn.setAttribute("aria-label", btn.title);
+        btn.setAttribute("aria-pressed", isLight ? "true" : "false");
       }
       localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
     }
