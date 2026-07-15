@@ -62,6 +62,82 @@
       MAX_3D: { label: "Max 3D", mainMin: 0, mainMax: 999, mainCount: 2, hasSpecial: false, specialMin: 0, specialMax: 0, threeDigit: true },
       MAX_3D_PRO: { label: "Max 3D Pro", mainMin: 0, mainMax: 999, mainCount: 2, hasSpecial: false, specialMin: 0, specialMax: 0, threeDigit: true }
     };
+    const PREDICTION_TOP_RANKING_RULES = Object.freeze({
+      LOTO_5_35: Object.freeze({ mainMin: 7, mainMax: 15, specialMin: 3, specialMax: 6, specialExcludesMain: false }),
+      LOTO_6_45: Object.freeze({ mainMin: 7, mainMax: 18, specialMin: 0, specialMax: 0, specialExcludesMain: false }),
+      LOTO_6_55: Object.freeze({ mainMin: 7, mainMax: 18, specialMin: 3, specialMax: 9, specialExcludesMain: true }),
+      KENO: Object.freeze({ mainMin: 10, mainMax: 20, specialMin: 0, specialMax: 0, specialExcludesMain: false }),
+      MAX_3D: Object.freeze({ mainMin: 10, mainMax: 20, specialMin: 0, specialMax: 0, specialExcludesMain: false }),
+      MAX_3D_PRO: Object.freeze({ mainMin: 10, mainMax: 20, specialMin: 0, specialMax: 0, specialExcludesMain: false }),
+    });
+
+    function getPredictionTopRankingRule(type) {
+      return PREDICTION_TOP_RANKING_RULES[String(type || "").trim().toUpperCase()] || null;
+    }
+
+    function normalizePredictionTopRankings(type, mainRanking = [], specialRanking = [], tickets = []) {
+      const normalizedType = String(type || "").trim().toUpperCase();
+      const typeMeta = TYPES[normalizedType];
+      const rule = getPredictionTopRankingRule(normalizedType);
+      if (!typeMeta || !rule) return { main: [], special: [] };
+
+      const collectUnique = (sources, minimum, maximum, excluded = new Set()) => {
+        const output = [];
+        const seen = new Set();
+        sources.flat().forEach(rawValue => {
+          const value = Number(rawValue);
+          if (!Number.isInteger(value) || value < minimum || value > maximum || excluded.has(value) || seen.has(value)) return;
+          seen.add(value);
+          output.push(value);
+        });
+        return output;
+      };
+      const ticketRows = Array.isArray(tickets) ? tickets : [];
+      const mainSources = [
+        Array.isArray(mainRanking) ? mainRanking : [],
+        ticketRows.flatMap(ticket => Array.isArray(ticket?.main) ? ticket.main : []),
+      ];
+      let main = collectUnique(mainSources, typeMeta.mainMin, typeMeta.mainMax);
+      if (main.length && main.length < rule.mainMin) {
+        main = collectUnique([main, Array.from({ length: typeMeta.mainMax - typeMeta.mainMin + 1 }, (_, index) => typeMeta.mainMin + index)], typeMeta.mainMin, typeMeta.mainMax);
+      }
+      main = main.slice(0, rule.mainMax);
+
+      if (!rule.specialMax || !typeMeta.hasSpecial) return { main, special: [] };
+      const ticketSpecials = ticketRows.map(ticket => ticket?.special);
+      const hasSpecialSource = (Array.isArray(specialRanking) && specialRanking.length > 0)
+        || ticketSpecials.some(value => Number.isInteger(Number(value)));
+      const excluded = rule.specialExcludesMain ? new Set(main) : new Set();
+      let special = collectUnique(
+        [Array.isArray(specialRanking) ? specialRanking : [], ticketSpecials],
+        typeMeta.specialMin,
+        typeMeta.specialMax,
+        excluded,
+      );
+      if (hasSpecialSource && special.length < rule.specialMin) {
+        special = collectUnique([
+          special,
+          Array.from({ length: typeMeta.specialMax - typeMeta.specialMin + 1 }, (_, index) => typeMeta.specialMin + index),
+        ], typeMeta.specialMin, typeMeta.specialMax, excluded);
+      }
+      return { main, special: special.slice(0, rule.specialMax) };
+    }
+
+    function normalizePredictionResultTopRankings(result, typeHint = "") {
+      if (!result || typeof result !== "object") return result;
+      const type = String(result.type || typeHint || "").trim().toUpperCase();
+      const normalized = normalizePredictionTopRankings(
+        type,
+        result.topRanking || result.topMainRanking,
+        result.topSpecialRanking,
+        result.tickets,
+      );
+      return {
+        ...result,
+        topRanking: normalized.main,
+        topSpecialRanking: normalized.special,
+      };
+    }
     const LOTTERY_MENU_TYPES = [
       { key: "LOTO_5_35", label: "Loto_5/35", desc: "Power slot nhiều cấp số đặc biệt", badge: "SẴN SÀNG", supported: true },
       { key: "LOTO_6_45", label: "Mega_6/45", desc: "Mega cơ bản cho nhập liệu và thống kê", badge: "SẴN SÀNG", supported: true },
@@ -128,6 +204,11 @@
     const LIVE_SYNC_TIMING_CACHE_KEY = "vietlott_live_sync_timing_v1";
     const LIVE_UPDATE_BADGE_CACHE_KEY = "vietlott_live_update_badges_v1";
     const MAX_RESULTS_PER_TYPE = 60;
+    const PREDICT_MAX_BUNDLES = 100;
+    const APP_SHORT_NAME = "DVLF";
+    const APP_FULL_NAME = "Deep Vietlott Fast";
+    const HEADER_NOTIFICATION_READ_KEY = "dvlf_header_notification_read_v1";
+    const HEADER_NOTIFICATION_DISMISSED_KEY = "dvlf_header_notification_dismissed_v1";
     const MAX_PICKS_PER_TYPE = 45;
     const LIVE_RESULT_TYPES = [
       { key: "LOTO_5_35", label: "Loto_5/35", importable: true },
@@ -170,6 +251,7 @@
     );
     const AI_PREDICT_TYPES = new Set(["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"]);
     const PREDICTION_LOG_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
+    const ML_PREDICTION_LOG_TYPES = new Set(["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55"]);
     const PREDICT_RISK_MODES = [
       { key: "stable", label: "Ổn Định", summary: "Meta đang ưu tiên giữ nhịp và giảm dao động giữa 2 engine." },
       { key: "balanced", label: "Cân Bằng", summary: "Meta đang giữ cân bằng giữa độ ổn định và cơ hội bùng nhịp." },
@@ -356,7 +438,7 @@
       ],
     };
     const PREDICT_BAO_LEVELS = {
-      LOTO_5_35: Array.from({ length: 12 }, (_, index) => 4 + index),
+      LOTO_5_35: [4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
       LOTO_6_45: [5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18],
       LOTO_6_55: [5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18],
     };
@@ -370,13 +452,28 @@
       custom: "Khoảng Ngày",
     };
     const STATS_SIX_GRID_TYPES = new Set(["LOTO_5_35", "LOTO_6_45", "LOTO_6_55"]);
-    function hasPredictBaoMode(typeKey) {
+    function getPredictBaoLevels(typeKey) {
       const normalizedType = String(typeKey || "").trim().toUpperCase();
-      return Array.isArray(PREDICT_BAO_LEVELS[normalizedType]) && PREDICT_BAO_LEVELS[normalizedType].length > 0;
+      return Array.isArray(PREDICT_BAO_LEVELS[normalizedType]) ? [...PREDICT_BAO_LEVELS[normalizedType]] : [];
+    }
+    function hasPredictBaoMode(typeKey) {
+      return getPredictBaoLevels(typeKey).length > 0;
     }
     const MAX_PREDICTION_LOGS_PER_TYPE = 180;
     const STORE_PERSIST_PREDICTION_BACKTEST_KEYS = ["avgHitRate", "avgHits", "samples", "recentAvgHitRate", "agreementScore", "cooldownPenalty", "stabilityScore"];
-    const STORE_PERSIST_RESULT_SUMMARY_KEYS = ["ticketCount", "bestMainHits", "avgMainHits", "specialHits", "thresholdTicketHits", "prizeTicketHits"];
+    const STORE_PERSIST_RESULT_SUMMARY_KEYS = [
+      "ticketCount",
+      "bestMainHits",
+      "avgMainHits",
+      "specialHits",
+      "thresholdTicketHits",
+      "prizeTicketHits",
+      "pricedPrizeHits",
+      "totalPrizeAmount",
+      "hasVariablePrize",
+      "losingTicketCount",
+      "prizeBreakdown",
+    ];
     const MAX_PAYPAL_TOPUPS = 24;
     const PAYPAL_REAL_RATE = 1.25;
     const PAYPAL_TOPUP_PACKAGES = [
@@ -455,6 +552,7 @@
     let kenoCsvFeedCacheRestored = false;
     let kenoPredictStatusMeta = { loadedAt: "", detail: "", level: "" };
     let liveResultsState = {};
+    const liveSingleRefreshBusy = new Set();
     let liveUpdateBadgeState = {};
     let liveHistoryState = {};
     let liveHistoryLegacyApiMode = false;
@@ -570,7 +668,7 @@
     let liveResultsLegacyFallbackRunning = false;
     let predictionHistoryPanelOpen = false;
     let predictionHistorySelectedType = "KENO";
-    let predictionHistorySelectedRange = "2k";
+    let predictionHistorySelectedRange = "5k";
     let predictionHistorySelectedPlayMode = "normal";
     let predictionHistorySelectedBaoLevel = "all";
     let predictionHistoryExpandedKeys = new Set();
@@ -581,7 +679,7 @@
     let predictionHistoryRefreshToken = 0;
     let vipPredictionHistoryPanelOpen = false;
     let vipPredictionHistorySelectedType = "KENO";
-    let vipPredictionHistorySelectedRange = "2k";
+    let vipPredictionHistorySelectedRange = "5k";
     let vipPredictionHistorySelectedPlayMode = "normal";
     let vipPredictionHistorySelectedBaoLevel = "all";
     let vipPredictionHistoryCurrentIndex = 0;
@@ -730,18 +828,18 @@
     function applyAppPageMetadata() {
       const mode = getCurrentAppPageMode();
       if (mode === "wheel") {
-        document.title = "Vòng Quay May Mắn | Vietlott Tra Cứu Nhanh Pro";
+        document.title = `Vòng Quay May Mắn | ${APP_SHORT_NAME}`;
         return;
       }
       if (mode === "deposit") {
-        document.title = "Nạp tiền tài khoản | Vietlott Tra Cứu Nhanh Pro";
+        document.title = `Nạp tiền tài khoản | ${APP_SHORT_NAME}`;
         return;
       }
       if (mode === "data") {
-        document.title = "Bảng Dữ Liệu | Vietlott Tra Cứu Nhanh Pro";
+        document.title = `Bảng Dữ Liệu | ${APP_SHORT_NAME}`;
         return;
       }
-      document.title = "Vietlott Tra Cứu Nhanh Pro";
+      document.title = APP_SHORT_NAME;
     }
 
     // ----- Cache cục bộ và badge trạng thái -----
@@ -1692,6 +1790,9 @@
         String(entry.resultStatus || ""),
         String(summary.prizeTicketHits || 0),
         String(summary.bestMainHits || 0),
+        String(summary.totalPrizeAmount || 0),
+        String(summary.losingTicketCount || 0),
+        JSON.stringify(summary.prizeBreakdown || []),
         main,
         special
       ].join("|");
@@ -1730,6 +1831,163 @@
         btn.setAttribute("aria-pressed", isLight ? "true" : "false");
       }
       localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
+    }
+
+    function syncSideAccountIdentity() {
+      const identity = document.getElementById("whoami");
+      const accountManagerButton = document.getElementById("openAccountBtn");
+      if (identity) {
+        const roleLabel = currentUserRole === "admin" ? "Quản trị viên" : "Người dùng";
+        identity.textContent = currentUser ? `${currentUser} · ${roleLabel}` : "Chưa đăng nhập";
+      }
+      if (accountManagerButton) {
+        accountManagerButton.style.display = currentUserRole === "admin" ? "flex" : "none";
+      }
+    }
+
+    function getHeaderNotificationStorageKey(baseKey = HEADER_NOTIFICATION_READ_KEY) {
+      const userKey = String(currentUser || "guest").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+      return `${baseKey}:${userKey}`;
+    }
+
+    function getReadHeaderNotificationIds() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_READ_KEY)) || "[]");
+        return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function getDismissedHeaderNotificationIds() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_DISMISSED_KEY)) || "[]");
+        return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function collectHeaderNotifications() {
+      const items = [];
+      for (const item of Object.values(liveResultsState || {})) {
+        if (!item || typeof item !== "object") continue;
+        const type = String(item.key || "").toUpperCase();
+        const ky = String(item.ky || "").trim();
+        const timestamp = Date.parse(item.updatedAt || liveResultsFetchedAt || 0) || 0;
+        items.push({
+          id: `live:${type}:${ky || timestamp}`,
+          kind: "live",
+          title: `${TYPES[type]?.label || type || "Kết quả"} đã cập nhật`,
+          detail: [ky ? `Kỳ ${ky.replace(/^#/, "#")}` : "", item.date || "", item.time || ""].filter(Boolean).join(" · "),
+          timestamp,
+        });
+      }
+      for (const type of PREDICTION_LOG_TYPES) {
+        const logs = Array.isArray(store?.predictionLogs?.[type]) ? store.predictionLogs[type] : [];
+        const pending = [...logs].reverse().find(entry => entry && !entry.resolved);
+        if (!pending) continue;
+        const ky = String(pending.predictedKy || "").trim();
+        const timestamp = Date.parse(pending.createdAt || 0) || 0;
+        items.push({
+          id: `prediction:${type}:${pending.id || ky || timestamp}`,
+          kind: "prediction",
+          title: `${TYPES[type]?.label || type} đang chờ kết quả`,
+          detail: [ky ? `Kỳ ${ky.replace(/^#/, "#")}` : "Kỳ tiếp theo", pending.bundleCount ? `${pending.bundleCount} bộ` : ""].filter(Boolean).join(" · "),
+          timestamp,
+        });
+      }
+      const dismissedIds = getDismissedHeaderNotificationIds();
+      return items
+        .filter(item => !dismissedIds.has(item.id))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 8);
+    }
+
+    function formatHeaderNotificationTime(timestamp) {
+      if (!timestamp) return "Mới cập nhật";
+      return new Date(timestamp).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function renderHeaderNotifications() {
+      const list = document.getElementById("notificationList");
+      const badge = document.getElementById("notificationBadge");
+      const button = document.getElementById("notificationBtn");
+      const markReadButton = document.getElementById("notificationMarkReadBtn");
+      const clearButton = document.getElementById("notificationClearBtn");
+      if (!list || !badge || !button) return;
+      const items = collectHeaderNotifications();
+      const readIds = getReadHeaderNotificationIds();
+      const unreadCount = items.filter(item => !readIds.has(item.id)).length;
+      badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+      badge.hidden = unreadCount === 0;
+      button.setAttribute("aria-label", unreadCount ? `Mở thông báo, ${unreadCount} tin chưa đọc` : "Mở thông báo");
+      if (markReadButton) markReadButton.disabled = items.length === 0 || unreadCount === 0;
+      if (clearButton) clearButton.disabled = items.length === 0;
+      list.replaceChildren();
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "header-notification-empty";
+        empty.textContent = "Chưa có thông báo mới.";
+        list.appendChild(empty);
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = `header-notification-item${readIds.has(item.id) ? " is-read" : ""}`;
+        const dot = document.createElement("span");
+        dot.className = `header-notification-dot is-${item.kind}`;
+        dot.setAttribute("aria-hidden", "true");
+        const content = document.createElement("div");
+        const title = document.createElement("strong");
+        const detail = document.createElement("span");
+        const time = document.createElement("time");
+        title.textContent = item.title;
+        detail.textContent = item.detail || "Dữ liệu mới đã sẵn sàng.";
+        time.textContent = formatHeaderNotificationTime(item.timestamp);
+        content.append(title, detail, time);
+        row.append(dot, content);
+        list.appendChild(row);
+      }
+    }
+
+    function markHeaderNotificationsRead() {
+      const ids = collectHeaderNotifications().map(item => item.id);
+      localStorage.setItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_READ_KEY), JSON.stringify(ids));
+      renderHeaderNotifications();
+    }
+
+    function clearHeaderNotifications() {
+      const dismissedIds = getDismissedHeaderNotificationIds();
+      collectHeaderNotifications().forEach(item => dismissedIds.add(item.id));
+      const limitedIds = [...dismissedIds].slice(-200);
+      localStorage.setItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_DISMISSED_KEY), JSON.stringify(limitedIds));
+      renderHeaderNotifications();
+    }
+
+    function closeHeaderPopovers() {
+      for (const [buttonId, panelId] of [["notificationBtn", "notificationPanel"], ["settingsBtn", "settingsPanel"]]) {
+        const button = document.getElementById(buttonId);
+        const panel = document.getElementById(panelId);
+        if (panel) panel.hidden = true;
+        if (button) button.setAttribute("aria-expanded", "false");
+      }
+    }
+
+    function toggleHeaderPopover(buttonId, panelId) {
+      const button = document.getElementById(buttonId);
+      const panel = document.getElementById(panelId);
+      if (!button || !panel) return;
+      const willOpen = panel.hidden;
+      closeHeaderPopovers();
+      panel.hidden = !willOpen;
+      button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      if (willOpen && panelId === "notificationPanel") renderHeaderNotifications();
     }
 
     // ---abc--- Store / Session / Persistence ---
@@ -3625,7 +3883,7 @@
       const baoRow = document.getElementById("pdBaoRow");
       const baoSelect = document.getElementById("pdBaoLevel");
       if (!baoRow || !baoSelect) return;
-      const levels = hasPredictBaoMode(pdType) ? PREDICT_BAO_LEVELS[pdType] : [];
+      const levels = getPredictBaoLevels(pdType);
       if (playModeRow) playModeRow.style.display = levels.length ? "grid" : "none";
       const shouldShow = pdPlayMode === "bao" && levels.length > 0;
       baoRow.style.display = shouldShow ? "grid" : "none";
@@ -3685,8 +3943,25 @@
     };
     applyTheme(localStorage.getItem(THEME_KEY) || "dark");
     applyAppPageMetadata();
+    const brandReloadBtn = document.getElementById("brandReloadBtn");
+    if (brandReloadBtn) {
+      brandReloadBtn.dataset.tooltip = `${APP_SHORT_NAME} là tên viết tắt của ${APP_FULL_NAME}`;
+      brandReloadBtn.onclick = () => window.location.reload();
+    }
+    document.getElementById("notificationBtn").onclick = () => toggleHeaderPopover("notificationBtn", "notificationPanel");
+    document.getElementById("settingsBtn").onclick = () => toggleHeaderPopover("settingsBtn", "settingsPanel");
+    document.getElementById("notificationMarkReadBtn").onclick = markHeaderNotificationsRead;
+    document.getElementById("notificationClearBtn").onclick = clearHeaderNotifications;
+    document.getElementById("settingsReloadBtn").onclick = () => window.location.reload();
+    document.addEventListener("click", event => {
+      if (!event.target.closest(".header-tool-wrap")) closeHeaderPopovers();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeHeaderPopovers();
+    });
 
     function openSideMenu() {
+      closeHeaderPopovers();
       document.getElementById("sideMenu").classList.add("show");
       document.getElementById("sideMenuOverlay").classList.add("show");
     }
@@ -3794,14 +4069,14 @@
       kenoTrainingEnabled = trainingCfg.enabled;
       kenoTrainingLastTriggeredKy = trainingCfg.lastTriggeredKy;
       kenoTrainingLastResolvedKy = trainingCfg.lastResolvedKy;
-      document.getElementById("whoami").textContent = `Tài khoản: ${user} (${currentUserRole})`;
-      document.getElementById("openAccountBtn").style.display = currentUserRole === "admin" ? "inline-block" : "none";
+      syncSideAccountIdentity();
       document.getElementById("authOverlay").style.display = "none";
       document.getElementById("appShell").style.display = "block";
       startLuckyWheelUiTimer();
       updateKenoCsvStatus();
       restoreLiveResultsCache();
       restoreLiveUpdateBadgeCache();
+      renderHeaderNotifications();
       clearLegacyLiveHistoryCache();
       clearLiveHistoryState();
       renderPredictionHistoryPanel();
@@ -3840,6 +4115,9 @@
       setSideMenuActiveButton("homeMenuBtn");
       stopLiveAutoSync();
       stopAnalysisAutoRefresh();
+      closeHeaderPopovers();
+      closeSideMenu();
+      syncSideAccountIdentity();
       renderCurrencyBar();
       document.getElementById("appShell").style.display = "none";
       document.getElementById("authOverlay").style.display = "flex";
@@ -3935,6 +4213,40 @@
         vipPdEngineChoice.style.display = isAiPredict && !isKenoPredict ? "grid" : "none";
       }
       enforceVipPredictRiskModeVisibility(isAiPredict);
+    }
+
+    function getPredictBundleLimit(typeKey, kenoLevel = 0) {
+      const normalizedType = String(typeKey || "").trim().toUpperCase();
+      if (normalizedType !== "KENO") return PREDICT_MAX_BUNDLES;
+      const normalizedLevel = Math.max(1, Math.min(10, Math.floor(Number(kenoLevel) || 1)));
+      return Math.max(1, Math.floor(TYPES.KENO.mainMax / normalizedLevel));
+    }
+
+    function syncPredictBundleLimit({ clampValue = false, forceMinimum = false } = {}) {
+      const input = document.getElementById("pdCount");
+      const typeKey = String(document.getElementById("pdType")?.value || "").trim().toUpperCase();
+      const kenoLevel = Number(document.getElementById("pdKenoLevel")?.value || 1);
+      const limit = getPredictBundleLimit(typeKey, kenoLevel);
+      const hint = document.getElementById("pdCountLimit");
+      if (hint) hint.textContent = `Tối đa ${limit} bộ`;
+      if (!input) return { limit, value: 1 };
+
+      input.max = String(limit);
+      input.title = typeKey === "KENO"
+        ? `Keno bậc ${Math.max(1, Math.min(10, Math.floor(kenoLevel) || 1))}: tối đa ${limit} bộ`
+        : `Tối đa ${limit} bộ`;
+
+      const rawText = String(input.value || "").trim();
+      const rawValue = Number(rawText);
+      if (rawText && Number.isFinite(rawValue) && clampValue) {
+        input.value = String(Math.min(limit, Math.max(1, Math.floor(rawValue))));
+      } else if (forceMinimum && (!rawText || !Number.isFinite(rawValue) || rawValue < 1)) {
+        input.value = "1";
+      }
+      return {
+        limit,
+        value: Math.min(limit, Math.max(1, Math.floor(Number(input.value) || 1))),
+      };
     }
 
     function syncKenoUiHints() {
@@ -4047,6 +4359,7 @@
       if (pdCountCol) pdCountCol.style.gridColumn = "";
       if (pdEngineBox) pdEngineBox.style.gridColumn = isKenoPredict ? "" : (isAiPredict ? "1 / -1" : "");
       if (pdKenoLevelBox) pdKenoLevelBox.style.gridColumn = isKenoPredict ? "" : "";
+      syncPredictBundleLimit({ clampValue: true });
       if (isKenoPredict) syncKenoTrainingConfigFromUi();
       syncPredictBaoOptions();
       renderKenoTrainingToggle();
@@ -4059,7 +4372,7 @@
       const row = document.getElementById("vipPdBaoRow");
       const playModeRow = document.getElementById("vipPdPlayModeRow");
       const typeKey = String(vipPredictTypeValue || document.getElementById("vipPdType")?.value || "").trim().toUpperCase();
-      const options = hasPredictBaoMode(typeKey) ? PREDICT_BAO_LEVELS[typeKey] : [];
+      const options = getPredictBaoLevels(typeKey);
       if (!select || !row) return;
       const shouldShow = options.length > 0 && vipPredictPlayModeValue === "bao";
       if (playModeRow) playModeRow.classList.toggle("has-bao", shouldShow);
@@ -4721,7 +5034,7 @@
       predictionHistoryRangeTabs.addEventListener("click", (event) => {
         const btn = event.target.closest("[data-prediction-history-range]");
         if (!btn) return;
-        predictionHistorySelectedRange = normalizePredictionHistoryRange(btn.dataset.predictionHistoryRange);
+        predictionHistorySelectedRange = normalizePredictionHistoryRange(btn.dataset.predictionHistoryRange, predictionHistorySelectedType);
         predictionHistoryCurrentIndex = 0;
         renderPredictionHistoryPanel();
       });
@@ -4764,7 +5077,7 @@
       predictionHistoryRefreshBtn.addEventListener("click", () => {
         if (predictionHistoryLoading) return;
         const selectedType = normalizePredictionHistoryType(predictionHistorySelectedType);
-        startPredictionHistoryRefresh(selectedType, { silent: true });
+        startPredictionHistoryRefresh(selectedType, { silent: false, repairCanonical: true });
       });
     }
     const vipPredictionHistoryTypeTabs = document.getElementById("vipPredictionHistoryTypeTabs");
@@ -4784,7 +5097,7 @@
       vipPredictionHistoryRangeTabs.addEventListener("click", event => {
         const btn = event.target.closest("[data-vip-prediction-history-range]");
         if (!btn) return;
-        vipPredictionHistorySelectedRange = normalizePredictionHistoryRange(btn.dataset.vipPredictionHistoryRange);
+        vipPredictionHistorySelectedRange = normalizePredictionHistoryRange(btn.dataset.vipPredictionHistoryRange, vipPredictionHistorySelectedType);
         vipPredictionHistoryCurrentIndex = 0;
         renderVipPredictionHistoryPanel();
       });
@@ -4826,7 +5139,7 @@
     if (vipPredictionHistoryRefreshBtn) {
       vipPredictionHistoryRefreshBtn.addEventListener("click", () => {
         if (vipPredictionHistoryLoading) return;
-        startVipPredictionHistoryRefresh(normalizePredictionHistoryType(vipPredictionHistorySelectedType), { silent: true });
+        startVipPredictionHistoryRefresh(normalizePredictionHistoryType(vipPredictionHistorySelectedType), { silent: false, repairCanonical: true });
       });
     }
     const predictionHistoryList = document.getElementById("predictionHistoryList");
@@ -5006,13 +5319,21 @@
     ["pdCount","pdKenoLevel"].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => {
+        syncPredictBundleLimit({ clampValue: true, forceMinimum: true });
         syncKenoTrainingConfigFromUi();
         renderKenoTrainingToggle();
       });
       if (el) el.addEventListener("input", () => {
+        syncPredictBundleLimit({ clampValue: true });
         syncKenoTrainingConfigFromUi();
       });
     });
+    const pdCountInput = document.getElementById("pdCount");
+    if (pdCountInput) {
+      pdCountInput.addEventListener("blur", () => {
+        syncPredictBundleLimit({ clampValue: true, forceMinimum: true });
+      });
+    }
     ["vipPdCount","vipPdKenoLevel"].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -5247,7 +5568,10 @@
       }
     };
 
-    document.getElementById("logoutBtn").onclick = () => { logout(); };
+    document.getElementById("logoutBtn").onclick = () => {
+      closeSideMenu();
+      logout();
+    };
 
     function bindPasswordToggle(btnId, inputId) {
       const btn = document.getElementById(btnId);
@@ -5331,7 +5655,10 @@
       if (s) s.disabled = !accountEditMode;
     }
 
-    document.getElementById("openAccountBtn").onclick = openAccountManager;
+    document.getElementById("openAccountBtn").onclick = () => {
+      closeSideMenu();
+      openAccountManager();
+    };
     document.getElementById("closeAccountBtn").onclick = closeAccountManager;
     updateEditModeButton();
     document.getElementById("toggleAccountEditBtn").onclick = async () => {
@@ -5391,8 +5718,7 @@
         }
       }
       await renderAccountRows();
-      document.getElementById("whoami").textContent = `Tài khoản: ${currentUser} (${currentUserRole})`;
-      document.getElementById("openAccountBtn").style.display = currentUserRole === "admin" ? "inline-block" : "none";
+      syncSideAccountIdentity();
       if (errors.length) {
         updateAccountMsg(`Đã lưu ${savedCount} dòng, lỗi ${errors.length} dòng.\n${errors.join("\n")}`, "warn");
       } else {
@@ -5579,12 +5905,19 @@
       return Object.keys(next).length ? next : null;
     }
 
-    function compactPredictionLogForStore(entry) {
+    function compactPredictionLogForStore(entry, type = "") {
       if (!entry || typeof entry !== "object") return null;
+      const normalizedRankings = normalizePredictionTopRankings(
+        type,
+        entry.topMainRanking,
+        entry.topSpecialRanking,
+        entry.tickets,
+      );
       return {
         id: String(entry.id || ""),
         createdAt: String(entry.createdAt || ""),
         predictedKy: normalizeKy(entry.predictedKy),
+        targetDrawAt: String(entry.targetDrawAt || ""),
         modelLabel: String(entry.modelLabel || ""),
         engineLabel: String(entry.engineLabel || ""),
         riskMode: normalizePredictRiskMode(entry.riskMode || "balanced"),
@@ -5609,8 +5942,8 @@
         scoreMetrics: entry.scoreMetrics && typeof entry.scoreMetrics === "object" ? entry.scoreMetrics : null,
         tickets: Array.isArray(entry.tickets) ? entry.tickets.map(clonePredictionTicket).filter(Boolean) : [],
         ticketSources: Array.isArray(entry.ticketSources) ? entry.ticketSources.map(item => String(item || "").trim()) : [],
-        topMainRanking: Array.isArray(entry.topMainRanking) ? entry.topMainRanking.map(Number).filter(Number.isInteger) : [],
-        topSpecialRanking: Array.isArray(entry.topSpecialRanking) ? entry.topSpecialRanking.map(Number).filter(Number.isInteger) : [],
+        topMainRanking: normalizedRankings.main,
+        topSpecialRanking: normalizedRankings.special,
         metaSelectionMode: String(entry.metaSelectionMode || ""),
         metaPreferredEngine: String(entry.metaPreferredEngine || ""),
         resolved: !!entry.resolved,
@@ -5629,7 +5962,7 @@
         ...sourceStore,
         predictionLogs: Object.fromEntries(PREDICTION_LOG_TYPES.map(type => {
           const logs = Array.isArray(sourceStore?.predictionLogs?.[type]) ? sourceStore.predictionLogs[type] : [];
-          return [type, logs.map(compactPredictionLogForStore).filter(Boolean)];
+          return [type, logs.map(entry => compactPredictionLogForStore(entry, type)).filter(Boolean)];
         })),
       };
     }
@@ -5639,6 +5972,16 @@
         return new TextEncoder().encode(String(text || "")).length;
       } catch {
         return String(text || "").length;
+      }
+    }
+    {
+      const liveResultGrid = document.getElementById("liveResultGrid");
+      if (liveResultGrid) {
+        liveResultGrid.addEventListener("click", event => {
+          const button = event.target.closest("[data-live-refresh-type]");
+          if (!button || button.disabled) return;
+          syncSingleLiveResult(button.dataset.liveRefreshType);
+        });
       }
     }
 

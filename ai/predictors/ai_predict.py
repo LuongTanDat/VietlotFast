@@ -23,6 +23,7 @@ from ai.evaluation.baselines import random_baseline_summary
 from ai.evaluation.probability import scores_to_probabilities
 from ai import ml_pipeline
 from ai import prediction_ledger
+from ai.adaptive_coverage import apply_adaptive_coverage
 
 
 # ----- Cau hinh AI -----
@@ -54,7 +55,40 @@ AI_KENO_MIN_HISTORY = 80
 AI_NUMERIC_EVAL_SAMPLES = 96
 AI_KENO_EVAL_SAMPLES = 240
 AI_TOP_RANKING_COUNT = 20
-AI_SPECIAL_TOP_COUNT = 10
+AI_SPECIAL_TOP_COUNT = 55
+AI_MAX_BUNDLES = 100
+AI_TOP_RANKING_RULES = {
+    "LOTO_5_35": {
+        "mainMin": 7, "mainMax": 15, "mainUniverseMin": 1, "mainUniverseMax": 35,
+        "specialMin": 3, "specialMax": 6, "specialUniverseMin": 1, "specialUniverseMax": 12,
+        "specialExcludesMain": False,
+    },
+    "LOTO_6_45": {
+        "mainMin": 7, "mainMax": 18, "mainUniverseMin": 1, "mainUniverseMax": 45,
+        "specialMin": 0, "specialMax": 0, "specialUniverseMin": 0, "specialUniverseMax": 0,
+        "specialExcludesMain": False,
+    },
+    "LOTO_6_55": {
+        "mainMin": 7, "mainMax": 18, "mainUniverseMin": 1, "mainUniverseMax": 55,
+        "specialMin": 3, "specialMax": 9, "specialUniverseMin": 1, "specialUniverseMax": 55,
+        "specialExcludesMain": True,
+    },
+    "KENO": {
+        "mainMin": 10, "mainMax": 20, "mainUniverseMin": 1, "mainUniverseMax": 80,
+        "specialMin": 0, "specialMax": 0, "specialUniverseMin": 0, "specialUniverseMax": 0,
+        "specialExcludesMain": False,
+    },
+    "MAX_3D": {
+        "mainMin": 10, "mainMax": 20, "mainUniverseMin": 0, "mainUniverseMax": 999,
+        "specialMin": 0, "specialMax": 0, "specialUniverseMin": 0, "specialUniverseMax": 0,
+        "specialExcludesMain": False,
+    },
+    "MAX_3D_PRO": {
+        "mainMin": 10, "mainMax": 20, "mainUniverseMin": 0, "mainUniverseMax": 999,
+        "specialMin": 0, "specialMax": 0, "specialUniverseMin": 0, "specialUniverseMax": 0,
+        "specialExcludesMain": False,
+    },
+}
 SCORING_DEFAULT_RECENT_WINDOW_NUMERIC = 24
 SCORING_DEFAULT_RECENT_WINDOW_KENO = 80
 SCORING_DEFAULT_TOP_ROWS = 20
@@ -189,6 +223,113 @@ def normalize_prediction_mode(raw):
     return PREDICTION_MODE_VIP if value == PREDICTION_MODE_VIP else PREDICTION_MODE_NORMAL
 
 
+def _ranked_probability_numbers(raw):
+    rows = []
+    if isinstance(raw, dict):
+        iterable = raw.items()
+    else:
+        iterable = (
+            (item.get("number"), item.get("probability", item.get("score", 0.0)))
+            for item in list(raw or [])
+            if isinstance(item, dict)
+        )
+    for raw_number, raw_score in iterable:
+        try:
+            number = int(raw_number)
+            score = float(raw_score)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(score):
+            rows.append((number, score))
+    return [number for number, _ in sorted(rows, key=lambda item: (-item[1], item[0]))]
+
+
+def _collect_unique_ranking(sources, minimum, maximum, excluded=None):
+    output = []
+    seen = set()
+    excluded = set(excluded or [])
+    for source in sources:
+        for item in list(source or []):
+            raw_value = item.get("number") if isinstance(item, dict) else item
+            try:
+                value = int(raw_value)
+            except (TypeError, ValueError):
+                continue
+            if value < minimum or value > maximum or value in excluded or value in seen:
+                continue
+            seen.add(value)
+            output.append(value)
+    return output
+
+
+def normalize_prediction_top_rankings(payload):
+    result = dict(payload or {})
+    type_key = str(result.get("type") or "").strip().upper()
+    rule = AI_TOP_RANKING_RULES.get(type_key)
+    if not rule:
+        return result
+
+    tickets = list(result.get("tickets") or [])
+    ticket_main = [value for ticket in tickets for value in list((ticket or {}).get("main") or [])]
+    main_sources = [
+        list(result.get("topRanking") or result.get("topMainRanking") or []),
+        list(result.get("top_main_candidates") or []),
+        _ranked_probability_numbers(result.get("adaptiveProbabilities")),
+        _ranked_probability_numbers(result.get("calibratedProbability")),
+        ticket_main,
+    ]
+    main = _collect_unique_ranking(
+        main_sources,
+        int(rule["mainUniverseMin"]),
+        int(rule["mainUniverseMax"]),
+    )
+    if main and len(main) < int(rule["mainMin"]):
+        main = _collect_unique_ranking(
+            [main, range(int(rule["mainUniverseMin"]), int(rule["mainUniverseMax"]) + 1)],
+            int(rule["mainUniverseMin"]),
+            int(rule["mainUniverseMax"]),
+        )
+    main = main[:int(rule["mainMax"])]
+
+    special = []
+    if int(rule["specialMax"]) > 0:
+        ticket_special = [(ticket or {}).get("special") for ticket in tickets]
+        special_sources = [
+            list(result.get("topSpecialRanking") or []),
+            list(result.get("top_special_candidates") or result.get("top_bonus_candidates") or []),
+            _ranked_probability_numbers(result.get("adaptiveSpecialProbabilities")),
+            _ranked_probability_numbers(result.get("specialCalibratedProbability")),
+            list(result.get("special_backups") or []),
+            ticket_special,
+        ]
+        has_special_source = any(list(source or []) for source in special_sources)
+        excluded = set(main) if bool(rule.get("specialExcludesMain")) else set()
+        special = _collect_unique_ranking(
+            special_sources,
+            int(rule["specialUniverseMin"]),
+            int(rule["specialUniverseMax"]),
+            excluded=excluded,
+        )
+        if has_special_source and len(special) < int(rule["specialMin"]):
+            special = _collect_unique_ranking(
+                [special, range(int(rule["specialUniverseMin"]), int(rule["specialUniverseMax"]) + 1)],
+                int(rule["specialUniverseMin"]),
+                int(rule["specialUniverseMax"]),
+                excluded=excluded,
+            )
+        special = special[:int(rule["specialMax"])]
+
+    result["topRanking"] = main
+    result["topSpecialRanking"] = special
+    result["topRankingLimits"] = {
+        "mainMin": int(rule["mainMin"]),
+        "mainMax": int(rule["mainMax"]),
+        "specialMin": int(rule["specialMin"]),
+        "specialMax": int(rule["specialMax"]),
+    }
+    return result
+
+
 def _ticket_top_coverage(ticket, top_numbers):
     main_values = [int(v) for v in list(ticket.get("main") or []) if isinstance(v, int)]
     if not main_values:
@@ -213,8 +354,8 @@ def apply_vip_prediction_profile(payload, bundle_count):
             return coverage + special_bonus
         ranked = sorted(tickets, key=ticket_score, reverse=True)
         result["tickets"] = ranked[:requested_count]
-    result["topRanking"] = top_ranking[:20 if result.get("type") == "KENO" else 12]
-    result["topSpecialRanking"] = top_special[:6]
+    result["topRanking"] = top_ranking
+    result["topSpecialRanking"] = top_special
     result["predictionMode"] = PREDICTION_MODE_VIP
     result["vipProfile"] = "strict_select"
     notes = list(result.get("notes") or [])
@@ -513,8 +654,8 @@ def build_loto_6_55_vip_prediction(bundle_count, requested_engine="", risk_mode=
         "pickSize": 6,
         "topRanking": top_main_candidates[:16],
         "top_main_candidates": top_main_candidates[:16],
-        "topSpecialRanking": top_special_candidates[:10],
-        "top_special_candidates": top_special_candidates[:10],
+        "topSpecialRanking": top_special_candidates,
+        "top_special_candidates": top_special_candidates,
         "top_heuristic_candidates": list(prediction.get("top_heuristic_candidates") or []),
         "top_deep_candidates": list(prediction.get("top_deep_candidates") or []),
         "main_ticket": main_ticket,
@@ -1425,6 +1566,78 @@ def next_prediction_ky(draws):
     if not digits:
         return ""
     return f"#{int(digits) + 1}"
+
+
+def _parse_prediction_draw_datetime(date_value, time_value):
+    date_obj = date_value if hasattr(date_value, "year") else lr.parse_csv_date(date_value)
+    match = re.match(r"^(\d{1,2}):(\d{2})$", str(time_value or "").strip())
+    if date_obj is None or not match:
+        return None
+    hours = int(match.group(1))
+    minutes = int(match.group(2))
+    if hours < 0 or hours > 23 or minutes < 0 or minutes > 59:
+        return None
+    return datetime(date_obj.year, date_obj.month, date_obj.day, hours, minutes)
+
+
+def _next_keno_schedule_datetime(after_value):
+    if not isinstance(after_value, datetime):
+        return None
+    day_start = after_value.replace(
+        hour=lr.KENO_FIRST_DRAW_MINUTES // 60,
+        minute=lr.KENO_FIRST_DRAW_MINUTES % 60,
+        second=0,
+        microsecond=0,
+    )
+    day_end = after_value.replace(
+        hour=lr.KENO_LAST_DRAW_MINUTES // 60,
+        minute=lr.KENO_LAST_DRAW_MINUTES % 60,
+        second=0,
+        microsecond=0,
+    )
+    if after_value < day_start:
+        return day_start
+    elapsed_seconds = max(0.0, (after_value - day_start).total_seconds())
+    next_index = int(elapsed_seconds // (lr.KENO_DRAW_INTERVAL_MINUTES * 60)) + 1
+    candidate = day_start + timedelta(minutes=next_index * lr.KENO_DRAW_INTERVAL_MINUTES)
+    if candidate <= day_end:
+        return candidate
+    next_day = day_start + timedelta(days=1)
+    return next_day.replace(second=0, microsecond=0)
+
+
+def align_prediction_target_with_schedule(payload, now_value=None):
+    result = dict(payload or {})
+    if str(result.get("type") or "").strip().upper() != "KENO" or result.get("ready") is False:
+        return result
+    latest_digits = "".join(ch for ch in str(result.get("latestKy") or "") if ch.isdigit())
+    latest_draw_at = _parse_prediction_draw_datetime(result.get("latestDate"), result.get("latestTime"))
+    if not latest_digits or latest_draw_at is None:
+        return result
+
+    reference_now = now_value if isinstance(now_value, datetime) else datetime.now()
+    if reference_now.tzinfo is not None:
+        reference_now = reference_now.astimezone().replace(tzinfo=None)
+    target_draw_at = latest_draw_at
+    draw_steps = 0
+    while draw_steps < 500000:
+        target_draw_at = _next_keno_schedule_datetime(target_draw_at)
+        if target_draw_at is None:
+            return result
+        draw_steps += 1
+        if target_draw_at > reference_now:
+            break
+    if draw_steps <= 0 or target_draw_at <= reference_now:
+        return result
+
+    target_draw_id = str(int(latest_digits) + draw_steps)
+    target_draw_iso = target_draw_at.isoformat(timespec="seconds")
+    result["nextKy"] = f"#{target_draw_id}"
+    result["targetDrawId"] = target_draw_id
+    result["target_draw_id"] = target_draw_id
+    result["targetDrawAt"] = target_draw_iso
+    result["target_draw_at"] = target_draw_iso
+    return result
 
 
 # ----- Engine Luận Số -----
@@ -3151,7 +3364,16 @@ def attach_controlled_probability_metadata(payload):
     ranking_score = _ranking_scores_from_payload(result, "top_main_candidates", universe_size)
     if not ranking_score:
         ranking_score = _ranking_scores_from_payload(result, "topRanking", universe_size)
-    calibrated = scores_to_probabilities(ranking_score, draw_size, 1, universe_size)
+    adaptive_probability = {}
+    for raw_number, raw_probability in dict(result.get("adaptiveProbabilities") or {}).items():
+        try:
+            number = int(raw_number)
+            probability = float(raw_probability)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= number <= universe_size and math.isfinite(probability) and probability >= 0.0:
+            adaptive_probability[number] = probability
+    calibrated = adaptive_probability or scores_to_probabilities(ranking_score, draw_size, 1, universe_size)
     probability_rows = _format_probability_list(calibrated)
     score_payload = {str(key): float(value) for key, value in ranking_score.items()}
     result["rawScore"] = {str(key): float(value) for key, value in ranking_score.items()}
@@ -3167,7 +3389,7 @@ def attach_controlled_probability_metadata(payload):
         "mainProbabilitySum": round(sum(float(value) for value in calibrated.values()), 8),
         "mainDrawSize": draw_size,
         "mainUniverseSize": universe_size,
-        "method": "ranking_to_capped_simplex",
+        "method": "adaptive_coverage_gumbel" if adaptive_probability else "ranking_to_capped_simplex",
         "note": "calibratedProbability is a marginal number probability; ticketQualityScore is not a probability.",
     }
     special_universe = int(cfg.get("special_universe_size") or 0)
@@ -3175,8 +3397,17 @@ def attach_controlled_probability_metadata(payload):
         special_scores = _ranking_scores_from_payload(result, "topSpecialRanking", special_universe)
         if not special_scores:
             special_scores = _ranking_scores_from_payload(result, "top_bonus_candidates", special_universe)
-        if special_scores:
-            special_probs = scores_to_probabilities(special_scores, 1, 1, special_universe)
+        adaptive_special_probability = {}
+        for raw_number, raw_probability in dict(result.get("adaptiveSpecialProbabilities") or {}).items():
+            try:
+                number = int(raw_number)
+                probability = float(raw_probability)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= number <= special_universe and math.isfinite(probability) and probability >= 0.0:
+                adaptive_special_probability[number] = probability
+        if special_scores or adaptive_special_probability:
+            special_probs = adaptive_special_probability or scores_to_probabilities(special_scores, 1, 1, special_universe)
             special_rows = _format_probability_list(special_probs)
             result["specialCalibratedProbability"] = special_rows
             result["special_calibrated_probability"] = special_rows
@@ -3805,13 +4036,15 @@ def _predict_json_unlocked(type_key, bundle_count, keno_level=None, engine=AI_EN
     risk_mode = normalize_risk_mode(risk_mode)
     prediction_mode = normalize_prediction_mode(prediction_mode)
     bundle_count = normalize_positive_int(bundle_count, "Số bộ")
+    if type_key != "KENO" and bundle_count > AI_MAX_BUNDLES:
+        raise ValueError(f"Số bộ dự đoán tối đa cho loại này là {AI_MAX_BUNDLES} Bộ.")
     if type_key == "KENO":
         order = normalize_positive_int(keno_level, "Bậc Keno")
         if order < 1 or order > 10:
             raise ValueError("Bậc Keno phải trong khoảng 1-10.")
         max_bundles = max(1, 80 // order)
         if bundle_count > max_bundles:
-            raise ValueError(f"Số bộ Keno tối đa cho bậc {order} là {max_bundles}.")
+            raise ValueError(f"Số bộ Keno tối đa cho bậc {order} là {max_bundles} Bộ.")
         if pure and engine != AI_ENGINE_CLASSIC:
             raise ValueError("Keno pure hiện chỉ hỗ trợ engine classic để tránh ghi state/model.")
         if engine == AI_ENGINE_LUAN_SO:
@@ -3924,6 +4157,10 @@ def predict_json(
     pure=False,
 ):
     payload = _predict_json_unlocked(type_key, bundle_count, keno_level, engine, risk_mode, prediction_mode, pure=pure)
+    payload = align_prediction_target_with_schedule(payload)
+    if normalize_prediction_mode(prediction_mode) == PREDICTION_MODE_NORMAL:
+        payload = apply_adaptive_coverage(payload, risk_mode=risk_mode)
+    payload = normalize_prediction_top_rankings(payload)
     if pure:
         payload = dict(payload or {})
         payload["purePrediction"] = True

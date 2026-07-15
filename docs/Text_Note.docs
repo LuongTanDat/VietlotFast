@@ -1,5 +1,26 @@
 Kiểm tra và rà soát lại dự án Lotto
 Kiểm tra lại các biến,hàm xem đồng bộ chưa ?
-Kiểm tra toàn Logic  của hệ thống.
-Dọn dẹp những file thư mục trùng lặp."
+Kiểm tra toàn Logic của hệ thống.
 Kiểm Tra Mode Sáng Tối và màu tương phản khi bật mode Sáng , Tối
+Dọn dẹp những file thư mục trùng lặp."
+
+
+
+Tỷ Lệ Hiệu Xuất Kỳ
+VD
+Ngày 1 lần 1 Dự đoán 100 bộ 
+Trong đó 1 Bộ trùng 5 Số , 2 Bộ trùng 4 Số vv...
+Ngày 1 lần 2 dự đoán 10 bộ
+Ngày 1 lần 3 dự đoán 90 
+vv....
+1 Số - nsố vv...
+Đb - vv....
+
+
+
+Tỷ Kệ Tổng Hiệu Xuất
+VD
+Ngày 1 lần 1 Dự đoán 100 bộ trong đó có 3 bố trùng và 97 bộ trượt thì tỉ lệ dự đoán đúng ĐB của nó (3%)
+Ngày 2 lần 1 dự đoán 10 bộ  trong đó trúng 2 bộ ĐB và trượt 98 thì tỉ lệ của nó = 2+3/110
+Ngày 2 lần 2 dự đoán 90 bộ trúng 16 ĐB thì tỉ lệ Đb = (16+2+3/200)
+vv....

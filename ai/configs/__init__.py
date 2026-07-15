@@ -1,1 +1,1 @@
-"""Configuration helpers for VietlotFast AI and backend services."""
+"""Configuration helpers for DVLF AI and backend services."""

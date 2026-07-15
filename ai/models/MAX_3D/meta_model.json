@@ -2,27 +2,27 @@
   "type": "MAX_3D",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "max_3d_all_day.csv",
-  "historyCount": 1104,
-  "latestKy": "1104",
-  "latestDate": "10/07/2026",
+  "historyCount": 1106,
+  "latestKy": "1106",
+  "latestDate": "15/07/2026",
   "latestTime": "",
-  "lastLearnedKy": "1104",
-  "lastLearnedAt": "2026-07-11T21:00:33",
+  "lastLearnedKy": "1106",
+  "lastLearnedAt": "2026-07-15T18:59:19",
   "metaState": "volatile",
-  "stabilityScore": 0.617824,
-  "driftScore": 0.415409,
+  "stabilityScore": 0.637135,
+  "driftScore": 0.394419,
   "rankingOverlap": 0.0,
   "preferredEngine": "gen_local",
   "weights": {
-    "gen_local": 0.437159,
-    "luan_so": 0.245837,
-    "both_combo": 0.317004
+    "gen_local": 0.437985,
+    "luan_so": 0.245206,
+    "both_combo": 0.316809
   },
-  "weightShift": 2.3e-05,
+  "weightShift": 0.000373,
   "rewards": {
-    "gen_local": 0.256387,
+    "gen_local": 0.262808,
     "luan_so": 0.0,
-    "both_combo": 0.11322
+    "both_combo": 0.116056
   },
   "rewardHistory": [
     {
@@ -744,43 +744,75 @@
         "both_combo": 0.317004
       },
       "weightShift": 2.3e-05
+    },
+    {
+      "ky": "1105",
+      "learnedAt": "2026-07-13T21:29:42",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.262922,
+        "luan_so": 0.0,
+        "both_combo": 0.116107
+      },
+      "weights": {
+        "gen_local": 0.437612,
+        "luan_so": 0.245491,
+        "both_combo": 0.316897
+      },
+      "weightShift": 0.000453
+    },
+    {
+      "ky": "1106",
+      "learnedAt": "2026-07-15T18:59:19",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.262808,
+        "luan_so": 0.0,
+        "both_combo": 0.116056
+      },
+      "weights": {
+        "gen_local": 0.437985,
+        "luan_so": 0.245206,
+        "both_combo": 0.316809
+      },
+      "weightShift": 0.000373
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.384679,
+      "confidence": 0.388424,
       "backtest": {
-        "avgHits": 0.4167,
-        "avgHitRate": 0.034722,
-        "veryRecentAvgHitRate": 0.033333,
-        "recentAvgHitRate": 0.024306,
-        "mediumRecentAvgHitRate": 0.034226,
+        "avgHits": 0.4896,
+        "avgHitRate": 0.040799,
+        "veryRecentAvgHitRate": 0.041667,
+        "recentAvgHitRate": 0.038194,
+        "mediumRecentAvgHitRate": 0.040179,
         "samples": 96,
-        "stability": 0.901791,
-        "recentConsistency": 0.994643,
-        "agreementScore": 0.665833,
-        "cooldownPenalty": 0.998643,
-        "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.378447
+        "stability": 0.895156,
+        "recentConsistency": 0.991071,
+        "agreementScore": 0.67625,
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.999048,
+        "adaptiveScore": 0.383996
       },
       "champion": {
-        "key": "3d_weekday_digits",
-        "label": "3D weekday digits",
+        "key": "3d_gap_recovery",
+        "label": "3D gap recovery",
         "samples": 96,
-        "avgHits": 0.4167,
-        "avgHitRate": 0.034722,
-        "veryRecentAvgHitRate": 0.033333,
-        "recentAvgHitRate": 0.024306,
-        "mediumRecentAvgHitRate": 0.034226,
-        "stability": 0.901791,
-        "recentConsistency": 0.994643,
-        "agreementScore": 0.665833,
+        "avgHits": 0.4896,
+        "avgHitRate": 0.040799,
+        "veryRecentAvgHitRate": 0.041667,
+        "recentAvgHitRate": 0.038194,
+        "mediumRecentAvgHitRate": 0.040179,
+        "stability": 0.895156,
+        "recentConsistency": 0.991071,
+        "agreementScore": 0.67625,
         "sampleFactor": 1.0,
-        "cooldownPenalty": 0.998643,
-        "shortSpikePenalty": 1.0,
-        "adaptiveScore": 0.378447,
-        "learnedWeight": 0.375487,
-        "rawScore": 0.378447
+        "cooldownPenalty": 1.0,
+        "shortSpikePenalty": 0.999048,
+        "adaptiveScore": 0.383996,
+        "learnedWeight": 0.376866,
+        "rawScore": 0.383996
       }
     },
     "luan_so": {

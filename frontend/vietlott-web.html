@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vietlott Tra Cứu Nhanh Pro</title>
+  <title>DVLF</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css" />
@@ -70,7 +70,7 @@
       <div class="auth-layout">
         <div class="auth-left">
           <div>
-            <h2>Vietlott <br />Tra Cứu Nhanh</h2>
+            <h2 title="Deep Vietlott Fast">DVLF</h2>
             <p>Đăng nhập để giữ dữ liệu riêng theo từng tài khoản.</p>
             <div class="auth-badges">
               <span class="auth-badge">Lưu dữ liệu riêng</span>
@@ -149,7 +149,13 @@
             <span class="bar"></span>
           </span>
         </button>
-        <h1>Vietlott Tra Cứu Nhanh Pro</h1>
+        <button
+          id="brandReloadBtn"
+          class="brand-reload-btn"
+          type="button"
+          data-tooltip="DVLF là tên viết tắt của Deep Vietlott Fast"
+          aria-label="DVLF - Deep Vietlott Fast. Bấm để cập nhật lại trang."
+        >DVLF</button>
       </div>
       <div class="top-right">
         <div class="currency-bar">
@@ -162,14 +168,36 @@
             <span id="paypalBalance">0</span>
           </span>
         </div>
-        <span class="whoami-pill"><span id="whoami">Chưa đăng nhập</span></span>
-        <button id="openAccountBtn" class="account-star-btn" type="button" style="display:none;">
-          <strong class="account-btn-label">Quản lý tài khoản</strong>
-          <div class="account-stars-wrap"><div class="account-stars"></div></div>
-          <div class="account-btn-glow"><div class="circle"></div><div class="circle"></div></div>
-        </button>
-        <button id="logoutBtn" class="secondary">Đăng xuất</button>
-        <button id="themeToggleBtn" class="theme-toggle" type="button" title="Đang tối, bấm để chuyển sáng" aria-label="Đang tối, bấm để chuyển sáng" aria-pressed="false">🌙</button>
+        <div class="header-tool-wrap">
+          <button id="notificationBtn" class="header-icon-btn" type="button" title="Thông báo" aria-label="Mở thông báo" aria-expanded="false" aria-controls="notificationPanel">
+            <span aria-hidden="true">🔔</span>
+            <span id="notificationBadge" class="header-icon-badge" hidden>0</span>
+          </button>
+          <div id="notificationPanel" class="header-popover notification-popover" hidden>
+            <div class="header-popover-head">
+              <div><strong>Thông báo</strong><span>Tin mới từ DVLF</span></div>
+              <div class="header-popover-actions">
+                <button id="notificationMarkReadBtn" class="header-popover-link" type="button">Đã đọc</button>
+                <button id="notificationClearBtn" class="header-popover-link is-danger" type="button">Xóa tất cả</button>
+              </div>
+            </div>
+            <div id="notificationList" class="header-notification-list"></div>
+          </div>
+        </div>
+        <div class="header-tool-wrap">
+          <button id="settingsBtn" class="header-icon-btn" type="button" title="Cài đặt" aria-label="Mở cài đặt" aria-expanded="false" aria-controls="settingsPanel">
+            <span aria-hidden="true">⚙</span>
+          </button>
+          <div id="settingsPanel" class="header-popover settings-popover" hidden>
+            <div class="header-popover-head"><div><strong>Cài đặt</strong><span>Tùy chỉnh nhanh</span></div></div>
+            <div class="header-setting-row">
+              <div><strong>Giao diện</strong><span>Chuyển chế độ sáng hoặc tối</span></div>
+              <button id="themeToggleBtn" class="theme-toggle" type="button" title="Đang tối, bấm để chuyển sáng" aria-label="Đang tối, bấm để chuyển sáng" aria-pressed="false">🌙</button>
+            </div>
+            <button id="settingsReloadBtn" class="header-panel-command" type="button"><span aria-hidden="true">↻</span><span>Cập nhật lại trang</span></button>
+            <button id="logoutBtn" class="header-panel-command header-panel-command-danger" type="button"><span aria-hidden="true">↪</span><span>Đăng xuất</span></button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -181,12 +209,17 @@
       <button id="sideMenuCloseBtn" class="side-menu-close" type="button">✕</button>
     </div>
     <div class="side-menu-body">
-      <div class="side-avatar">VF</div>
-      <div class="side-title">Vietlott</div>
-      <div class="side-subtitle">Tra cứu nhanh và quản lý dữ liệu</div>
+      <div class="side-avatar">DV</div>
+      <div class="side-title">DVLF</div>
+      <div class="side-subtitle">Deep Vietlott Fast</div>
+      <div class="side-section-label">TÀI KHOẢN</div>
+      <div class="side-account-card">
+        <span class="side-account-icon" aria-hidden="true">👤</span>
+        <div><span>Đang đăng nhập</span><strong id="whoami">Chưa đăng nhập</strong></div>
+      </div>
+      <button id="openAccountBtn" class="side-link" type="button" style="display:none;"><span class="icon">⚙</span><span>Quản lý tài khoản</span></button>
       <div class="side-section-label">THÔNG TIN</div>
       <button id="homeMenuBtn" class="side-link active" type="button"><span class="icon">🏠</span><span>Trang chủ</span></button>
-      <button class="side-link is-placeholder" type="button" aria-disabled="true"><span class="icon">👤</span><span>Thông tin tài khoản</span></button>
       <button id="paypalDepositMenuBtn" class="side-link" type="button"><span class="icon">💳</span><span>Nạp tiền tài khoản</span></button>
       <button class="side-link is-placeholder" type="button" aria-disabled="true"><span class="icon">📝</span><span>Nhật kí hoạt động</span></button>
       <button id="dataTableMenuBtn" class="side-link" type="button"><span class="icon">🎫</span><span>Bảng Dữ Liệu</span></button>
@@ -675,8 +708,11 @@
                 <select id="pdType"></select>
               </div>
               <div id="pdCountCol">
-                <label>Số bộ dự đoán</label>
-                <input id="pdCount" type="number" min="1" value="3" />
+                <div class="predict-count-label-row">
+                  <label for="pdCount">Số bộ dự đoán</label>
+                  <span id="pdCountLimit" class="predict-count-limit">Tối đa 100 bộ</span>
+                </div>
+                <input id="pdCount" type="number" min="1" max="100" step="1" value="3" aria-describedby="pdCountLimit" />
               </div>
               <div id="pdEngineBox" style="display:none;">
                 <label>Engine AI</label>
@@ -1047,18 +1083,20 @@
               <div class="predict-history-controls">
                 <div class="predict-history-row predict-history-row-top">
                   <div id="predictionHistoryTypeTabs" class="predict-history-type-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo loại"></div>
+                  <span id="predictionHistoryCount" class="predict-history-count">0 bản ghi</span>
                 </div>
                 <div class="predict-history-row predict-history-row-bottom">
                   <div class="predict-history-row-bottom-left">
                     <div id="predictionHistoryRangeTabs" class="predict-history-range-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo thời gian"></div>
-                    <div id="predictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo cách chơi"></div>
-                    <div id="predictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
-                      <label class="predict-history-bao-filter-label" for="predictionHistoryBaoLevelSelect">Bậc bao</label>
-                      <select id="predictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán theo bậc bao">
-                        <option value="all">Tất cả bậc</option>
-                      </select>
+                    <div class="predict-history-play-group">
+                      <div id="predictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán theo cách chơi"></div>
+                      <div id="predictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
+                        <label class="predict-history-bao-filter-label" for="predictionHistoryBaoLevelSelect">Bậc bao</label>
+                        <select id="predictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán theo bậc bao">
+                          <option value="all">Bậc: Tất cả</option>
+                        </select>
+                      </div>
                     </div>
-                    <span id="predictionHistoryCount" class="predict-history-count">0 bản ghi</span>
                   </div>
                   <div class="predict-history-actions">
                     <div class="predict-history-nav" aria-label="Điều hướng giữa các kỳ dự đoán">
@@ -1091,18 +1129,20 @@
               <div class="predict-history-controls">
                 <div class="predict-history-row predict-history-row-top">
                   <div id="vipPredictionHistoryTypeTabs" class="predict-history-type-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo loại"></div>
+                  <span id="vipPredictionHistoryCount" class="predict-history-count">0 bản ghi</span>
                 </div>
                 <div class="predict-history-row predict-history-row-bottom">
                   <div class="predict-history-row-bottom-left">
                     <div id="vipPredictionHistoryRangeTabs" class="predict-history-range-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo thời gian"></div>
-                    <div id="vipPredictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo cách chơi"></div>
-                    <div id="vipPredictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
-                      <label class="predict-history-bao-filter-label" for="vipPredictionHistoryBaoLevelSelect">Bậc bao</label>
-                      <select id="vipPredictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán Vip theo bậc bao">
-                        <option value="all">Tất cả bậc</option>
-                      </select>
+                    <div class="predict-history-play-group">
+                      <div id="vipPredictionHistoryPlayModeTabs" class="predict-history-playmode-tabs" role="tablist" aria-label="Lọc lịch sử dự đoán Vip theo cách chơi"></div>
+                      <div id="vipPredictionHistoryBaoLevelFilterWrap" class="predict-history-control predict-history-bao-filter" hidden>
+                        <label class="predict-history-bao-filter-label" for="vipPredictionHistoryBaoLevelSelect">Bậc bao</label>
+                        <select id="vipPredictionHistoryBaoLevelSelect" class="predict-history-bao-filter-select" aria-label="Lọc lịch sử dự đoán Vip theo bậc bao">
+                          <option value="all">Bậc: Tất cả</option>
+                        </select>
+                      </div>
                     </div>
-                    <span id="vipPredictionHistoryCount" class="predict-history-count">0 bản ghi</span>
                   </div>
                   <div class="predict-history-actions">
                     <div class="predict-history-nav" aria-label="Điều hướng giữa các kỳ dự đoán Vip">

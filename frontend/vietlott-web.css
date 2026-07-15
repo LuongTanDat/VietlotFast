@@ -407,6 +407,26 @@
       line-height: 1.15;
       white-space: nowrap;
     }
+    .predict-count-label-row {
+      min-height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+    .predict-count-label-row label {
+      margin: 0;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .predict-count-limit {
+      color: #8faac4;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
     .row.three { grid-template-columns: 1fr 1fr 1fr; }
     .row.two.loai-option { grid-template-columns: minmax(120px, .72fr) minmax(210px, 1.28fr); }
     /* ---abc--- Live Results / Live History --- */

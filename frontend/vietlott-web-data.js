@@ -1,5 +1,11 @@
     function buildPredictionTopHitSummary(type, entry, draw) {
-      const mainRanking = Array.isArray(entry?.topMainRanking) ? entry.topMainRanking.map(Number).filter(Number.isInteger) : [];
+      const normalizedRankings = normalizePredictionTopRankings(
+        type,
+        entry?.topMainRanking,
+        entry?.topSpecialRanking,
+        entry?.tickets,
+      );
+      const mainRanking = normalizedRankings.main;
       const mainMatched = mainRanking.length ? countMainMatch(mainRanking, draw.main) : 0;
       const topMain = {
         matched: mainMatched,
@@ -9,14 +15,16 @@
       const topSpecial = {
         matched: 0,
         total: 0,
+        candidateCount: 0,
         rate: 0,
       };
       if (TYPES[type]?.hasSpecial) {
-        const specialRanking = Array.isArray(entry?.topSpecialRanking) ? entry.topSpecialRanking.map(Number).filter(Number.isInteger) : [];
+        const specialRanking = normalizedRankings.special;
         const specialMatched = Number.isInteger(draw?.special) && specialRanking.includes(draw.special) ? 1 : 0;
         topSpecial.matched = specialMatched;
-        topSpecial.total = specialRanking.length;
-        topSpecial.rate = specialRanking.length ? (specialMatched * 100 / specialRanking.length) : 0;
+        topSpecial.total = specialRanking.length && Number.isInteger(draw?.special) ? 1 : 0;
+        topSpecial.candidateCount = specialRanking.length;
+        topSpecial.rate = topSpecial.total ? specialMatched * 100 : 0;
       }
       return { topMain, topSpecial };
     }
@@ -85,13 +93,125 @@
       return changed;
     }
 
+    const PREDICTION_BAO_PRIZE_CARD_CACHE = new Map();
+
+    function normalizePredictionPrizeLookupText(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/Đ/g, "D")
+        .replace(/đ/g, "d")
+        .toUpperCase()
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function parsePredictionPrizeAmount(value) {
+      const lookupText = normalizePredictionPrizeLookupText(value);
+      if (!lookupText) return { amount: 0, variable: false };
+      let amount = 0;
+      const unitPattern = /(\d+(?:[.,]\d+)*)\s*(TY|TRIEU)\b/g;
+      let unitMatch = null;
+      while ((unitMatch = unitPattern.exec(lookupText)) !== null) {
+        const numeric = Number(String(unitMatch[1]).replace(/\./g, "").replace(",", "."));
+        if (!Number.isFinite(numeric)) continue;
+        amount += numeric * (unitMatch[2] === "TY" ? 1_000_000_000 : 1_000_000);
+      }
+      if (amount === 0) {
+        const plainText = lookupText.replace(/\*/g, "").replace(/\b(VND|DONG)\b/g, "").trim();
+        if (/^\d+(?:\.\d+)*$/.test(plainText)) {
+          amount = Number(plainText.replace(/\./g, "")) || 0;
+        }
+      }
+
+      const hasJackpot1 = /\bJACKPOT1\b/.test(lookupText);
+      const hasJackpot2 = /\bJACKPOT2\b/.test(lookupText);
+      const hasMegaJackpot = /\bJACKPOT\b/.test(lookupText);
+      const hasDocDac = /\bDOC DAC\b/.test(lookupText);
+      if (hasJackpot1) amount += 30_000_000_000;
+      if (hasJackpot2) {
+        const multiplierMatch = lookupText.match(/JACKPOT2\s*X\s*(\d+)/);
+        amount += 3_000_000_000 * Math.max(1, Number(multiplierMatch?.[1] || 1));
+      }
+      if (hasMegaJackpot) amount += 12_000_000_000;
+      if (hasDocDac) amount += 6_000_000_000;
+      const variable = hasJackpot1
+        || hasJackpot2
+        || hasMegaJackpot
+        || hasDocDac
+        || /TOI THIEU|TICH LUY/.test(lookupText);
+      return { amount: Math.max(0, Math.round(amount)), variable };
+    }
+
+    function normalizePredictionPrizeBreakdownLabel(value) {
+      return String(value || "")
+        .replace(/\+\s*ĐB\b/gi, "+ số phụ")
+        .replace(/chỉ\s+ĐB\b/gi, "chỉ số phụ")
+        .replace(/số đặc biệt/gi, "số phụ")
+        .trim();
+    }
+
+    function getPredictionBaoPrizeCard(type, baoLevel) {
+      const normalizedLevel = Number(baoLevel || 0);
+      if (!normalizedLevel) return null;
+      const cacheKey = `${type}:${normalizedLevel}`;
+      if (!PREDICTION_BAO_PRIZE_CARD_CACHE.has(cacheKey)) {
+        const card = getBaoBrochureData(type).find(item => Number(item?.level || 0) === normalizedLevel) || null;
+        PREDICTION_BAO_PRIZE_CARD_CACHE.set(cacheKey, card);
+      }
+      return PREDICTION_BAO_PRIZE_CARD_CACHE.get(cacheKey) || null;
+    }
+
+    function evalBaoPrize(type, ticket, draw) {
+      const baoLevel = Number(ticket?.baoLevel || ticket?.main?.length || 0);
+      const card = getPredictionBaoPrizeCard(type, baoLevel);
+      if (!card || !Array.isArray(card.rows)) return null;
+      const mainHits = countMainMatch(ticket.main, draw.main);
+      const specialHit = TYPES[type]?.hasSpecial
+        && Number.isInteger(ticket?.special)
+        && ticket.special === draw.special;
+      const normalizedRows = card.rows.map(row => ({
+        row,
+        label: normalizePredictionPrizeLookupText(row?.[0]),
+      }));
+      const findRow = predicate => normalizedRows.find(item => predicate(item.label))?.row || null;
+      let matchedRow = null;
+
+      if (type === "LOTO_5_35") {
+        if (specialHit) {
+          matchedRow = findRow(label => label === `${mainHits} SO CHINH + DB`);
+          if (!matchedRow && mainHits <= 1) {
+            matchedRow = findRow(label => label.includes("1 SO CHINH + DB HOAC CHI DB"));
+          }
+          if (!matchedRow && mainHits <= 2) {
+            matchedRow = findRow(label => label === "2 SO CHINH + DB");
+          }
+        } else {
+          matchedRow = findRow(label => label === `${mainHits} SO CHINH`);
+        }
+      } else if (type === "LOTO_6_45") {
+        matchedRow = findRow(label => label === `TRUNG ${mainHits} SO`);
+      } else if (type === "LOTO_6_55") {
+        if (specialHit) {
+          matchedRow = findRow(label => label === `TRUNG ${mainHits} SO + SO DAC BIET`);
+        }
+        if (!matchedRow) matchedRow = findRow(label => label === `TRUNG ${mainHits} SO`);
+      }
+      if (!matchedRow) return null;
+      return [normalizePredictionPrizeBreakdownLabel(matchedRow[0]), matchedRow[1]];
+    }
+
     function evaluatePredictionTicketsForDraw(type, tickets, draw) {
       const threshold = getPredictionHitThreshold(type);
       const details = [];
+      const prizeBreakdownMap = new Map();
       let bestMainHits = 0;
       let specialHits = 0;
       let thresholdTicketHits = 0;
       let prizeTicketHits = 0;
+      let pricedPrizeHits = 0;
+      let totalPrizeAmount = 0;
+      let hasVariablePrize = false;
       let totalMainHits = 0;
       for (const ticket of (tickets || [])) {
         const cloned = clonePredictionTicket(ticket);
@@ -99,12 +219,30 @@
         const isBao = String(cloned.playMode || "").trim().toLowerCase() === "bao";
         const mainHits = countMainMatch(cloned.main, draw.main);
         const specialHit = TYPES[type].hasSpecial && Number.isInteger(cloned.special) && cloned.special === draw.special;
-        const prize = isBao ? null : evalPrize(type, cloned, draw);
+        const prize = isBao ? evalBaoPrize(type, cloned, draw) : evalPrize(type, cloned, draw);
+        const prizeMeta = prize ? parsePredictionPrizeAmount(prize[1]) : { amount: 0, variable: false };
         if (mainHits > bestMainHits) bestMainHits = mainHits;
         totalMainHits += mainHits;
         if (specialHit) specialHits += 1;
         if (mainHits >= threshold) thresholdTicketHits += 1;
-        if (prize) prizeTicketHits += 1;
+        if (prize) {
+          prizeTicketHits += 1;
+          if (prizeMeta.amount > 0) pricedPrizeHits += 1;
+          totalPrizeAmount += prizeMeta.amount;
+          hasVariablePrize = hasVariablePrize || prizeMeta.variable;
+          const prizeLabel = normalizePredictionPrizeBreakdownLabel(prize[0]);
+          const breakdownKey = `${prizeLabel}|${prizeMeta.amount}|${prizeMeta.variable ? 1 : 0}`;
+          const breakdown = prizeBreakdownMap.get(breakdownKey) || {
+            label: prizeLabel,
+            count: 0,
+            unitAmount: prizeMeta.amount,
+            totalAmount: 0,
+            variable: prizeMeta.variable,
+          };
+          breakdown.count += 1;
+          breakdown.totalAmount += prizeMeta.amount;
+          prizeBreakdownMap.set(breakdownKey, breakdown);
+        }
         details.push({
           main: cloned.main,
           special: cloned.special,
@@ -114,8 +252,15 @@
           specialHit,
           prizeLabel: prize?.[0] || "",
           prizeValue: prize?.[1] || "",
+          prizeAmount: prizeMeta.amount,
+          prizeVariable: prizeMeta.variable,
         });
       }
+      const prizeBreakdown = [...prizeBreakdownMap.values()].sort((a, b) => (
+        Number(b.unitAmount || 0) - Number(a.unitAmount || 0)
+        || Number(b.totalAmount || 0) - Number(a.totalAmount || 0)
+        || String(a.label || "").localeCompare(String(b.label || ""), "vi")
+      ));
       return {
         ticketCount: details.length,
         bestMainHits,
@@ -123,6 +268,11 @@
         specialHits,
         thresholdTicketHits,
         prizeTicketHits,
+        pricedPrizeHits,
+        totalPrizeAmount,
+        hasVariablePrize,
+        losingTicketCount: Math.max(0, details.length - prizeTicketHits),
+        prizeBreakdown,
         details,
       };
     }
@@ -342,10 +492,17 @@
       if (!PREDICTION_LOG_TYPES.includes(type) || !entry) return;
       const logs = ensurePredictionLogBucket(type);
       const predictedKy = normalizeKy(entry.predictedKy);
+      const normalizedRankings = normalizePredictionTopRankings(
+        type,
+        entry.topMainRanking,
+        entry.topSpecialRanking,
+        entry.tickets,
+      );
       const next = {
         id: String(entry.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
         createdAt: String(entry.createdAt || getSyncedIsoString()),
         predictedKy,
+        targetDrawAt: String(entry.targetDrawAt || ""),
         strategyKey: String(entry.strategyKey || ""),
         strategyLabel: String(entry.strategyLabel || ""),
         modelKey: String(entry.modelKey || entry.strategyKey || ""),
@@ -383,8 +540,8 @@
         scoreMetrics: entry.scoreMetrics && typeof entry.scoreMetrics === "object" ? entry.scoreMetrics : null,
         tickets: (entry.tickets || []).map(clonePredictionTicket).filter(Boolean),
         ticketSources: Array.isArray(entry.ticketSources) ? entry.ticketSources.map(item => String(item || "").trim()) : [],
-          topMainRanking: Array.isArray(entry.topMainRanking) ? entry.topMainRanking.map(Number) : [],
-          topSpecialRanking: Array.isArray(entry.topSpecialRanking) ? entry.topSpecialRanking.map(Number) : [],
+          topMainRanking: normalizedRankings.main,
+          topSpecialRanking: normalizedRankings.special,
           backtest: entry.backtest || null,
           metaSelectionMode: String(entry.metaSelectionMode || ""),
           metaScores: entry.metaScores || null,
@@ -411,6 +568,7 @@
       });
       while (logs.length > MAX_PREDICTION_LOGS_PER_TYPE) logs.shift();
       renderPredictionHistoryPanel();
+      renderHeaderNotifications();
     }
 
     function getPredictionEntryPlayModeForMetrics(entry) {
@@ -504,23 +662,39 @@
       }).join("");
     }
 
-    function normalizePredictionHistoryRange(value) {
-      const normalized = String(value || "").trim().toLowerCase();
-      return ["2k", "today", "3d", "7d", "all"].includes(normalized) ? normalized : "2k";
+    function getPredictionHistoryRangeItems(typeKey = predictionHistorySelectedType) {
+      const normalizedType = normalizePredictionHistoryType(typeKey);
+      return normalizedType === "KENO"
+        ? [
+            { value: "5k", label: "5 Kỳ" },
+            { value: "15k", label: "15 Kỳ" },
+            { value: "30k", label: "30 Kỳ" },
+            { value: "today", label: "Hôm Nay" },
+            { value: "all", label: "All" },
+          ]
+        : [
+            { value: "5k", label: "5 Kỳ" },
+            { value: "12k", label: "12 Kỳ" },
+            { value: "30k", label: "30 Kỳ" },
+            { value: "68k", label: "68 Kỳ" },
+            { value: "latest", label: "Mới Nhất" },
+            { value: "all", label: "All" },
+          ];
     }
 
-    function renderPredictionHistoryRangeTabs() {
+    function normalizePredictionHistoryRange(value, typeKey = predictionHistorySelectedType) {
+      const normalized = String(value || "").trim().toLowerCase();
+      const items = getPredictionHistoryRangeItems(typeKey);
+      return items.some(item => item.value === normalized) ? normalized : items[0].value;
+    }
+
+    function renderPredictionHistoryRangeTabs(typeKey = predictionHistorySelectedType) {
       const tabsEl = document.getElementById("predictionHistoryRangeTabs");
       if (!tabsEl) return;
-      const selectedRange = normalizePredictionHistoryRange(predictionHistorySelectedRange);
+      const selectedType = normalizePredictionHistoryType(typeKey);
+      const selectedRange = normalizePredictionHistoryRange(predictionHistorySelectedRange, selectedType);
       predictionHistorySelectedRange = selectedRange;
-      const items = [
-        { value: "2k", label: "2 Kỳ" },
-        { value: "today", label: "Hôm Nay" },
-        { value: "3d", label: "3 Ngày" },
-        { value: "7d", label: "7 Ngày" },
-        { value: "all", label: "Tất Cả" },
-      ];
+      const items = getPredictionHistoryRangeItems(selectedType);
       tabsEl.innerHTML = items.map(item => {
         const isActive = item.value === selectedRange;
         return `<button
@@ -593,15 +767,7 @@
 
     function getPredictionHistoryBaoLevelOptions(typeKey = predictionHistorySelectedType, predictionMode = PREDICTION_MODE_NORMAL) {
       const normalizedType = normalizePredictionHistoryType(typeKey);
-      if (!hasPredictBaoMode(normalizedType)) return [];
-      const values = new Set();
-      ensurePredictionLogBucket(normalizedType).forEach(entry => {
-        if (getPredictionEntryMode(entry) !== normalizePredictionMode(predictionMode)) return;
-        if (getPredictionHistoryEntryPlayMode(entry) !== "bao") return;
-        const baoLevel = getPredictionEntryBaoLevelForMetrics(entry);
-        if (Number.isInteger(baoLevel) && baoLevel > 0) values.add(baoLevel);
-      });
-      return [...values].sort((a, b) => a - b);
+      return getPredictBaoLevels(normalizedType);
     }
 
     function renderPredictionHistoryBaoLevelFilter(typeKey = predictionHistorySelectedType, playModeKey = predictionHistorySelectedPlayMode, predictionMode = PREDICTION_MODE_NORMAL) {
@@ -614,7 +780,7 @@
       if (!shouldShow) {
         predictionHistorySelectedBaoLevel = "all";
         wrapEl.hidden = true;
-        selectEl.innerHTML = `<option value="all">Tất cả bậc</option>`;
+        selectEl.innerHTML = `<option value="all">Bậc: Tất cả</option>`;
         selectEl.value = "all";
         return;
       }
@@ -625,26 +791,28 @@
         : "all";
       predictionHistorySelectedBaoLevel = nextSelectedValue;
       selectEl.innerHTML = [
-        `<option value="all">Tất cả bậc</option>`,
+        `<option value="all">Bậc: Tất cả</option>`,
         ...options.map(value => `<option value="${value}">${escapeHtml(`Bao ${value}`)}</option>`),
       ].join("");
       selectEl.value = nextSelectedValue;
       wrapEl.hidden = false;
     }
 
-    function isPredictionHistoryEntryInRange(entry, rangeKey = "all") {
-      const selectedRange = normalizePredictionHistoryRange(rangeKey);
-      if (selectedRange === "2k") return true;
-      if (selectedRange === "all") return true;
+    function isPredictionHistoryEntryInRange(entry, rangeKey = "all", typeKey = predictionHistorySelectedType) {
+      const selectedRange = normalizePredictionHistoryRange(rangeKey, typeKey);
+      if (selectedRange !== "today") return true;
       const createdAtMs = Date.parse(String(entry?.createdAt || "").trim());
       if (!Number.isFinite(createdAtMs)) return false;
       const now = getSyncedNowDate();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      if (selectedRange === "today") {
-        return createdAtMs >= startOfToday;
-      }
-      const rangeDays = selectedRange === "3d" ? 3 : 7;
-      return createdAtMs >= (getSyncedNowMs() - (rangeDays * 24 * 60 * 60 * 1000));
+      return createdAtMs >= startOfToday;
+    }
+
+    function getPredictionHistoryRangeLimit(rangeKey, typeKey) {
+      const selectedRange = normalizePredictionHistoryRange(rangeKey, typeKey);
+      if (selectedRange === "latest") return 1;
+      const match = /^(\d+)k$/.exec(selectedRange);
+      return match ? Math.max(1, Number(match[1])) : 0;
     }
 
     function formatPredictionHistoryTime(value) {
@@ -696,7 +864,7 @@
       return `<span class="predict-hit-number-grid">${rows.join("")}</span>`;
     }
 
-    function formatPredictionHistoryTicketMeta(type, index, entry) {
+    function formatPredictionHistoryTicketMeta(type, index, entry, { divider = true } = {}) {
       const rawSource = String(entry?.ticketSources?.[index] || "").trim().toLowerCase();
       const algorithmLabel = rawSource === "luan_so"
         ? "Luận Số"
@@ -704,17 +872,21 @@
         ? "AI GEN"
         : String(entry?.championLabel || entry?.modelLabel || entry?.strategyLabel || entry?.engineLabel || "AI Gen").trim();
       if (!algorithmLabel) return "";
+      const prefix = divider ? "| " : "";
       const detail = Array.isArray(entry?.resultSummary?.details) ? entry.resultSummary.details[index] : null;
       if (!entry?.resolved || !detail) {
         const pendingLabel = getPredictionHistoryEntryStatus(entry).shortLabel;
-        return `<span class="predict-ticket-meta${entry?.resultMissingData ? " is-missing" : ""}">| ${escapeHtml(algorithmLabel)} - ${escapeHtml(pendingLabel)}</span>`;
+        return `<span class="predict-ticket-meta${entry?.resultMissingData ? " is-missing" : ""}">${prefix}${escapeHtml(algorithmLabel)} - ${escapeHtml(pendingLabel)}</span>`;
       }
       const mainSlotCount = Array.isArray(detail?.main) ? detail.main.length : (Array.isArray(entry?.tickets?.[index]?.main) ? entry.tickets[index].main.length : 0);
-      const specialSlotCount = TYPES[type]?.hasSpecial && Number.isInteger(detail?.special) ? 1 : 0;
-      const totalSlotCount = Math.max(1, mainSlotCount + specialSlotCount);
-      const hitCount = Number(detail?.mainHits || 0) + (detail?.specialHit ? 1 : 0);
-      const hitPercent = (hitCount / totalSlotCount) * 100;
-      return `<span class="predict-ticket-meta">| ${escapeHtml(algorithmLabel)} - ${escapeHtml(formatPredictionPercent(hitPercent / 100))}</span>`;
+      const mainHits = Math.max(0, Number(detail?.mainHits || 0));
+      const hitText = `${mainHits}/${Math.max(1, mainSlotCount)} số${detail?.specialHit ? " + số phụ" : ""}`;
+      return `<span class="predict-ticket-meta">${prefix}${escapeHtml(algorithmLabel)} - ${escapeHtml(hitText)}</span>`;
+    }
+
+    function isPredictionHistoryBaoTicket(ticket) {
+      const cloned = clonePredictionTicket(ticket);
+      return !!cloned && String(cloned.playMode || "").trim().toLowerCase() === "bao";
     }
 
     function formatPredictionHistoryTicketLabel(ticket, index) {
@@ -730,8 +902,15 @@
       const cloned = clonePredictionTicket(ticket);
       if (!cloned) return "";
       const label = `<span class="predict-hit-label">${escapeHtml(formatPredictionHistoryTicketLabel(cloned, index))}:</span>`;
-      const mainHtml = renderPredictionHistoryNumberList(cloned.main, entry);
-      const metaHtml = formatPredictionHistoryTicketMeta(type, index, entry);
+      const isBao = isPredictionHistoryBaoTicket(cloned);
+      const mainHtml = renderPredictionHistoryNumberList(cloned.main, entry, { perRow: isBao ? 10 : 0 });
+      const metaHtml = formatPredictionHistoryTicketMeta(type, index, entry, { divider: !isBao });
+      if (isBao) {
+        const specialHtml = TYPES[type]?.hasSpecial && Number.isInteger(cloned.special)
+          ? `<span class="predict-history-bao-special" aria-label="Số đặc biệt"><span class="predict-hit-divider" aria-hidden="true">|</span>${renderPredictionHistoryNumberList([cloned.special], entry, { special: true })}</span>`
+          : "";
+        return `${label}<span class="predict-history-bao-main">${mainHtml}</span>${specialHtml}${metaHtml}`;
+      }
       if (type === "KENO") {
         return `${label}${mainHtml}${metaHtml}`;
       }
@@ -794,11 +973,8 @@
         return ` | ${algorithmLabel} - ${getPredictionHistoryEntryStatus(entry).shortLabel}`;
       }
       const mainSlotCount = Array.isArray(detail?.main) ? detail.main.length : (Array.isArray(entry?.tickets?.[index]?.main) ? entry.tickets[index].main.length : 0);
-      const specialSlotCount = TYPES[type]?.hasSpecial && Number.isInteger(detail?.special) ? 1 : 0;
-      const totalSlotCount = Math.max(1, mainSlotCount + specialSlotCount);
-      const hitCount = Number(detail?.mainHits || 0) + (detail?.specialHit ? 1 : 0);
-      const hitPercent = (hitCount / totalSlotCount) * 100;
-      return ` | ${algorithmLabel} - ${formatPredictionPercent(hitPercent / 100)}`;
+      const mainHits = Math.max(0, Number(detail?.mainHits || 0));
+      return ` | ${algorithmLabel} - ${mainHits}/${Math.max(1, mainSlotCount)} số${detail?.specialHit ? " + số phụ" : ""}`;
     }
 
     function formatPredictionHistoryTicketPlainText(type, ticket, index, entry) {
@@ -845,7 +1021,7 @@
         const specialRows = formatPredictionHistoryPlainNumberRows(entry.topSpecialRanking, 10, entry.type);
         const specialParts = specialRows.split("\n").filter(Boolean);
         if (specialParts.length) {
-          topLines.push(`Số phụ ưu tiên: ${specialParts.shift()}`);
+          topLines.push(`Top ĐB: ${specialParts.shift()}`);
           specialParts.forEach(part => topLines.push(part));
         }
       }
@@ -887,23 +1063,36 @@
     function formatPredictionHistorySummary(type, entry) {
       const summary = entry?.resultSummary;
       if (!summary || typeof summary !== "object") return "Chưa có dữ liệu đối chiếu.";
-      const predictedSize = Array.isArray(entry?.tickets?.[0]?.main)
-        ? entry.tickets[0].main.length
-        : (TYPES[type]?.mainCount || 0);
       const isBaoMode = getPredictionHistoryEntryPlayMode(entry) === "bao";
       const unitLabel = isBaoMode ? "bộ" : "vé";
       const parts = [];
-      if (Number(summary.bestMainHits || 0) > 0) {
-        parts.push(`Tốt nhất ${summary.bestMainHits}/${predictedSize} số`);
+      const totalPrizeAmount = Number(summary.totalPrizeAmount || 0);
+      if (totalPrizeAmount > 0) {
+        const minimumLabel = summary.hasVariablePrize ? " tối thiểu" : "";
+        parts.push(`Tổng tiền trúng${minimumLabel} ${formatPrizeCurrency(totalPrizeAmount)}`);
+      } else if (Number(summary.prizeTicketHits || 0) > 0) {
+        parts.push(`${summary.prizeTicketHits} ${unitLabel} có giải (xem bảng thưởng)`);
+      } else {
+        parts.push(`Tổng tiền trúng ${formatPrizeCurrency(0)}`);
       }
-      if (Number(summary.avgMainHits || 0) > 0) {
-        parts.push(`TB ${Number(summary.avgMainHits || 0).toFixed(2)} số/${unitLabel}`);
+      const prizeBreakdown = Array.isArray(summary.prizeBreakdown)
+        ? [...summary.prizeBreakdown].sort((a, b) => (
+            Number(b?.unitAmount || 0) - Number(a?.unitAmount || 0)
+            || Number(b?.totalAmount || 0) - Number(a?.totalAmount || 0)
+          ))
+        : [];
+      if (prizeBreakdown.length) {
+        const breakdownText = prizeBreakdown
+          .filter(item => Number(item?.count || 0) > 0)
+          .map(item => `${item.label}: ${item.count} ${unitLabel}`)
+          .join("; ");
+        if (breakdownText) parts.push(breakdownText);
       }
-      if (Number(summary.thresholdTicketHits || 0) > 0) {
-        parts.push(`${summary.thresholdTicketHits} ${unitLabel} đạt ngưỡng`);
-      }
-      if (!isBaoMode && Number(summary.prizeTicketHits || 0) > 0) {
-        parts.push(`${summary.prizeTicketHits} vé có giải`);
+      const losingTicketCount = Number.isFinite(Number(summary.losingTicketCount))
+        ? Math.max(0, Number(summary.losingTicketCount))
+        : Math.max(0, Number(summary.ticketCount || 0) - Number(summary.prizeTicketHits || 0));
+      if (Number(summary.ticketCount || 0) > 0) {
+        parts.push(`${losingTicketCount} ${unitLabel} trượt`);
       }
       if (TYPES[type]?.hasSpecial && Number(summary.specialHits || 0) > 0) {
         parts.push(`${summary.specialHits} ${unitLabel} trúng số phụ`);
@@ -911,30 +1100,102 @@
       return parts.length ? parts.join(" • ") : "Chưa có số khớp nổi bật.";
     }
 
-    function formatPredictionHistoryHitRateLine(type, entry) {
-      const buckets = Array.isArray(entry?.resultSummary?.hitRateBuckets) ? entry.resultSummary.hitRateBuckets : [];
-      if (!buckets.length) return "";
-      const parts = buckets.map(bucket => {
-        const hitLabel = `${bucket.hitCount} số`;
-        const rateText = formatPredictionPercent(bucket.rate);
-        const trendText = formatPredictionTrendHtml(bucket.trend);
-        return `${escapeHtml(hitLabel)} ${escapeHtml(rateText)} ${trendText}`.trim();
+    function buildPredictionHistoryCumulativeSummary(type, entries) {
+      const scoredEntries = (Array.isArray(entries) ? entries : []).filter(entry => (
+        entry?.resolved
+        && entry?.actualDraw
+        && Array.isArray(entry?.tickets)
+      ));
+      const mainHitCounts = new Map();
+      let total = 0;
+      let maxMainHits = 0;
+      let specialTotal = 0;
+      let specialHits = 0;
+      scoredEntries.forEach(entry => {
+        const drawMainCount = Array.isArray(entry.actualDraw?.main) ? entry.actualDraw.main.length : 0;
+        const largestTicketSize = entry.tickets.reduce((largest, ticket) => (
+          Math.max(largest, Array.isArray(ticket?.main) ? ticket.main.length : 0)
+        ), 0);
+        maxMainHits = Math.max(
+          maxMainHits,
+          drawMainCount ? Math.min(drawMainCount, largestTicketSize) : largestTicketSize,
+        );
+        const cachedDetails = Array.isArray(entry.resultSummary?.details) ? entry.resultSummary.details : [];
+        const details = cachedDetails.length === entry.tickets.length
+          ? cachedDetails
+          : entry.tickets.map(ticket => ({
+              mainHits: countMainMatch(ticket?.main || [], entry.actualDraw.main || []),
+              special: ticket?.special,
+              specialHit: TYPES[type]?.hasSpecial
+                && Number.isInteger(ticket?.special)
+                && ticket.special === entry.actualDraw.special,
+            }));
+        details.forEach(detail => {
+          const mainHits = Math.max(0, Number(detail?.mainHits || 0));
+          maxMainHits = Math.max(maxMainHits, mainHits);
+          mainHitCounts.set(mainHits, Number(mainHitCounts.get(mainHits) || 0) + 1);
+          total += 1;
+          if (TYPES[type]?.hasSpecial && Number.isInteger(detail?.special)) {
+            specialTotal += 1;
+            if (detail.specialHit) specialHits += 1;
+          }
+        });
       });
-      return parts.length ? parts.join(" • ") : "";
+      if (!total) return null;
+      return {
+        total,
+        unitLabel: getPredictionHistoryEntryPlayMode(scoredEntries[0]) === "bao" ? "bộ" : "vé",
+        mainHitCounts: Array.from({ length: maxMainHits + 1 }, (_, hitCount) => ({
+          hitCount,
+          count: Number(mainHitCounts.get(hitCount) || 0),
+        })),
+        specialTotal,
+        specialHits,
+        specialMisses: Math.max(0, specialTotal - specialHits),
+      };
     }
 
-    function formatPredictionHistoryTopRateLine(type, entry) {
-      const topSummary = entry?.resultSummary?.topHitSummary;
-      if (!topSummary || typeof topSummary !== "object") return "";
-      const main = topSummary.topMain || {};
-      const mainText = main.total
-        ? `${escapeHtml(`Top số ${main.matched}/${main.total} = ${formatPredictionPercent(main.rate)}`)} ${formatPredictionTrendHtml(main.trend)}`.trim()
-        : "";
-      const special = topSummary.topSpecial || {};
-      const specialText = TYPES[type]?.hasSpecial && special.total
-        ? `${escapeHtml(`Số phụ ${special.matched}/${special.total} = ${formatPredictionPercent(special.rate)}`)} ${formatPredictionTrendHtml(special.trend)}`.trim()
-        : "";
-      return [mainText, specialText].filter(Boolean).join(" • ");
+    function formatPredictionHistoryCumulativeRates(type, entries, previousEntries = []) {
+      const summary = buildPredictionHistoryCumulativeSummary(type, entries);
+      if (!summary) return null;
+      const previous = buildPredictionHistoryCumulativeSummary(type, previousEntries);
+      const previousMainCounts = new Map(
+        (previous?.mainHitCounts || []).map(item => [Number(item.hitCount || 0), Number(item.count || 0)])
+      );
+      const items = summary.mainHitCounts.map(item => {
+        const rate = item.count * 100 / summary.total;
+        const previousRate = previous?.total
+          ? Number(previousMainCounts.get(item.hitCount) || 0) * 100 / previous.total
+          : null;
+        return {
+          label: item.hitCount === 0 ? "Trượt" : `${item.hitCount} số`,
+          count: item.count,
+          total: summary.total,
+          rate,
+          trend: Number.isFinite(previousRate) ? buildPredictionTrend(rate, previousRate) : null,
+        };
+      });
+      if (TYPES[type]?.hasSpecial && summary.specialTotal) {
+        const specialRate = summary.specialHits * 100 / summary.specialTotal;
+        const previousSpecialRate = previous?.specialTotal
+          ? previous.specialHits * 100 / previous.specialTotal
+          : null;
+        items.push({
+          label: "ĐB",
+          count: summary.specialHits,
+          total: summary.specialTotal,
+          rate: specialRate,
+          trend: Number.isFinite(previousSpecialRate) ? buildPredictionTrend(specialRate, previousSpecialRate) : null,
+        });
+      }
+      const html = items.map(item => {
+        const isSame = item.trend?.direction === "same";
+        const labelHtml = item.label === "ĐB" ? "<strong>ĐB</strong>" : escapeHtml(item.label);
+        const valueHtml = `<span class="prediction-rate-item${isSame ? " same" : ""}">${labelHtml} ${escapeHtml(formatPredictionPercent(item.rate))}</span>`;
+        const trendHtml = item.trend && !isSame ? ` ${formatPredictionTrendHtml(item.trend)}` : "";
+        return `${valueHtml}${trendHtml}`;
+      }).join(" • ");
+      return { ...summary, items, html };
     }
 
     function syncLedgerRowsIntoPredictionHistory(type, rows) {
@@ -1013,7 +1274,7 @@
     }
 
     async function refreshPredictionLedgerForHistory(type) {
-      if (IS_LOCAL_MODE) return false;
+      if (IS_LOCAL_MODE || !ML_PREDICTION_LOG_TYPES.has(type)) return false;
       try {
         const response = await api(`/api/ml/predictions?type=${encodeURIComponent(type)}`);
         return syncLedgerRowsIntoPredictionHistory(type, response?.predictions || []);
@@ -1024,7 +1285,7 @@
     }
 
     async function scorePendingPredictionLedger(type) {
-      if (IS_LOCAL_MODE || !PREDICTION_LOG_TYPES.includes(type)) return false;
+      if (IS_LOCAL_MODE || !ML_PREDICTION_LOG_TYPES.has(type)) return false;
       try {
         const response = await api("/api/ml/score-pending", "POST", { type });
         return Array.isArray(response?.scored) && response.scored.length > 0;
@@ -1069,33 +1330,74 @@
       return nextFeed;
     }
 
-    async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
-      await fetchPredictionHistoryDraws("KENO");
-      const predictionLogsBeforeReconcile = getPredictionLogsSignature(store.predictionLogs?.KENO || []);
-      const ledgerChanged = await refreshPredictionLedgerForHistory("KENO");
-      reconcilePredictionLogsForType("KENO");
-      if (ledgerChanged || getPredictionLogsSignature(store.predictionLogs?.KENO || []) !== predictionLogsBeforeReconcile) {
-        saveStore();
+    async function repairPredictionHistoryCanonical(type) {
+      if (IS_LOCAL_MODE) return null;
+      const params = new URLSearchParams({
+        type,
+        count: type === "KENO" ? "today" : "20",
+        repair: "1",
+        recentDays: type === "KENO" ? "2" : "15",
+      });
+      const response = await api(`/api/live-history?${params.toString()}`);
+      const errors = [
+        ...(Array.isArray(response?.repairErrors) ? response.repairErrors : []),
+        ...(Array.isArray(response?.errors) ? response.errors : []),
+      ].map(error => String(error?.message || error || "").trim()).filter(Boolean);
+      if (errors.length) {
+        throw new Error(`Không thể cập nhật dữ liệu ${TYPES[type]?.label || type}: ${errors.join(" | ")}`);
       }
+      return response;
     }
 
-    async function refreshPredictionHistoryType(type, { silent = true } = {}) {
+    function getPendingPredictionDrawLabels(type) {
+      return (Array.isArray(store.predictionLogs?.[type]) ? store.predictionLogs[type] : [])
+        .filter(entry => entry && !entry.resolved && normalizeKy(entry.predictedKy))
+        .map(entry => formatLiveKy(entry.predictedKy))
+        .filter(Boolean);
+    }
+
+    async function refreshPredictionHistoryData(type, { silent = true, repairCanonical = false } = {}) {
+      const normalizedType = normalizePredictionHistoryType(type);
+      const before = getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []);
+      if (repairCanonical) await repairPredictionHistoryCanonical(normalizedType);
+      await fetchPredictionHistoryDraws(normalizedType);
+
+      let ledgerScored = false;
+      if (repairCanonical && ML_PREDICTION_LOG_TYPES.has(normalizedType)) {
+        ledgerScored = await scorePendingPredictionLedger(normalizedType);
+      }
+      const ledgerChanged = await refreshPredictionLedgerForHistory(normalizedType);
+      reconcilePredictionLogsForType(normalizedType);
+      const logsChanged = getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []) !== before;
+      if (ledgerScored || ledgerChanged || logsChanged) saveStore();
+
+      if (repairCanonical) {
+        const pendingDraws = [...new Set(getPendingPredictionDrawLabels(normalizedType))];
+        if (pendingDraws.length) {
+          const feed = getLiveHistoryFeed(normalizedType);
+          const latestKy = formatLiveKy(feed?.latestKy || "");
+          const pendingText = pendingDraws.slice(0, 3).join(", ");
+          const moreText = pendingDraws.length > 3 ? ` và ${pendingDraws.length - 3} kỳ khác` : "";
+          throw new Error(`Chưa tìm thấy kết quả cho kỳ ${pendingText}${moreText}.${latestKy ? ` Dữ liệu mới nhất hiện có: kỳ ${latestKy}.` : ""}`);
+        }
+      }
+      return { ledgerScored, ledgerChanged, logsChanged };
+    }
+
+    async function refreshKenoPredictionDataForHistory({ silent = true } = {}) {
+      return refreshPredictionHistoryData("KENO", { silent, repairCanonical: !silent });
+    }
+
+    async function refreshPredictionHistoryType(type, { silent = true, repairCanonical = false } = {}) {
       const normalizedType = normalizePredictionHistoryType(type);
       if (!PREDICTION_LOG_TYPES.includes(normalizedType)) return;
       if (normalizedType === "KENO") {
-        await refreshKenoPredictionDataForHistory({ silent });
-        return;
+        return refreshPredictionHistoryData("KENO", { silent, repairCanonical });
       }
-      await fetchPredictionHistoryDraws(normalizedType);
-      const before = getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []);
-      const ledgerChanged = await refreshPredictionLedgerForHistory(normalizedType);
-      reconcilePredictionLogsForType(normalizedType);
-      if (ledgerChanged || getPredictionLogsSignature(store.predictionLogs?.[normalizedType] || []) !== before) {
-        saveStore();
-      }
+      return refreshPredictionHistoryData(normalizedType, { silent, repairCanonical });
     }
 
-    function startPredictionHistoryRefresh(type, { silent = true } = {}) {
+    async function startPredictionHistoryRefresh(type, { silent = true, repairCanonical = false } = {}) {
       const normalizedType = normalizePredictionHistoryType(type);
       const refreshToken = ++predictionHistoryRefreshToken;
       predictionHistoryLoading = true;
@@ -1103,24 +1405,22 @@
       predictionHistoryLoadingError = "";
       setPredictionHistoryRefreshButtonBusy(true);
       renderPredictionHistoryPanel();
-      (async () => {
-        try {
-          await refreshPredictionHistoryType(normalizedType, { silent });
-          if (refreshToken !== predictionHistoryRefreshToken) return;
-          predictionHistoryLoading = false;
-          predictionHistoryLoadingType = "";
-          predictionHistoryLoadingError = "";
-        } catch (error) {
-          if (refreshToken !== predictionHistoryRefreshToken) return;
-          predictionHistoryLoading = false;
-          predictionHistoryLoadingType = normalizedType;
-          predictionHistoryLoadingError = String(error?.message || error || "Không tải được lịch sử.");
-        } finally {
-          if (refreshToken !== predictionHistoryRefreshToken) return;
-          setPredictionHistoryRefreshButtonBusy(false);
-          renderPredictionHistoryPanel();
-        }
-      })();
+      try {
+        await refreshPredictionHistoryType(normalizedType, { silent, repairCanonical });
+        if (refreshToken !== predictionHistoryRefreshToken) return;
+        predictionHistoryLoading = false;
+        predictionHistoryLoadingType = "";
+        predictionHistoryLoadingError = "";
+      } catch (error) {
+        if (refreshToken !== predictionHistoryRefreshToken) return;
+        predictionHistoryLoading = false;
+        predictionHistoryLoadingType = normalizedType;
+        predictionHistoryLoadingError = String(error?.message || error || "Không tải được lịch sử.");
+      } finally {
+        if (refreshToken !== predictionHistoryRefreshToken) return;
+        setPredictionHistoryRefreshButtonBusy(false);
+        renderPredictionHistoryPanel();
+      }
     }
 
     function setPredictionHistoryRefreshButtonBusy(isBusy) {
@@ -1134,7 +1434,7 @@
 
     function collectPredictionHistoryEntries(filterType = "KENO", rangeKey = "all", playModeKey = "normal", baoLevelKey = "all", predictionMode = PREDICTION_MODE_NORMAL) {
       const selectedType = normalizePredictionHistoryType(filterType);
-      const selectedRange = normalizePredictionHistoryRange(rangeKey);
+      const selectedRange = normalizePredictionHistoryRange(rangeKey, selectedType);
       const selectedPredictionMode = normalizePredictionMode(predictionMode);
       const selectedPlayMode = hasPredictBaoMode(selectedType)
         ? normalizePredictionHistoryPlayMode(playModeKey)
@@ -1145,17 +1445,30 @@
       if (!PREDICTION_LOG_TYPES.includes(selectedType)) return [];
       const groupedRows = new Map();
       ensurePredictionLogBucket(selectedType).forEach(entry => {
+        const normalizedRankings = normalizePredictionTopRankings(
+          selectedType,
+          entry?.topMainRanking,
+          entry?.topSpecialRanking,
+          entry?.tickets,
+        );
         const normalizedEntry = {
           type: selectedType,
           typeLabel: TYPES[selectedType]?.label || selectedType,
           ...entry,
+          topMainRanking: normalizedRankings.main,
+          topSpecialRanking: normalizedRankings.special,
         };
         if (getPredictionEntryMode(normalizedEntry) !== selectedPredictionMode) return;
         const entryPlayMode = getPredictionHistoryEntryPlayMode(normalizedEntry);
         if (entryPlayMode !== selectedPlayMode) return;
         const normalizedKy = normalizeKy(normalizedEntry?.predictedKy);
+        const runIdentity = String(
+          normalizedEntry?.predictionId
+          || normalizedEntry?.id
+          || `${normalizedKy || "unknown"}:${normalizedEntry?.createdAt || Math.random()}`
+        );
         const dedupeKeyParts = [
-          normalizedKy || String(normalizedEntry?.id || normalizedEntry?.createdAt || Math.random()),
+          runIdentity,
           entryPlayMode,
         ];
         if (entryPlayMode === "bao") {
@@ -1191,7 +1504,7 @@
         if (nextTime >= currentTime) groupedRows.set(dedupeKey, normalizedEntry);
       });
       const sortedEntries = [...groupedRows.values()]
-        .filter(entry => isPredictionHistoryEntryInRange(entry, selectedRange))
+        .filter(entry => isPredictionHistoryEntryInRange(entry, selectedRange, selectedType))
         .filter(entry => selectedBaoLevel === "all" || getPredictionEntryBaoLevelForMetrics(entry) === Number(selectedBaoLevel))
         .sort((a, b) => {
         const aTime = Date.parse(a?.createdAt || 0) || 0;
@@ -1199,7 +1512,8 @@
         if (aTime !== bTime) return bTime - aTime;
         return kySortValue(b?.predictedKy) - kySortValue(a?.predictedKy);
       });
-      return selectedRange === "2k" ? sortedEntries.slice(0, 2) : sortedEntries;
+      const rangeLimit = getPredictionHistoryRangeLimit(selectedRange, selectedType);
+      return rangeLimit ? sortedEntries.slice(0, rangeLimit) : sortedEntries;
     }
 
     function getPredictionHistoryEntryKey(entry) {
@@ -1261,7 +1575,7 @@
       if (nextBtn) nextBtn.disabled = total <= 1 || currentIndex >= total - 1;
     }
 
-    function renderPredictionHistoryEntryHtml(entry, entryIndex) {
+    function renderPredictionHistoryEntryHtml(entry, entryIndex, historyEntries = []) {
       const statusMeta = getPredictionHistoryEntryStatus(entry);
       const statusClass = statusMeta.className;
       const statusText = statusMeta.label;
@@ -1294,11 +1608,11 @@
         entry.modelVersion
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Mô hình</span><strong class="predict-history-info-value">${escapeHtml(entry.modelVersion)}</strong></div>`
           : "",
-      ].filter(Boolean).join("");
-      const metricInfoCards = [
         Number(entry.probabilitySummary?.mainProbabilitySum || 0) > 0
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Tổng xác suất</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
           : "",
+      ].filter(Boolean).join("");
+      const metricInfoCards = [
         Number(entry.ticketQualityScore || 0) > 0
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Điểm chất lượng</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.ticketQualityScore || 0).toFixed(2))}</strong></div>`
           : "",
@@ -1325,7 +1639,7 @@
         topMainHtml
           ? `
             <div class="predict-history-stat-card">
-              <div class="predict-history-stat-label">Top số</div>
+              <div class="predict-history-stat-label">Top số:</div>
               <div class="predict-history-stat-value">${topMainHtml}</div>
             </div>
           `
@@ -1333,7 +1647,7 @@
         topSpecialHtml
           ? `
             <div class="predict-history-stat-card">
-              <div class="predict-history-stat-label">Số phụ ưu tiên</div>
+              <div class="predict-history-stat-label">Top ĐB:</div>
               <div class="predict-history-stat-value">${topSpecialHtml}</div>
             </div>
           `
@@ -1349,7 +1663,8 @@
       const ticketLines = ticketSlice.length
         ? ticketSlice.map((ticket, index) => {
             const html = formatPredictionHistoryTicketHtml(entry.type, ticket, index, entry);
-            return html ? `<div class="predict-history-ticket">${html}</div>` : "";
+            const ticketClass = isPredictionHistoryBaoTicket(ticket) ? " is-bao" : "";
+            return html ? `<div class="predict-history-ticket${ticketClass}">${html}</div>` : "";
           }).filter(Boolean).join("")
         : "";
       const ticketToggleHtml = canCollapseTickets
@@ -1360,9 +1675,17 @@
         ? `<div class="predict-history-note">${escapeHtml([entry.actualKy ? `Đã ra ${formatLiveKy(entry.actualKy)}` : "", entry.resolvedAt ? `Đối chiếu lúc ${formatPredictionHistoryTime(entry.resolvedAt)}` : ""].filter(Boolean).join(" • "))}</div>`
         : "";
       const summaryText = entry.resolved ? formatPredictionHistorySummary(entry.type, entry) : "";
-      const hitRateText = entry.resolved ? formatPredictionHistoryHitRateLine(entry.type, entry) : "";
-      const topRateText = entry.resolved ? formatPredictionHistoryTopRateLine(entry.type, entry) : "";
-      const rateLabel = getPredictionHistoryEntryPlayMode(entry) === "bao" ? "Tỷ lệ bộ" : "Tỷ lệ vé";
+      const previousEntry = historyEntries[entryIndex + 1] || null;
+      const periodRates = entry.resolved
+        ? formatPredictionHistoryCumulativeRates(entry.type, [entry], previousEntry ? [previousEntry] : [])
+        : null;
+      const cumulativeRates = entry.resolved
+        ? formatPredictionHistoryCumulativeRates(
+            entry.type,
+            historyEntries.slice(Math.max(0, entryIndex)),
+            historyEntries.slice(Math.max(0, entryIndex + 1)),
+          )
+        : null;
       const missingNote = !entry.resolved && entry.resultMissingData
         ? `<div class="predict-history-note predict-history-note-warning">Đã rà canonical history nhưng chưa tìm thấy kết quả thật cho kỳ này.</div>`
         : "";
@@ -1383,7 +1706,7 @@
                   <span class="predict-history-countdown-label">Kỳ tiếp theo</span>
                   <span class="predict-history-countdown-ky">${escapeHtml(countdownState.kyText || "Đang chờ")}</span>
                   <span class="predict-history-countdown-prefix">Còn :</span>
-                  <span class="predict-history-countdown-time">${escapeHtml(`${countdownState.countdownText}s`)}</span>
+                  <span class="predict-history-countdown-time">${escapeHtml(countdownState.waitingForResult ? countdownState.countdownText : `${countdownState.countdownText}s`)}</span>
                 </div>
               ` : ""}
               <span class="predict-history-status ${statusClass}">${escapeHtml(statusText)}</span>
@@ -1412,8 +1735,8 @@
             <div class="predict-history-section predict-history-summary">
               <div class="predict-history-section-title">Tổng kết</div>
               <div class="predict-history-line"><strong>Tóm tắt:</strong> ${escapeHtml(summaryText)}</div>
-              ${hitRateText ? `<div class="predict-history-line"><strong>${escapeHtml(rateLabel)}:</strong> ${hitRateText}</div>` : ""}
-              ${topRateText ? `<div class="predict-history-line"><strong>Tỷ lệ top:</strong> ${topRateText}</div>` : ""}
+              ${periodRates?.html ? `<div class="predict-history-line"><strong>Hiệu suất kỳ (${escapeHtml(String(periodRates.total))} ${escapeHtml(periodRates.unitLabel)}):</strong> ${periodRates.html}</div>` : ""}
+              ${cumulativeRates?.html ? `<div class="predict-history-line"><strong>Tổng hiệu suất - Tổng (${escapeHtml(String(cumulativeRates.total))} ${escapeHtml(cumulativeRates.unitLabel)}):</strong> ${cumulativeRates.html}</div>` : ""}
             </div>
           ` : ""}
         </article>
@@ -1432,12 +1755,12 @@
       syncPredictionHistoryBodyScroll(predictionHistoryPanelOpen || vipPredictionHistoryPanelOpen);
       if (toggleBtn) toggleBtn.classList.toggle("is-active", predictionHistoryPanelOpen);
       predictionHistorySelectedType = normalizePredictionHistoryType(predictionHistorySelectedType);
-      predictionHistorySelectedRange = normalizePredictionHistoryRange(predictionHistorySelectedRange);
+      predictionHistorySelectedRange = normalizePredictionHistoryRange(predictionHistorySelectedRange, predictionHistorySelectedType);
       predictionHistorySelectedPlayMode = hasPredictBaoMode(predictionHistorySelectedType)
         ? normalizePredictionHistoryPlayMode(predictionHistorySelectedPlayMode)
         : "normal";
       renderPredictionHistoryTypeTabs();
-      renderPredictionHistoryRangeTabs();
+      renderPredictionHistoryRangeTabs(predictionHistorySelectedType);
       renderPredictionHistoryPlayModeTabs(predictionHistorySelectedType);
       renderPredictionHistoryBaoLevelFilter(predictionHistorySelectedType, predictionHistorySelectedPlayMode);
       const selectedType = predictionHistorySelectedType;
@@ -1478,7 +1801,7 @@
         return;
       }
       const currentEntry = entries[currentIndex] || null;
-      list.innerHTML = `${loadingNoticeHtml}${loadingErrorHtml}${currentEntry ? renderPredictionHistoryEntryHtml(currentEntry, currentIndex) : ""}`;
+      list.innerHTML = `${loadingNoticeHtml}${loadingErrorHtml}${currentEntry ? renderPredictionHistoryEntryHtml(currentEntry, currentIndex, entries) : ""}`;
     }
 
     function updatePredictionHistoryCountdownForList(listId, entry, nowValue) {
@@ -1493,7 +1816,9 @@
       const kyEl = box.querySelector(".predict-history-countdown-ky");
       const timeEl = box.querySelector(".predict-history-countdown-time");
       const nextKy = countdownState.kyText || "Đang chờ";
-      const nextTime = `${countdownState.countdownText}s`;
+      const nextTime = countdownState.waitingForResult
+        ? countdownState.countdownText
+        : `${countdownState.countdownText}s`;
       if (kyEl && kyEl.textContent !== nextKy) kyEl.textContent = nextKy;
       if (timeEl && timeEl.textContent !== nextTime) timeEl.textContent = nextTime;
       return true;
@@ -1508,7 +1833,7 @@
           : "normal";
         const entries = collectPredictionHistoryEntries(
           selectedType,
-          normalizePredictionHistoryRange(predictionHistorySelectedRange),
+          normalizePredictionHistoryRange(predictionHistorySelectedRange, selectedType),
           selectedPlayMode,
           predictionHistorySelectedBaoLevel,
           PREDICTION_MODE_NORMAL
@@ -1523,7 +1848,7 @@
           : "normal";
         const entries = collectPredictionHistoryEntries(
           selectedType,
-          normalizePredictionHistoryRange(vipPredictionHistorySelectedRange),
+          normalizePredictionHistoryRange(vipPredictionHistorySelectedRange, selectedType),
           selectedPlayMode,
           vipPredictionHistorySelectedBaoLevel,
           PREDICTION_MODE_VIP
@@ -1569,18 +1894,13 @@
       }).join("");
     }
 
-    function renderVipPredictionHistoryRangeTabs() {
+    function renderVipPredictionHistoryRangeTabs(typeKey = vipPredictionHistorySelectedType) {
       const tabsEl = document.getElementById("vipPredictionHistoryRangeTabs");
       if (!tabsEl) return;
-      const selectedRange = normalizePredictionHistoryRange(vipPredictionHistorySelectedRange);
+      const selectedType = normalizePredictionHistoryType(typeKey);
+      const selectedRange = normalizePredictionHistoryRange(vipPredictionHistorySelectedRange, selectedType);
       vipPredictionHistorySelectedRange = selectedRange;
-      const items = [
-        { value: "2k", label: "2 Kỳ" },
-        { value: "today", label: "Hôm Nay" },
-        { value: "3d", label: "3 Ngày" },
-        { value: "7d", label: "7 Ngày" },
-        { value: "all", label: "Tất Cả" },
-      ];
+      const items = getPredictionHistoryRangeItems(selectedType);
       tabsEl.innerHTML = items.map(item => {
         const isActive = item.value === selectedRange;
         return `<button type="button" class="predict-history-range-tab${isActive ? " is-active" : ""}" data-vip-prediction-history-range="${item.value}" role="tab" aria-selected="${isActive ? "true" : "false"}">${escapeHtml(item.label)}</button>`;
@@ -1620,7 +1940,7 @@
       if (!shouldShow) {
         vipPredictionHistorySelectedBaoLevel = "all";
         wrapEl.hidden = true;
-        selectEl.innerHTML = `<option value="all">Tất cả bậc</option>`;
+        selectEl.innerHTML = `<option value="all">Bậc: Tất cả</option>`;
         selectEl.value = "all";
         return;
       }
@@ -1630,7 +1950,7 @@
         ? normalizedSelectedValue
         : "all";
       vipPredictionHistorySelectedBaoLevel = nextSelectedValue;
-      selectEl.innerHTML = [`<option value="all">Tất cả bậc</option>`, ...options.map(value => `<option value="${value}">${escapeHtml(`Bao ${value}`)}</option>`)].join("");
+      selectEl.innerHTML = [`<option value="all">Bậc: Tất cả</option>`, ...options.map(value => `<option value="${value}">${escapeHtml(`Bao ${value}`)}</option>`)].join("");
       selectEl.value = nextSelectedValue;
       wrapEl.hidden = false;
     }
@@ -1668,12 +1988,12 @@
       syncPredictionHistoryBodyScroll(vipPredictionHistoryPanelOpen || predictionHistoryPanelOpen);
       if (toggleBtn) toggleBtn.classList.toggle("is-active", vipPredictionHistoryPanelOpen);
       vipPredictionHistorySelectedType = normalizePredictionHistoryType(vipPredictionHistorySelectedType);
-      vipPredictionHistorySelectedRange = normalizePredictionHistoryRange(vipPredictionHistorySelectedRange);
+      vipPredictionHistorySelectedRange = normalizePredictionHistoryRange(vipPredictionHistorySelectedRange, vipPredictionHistorySelectedType);
       vipPredictionHistorySelectedPlayMode = hasPredictBaoMode(vipPredictionHistorySelectedType)
         ? normalizePredictionHistoryPlayMode(vipPredictionHistorySelectedPlayMode)
         : "normal";
       renderVipPredictionHistoryTypeTabs();
-      renderVipPredictionHistoryRangeTabs();
+      renderVipPredictionHistoryRangeTabs(vipPredictionHistorySelectedType);
       renderVipPredictionHistoryPlayModeTabs(vipPredictionHistorySelectedType);
       renderVipPredictionHistoryBaoLevelFilter(vipPredictionHistorySelectedType, vipPredictionHistorySelectedPlayMode);
       const selectedType = vipPredictionHistorySelectedType;
@@ -1700,7 +2020,7 @@
         return;
       }
       const currentEntry = entries[currentIndex] || null;
-      list.innerHTML = `${loadingNoticeHtml}${loadingErrorHtml}${currentEntry ? renderPredictionHistoryEntryHtml(currentEntry, currentIndex) : ""}`;
+      list.innerHTML = `${loadingNoticeHtml}${loadingErrorHtml}${currentEntry ? renderPredictionHistoryEntryHtml(currentEntry, currentIndex, entries) : ""}`;
     }
 
     function setVipPredictionHistoryRefreshButtonBusy(isBusy) {
@@ -1711,7 +2031,7 @@
       btn.textContent = isBusy ? "Đang tải..." : "Cập Nhật";
     }
 
-    async function startVipPredictionHistoryRefresh(typeKey = vipPredictionHistorySelectedType, { silent = true } = {}) {
+    async function startVipPredictionHistoryRefresh(typeKey = vipPredictionHistorySelectedType, { silent = true, repairCanonical = false } = {}) {
       const normalizedType = normalizePredictionHistoryType(typeKey);
       if (!PREDICTION_LOG_TYPES.includes(normalizedType)) return;
       const refreshToken = ++vipPredictionHistoryRefreshToken;
@@ -1721,7 +2041,7 @@
       setVipPredictionHistoryRefreshButtonBusy(true);
       renderVipPredictionHistoryPanel();
       try {
-        await startPredictionHistoryRefresh(normalizedType, { silent: true });
+        await refreshPredictionHistoryType(normalizedType, { silent, repairCanonical });
         if (refreshToken !== vipPredictionHistoryRefreshToken) return;
         vipPredictionHistoryLoading = false;
         vipPredictionHistoryLoadingType = "";
@@ -2656,12 +2976,12 @@
 </Relationships>`,
         "docProps/app.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>Vietlott Tra Cuu Nhanh Pro</Application>
+  <Application>DVLF</Application>
 </Properties>`,
         "docProps/core.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:title>${escapeXml(title)}</dc:title>
-  <dc:creator>Vietlott Tra Cuu Nhanh Pro</dc:creator>
+  <dc:creator>DVLF</dc:creator>
   <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
   <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
 </cp:coreProperties>`,
@@ -3112,8 +3432,14 @@
       const sync = result?.sync || {};
       const model = result?.model || {};
       const tickets = Array.isArray(result?.tickets) ? result.tickets : [];
-      const topRanking = Array.isArray(result?.topRanking) ? result.topRanking : [];
-      const topSpecialRanking = Array.isArray(result?.topSpecialRanking) ? result.topSpecialRanking : [];
+      const normalizedRankings = normalizePredictionTopRankings(
+        result?.type,
+        result?.topRanking,
+        result?.topSpecialRanking,
+        tickets,
+      );
+      const topRanking = normalizedRankings.main;
+      const topSpecialRanking = normalizedRankings.special;
       const notes = Array.isArray(result?.notes) ? result.notes : [];
       const ticketSources = Array.isArray(result?.ticketSources) ? result.ticketSources : [];
       const backtest = result?.backtest || {};
@@ -3152,8 +3478,8 @@
       const backtestHits = Number(model.avgHits || backtest?.avgHits || 0);
       const backtestSamples = Number(model.samples || backtest?.samples || 0);
       const playModeLabel = String(result?.playMode || predictPlayModeValue || "normal").trim().toLowerCase() === "bao" ? "Bao Số" : "Vé Thường";
-      const compactTop = type === "KENO" ? topRanking.slice(0, 20) : topRanking.slice(0, 8);
-      const topSpecialCompact = topSpecialRanking.slice(0, 4);
+      const compactTop = topRanking;
+      const topSpecialCompact = topSpecialRanking;
       const metricCards = [];
       const notesPool = [];
       const parseMetricRate = value => {
@@ -3429,7 +3755,7 @@
         ? `<section class="ai-result-block ai-result-top-block">
             <div class="ai-result-block-head">
               <div class="ai-result-block-title">Top số ưu tiên</div>
-              <div class="ai-result-block-meta">${escapeHtml(type === "KENO" ? "Top 20" : `Top ${compactTop.length}`)}</div>
+              <div class="ai-result-block-meta">${escapeHtml(`Top ${compactTop.length}`)}</div>
             </div>
             ${compactTop.length ? `
               <div class="ai-result-top-item">
@@ -3462,24 +3788,35 @@
         }),
         headerNote ? `<span class="ai-result-badge ai-result-badge-note">${escapeHtml(headerNote)}</span>` : "",
       ].filter(Boolean).join("");
+      const modelDetailsHtml = metricCards.length
+        ? `<details class="ai-result-tech-details">
+            <summary class="ai-result-tech-summary">
+              <span class="ai-result-tech-summary-main">
+                <span class="ai-result-tech-title">Thông tin mô hình</span>
+                <span class="ai-result-tech-count">${escapeHtml(`${metricCards.length} chỉ số`)}</span>
+              </span>
+              <span class="ai-result-tech-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="ai-result-tech-content">
+              <section class="ai-result-metrics">
+                ${metricCards.map(card => `
+                  <article class="ai-result-metric${card.accent ? ` is-${card.accent}` : ""}">
+                    <div class="ai-result-metric-label">${escapeHtml(card.label)}</div>
+                    <div class="ai-result-metric-main">
+                      <div class="ai-result-metric-value">${escapeHtml(card.value)}</div>
+                      ${card.delta ? `<div class="ai-result-metric-delta is-${escapeHtml(card.delta.direction || "flat")}">${escapeHtml(card.delta.text || "")}</div>` : ""}
+                    </div>
+                    ${card.meta ? `<div class="ai-result-metric-meta">${escapeHtml(card.meta)}</div>` : ""}
+                  </article>
+                `).join("")}
+              </section>
+            </div>
+          </details>`
+        : "";
       return `<div class="ai-result-shell">
         ${heroHeaderItems ? `
           <section class="ai-result-hero ai-result-hero-compact">
             <div class="ai-result-badges">${heroHeaderItems}</div>
-          </section>
-        ` : ""}
-        ${metricCards.length ? `
-          <section class="ai-result-metrics">
-            ${metricCards.map(card => `
-              <article class="ai-result-metric${card.accent ? ` is-${card.accent}` : ""}">
-                <div class="ai-result-metric-label">${escapeHtml(card.label)}</div>
-                <div class="ai-result-metric-main">
-                  <div class="ai-result-metric-value">${escapeHtml(card.value)}</div>
-                  ${card.delta ? `<div class="ai-result-metric-delta is-${escapeHtml(card.delta.direction || "flat")}">${escapeHtml(card.delta.text || "")}</div>` : ""}
-                </div>
-                ${card.meta ? `<div class="ai-result-metric-meta">${escapeHtml(card.meta)}</div>` : ""}
-              </article>
-            `).join("")}
           </section>
         ` : ""}
         <section class="ai-result-block ai-result-ticket-block">
@@ -3491,6 +3828,7 @@
         </section>
         ${topSectionHtml}
         ${notesHtml}
+        ${modelDetailsHtml}
       </div>`;
     }
 
@@ -3891,9 +4229,10 @@
       const latestKyValue = Number(String(liveItem?.ky || "").replace(/\D/g, "")) || 0;
       const targetKyValue = Number(String(entry.predictedKy || "").replace(/\D/g, "")) || 0;
       const latestDrawDate = resolveLiveDrawDateTime(type, liveItem?.date, liveItem?.time);
-      let targetDate = null;
+      const storedTargetDate = parsePredictionLogDate(entry.targetDrawAt);
+      let targetDate = storedTargetDate;
 
-      if (targetKyValue > 0 && latestKyValue > 0 && targetKyValue > latestKyValue && latestDrawDate) {
+      if (!targetDate && targetKyValue > 0 && latestKyValue > 0 && targetKyValue > latestKyValue && latestDrawDate) {
         targetDate = getNthUpcomingDrawDate(type, latestDrawDate, targetKyValue - latestKyValue);
       }
 
@@ -3909,9 +4248,18 @@
       }
 
       if (!targetDate) return null;
+      const remainingMs = targetDate.getTime() - nowValue.getTime();
+      if (remainingMs <= 0) {
+        return {
+          kyText: predictedKyText || computeNextLiveKy(liveItem?.ky),
+          countdownText: "Đang chờ KQ",
+          waitingForResult: true,
+        };
+      }
       return {
         kyText: predictedKyText || computeNextLiveKy(liveItem?.ky),
-        countdownText: formatDrawCountdown(targetDate.getTime() - nowValue.getTime()),
+        countdownText: formatDrawCountdown(remainingMs),
+        waitingForResult: false,
       };
     }
 
@@ -4142,9 +4490,10 @@
 
     // ----- Giao diện live results và lịch sử CSV -----
     // Render bảng 6 loại vé, status Cập Nhật và nội dung Lịch Sử CSV theo canonical all_day.
-    function renderLiveResultsBoard({ force = false } = {}) {
+    function renderLiveResultsBoard({ force = false, onlyType = "" } = {}) {
       const host = document.getElementById("liveResultGrid");
       if (!host) return;
+      const scopedType = String(onlyType || "").trim().toUpperCase();
       const signature = getLiveResultsBoardSignature();
       const nowValue = getSyncedNowDate();
       if (!force && host.dataset.liveResultsSignature === signature && host.querySelector("[data-live-countdown-type]")) {
@@ -4152,23 +4501,37 @@
         return;
       }
       host.dataset.liveResultsSignature = signature;
-      host.innerHTML = LIVE_RESULT_TYPES.map(meta => {
+      const cardHtml = LIVE_RESULT_TYPES.map(meta => {
         const badge = getLiveUpdateBadge(meta.key);
         const badgeClass = `live-card-badge ${liveUpdateBadgeClass(badge.code)}`.trim();
         const badgeText = badge.label || "Chờ cập nhật";
+        const isRefreshing = liveSingleRefreshBusy.has(meta.key);
+        const refreshButton = `
+          <button
+            class="${badgeClass} live-card-refresh-btn${isRefreshing ? " is-refreshing" : ""}"
+            type="button"
+            data-live-refresh-type="${escapeHtml(meta.key)}"
+            title="${escapeHtml(isRefreshing ? `Đang cập nhật ${meta.label}` : `Cập nhật riêng ${meta.label}`)}"
+            aria-label="${escapeHtml(isRefreshing ? `Đang cập nhật ${meta.label}` : `Cập nhật riêng ${meta.label}`)}"
+            ${isRefreshing ? "disabled" : ""}
+          >
+            <span class="live-card-badge-state">${escapeHtml(badgeText)}</span>
+            <span class="live-card-badge-action">${isRefreshing ? "Đang cập nhật" : "Cập nhật"}</span>
+          </button>
+        `;
         const cardClass = `live-card${TYPES[meta.key]?.threeDigit ? " is-three-digit" : ""}`;
         const item = liveResultsState?.[meta.key];
         if (!item) {
           const pendingMetaParts = buildUpcomingLiveMetaParts(meta.key, null, nowValue);
           return `
-            <article class="${cardClass} pending">
+            <article class="${cardClass} pending" data-live-type="${escapeHtml(meta.key)}">
               <div class="live-card-top">
                 <div class="live-card-info-row">
                   <span class="live-card-chip">Live</span>
                   <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
                   ${pendingMetaParts.length ? `<div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(pendingMetaParts.join(" • "))}</div>` : ""}
                 </div>
-                <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
+                ${refreshButton}
               </div>
               <div class="live-card-empty">Chưa có kết quả live cho loại này.</div>
             </article>
@@ -4191,13 +4554,22 @@
                 <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
                 <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(metaParts.join(" • "))}</div>
               </div>
-              <span class="${badgeClass}" title="${escapeHtml(badge.message || badgeText)}">${escapeHtml(badgeText)}</span>
+              ${refreshButton}
             </div>
             <div class="live-card-main">${lines}</div>
             <div class="live-card-foot">${escapeHtml(footParts.join(" • "))}</div>
           </article>
         `;
-      }).join("");
+      });
+      if (scopedType) {
+        const scopedIndex = LIVE_RESULT_TYPES.findIndex(meta => meta.key === scopedType);
+        const currentCard = host.querySelector(`[data-live-type="${scopedType}"]`);
+        if (scopedIndex >= 0 && currentCard) {
+          currentCard.outerHTML = cardHtml[scopedIndex];
+          return;
+        }
+      }
+      host.innerHTML = cardHtml.join("");
     }
 
     function setLiveStatus(message, cls = "") {
@@ -4395,27 +4767,43 @@
       }
     }
 
-    function applyLiveResultsApiResponse(res, { repairCanonical = false, requestStartedAtMs = Date.now() } = {}) {
+    function applyLiveResultsApiResponse(res, { repairCanonical = false, requestStartedAtMs = Date.now(), requestedType = "" } = {}) {
+      const scopedType = String(requestedType || "").trim().toUpperCase();
       const durationMs = Number.isFinite(Number(res.durationMs))
         ? Number(res.durationMs)
         : Math.max(1, Date.now() - requestStartedAtMs);
-      rememberLiveSyncDuration(repairCanonical, durationMs);
+      if (!scopedType) rememberLiveSyncDuration(repairCanonical, durationMs);
       const resultMap = {};
       for (const item of (res.results || [])) {
         resultMap[item.key] = item;
       }
-      liveResultsState = resultMap;
+      liveResultsState = scopedType ? { ...liveResultsState, ...resultMap } : resultMap;
       liveResultsFetchedAt = String(res.fetchedAt || "");
       const importedKeys = applyLiveResultsToStore(res.results || []);
-      Object.values(liveResultsState).forEach(item => {
+      Object.values(scopedType ? resultMap : liveResultsState).forEach(item => {
         item.imported = importedKeys.has(item.key) || isLiveResultStored(item);
       });
       saveLiveResultsCache();
       startLiveDrawCountdown();
       if (repairCanonical) {
         applyManualLiveUpdateBadgesFromApiResponse(res, { render: false });
+      } else if (scopedType) {
+        const scopedErrors = [
+          ...(Array.isArray(res.errors) ? res.errors : []),
+          ...(Array.isArray(res.canonicalBackfill?.errors) ? res.canonicalBackfill.errors : []),
+        ].filter(error => String(error?.key || error?.type || "").trim().toUpperCase() === scopedType);
+        const errorMessage = scopedErrors.map(error => String(error?.message || "").trim()).filter(Boolean).join(" | ");
+        setLiveUpdateBadge(
+          scopedType,
+          buildManualLiveUpdateBadge(scopedType, {
+            hasError: !resultMap[scopedType] || scopedErrors.length > 0,
+            errorMessage: errorMessage || (!resultMap[scopedType] ? "Không nhận được kết quả mới." : ""),
+          }),
+          { render: false }
+        );
       }
-      renderLiveResultsBoard();
+      renderLiveResultsBoard({ force: !!scopedType, onlyType: scopedType });
+      renderHeaderNotifications();
 
       const statusParts = [];
       if ((res.errors || []).length) {
@@ -4435,11 +4823,47 @@
         if (backfillErrorText) statusParts.push(`Lỗi khi bù all_day.csv: ${backfillErrorText}`);
       }
       if (!statusParts.length) {
-        statusParts.push(repairCanonical ? "Hoàn Tất Cập Nhật." : "Đã Cập Nhật");
+        statusParts.push(scopedType ? `Đã cập nhật riêng ${TYPES[scopedType]?.label || scopedType}.` : (repairCanonical ? "Hoàn Tất Cập Nhật." : "Đã Cập Nhật"));
       }
       setLiveStatus(statusParts.join("\n"), ((res.errors || []).length || canonicalBackfillErrors.length) ? "warn" : "ok");
-      refreshStatsV2AfterLiveUpdate();
-      refreshAnalysisAfterLiveUpdate();
+      if (!scopedType) {
+        refreshStatsV2AfterLiveUpdate();
+        refreshAnalysisAfterLiveUpdate();
+      }
+    }
+
+    async function syncSingleLiveResult(rawType) {
+      const type = String(rawType || "").trim().toUpperCase();
+      const meta = LIVE_RESULT_TYPES.find(item => item.key === type);
+      if (!meta || liveSingleRefreshBusy.has(type)) return;
+      if (IS_LOCAL_MODE) {
+        setLiveStatus("Cập nhật riêng chỉ hoạt động khi mở trang qua http://localhost:8080.", "warn");
+        return;
+      }
+      liveSingleRefreshBusy.add(type);
+      setLiveUpdateBadge(type, {
+        type,
+        code: "running",
+        label: "Đang cập nhật",
+        message: `Đang cập nhật riêng ${meta.label}.`,
+        updatedAt: getSyncedIsoString(),
+      }, { render: false });
+      renderLiveResultsBoard({ force: true, onlyType: type });
+      setLiveStatus(`Đang cập nhật riêng ${meta.label}...`, "muted");
+      try {
+        const requestStartedAtMs = Date.now();
+        const res = await api(`/api/live-results?type=${encodeURIComponent(type)}`);
+        applyLiveResultsApiResponse(res, { requestedType: type, requestStartedAtMs });
+      } catch (err) {
+        setLiveUpdateBadge(type, buildManualLiveUpdateBadge(type, {
+          hasError: true,
+          errorMessage: String(err?.message || err || "Cập nhật thất bại"),
+        }), { render: false });
+        setLiveStatus(`Không thể cập nhật riêng ${meta.label}: ${err?.message || err}`, "warn");
+      } finally {
+        liveSingleRefreshBusy.delete(type);
+        renderLiveResultsBoard({ force: true, onlyType: type });
+      }
     }
 
     async function runLegacyRepairCanonicalSync({ silent = false, manageButton = false, originalButtonText = "Cập Nhật" } = {}) {
@@ -6234,9 +6658,14 @@
         .sort((a, b) => b.blendedComposite - a.blendedComposite || b.prizeHitRate - a.prizeHitRate || b.avgMainHits - a.avgMainHits);
       const best = evaluations[0] || { strategy: strategies[0], tested: 0, avgMainHits: 0, thresholdHitRate: 0, prizeHitRate: 0, specialHitRate: 0 };
       const context = buildPredictionContext(type, draws, best.strategy, recentCount);
-      const topMainRanking = rankPredictionCandidates(context).slice(0, Math.min(12, context.mainCandidates.length)).map(item => item.number);
-      const topSpecialRanking = context.t.hasSpecial
-        ? rankPredictionCandidates(context, { isSpecial: true }).slice(0, Math.min(6, context.specialCandidates.length)).map(item => item.number)
+      const rankingRule = getPredictionTopRankingRule(type);
+      const rawTopMainRanking = rankPredictionCandidates(context)
+        .slice(0, Math.min(rankingRule?.mainMax || 20, context.mainCandidates.length))
+        .map(item => item.number);
+      const rawTopSpecialRanking = rankingRule?.specialMax
+        ? rankPredictionCandidates(context, { isSpecial: true })
+            .slice(0, context.specialCandidates.length)
+            .map(item => item.number)
         : [];
       const tickets = [];
       for (let index = 0; index < bundleCount; index++) {
@@ -6254,12 +6683,13 @@
         }
         tickets.push(ticket);
       }
+      const normalizedRankings = normalizePredictionTopRankings(type, rawTopMainRanking, rawTopSpecialRanking, tickets);
       return {
         best,
         evaluations,
         tickets,
-        topMainRanking,
-        topSpecialRanking,
+        topMainRanking: normalizedRankings.main,
+        topSpecialRanking: normalizedRankings.special,
         recentKeys: context.recent.keys,
         drawCount: draws.length,
         lastEntry: draws[draws.length - 1] || null,
@@ -6326,6 +6756,29 @@
       return lines.join("\n\n");
     }
 
+    function normalizePredictionErrorDetail(...values) {
+      const unique = new Map();
+      values
+        .flatMap(value => String(value?.message || value || "").split("|"))
+        .map(message => message
+          .replace(/^Không thể dự đoán(?:\s+Vip)?(?:\s+bằng AI backend)?\s*:\s*/i, "")
+          .trim())
+        .filter(Boolean)
+        .forEach(message => {
+          const kenoLimit = message.match(/^Số bộ Keno tối đa cho bậc (\d+) là (\d+)(?:\s+bộ)?\.?$/i);
+          const normalized = kenoLimit
+            ? `Số bộ Keno tối đa cho bậc ${kenoLimit[1]} là ${kenoLimit[2]} Bộ.`
+            : `${message.replace(/[.\s]+$/, "")}.`;
+          const key = normalized.toLocaleLowerCase("vi-VN");
+          if (!unique.has(key)) unique.set(key, normalized);
+        });
+      return [...unique.values()].join(" | ") || "Đã xảy ra lỗi không xác định.";
+    }
+
+    function formatPredictionFailure(error, prefix = "Không thể dự đoán") {
+      return `${prefix} ${normalizePredictionErrorDetail(error)}`;
+    }
+
     async function runPredictFlow({
       type,
       count,
@@ -6348,7 +6801,7 @@
       try {
       normalizePredictRecentWindowSelection();
       const recentCount = parsePredictRecentWindowValue(document.getElementById("pdRecentWindow").value);
-      const c = Number(count || 0);
+      let c = Number(count || 0);
       const activePlayMode = String(predictPlayModeValue || "normal").trim().toLowerCase() === "bao" ? "bao" : "normal";
       const activeBaoLevel = Number(predictBaoLevelValue || 0);
       const aiEngine = String(engineKey || predictEngineValue || "both").trim().toLowerCase() || "both";
@@ -6360,6 +6813,8 @@
         return null;
       }
       const normalizedKenoLevel = t.keno ? Number(kenoLevel || 0) : 0;
+      const bundleLimit = getPredictBundleLimit(type, normalizedKenoLevel);
+      if (c > bundleLimit) c = bundleLimit;
       const predictCountPerTicket = t.keno ? normalizedKenoLevel : t.mainCount;
       if (AI_PREDICT_TYPES.has(type)) {
         if (t.keno && (!Number.isInteger(normalizedKenoLevel) || normalizedKenoLevel < 1 || normalizedKenoLevel > 10)) {
@@ -6385,14 +6840,16 @@
             const luanSoResult = luanSoSettled?.status === "fulfilled" ? luanSoSettled.value : null;
             const aiGenResult = aiGenSettled?.status === "fulfilled" ? aiGenSettled.value : null;
             if (!luanSoResult && !aiGenResult) {
-              const luanMessage = luanSoSettled?.reason?.message || "Luận Số lỗi";
-              const aiMessage = aiGenSettled?.reason?.message || "AI Gen lỗi";
-              throw new Error(`${luanMessage} | ${aiMessage}`);
+              throw new Error(normalizePredictionErrorDetail(
+                luanSoSettled?.reason || "Luận Số lỗi",
+                aiGenSettled?.reason || "AI Gen lỗi",
+              ));
             }
             result = mergeBothAiResults(type, c, luanSoResult, aiGenResult, activeRiskMode);
           } else {
             result = await predictWithAiBackend(type, c, normalizedKenoLevel, engineMeta.backendEngine || "gen_local", activeRiskMode, PREDICTION_MODE_NORMAL);
           }
+          result = normalizePredictionResultTopRankings(result, type);
           if (activePlayMode === "bao" && !t.keno) {
             const baoTickets = buildBaoPredictionTickets(
               type,
@@ -6435,6 +6892,7 @@
               upsertPredictionLog(type, {
                 createdAt: predictionCreatedAt,
                 predictedKy,
+                targetDrawAt: String(result?.targetDrawAt || result?.target_draw_at || ""),
                 strategyKey: result?.model?.key || "",
                 strategyLabel: result?.model?.label || "",
                 modelKey: result?.model?.key || "",
@@ -6504,7 +6962,7 @@
           stopPredictLoading(engineMeta.key, Date.now() - predictStartedAt);
           predictLastDisplayResult = null;
           out.classList.remove("muted");
-          line(out, `Không thể dự đoán bằng AI backend: ${err.message}`, "warn");
+          line(out, formatPredictionFailure(err), "warn");
           return null;
         }
       }
@@ -6636,8 +7094,12 @@
       const analyses = buildPredictVipTicketAnalyses(result);
       const selected = analyses.slice(0, Math.min(nextCount, analyses.length));
       const selectedIndexes = new Set(selected.map(item => item.index));
-      const preferredMainTop = type === "KENO" ? 20 : (TYPES[type]?.threeDigit ? 12 : 12);
-      const preferredSpecialTop = TYPES[type]?.hasSpecial ? 6 : 0;
+      const normalizedRankings = normalizePredictionTopRankings(
+        type,
+        result?.topRanking,
+        result?.topSpecialRanking,
+        selected.map(item => item.ticket),
+      );
       return {
         ...result,
         predictionMode: PREDICTION_MODE_VIP,
@@ -6647,8 +7109,8 @@
         ticketSources: Array.isArray(result?.ticketSources)
           ? result.ticketSources.filter((_, index) => selectedIndexes.has(index))
           : [],
-        topRanking: Array.isArray(result?.topRanking) ? result.topRanking.slice(0, preferredMainTop) : [],
-        topSpecialRanking: Array.isArray(result?.topSpecialRanking) ? result.topSpecialRanking.slice(0, preferredSpecialTop) : [],
+        topRanking: normalizedRankings.main,
+        topSpecialRanking: normalizedRankings.special,
         notes: [
           `Vip profile • strict_select • ${selected.length} bộ ưu tiên`,
           String(result?.vipSummary || ""),
@@ -6701,12 +7163,16 @@
           const luanSoResult = luanSoSettled?.status === "fulfilled" ? luanSoSettled.value : null;
           const aiGenResult = aiGenSettled?.status === "fulfilled" ? aiGenSettled.value : null;
           if (!luanSoResult && !aiGenResult) {
-            throw new Error(`${luanSoSettled?.reason?.message || "Luận Số lỗi"} | ${aiGenSettled?.reason?.message || "AI Gen lỗi"}`);
+            throw new Error(normalizePredictionErrorDetail(
+              luanSoSettled?.reason || "Luận Số lỗi",
+              aiGenSettled?.reason || "AI Gen lỗi",
+            ));
           }
           result = mergeBothAiResults(type, count, luanSoResult, aiGenResult, activeRiskMode);
         } else {
           result = await predictWithAiBackend(type, count, kenoLevel, engineMeta.backendEngine || "gen_local", activeRiskMode, PREDICTION_MODE_VIP);
         }
+        result = normalizePredictionResultTopRankings(result, type);
         // predictor_v2 integration end
         if (vipPredictPlayModeValue === "bao" && !t.keno) {
           const baoTickets = buildBaoPredictionTickets(
@@ -6721,7 +7187,7 @@
         }
         const adaptiveVipMeta = getAdaptiveVipPredictorMeta(result);
         const isPredictorV2Vip = adaptiveVipMeta.active;
-        let displayResult = applyVipPredictionProfile({
+        let displayResult = normalizePredictionResultTopRankings(applyVipPredictionProfile({
           ...result,
           createdAt: getSyncedIsoString(),
           // predictor_v2 integration start
@@ -6735,7 +7201,7 @@
           playMode: vipPredictPlayModeValue,
           baoLevel: vipPredictPlayModeValue === "bao" ? Number(vipPredictBaoLevelValue || 0) : null,
           pickSize: t.keno ? kenoLevel : 0,
-        }, count);
+        }, count), type);
         if (result?.ready !== false && PREDICTION_LOG_TYPES.includes(type)) {
           const predictionDataset = buildPredictionResultDataset(type);
           const predictedKy = normalizeKy(result?.nextKy) || getNextPredictionKy(type, predictionDataset);
@@ -6743,6 +7209,7 @@
             upsertPredictionLog(type, {
               createdAt: displayResult.createdAt,
               predictedKy,
+              targetDrawAt: String(result?.targetDrawAt || result?.target_draw_at || ""),
               strategyKey: result?.model?.key || "",
               strategyLabel: result?.model?.label || "",
               modelKey: result?.model?.key || "",
@@ -6809,7 +7276,7 @@
         if (out) {
           vipPredictLastDisplayResult = null;
           out.classList.remove("muted");
-          line(out, `Không thể dự đoán Vip: ${err.message}`, "warn");
+          line(out, formatPredictionFailure(err, "Không thể dự đoán Vip"), "warn");
         }
         return null;
       } finally {
@@ -6821,7 +7288,7 @@
     // Nút Dự đoán đi qua đây để chọn engine phù hợp, gọi backend và đổ kết quả vào predictOut.
     document.getElementById("predictBtn").onclick = async () => {
       const type = document.getElementById("pdType").value;
-      const c = Number(document.getElementById("pdCount").value || 0);
+      const { value: c } = syncPredictBundleLimit({ clampValue: true, forceMinimum: true });
       const t = TYPES[type];
       const kenoLevel = t?.keno ? Number(document.getElementById("pdKenoLevel").value || 0) : 0;
       await runPredictFlow({

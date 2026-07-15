@@ -1,2 +1,1 @@
-"""Analysis module for VietlotFast."""
-
+"""Analysis module for DVLF."""

@@ -1159,7 +1159,7 @@ def build_analysis_payload(
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="VietlotFast Analysis")
+    parser = argparse.ArgumentParser(description="DVLF Analysis")
     sub = parser.add_subparsers(dest="command")
     analysis = sub.add_parser("analysis_json")
     analysis.add_argument("--type", required=True)

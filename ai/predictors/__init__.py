@@ -1,1 +1,1 @@
-"""Predictor modules for VietlotFast."""
+"""Predictor modules for DVLF."""

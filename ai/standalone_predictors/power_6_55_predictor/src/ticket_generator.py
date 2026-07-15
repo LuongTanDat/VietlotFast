@@ -386,7 +386,7 @@ def generate_tickets(
     return {
         "candidate_pool": list(main_ticket.get("candidate_pool") or []),
         "top_main_candidates": list(scoring_context.get("top_main_candidates") or [])[:top_candidate_count],
-        "top_special_candidates": list(scoring_context.get("top_special_candidates") or [])[:10],
+        "top_special_candidates": list(scoring_context.get("top_special_candidates") or [])[:27],
         "top_heuristic_candidates": list(scoring_context.get("heuristic_ranked_numbers") or [])[:top_candidate_count],
         "top_deep_candidates": list(scoring_context.get("deep_ranked_numbers") or [])[:top_candidate_count],
         "top_heuristic_special_candidates": list(scoring_context.get("heuristic_ranked_specials") or [])[:10],

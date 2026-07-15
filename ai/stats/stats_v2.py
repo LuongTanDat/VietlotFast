@@ -493,7 +493,7 @@ def build_stats_payload(
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(description="VietlotFast Stats V2")
+    parser = argparse.ArgumentParser(description="DVLF Stats V2")
     sub = parser.add_subparsers(dest="command")
     stats = sub.add_parser("stats_json")
     stats.add_argument("--type", required=True)

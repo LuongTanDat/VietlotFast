@@ -312,11 +312,33 @@
       const indexes = { luan_so: 0, gen_local: 0 };
       const mergedTickets = [];
       const ticketSources = [];
+      const selectedKeys = new Set();
+      const ticketKey = ticket => {
+        const main = (Array.isArray(ticket?.main) ? ticket.main : [])
+          .map(Number)
+          .filter(Number.isInteger)
+          .sort((left, right) => left - right)
+          .join("-");
+        const special = Number(ticket?.special);
+        return `${main}|${Number.isInteger(special) ? special : ""}`;
+      };
+      const takeNextUnique = sourceKey => {
+        const pool = Array.isArray(ticketPools?.[sourceKey]) ? ticketPools[sourceKey] : [];
+        while (indexes[sourceKey] < pool.length) {
+          const ticket = pool[indexes[sourceKey]++] || null;
+          if (!ticket) continue;
+          const key = ticketKey(ticket);
+          if (!key || selectedKeys.has(key)) continue;
+          selectedKeys.add(key);
+          return ticket;
+        }
+        return null;
+      };
       while (mergedTickets.length < bundleCount) {
         let pushed = false;
         for (const sourceKey of [preferred, secondary]) {
           if ((remaining[sourceKey] || 0) <= 0) continue;
-          const nextTicket = ticketPools?.[sourceKey]?.[indexes[sourceKey]++] || null;
+          const nextTicket = takeNextUnique(sourceKey);
           if (!nextTicket) {
             remaining[sourceKey] = 0;
             continue;
@@ -328,6 +350,14 @@
           if (mergedTickets.length >= bundleCount) break;
         }
         if (!pushed) break;
+      }
+      for (const sourceKey of [preferred, secondary]) {
+        while (mergedTickets.length < bundleCount) {
+          const nextTicket = takeNextUnique(sourceKey);
+          if (!nextTicket) break;
+          mergedTickets.push(nextTicket);
+          ticketSources.push(sourceKey);
+        }
       }
       return { tickets: mergedTickets, ticketSources };
     }
@@ -343,6 +373,25 @@
       const luanSignal = luanPayload?.signalSummary || {};
       const preferredLabel = metaSelection?.preferredEngine === "gen_local" ? "AI Gen" : "Luận Số";
       const metaQuota = metaSelection?.quota || { luan_so: 0, gen_local: 0 };
+      const adaptiveSources = [luanPayload?.adaptiveCoverage, aiPayload?.adaptiveCoverage].filter(Boolean);
+      const combinedAdaptiveCoverage = adaptiveSources.length ? {
+        version: "adaptive_coverage_v1",
+        candidateMethod: "gumbel_top_k_without_replacement",
+        candidateCountRequested: adaptiveSources.reduce((total, item) => total + Number(item?.candidateCountRequested || 0), 0),
+        candidateCountGenerated: adaptiveSources.reduce((total, item) => total + Number(item?.candidateCountGenerated || 0), 0),
+        selectedCount: merged.tickets.length,
+        riskMode: String(metaSelection?.riskMode || getResultRiskMode(aiPayload, riskMode)),
+        sourceRuns: {
+          luan_so: luanPayload?.adaptiveCoverage || null,
+          gen_local: aiPayload?.adaptiveCoverage || null,
+        },
+      } : null;
+      const normalizedRankings = normalizePredictionTopRankings(
+        type,
+        mergeUniquePredictionNumbers(luanPayload?.topRanking, aiPayload?.topRanking, 20),
+        mergeUniquePredictionNumbers(luanPayload?.topSpecialRanking, aiPayload?.topSpecialRanking, 55),
+        merged.tickets,
+      );
       return {
         ...aiPayload,
         ...luanPayload,
@@ -368,8 +417,10 @@
         nextKy: String(luanPayload?.nextKy || aiPayload?.nextKy || ""),
         tickets: merged.tickets,
         ticketSources: merged.ticketSources,
-        topRanking: mergeUniquePredictionNumbers(luanPayload?.topRanking, aiPayload?.topRanking, 20),
-        topSpecialRanking: mergeUniquePredictionNumbers(luanPayload?.topSpecialRanking, aiPayload?.topSpecialRanking, 10),
+        adaptiveCoverageVersion: combinedAdaptiveCoverage?.version || "",
+        adaptiveCoverage: combinedAdaptiveCoverage,
+        topRanking: normalizedRankings.main,
+        topSpecialRanking: normalizedRankings.special,
         notes: [
           metaSelection?.summary || "Chế độ Cả 2 đang phân bổ thông minh giữa Luận Số và AI Gen.",
           metaSelection?.riskModeSummary ? `Chế độ AI: ${metaSelection.riskModeLabel} • ${metaSelection.riskModeSummary}` : "",
@@ -5296,7 +5347,7 @@
 
     function formatPredictionTrendText(trend) {
       if (!trend || typeof trend !== "object") return "";
-      if (trend.direction === "same") return "→0.00%";
+      if (trend.direction === "same") return "0.00%";
       return `${trend.icon}${formatPredictionPercent(Math.abs(Number(trend.delta || 0)))}`;
     }
 

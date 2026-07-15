@@ -1,6 +1,8 @@
-# Vietlott Tra Cứu Nhanh Pro
+# DVLF
 
-Tên repo/nội bộ: `VietlotFast` / `Lotto`
+**DVLF** là tên viết tắt của **Deep Vietlott Fast**.
+
+Tên thư mục/repo nội bộ: `Lotto`.
 
 Đây là ứng dụng web chạy cục bộ để tra cứu kết quả Vietlott, cập nhật dữ liệu CSV, dự đoán bộ số tham khảo, thống kê, phân tích, quản lý tài khoản và quản lý lịch sử dự đoán theo từng người dùng.
 
@@ -106,6 +108,15 @@ Trong màn dự đoán:
 - `Ổn Định`, `Cân Bằng`, `Tấn Công`: chọn mức rủi ro khi kết hợp engine.
 - `Dự đoán` / `Dự đoán Vip`: chạy luồng dự đoán và lưu lịch sử.
 - Các nút lịch sử: đóng popup, lùi/tiến bản ghi, cập nhật, lọc theo loại/khoảng/play mode, mở rộng chi tiết và copy kết quả.
+
+`Dự Đoán Thường` của cả 6 loại vé đi qua lớp `Adaptive Coverage v1` sau khi engine tạo ranking. Lớp này dùng Gumbel Top-k để sinh ứng viên không lặp số trong một vé, sau đó chọn danh mục theo chất lượng, độ phủ xác suất và mức trùng giữa các vé. Số ứng viên tự tăng theo số bộ cần xuất:
+
+- 1 bộ: 500 ứng viên.
+- 2-3 bộ: 1.000 ứng viên.
+- 4-6 bộ: 1.500 ứng viên.
+- Từ 7 bộ: 2.000 ứng viên.
+
+Pipeline dùng seed cố định theo loại vé, kỳ, engine và cấu hình để cùng một đầu vào luôn cho cùng kết quả. Random-baseline gate tự tăng tỷ lệ khám phá khi backtest chưa chứng minh được lợi thế so với chọn ngẫu nhiên. `Dự Đoán Vip` không đi qua lớp Adaptive Coverage này.
 
 Trong màn thống kê/phân tích/dashboard:
 

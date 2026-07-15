@@ -1,1 +1,1 @@
-"""Backend services for VietlotFast."""
+"""Backend services for DVLF (Deep Vietlott Fast)."""

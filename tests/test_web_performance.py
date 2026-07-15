@@ -29,6 +29,51 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertNotIn("unpkg.com/ionicons", source)
         self.assertNotIn("<ion-icon", source)
 
+    def test_dvlf_brand_is_consistent_and_reloads_the_page(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("<title>DVLF</title>", html)
+        self.assertIn('id="brandReloadBtn"', html)
+        self.assertIn("DVLF là tên viết tắt của Deep Vietlott Fast", html)
+        self.assertIn('const APP_SHORT_NAME = "DVLF";', core)
+        self.assertIn('const APP_FULL_NAME = "Deep Vietlott Fast";', core)
+        self.assertIn("brandReloadBtn.onclick = () => window.location.reload();", core)
+        self.assertIn(".brand-reload-btn:hover::after", styles)
+        self.assertTrue(readme.startswith("# DVLF\n"))
+
+        old_name = "Vietlott Tra Cứu Nhanh" + " Pro"
+        for source in (html, core, readme):
+            self.assertNotIn(old_name, source)
+
+    def test_header_tools_and_account_menu_are_compact_and_functional(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+
+        top_right = html[html.index('<div class="top-right">'):html.index("</header>")]
+        side_menu = html[html.index('<aside id="sideMenu"'):html.index('<div class="wrap">')]
+        settings_panel = html[html.index('id="settingsPanel"'):html.index("</div>\n        </div>\n      </div>", html.index('id="settingsPanel"'))]
+
+        for element_id in ("whoami", "openAccountBtn"):
+            self.assertNotIn(f'id="{element_id}"', top_right)
+            self.assertIn(f'id="{element_id}"', side_menu)
+        self.assertNotIn('id="logoutBtn"', side_menu)
+        for element_id in ("notificationBtn", "notificationPanel", "settingsBtn", "settingsPanel"):
+            self.assertIn(f'id="{element_id}"', top_right)
+        self.assertIn('id="themeToggleBtn"', settings_panel)
+        self.assertIn('id="logoutBtn"', settings_panel)
+        self.assertIn('id="notificationClearBtn"', top_right)
+        self.assertIn("function renderHeaderNotifications()", core)
+        self.assertIn("function clearHeaderNotifications()", core)
+        self.assertIn("HEADER_NOTIFICATION_DISMISSED_KEY", core)
+        self.assertIn("function syncSideAccountIdentity()", core)
+        self.assertIn('toggleHeaderPopover("notificationBtn", "notificationPanel")', core)
+        self.assertIn(".header-icon-badge", styles)
+        self.assertIn(".side-account-card", styles)
+
     def test_store_saves_are_coalesced_and_unchanged_snapshots_are_skipped(self):
         source = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
 
@@ -68,6 +113,21 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertNotIn("renderPredictOutput()", timer_block)
         self.assertNotIn("renderPredictVipOutput()", timer_block)
         self.assertIn("updateLiveResultsCountdownText()", timer_block)
+
+    def test_live_cards_refresh_only_the_selected_lottery_type(self):
+        data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        backend = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
+
+        self.assertIn("data-live-refresh-type", data)
+        self.assertIn("async function syncSingleLiveResult", data)
+        self.assertIn("/api/live-results?type=${encodeURIComponent(type)}", data)
+        self.assertIn("liveResultsState = scopedType ? { ...liveResultsState, ...resultMap } : resultMap;", data)
+        self.assertIn('currentCard.outerHTML = cardHtml[scopedIndex];', data)
+        self.assertIn('renderLiveResultsBoard({ force: true, onlyType: type });', data)
+        self.assertIn("if (!scopedType) {\n        refreshStatsV2AfterLiveUpdate();", data)
+        self.assertIn('event.target.closest("[data-live-refresh-type]")', core)
+        self.assertIn('String type = normalizeLiveType(query.get("type"));', backend)
 
     def test_heavy_keno_history_is_loaded_on_demand(self):
         core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
@@ -119,6 +179,20 @@ class WebPerformanceContractTests(unittest.TestCase):
 
         self.assertIn('drawIds: drawIds.join(",")', block)
         self.assertNotIn('fetchLiveHistory(type, "all"', block)
+
+    def test_prediction_history_manual_refresh_repairs_and_scores_before_reconcile(self):
+        data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        start = data.index("async function refreshPredictionHistoryData")
+        end = data.index("async function refreshKenoPredictionDataForHistory", start)
+        block = data[start:end]
+
+        self.assertIn("await repairPredictionHistoryCanonical(normalizedType)", block)
+        self.assertLess(block.index("await repairPredictionHistoryCanonical"), block.index("await fetchPredictionHistoryDraws"))
+        self.assertLess(block.index("await fetchPredictionHistoryDraws"), block.index("await scorePendingPredictionLedger"))
+        self.assertLess(block.index("await scorePendingPredictionLedger"), block.index("reconcilePredictionLogsForType"))
+        self.assertIn("async function startPredictionHistoryRefresh", data)
+        self.assertIn("silent: false, repairCanonical: true", core)
 
     def test_heavy_analysis_endpoints_use_versioned_cache(self):
         source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
