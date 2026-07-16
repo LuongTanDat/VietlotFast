@@ -446,14 +446,15 @@ def select_vip_tickets(analysis, config_payload):
     candidate_for_main.sort(key=lambda item: (float(item.get("selectionScore", 0.0)), float(item.get("qualityScore", 0.0))), reverse=True)
     primary = candidate_for_main[0]
     pool_config = dict((config_payload or {}).get("candidate_pool") or {})
-    backup_min = int(pool_config.get("backup_min", 2) or 2)
-    backup_max = int(pool_config.get("backup_max", 5) or 5)
-    total_ticket_goal = max(3, min(backup_max + 1, int(analysis.get("requestedBundleCount") or 3)))
-    backup_goal = max(backup_min, min(backup_max, total_ticket_goal - 1))
+    backup_max = max(0, int(pool_config.get("backup_max", 9) or 9))
+    total_ticket_goal = max(1, min(backup_max + 1, int(analysis.get("requestedBundleCount") or 1)))
+    backup_goal = max(0, min(backup_max, total_ticket_goal - 1))
     overlap_limit = int(assembly_config.get("diversity_overlap_limit", 3) or 3)
     selected_backups = []
     primary_set = set(int(value) for value in list(primary.get("main") or []))
     for candidate in variant_winners:
+        if backup_goal <= 0:
+            break
         if candidate == primary:
             continue
         main_set = set(int(value) for value in list(candidate.get("main") or []))

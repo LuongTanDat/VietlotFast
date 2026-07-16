@@ -259,6 +259,7 @@
     ];
     const PREDICTION_MODE_NORMAL = "normal";
     const PREDICTION_MODE_VIP = "vip";
+    const VIP_PREDICT_MAX_BUNDLES = 10;
     const PREDICTION_MODE_STATS = "stats";
     const PREDICTION_MODE_STATS_V2 = "stats-v2";
     const PREDICTION_MODE_CHARTS = "charts";
@@ -1123,7 +1124,7 @@
         vipPredictBaoLevelValue = String(localStorage.getItem(VIP_PREDICT_BAO_LEVEL_KEY) || "").trim();
         vipPredictEngineValue = ["both", "luan_so", "gen_local"].includes(nextEngine) ? nextEngine : "both";
         vipPredictRiskModeValue = nextRiskMode;
-        vipPredictCountValue = Number.isInteger(nextCount) && nextCount > 0 ? Math.min(3, nextCount) : 1;
+        vipPredictCountValue = Number.isInteger(nextCount) && nextCount > 0 ? Math.min(VIP_PREDICT_MAX_BUNDLES, nextCount) : 1;
         vipPredictKenoLevelValue = Number.isInteger(nextKenoLevel) && nextKenoLevel >= 1 && nextKenoLevel <= 10 ? nextKenoLevel : 5;
       } catch {}
     }
@@ -4167,10 +4168,12 @@
 
     function enforceVipPredictRiskModeVisibility(isAiPredict) {
       const riskModeBox = document.getElementById("vipPdRiskModeBox");
+      const controls = document.querySelector("#predictRootVip .predict-vip-controls");
       if (!riskModeBox) return;
       const shouldShow = !!isAiPredict && String(vipPredictEngineValue || "both").trim().toLowerCase() === "both";
       riskModeBox.hidden = !shouldShow;
       riskModeBox.style.display = shouldShow ? "grid" : "none";
+      if (controls) controls.classList.toggle("has-risk-mode", shouldShow);
     }
 
     function enforcePredictEngineVisibility(isKenoPredict, isAiPredict) {
@@ -4236,6 +4239,32 @@
         ? `Keno bậc ${Math.max(1, Math.min(10, Math.floor(kenoLevel) || 1))}: tối đa ${limit} bộ`
         : `Tối đa ${limit} bộ`;
 
+      const rawText = String(input.value || "").trim();
+      const rawValue = Number(rawText);
+      if (rawText && Number.isFinite(rawValue) && clampValue) {
+        input.value = String(Math.min(limit, Math.max(1, Math.floor(rawValue))));
+      } else if (forceMinimum && (!rawText || !Number.isFinite(rawValue) || rawValue < 1)) {
+        input.value = "1";
+      }
+      return {
+        limit,
+        value: Math.min(limit, Math.max(1, Math.floor(Number(input.value) || 1))),
+      };
+    }
+
+    function syncVipPredictBundleLimit({ clampValue = false, forceMinimum = false } = {}) {
+      const input = document.getElementById("vipPdCount");
+      const typeKey = String(document.getElementById("vipPdType")?.value || vipPredictTypeValue || "").trim().toUpperCase();
+      const kenoLevel = Math.max(1, Math.min(10, Number(document.getElementById("vipPdKenoLevel")?.value || vipPredictKenoLevelValue || 5) || 5));
+      const limit = typeKey === "KENO"
+        ? Math.min(VIP_PREDICT_MAX_BUNDLES, Math.max(1, Math.floor(80 / kenoLevel)))
+        : VIP_PREDICT_MAX_BUNDLES;
+      const limitLabel = document.getElementById("vipPredictBundleLimitLabel");
+      if (limitLabel) limitLabel.textContent = `Tối đa ${limit} bộ`;
+      if (!input) return { limit, value: 1 };
+
+      input.max = String(limit);
+      input.title = `Tối đa ${limit} bộ VIP`;
       const rawText = String(input.value || "").trim();
       const rawValue = Number(rawText);
       if (rawText && Number.isFinite(rawValue) && clampValue) {
@@ -4405,8 +4434,12 @@
       const subRow = document.querySelector("#predictRootVip .predict-sub-row");
       const kenoLevelBox = document.getElementById("vipPdKenoLevelBox");
       const engineBox = document.getElementById("vipPdEngineBox");
-      if (playModeRow) playModeRow.style.display = isAiPredict && hasBaoMode ? "grid" : "none";
-      if (playModeBox) playModeBox.style.display = isAiPredict && hasBaoMode ? "grid" : "none";
+      const controls = document.querySelector("#predictRootVip .predict-vip-controls");
+      const shouldShowPlayMode = isAiPredict && hasBaoMode;
+      if (playModeRow) playModeRow.style.display = shouldShowPlayMode ? "grid" : "none";
+      if (playModeBox) playModeBox.style.display = shouldShowPlayMode ? "grid" : "none";
+      if (controls) controls.classList.toggle("is-no-play-mode", !shouldShowPlayMode);
+      if (subRow) subRow.classList.toggle("keno-mode", isKenoPredict);
       if (playModeSelect) {
         if (isKenoPredict || !hasBaoMode) {
           playModeSelect.value = "normal";
@@ -4422,6 +4455,7 @@
       if (kenoLevelBox) kenoLevelBox.style.display = isKenoPredict ? "grid" : "none";
       if (engineBox) engineBox.style.removeProperty("grid-column");
       enforceVipPredictEngineVisibility(isKenoPredict, isAiPredict);
+      syncVipPredictBundleLimit({ clampValue: true, forceMinimum: true });
       syncVipPredictBaoOptions();
       renderVipPredictEngineChoice();
       renderVipPredictRiskModeChoice();
@@ -4472,7 +4506,7 @@
     });
     document.querySelectorAll("[data-dashboard-activity-view]").forEach(button => {
       button.addEventListener("click", () => {
-        const nextView = normalizeDashboardActivityViewMode(button.dataset.dashboardActivityView);
+        const nextView = normalizeDashboardActivityView(button.dataset.dashboardActivityView);
         if (nextView === dashboardActivityViewMode) return;
         dashboardActivityViewMode = nextView;
         saveDashboardUiState();
@@ -4481,7 +4515,7 @@
     });
     document.querySelectorAll("[data-dashboard-distribution-view]").forEach(button => {
       button.addEventListener("click", () => {
-        const nextView = normalizeDashboardDistributionViewMode(button.dataset.dashboardDistributionView);
+        const nextView = normalizeDashboardDistributionView(button.dataset.dashboardDistributionView);
         if (nextView === dashboardDistributionViewMode) return;
         dashboardDistributionViewMode = nextView;
         saveDashboardUiState();
@@ -5338,12 +5372,12 @@
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", () => {
-        vipPredictCountValue = Math.max(1, Math.min(3, Number(document.getElementById("vipPdCount")?.value || 1) || 1));
+        vipPredictCountValue = syncVipPredictBundleLimit({ clampValue: true, forceMinimum: true }).value;
         vipPredictKenoLevelValue = Math.max(1, Math.min(10, Number(document.getElementById("vipPdKenoLevel")?.value || 5) || 5));
         saveVipPredictState();
       });
       el.addEventListener("input", () => {
-        vipPredictCountValue = Math.max(1, Math.min(3, Number(document.getElementById("vipPdCount")?.value || 1) || 1));
+        vipPredictCountValue = syncVipPredictBundleLimit({ clampValue: true }).value;
         vipPredictKenoLevelValue = Math.max(1, Math.min(10, Number(document.getElementById("vipPdKenoLevel")?.value || 5) || 5));
         saveVipPredictState();
       });
@@ -5381,6 +5415,7 @@
       if (vipTypeSelect) vipTypeSelect.value = vipPredictTypeValue;
       const vipCountInput = document.getElementById("vipPdCount");
       if (vipCountInput) vipCountInput.value = String(vipPredictCountValue);
+      syncVipPredictBundleLimit({ clampValue: true, forceMinimum: true });
       const vipKenoLevelSelect = document.getElementById("vipPdKenoLevel");
       if (vipKenoLevelSelect) vipKenoLevelSelect.value = String(vipPredictKenoLevelValue);
       const vipPlayModeSelect2 = document.getElementById("vipPdPlayMode");

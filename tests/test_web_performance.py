@@ -164,6 +164,16 @@ class WebPerformanceContractTests(unittest.TestCase):
             self.assertIn(renderer, block)
         self.assertNotIn("renderAnalysis(null);\n      renderChartStatsPanel();", block)
 
+    def test_dashboard_view_normalizers_use_declared_helper_names(self):
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        source = core + stats
+
+        self.assertIn("function normalizeDashboardActivityView(value)", core)
+        self.assertIn("function normalizeDashboardDistributionView(value)", core)
+        self.assertNotIn("normalizeDashboardActivityViewMode(", source)
+        self.assertNotIn("normalizeDashboardDistributionViewMode(", source)
+
     def test_live_history_has_java_csv_fast_path(self):
         source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
 

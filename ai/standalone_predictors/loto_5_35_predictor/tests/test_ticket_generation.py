@@ -15,7 +15,16 @@ class PredictorApiTest(unittest.TestCase):
         self.assertEqual(payload["predictorVersion"], "loto_5_35_vip_v1")
         self.assertEqual(payload["engine"], "loto_5_35_vip")
         self.assertEqual(len(payload["main_ticket"]), 5)
-        self.assertGreaterEqual(len(payload["tickets"]), 3)
+        self.assertEqual(3, len(payload["tickets"]))
+
+    def test_predict_honors_vip_bundle_count_from_one_to_ten(self):
+        for bundle_count in (1, 10):
+            with self.subTest(bundle_count=bundle_count):
+                payload = predictor_api.predict_pure(
+                    PROJECT_ROOT / "data" / "loto_5_35.csv",
+                    bundle_count=bundle_count,
+                )
+                self.assertEqual(bundle_count, len(payload["tickets"]))
 
 
 if __name__ == "__main__":

@@ -2,109 +2,29 @@
   "type": "KENO",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "keno_all_day.csv",
-  "historyCount": 14513,
-  "latestKy": "288475",
-  "latestDate": "15/07/2026",
-  "latestTime": "21:36",
-  "lastLearnedKy": "288475",
-  "lastLearnedAt": "2026-07-15T22:08:33",
+  "historyCount": 14554,
+  "latestKy": "288516",
+  "latestDate": "16/07/2026",
+  "latestTime": "11:12",
+  "lastLearnedKy": "288516",
+  "lastLearnedAt": "2026-07-16T11:17:11",
   "metaState": "volatile",
-  "stabilityScore": 0.293582,
-  "driftScore": 0.767846,
-  "rankingOverlap": 0.222222,
+  "stabilityScore": 0.211172,
+  "driftScore": 0.857421,
+  "rankingOverlap": 0.08547,
   "preferredEngine": "luan_so",
   "weights": {
-    "gen_local": 0.206895,
-    "luan_so": 0.504467,
-    "both_combo": 0.288638
+    "gen_local": 0.217062,
+    "luan_so": 0.489441,
+    "both_combo": 0.293497
   },
-  "weightShift": 0.001834,
+  "weightShift": 0.015049,
   "rewards": {
-    "gen_local": 0.399764,
-    "luan_so": 0.87052,
-    "both_combo": 0.588728
+    "gen_local": 0.33449,
+    "luan_so": 0.870955,
+    "both_combo": 0.542727
   },
   "rewardHistory": [
-    {
-      "ky": "275344",
-      "learnedAt": "2026-03-27T15:50:36",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.38672,
-        "luan_so": 0.882097,
-        "both_combo": 0.562951
-      },
-      "weights": {
-        "gen_local": 0.199118,
-        "luan_so": 0.516412,
-        "both_combo": 0.28447
-      },
-      "weightShift": 0.001142
-    },
-    {
-      "ky": "275509",
-      "learnedAt": "2026-03-28T23:47:06",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.359276,
-        "luan_so": 0.877019,
-        "both_combo": 0.578935
-      },
-      "weights": {
-        "gen_local": 0.197173,
-        "luan_so": 0.516212,
-        "both_combo": 0.286615
-      },
-      "weightShift": 0.002145
-    },
-    {
-      "ky": "275828",
-      "learnedAt": "2026-03-31T17:00:13",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.380055,
-        "luan_so": 0.875921,
-        "both_combo": 0.589575
-      },
-      "weights": {
-        "gen_local": 0.197269,
-        "luan_so": 0.513944,
-        "both_combo": 0.288787
-      },
-      "weightShift": 0.002268
-    },
-    {
-      "ky": "275832",
-      "learnedAt": "2026-03-31T17:27:16",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.388888,
-        "luan_so": 0.876796,
-        "both_combo": 0.558926
-      },
-      "weights": {
-        "gen_local": 0.198971,
-        "luan_so": 0.514369,
-        "both_combo": 0.28666
-      },
-      "weightShift": 0.002127
-    },
-    {
-      "ky": "278719",
-      "learnedAt": "2026-04-24T23:22:31",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.342645,
-        "luan_so": 0.0,
-        "both_combo": 0.151312
-      },
-      "weights": {
-        "gen_local": 0.261449,
-        "luan_so": 0.431491,
-        "both_combo": 0.30706
-      },
-      "weightShift": 0.082878
-    },
     {
       "ky": "278838",
       "learnedAt": "2026-04-26T00:39:47",
@@ -1944,54 +1864,134 @@
         "both_combo": 0.288638
       },
       "weightShift": 0.001834
+    },
+    {
+      "ky": "288477",
+      "learnedAt": "2026-07-16T00:30:53",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.389766,
+        "luan_so": 0.870389,
+        "both_combo": 0.587543
+      },
+      "weights": {
+        "gen_local": 0.205443,
+        "luan_so": 0.504395,
+        "both_combo": 0.290161
+      },
+      "weightShift": 0.001523
+    },
+    {
+      "ky": "288508",
+      "learnedAt": "2026-07-16T10:18:07",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.353982,
+        "luan_so": 0.0,
+        "both_combo": 0.156318
+      },
+      "weights": {
+        "gen_local": 0.267775,
+        "luan_so": 0.423248,
+        "both_combo": 0.308977
+      },
+      "weightShift": 0.081147
+    },
+    {
+      "ky": "288514",
+      "learnedAt": "2026-07-16T11:02:10",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.336128,
+        "luan_so": 0.871086,
+        "both_combo": 0.536478
+      },
+      "weights": {
+        "gen_local": 0.244893,
+        "luan_so": 0.453003,
+        "both_combo": 0.302105
+      },
+      "weightShift": 0.029755
+    },
+    {
+      "ky": "288515",
+      "learnedAt": "2026-07-16T11:07:58",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.329777,
+        "luan_so": 0.871086,
+        "both_combo": 0.542516
+      },
+      "weights": {
+        "gen_local": 0.228226,
+        "luan_so": 0.474392,
+        "both_combo": 0.297382
+      },
+      "weightShift": 0.021389
+    },
+    {
+      "ky": "288516",
+      "learnedAt": "2026-07-16T11:17:11",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.33449,
+        "luan_so": 0.870955,
+        "both_combo": 0.542727
+      },
+      "weights": {
+        "gen_local": 0.217062,
+        "luan_so": 0.489441,
+        "both_combo": 0.293497
+      },
+      "weightShift": 0.015049
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.446467,
+      "confidence": 0.399317,
       "backtest": {
-        "avgHits": 1.3208,
-        "avgHitRate": 0.264167,
-        "veryRecentAvgHitRate": 0.26,
-        "recentAvgHitRate": 0.275,
-        "mediumRecentAvgHitRate": 0.258333,
+        "avgHits": 1.2542,
+        "avgHitRate": 0.250833,
+        "veryRecentAvgHitRate": 0.2,
+        "recentAvgHitRate": 0.216667,
+        "mediumRecentAvgHitRate": 0.233333,
         "samples": 240,
-        "stability": 0.645697,
-        "recentConsistency": 0.9925,
-        "agreementScore": 0.643333,
-        "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.999167,
-        "adaptiveScore": 0.501285
+        "stability": 0.633489,
+        "recentConsistency": 0.85,
+        "agreementScore": 0.636667,
+        "cooldownPenalty": 0.958667,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.430915
       },
       "champion": {
-        "key": "hybrid_ai_lite",
-        "label": "Hybrid AI-lite",
+        "key": "recent_hot",
+        "label": "Recent hot",
         "samples": 240,
-        "avgHits": 1.3208,
-        "avgHitRate": 0.264167,
-        "veryRecentAvgHitRate": 0.26,
-        "recentAvgHitRate": 0.275,
-        "mediumRecentAvgHitRate": 0.258333,
-        "stability": 0.645697,
-        "recentConsistency": 0.9925,
-        "agreementScore": 0.643333,
+        "avgHits": 1.2542,
+        "avgHitRate": 0.250833,
+        "veryRecentAvgHitRate": 0.2,
+        "recentAvgHitRate": 0.216667,
+        "mediumRecentAvgHitRate": 0.233333,
+        "stability": 0.633489,
+        "recentConsistency": 0.85,
+        "agreementScore": 0.636667,
         "sampleFactor": 1.0,
-        "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.999167,
-        "adaptiveScore": 0.501285,
-        "learnedWeight": 0.284621,
-        "rawScore": 0.501285
+        "cooldownPenalty": 0.958667,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.430915,
+        "learnedWeight": 0.261962,
+        "rawScore": 0.430915
       }
     },
     "luan_so": {
-      "confidence": 0.767998,
+      "confidence": 0.768542,
       "backtest": {
         "avgHits": 0.0,
-        "avgHitRate": 0.767998,
+        "avgHitRate": 0.768542,
         "samples": 3000,
         "specialHitRate": null,
-        "shrinkageAdjustedConfidence": 0.296158,
-        "shrinkageAdjustedLift": 1.211702,
+        "shrinkageAdjustedConfidence": 0.29729,
+        "shrinkageAdjustedLift": 1.214676,
         "directionalAgreementRatio": 1.0
       },
       "champion": {
@@ -2002,256 +2002,100 @@
         "relationKind": "main_main",
         "strongPairs": 120,
         "watchPairs": 0,
-        "topLift": 1.211702,
-        "topConfidence": 0.296158,
-        "topBaseline": 0.244415,
-        "topSupport": 771,
+        "topLift": 1.214676,
+        "topConfidence": 0.29729,
+        "topBaseline": 0.244748,
+        "topSupport": 768,
         "topPairCount": 230,
         "topShrinkFactor": 0.96,
-        "adaptiveScore": 0.760501
+        "adaptiveScore": 0.761634
       },
       "signalSummary": {
         "dominantDirection": "backward",
         "dominantWindow": 1,
         "strongPairCount": 120,
         "watchPairCount": 0,
-        "filteredPairCount": 14292,
+        "filteredPairCount": 13959,
         "directionalAgreementRatio": 1.0,
         "topShrinkFactor": 0.96,
         "topEvidence": [
           {
             "relation_kind": "main_main",
-            "from_number": 21,
-            "to_number": 49,
+            "from_number": 75,
+            "to_number": 30,
             "direction": "backward",
             "window": 1,
             "lag": 1,
-            "strength": 1.54295,
+            "strength": 2.025904,
             "label": "Strong",
-            "lift": 1.160777,
-            "confidence": 0.294548,
-            "baseline": 0.253751
+            "lift": 1.214676,
+            "confidence": 0.29729,
+            "baseline": 0.244748
           },
           {
             "relation_kind": "main_main",
-            "from_number": 7,
-            "to_number": 56,
-            "direction": "backward",
+            "from_number": 75,
+            "to_number": 30,
+            "direction": "forward",
             "window": 1,
             "lag": 1,
-            "strength": 1.494428,
+            "strength": 1.716868,
             "label": "Strong",
-            "lift": 1.16027,
-            "confidence": 0.276623,
-            "baseline": 0.238413
+            "lift": 1.214676,
+            "confidence": 0.29729,
+            "baseline": 0.244748
           },
           {
             "relation_kind": "main_main",
-            "from_number": 20,
-            "to_number": 28,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.460222,
-            "label": "Strong",
-            "lift": 1.156303,
-            "confidence": 0.276834,
-            "baseline": 0.239413
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 8,
-            "to_number": 28,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.372391,
-            "label": "Strong",
-            "lift": 1.146902,
-            "confidence": 0.274583,
-            "baseline": 0.239413
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 35,
-            "to_number": 28,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.367145,
-            "label": "Strong",
-            "lift": 1.146339,
-            "confidence": 0.274449,
-            "baseline": 0.239413
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 64,
+            "from_number": 70,
             "to_number": 77,
             "direction": "backward",
             "window": 1,
             "lag": 1,
-            "strength": 1.35231,
+            "strength": 1.63506,
             "label": "Strong",
-            "lift": 1.14294,
-            "confidence": 0.281257,
-            "baseline": 0.246082
+            "lift": 1.172072,
+            "confidence": 0.291162,
+            "baseline": 0.248416
           },
           {
             "relation_kind": "main_main",
-            "from_number": 21,
-            "to_number": 49,
+            "from_number": 70,
+            "to_number": 77,
             "direction": "forward",
             "window": 1,
             "lag": 1,
-            "strength": 1.307585,
+            "strength": 1.385644,
             "label": "Strong",
-            "lift": 1.160777,
-            "confidence": 0.294548,
-            "baseline": 0.253751
+            "lift": 1.172072,
+            "confidence": 0.291162,
+            "baseline": 0.248416
           },
           {
             "relation_kind": "main_main",
-            "from_number": 7,
+            "from_number": 57,
             "to_number": 15,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.300673,
-            "label": "Strong",
-            "lift": 1.137914,
-            "confidence": 0.278123,
-            "baseline": 0.244415
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 7,
-            "to_number": 56,
             "direction": "forward",
-            "window": 1,
+            "window": 3,
             "lag": 1,
-            "strength": 1.266465,
+            "strength": 1.344291,
             "label": "Strong",
-            "lift": 1.16027,
-            "confidence": 0.276623,
-            "baseline": 0.238413
+            "lift": 1.104126,
+            "confidence": 0.630666,
+            "baseline": 0.57119
           },
           {
             "relation_kind": "main_main",
-            "from_number": 35,
-            "to_number": 28,
-            "direction": "backward",
-            "window": 2,
-            "lag": 1,
-            "strength": 1.246628,
-            "label": "Strong",
-            "lift": 1.137518,
-            "confidence": 0.272337,
-            "baseline": 0.239413
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 22,
-            "to_number": 10,
+            "from_number": 15,
+            "to_number": 27,
             "direction": "backward",
             "window": 1,
             "lag": 1,
-            "strength": 1.238751,
+            "strength": 1.308404,
             "label": "Strong",
-            "lift": 1.131349,
-            "confidence": 0.276518,
-            "baseline": 0.244415
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 20,
-            "to_number": 28,
-            "direction": "forward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.237477,
-            "label": "Strong",
-            "lift": 1.156303,
-            "confidence": 0.276834,
-            "baseline": 0.239413
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 62,
-            "to_number": 79,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.21858,
-            "label": "Strong",
-            "lift": 1.125967,
-            "confidence": 0.290596,
-            "baseline": 0.258086
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 20,
-            "to_number": 67,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.214028,
-            "label": "Strong",
-            "lift": 1.127525,
-            "confidence": 0.281223,
-            "baseline": 0.249416
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 65,
-            "to_number": 67,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.213097,
-            "label": "Strong",
-            "lift": 1.127426,
-            "confidence": 0.281199,
-            "baseline": 0.249416
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 37,
-            "to_number": 26,
-            "direction": "forward",
-            "window": 2,
-            "lag": 1,
-            "strength": 1.20877,
-            "label": "Strong",
-            "lift": 1.110764,
-            "confidence": 0.487047,
-            "baseline": 0.438479
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 35,
-            "to_number": 28,
-            "direction": "forward",
-            "window": 2,
-            "lag": 1,
-            "strength": 1.201258,
-            "label": "Strong",
-            "lift": 1.112295,
-            "confidence": 0.471771,
-            "baseline": 0.424141
-          },
-          {
-            "relation_kind": "main_main",
-            "from_number": 78,
-            "to_number": 16,
-            "direction": "backward",
-            "window": 1,
-            "lag": 1,
-            "strength": 1.199325,
-            "label": "Strong",
-            "lift": 1.125202,
-            "confidence": 0.284396,
-            "baseline": 0.252751
+            "lift": 1.136928,
+            "confidence": 0.285843,
+            "baseline": 0.251417
           },
           {
             "relation_kind": "main_main",
@@ -2260,24 +2104,180 @@
             "direction": "backward",
             "window": 1,
             "lag": 1,
-            "strength": 1.190814,
+            "strength": 1.30703,
             "label": "Strong",
-            "lift": 1.125086,
-            "confidence": 0.280615,
-            "baseline": 0.249416
+            "lift": 1.1367,
+            "confidence": 0.286165,
+            "baseline": 0.251751
           },
           {
             "relation_kind": "main_main",
-            "from_number": 41,
+            "from_number": 46,
             "to_number": 24,
             "direction": "backward",
             "window": 1,
             "lag": 1,
-            "strength": 1.184088,
+            "strength": 1.298781,
             "label": "Strong",
-            "lift": 1.121731,
-            "confidence": 0.292869,
-            "baseline": 0.261087
+            "lift": 1.133604,
+            "confidence": 0.295591,
+            "baseline": 0.260754
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 57,
+            "to_number": 53,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.253606,
+            "label": "Strong",
+            "lift": 1.131438,
+            "confidence": 0.283331,
+            "baseline": 0.250417
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 35,
+            "to_number": 28,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.252547,
+            "label": "Strong",
+            "lift": 1.134073,
+            "confidence": 0.271512,
+            "baseline": 0.239413
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 75,
+            "to_number": 30,
+            "direction": "forward",
+            "window": 2,
+            "lag": 1,
+            "strength": 1.226151,
+            "label": "Strong",
+            "lift": 1.113558,
+            "confidence": 0.479732,
+            "baseline": 0.43081
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 30,
+            "to_number": 67,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.224111,
+            "label": "Strong",
+            "lift": 1.128986,
+            "confidence": 0.279705,
+            "baseline": 0.247749
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 55,
+            "to_number": 8,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.21264,
+            "label": "Strong",
+            "lift": 1.128257,
+            "confidence": 0.277268,
+            "baseline": 0.245749
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 71,
+            "to_number": 24,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.196931,
+            "label": "Strong",
+            "lift": 1.123127,
+            "confidence": 0.292859,
+            "baseline": 0.260754
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 57,
+            "to_number": 68,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.189165,
+            "label": "Strong",
+            "lift": 1.124912,
+            "confidence": 0.280572,
+            "baseline": 0.249416
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 35,
+            "to_number": 28,
+            "direction": "backward",
+            "window": 2,
+            "lag": 1,
+            "strength": 1.182948,
+            "label": "Strong",
+            "lift": 1.130494,
+            "confidence": 0.270655,
+            "baseline": 0.239413
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 57,
+            "to_number": 68,
+            "direction": "forward",
+            "window": 3,
+            "lag": 1,
+            "strength": 1.170892,
+            "label": "Strong",
+            "lift": 1.090169,
+            "confidence": 0.628147,
+            "baseline": 0.576192
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 51,
+            "to_number": 37,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.170453,
+            "label": "Strong",
+            "lift": 1.124027,
+            "confidence": 0.275104,
+            "baseline": 0.244748
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 57,
+            "to_number": 15,
+            "direction": "forward",
+            "window": 2,
+            "lag": 1,
+            "strength": 1.169783,
+            "label": "Strong",
+            "lift": 1.108641,
+            "confidence": 0.475396,
+            "baseline": 0.42881
+          },
+          {
+            "relation_kind": "main_main",
+            "from_number": 34,
+            "to_number": 66,
+            "direction": "backward",
+            "window": 1,
+            "lag": 1,
+            "strength": 1.159664,
+            "label": "Strong",
+            "lift": 1.120317,
+            "confidence": 0.286897,
+            "baseline": 0.256085
           }
         ]
       }

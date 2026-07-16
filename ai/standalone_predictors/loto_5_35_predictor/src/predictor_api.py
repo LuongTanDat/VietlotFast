@@ -21,8 +21,6 @@ def _build_result_notes(selection, regime, sync_result, deep_result, bundle_coun
     ]
     if primary.get("qualityScore") is not None:
         notes.append(f"Chất lượng bộ chính hiện tại: {float(primary.get('qualityScore', 0.0)):.2f}/100.")
-    if int(bundle_count or 0) < 3:
-        notes.append("Vip standalone luôn giữ tối thiểu 1 bộ chính + 2 bộ phụ để có lớp hedge cơ bản.")
     return [note for note in notes if note]
 
 

@@ -40,6 +40,16 @@ class TicketGenerationTests(unittest.TestCase):
         self.assertGreaterEqual(result["quality_score"], 0.0)
         self.assertLessEqual(result["quality_score"], 100.0)
 
+    def test_ticket_generation_supports_nine_vip_backups(self):
+        result = predictor_api.predict_pure(
+            PROJECT_ROOT / "data" / "power_6_55.csv",
+            project_root=PROJECT_ROOT,
+            backup_count=9,
+        )
+
+        self.assertEqual(9, len(result["backup_tickets"]))
+        self.assertEqual(9, len({tuple(ticket) for ticket in result["backup_tickets"]}))
+
 
 if __name__ == "__main__":
     unittest.main()

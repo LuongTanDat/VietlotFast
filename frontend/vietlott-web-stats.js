@@ -4613,7 +4613,7 @@
     }
 
     function getDashboardActivityBuckets(entries, mode) {
-      const normalizedMode = normalizeDashboardActivityViewMode(mode);
+      const normalizedMode = normalizeDashboardActivityView(mode);
       const latestDate = getDashboardLatestDate(entries);
       const limit = DASHBOARD_ACTIVITY_BUCKET_LIMITS[normalizedMode] || 12;
       const buckets = [];
@@ -4851,7 +4851,7 @@
 
     function getDashboardDistributionSubtitle(type, mode) {
       const meta = getDashboardTypeMeta(type);
-      const normalizedMode = normalizeDashboardDistributionViewMode(mode);
+      const normalizedMode = normalizeDashboardDistributionView(mode);
       if (normalizedMode === "range") return `Phân bổ ${meta.label} theo từng dải số đặc trưng của game đang chọn.`;
       if (normalizedMode === "parity") return `Nhìn nhanh chẵn / lẻ để biết nhịp phân bổ của ${meta.label}.`;
       if (normalizedMode === "head") return `Tập trung vào đầu số của các bộ 3 số trong ${meta.label}.`;
@@ -4889,7 +4889,7 @@
 
     function computeDashboardDistributionRows(type, entries, mode) {
       const normalizedType = normalizeDashboardGame(type);
-      const normalizedMode = normalizeDashboardDistributionViewMode(mode);
+      const normalizedMode = normalizeDashboardDistributionView(mode);
       if (normalizedMode === "range") {
         const groups = getDashboardRangeGroups(normalizedType).map(group => ({ ...group, count: 0 }));
         entries.forEach(entry => {
@@ -4968,7 +4968,7 @@
         accumulated += segmentLength;
         return `<circle class="lotto-dashboard-donut-segment" cx="100" cy="100" r="${radius}" fill="none" stroke="${escapeHtml(row.color)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${segmentLength.toFixed(3)} ${(circumference - segmentLength).toFixed(3)}" stroke-dashoffset="${dashOffset.toFixed(3)}"></circle>`;
       }).join("");
-      const centerLabel = getDashboardDistributionOptions(type).find(option => option.value === normalizeDashboardDistributionViewMode(mode))?.label || "Tỷ trọng";
+      const centerLabel = getDashboardDistributionOptions(type).find(option => option.value === normalizeDashboardDistributionView(mode))?.label || "Tỷ trọng";
       return `
         <div class="lotto-dashboard-donut-layout">
           <div class="lotto-dashboard-donut-wrap">
@@ -5023,7 +5023,7 @@
     }
 
     function renderDashboardActivityChart(buckets, mode, type) {
-      const normalizedMode = normalizeDashboardActivityViewMode(mode);
+      const normalizedMode = normalizeDashboardActivityView(mode);
       const totalDraws = buckets.reduce((sum, bucket) => sum + Number(bucket.drawCount || 0), 0);
       if (!totalDraws) {
         return `<div class="lotto-dashboard-empty-state">Chưa đủ dữ liệu ${escapeHtml(getDashboardTypeMeta(type).label)} để dựng biểu đồ hoạt động theo ${normalizedMode === "day" ? "ngày" : normalizedMode === "week" ? "tuần" : "tháng"}.</div>`;
@@ -5093,7 +5093,7 @@
 
     function renderDashboardActivityTabs() {
       document.querySelectorAll("[data-dashboard-activity-view]").forEach(button => {
-        const viewMode = normalizeDashboardActivityViewMode(button.dataset.dashboardActivityView);
+        const viewMode = normalizeDashboardActivityView(button.dataset.dashboardActivityView);
         const isActive = viewMode === dashboardActivityViewMode;
         button.classList.toggle("is-active", isActive);
         button.setAttribute("aria-pressed", isActive ? "true" : "false");
@@ -5110,7 +5110,7 @@
       }).join("");
       host.querySelectorAll("[data-dashboard-distribution-view]").forEach(button => {
         button.addEventListener("click", () => {
-          const nextView = normalizeDashboardDistributionViewMode(button.dataset.dashboardDistributionView);
+          const nextView = normalizeDashboardDistributionView(button.dataset.dashboardDistributionView);
           if (nextView === dashboardDistributionViewMode) return;
           dashboardDistributionViewMode = nextView;
           saveDashboardUiState();

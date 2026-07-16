@@ -7090,7 +7090,7 @@
         };
       }
       // predictor_v2 integration end
-      const nextCount = Math.max(1, Math.min(3, Number(requestedBundleCount || 1) || 1));
+      const nextCount = Math.max(1, Math.min(VIP_PREDICT_MAX_BUNDLES, Number(requestedBundleCount || 1) || 1));
       const analyses = buildPredictVipTicketAnalyses(result);
       const selected = analyses.slice(0, Math.min(nextCount, analyses.length));
       const selectedIndexes = new Set(selected.map(item => item.index));
@@ -7127,7 +7127,9 @@
         if (out) line(out, "Loại Vip không hợp lệ.", "warn");
         return null;
       }
-      const count = Math.max(1, Math.min(3, Number(document.getElementById("vipPdCount")?.value || vipPredictCountValue || 1) || 1));
+      const count = syncVipPredictBundleLimit({ clampValue: true, forceMinimum: true }).value;
+      const countInput = document.getElementById("vipPdCount");
+      if (countInput) countInput.value = String(count);
       const kenoLevel = t.keno ? Math.max(1, Math.min(10, Number(document.getElementById("vipPdKenoLevel")?.value || vipPredictKenoLevelValue || 5) || 5)) : 0;
       vipPredictTypeValue = type;
       vipPredictCountValue = count;

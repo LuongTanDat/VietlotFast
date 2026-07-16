@@ -73,8 +73,8 @@ DEFAULT_CONFIG = {
     "candidate_pool": {
         "main": 14,
         "bonus": 6,
-        "backup_min": 2,
-        "backup_max": 5,
+        "backup_min": 0,
+        "backup_max": 9,
         "candidate_tickets": 16,
     },
     "heuristic_weights": {

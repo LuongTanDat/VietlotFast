@@ -129,8 +129,19 @@ class AdaptiveCoverageTests(unittest.TestCase):
     def test_prediction_bundle_limits_are_enforced_by_backend(self):
         with self.assertRaisesRegex(ValueError, "100 Bộ"):
             ai_predict._predict_json_unlocked("LOTO_6_45", 101)
+        with self.assertRaisesRegex(ValueError, "VIP tối đa là 10 Bộ"):
+            ai_predict._predict_json_unlocked("LOTO_6_45", 11, prediction_mode="vip")
         with self.assertRaisesRegex(ValueError, "bậc 5 là 16 Bộ"):
             ai_predict._predict_json_unlocked("KENO", 17, keno_level=5)
+
+    def test_vip_profile_can_select_up_to_ten_tickets(self):
+        payload = self.build_payload("MAX_3D", bundle_count=12)
+        payload["topRanking"] = list(range(100, 130))
+        payload["tickets"] = [{"main": [value]} for value in range(100, 112)]
+
+        result = ai_predict.apply_vip_prediction_profile(payload, 10)
+
+        self.assertEqual(10, len(result["tickets"]))
 
     def test_top_ranking_limits_are_normalized_per_game(self):
         expected = {
@@ -195,6 +206,10 @@ class AdaptiveCoverageTests(unittest.TestCase):
         self.assertIn("syncPredictBundleLimit({ clampValue: true, forceMinimum: true })", data_source)
         self.assertIn('id="pdCountLimit"', html_source)
         self.assertIn('max="100"', html_source)
+        self.assertIn("const VIP_PREDICT_MAX_BUNDLES = 10;", core_source)
+        self.assertIn("function syncVipPredictBundleLimit", core_source)
+        self.assertIn('id="vipPdCount" type="number" min="1" max="10"', html_source)
+        self.assertIn("syncVipPredictBundleLimit({ clampValue: true, forceMinimum: true }).value", data_source)
         self.assertIn("function normalizePredictionErrorDetail", data_source)
         self.assertNotIn("Không thể dự đoán bằng AI backend:", data_source)
 

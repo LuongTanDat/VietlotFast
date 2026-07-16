@@ -20,6 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     predict_parser = subparsers.add_parser("predict", help="Generate the next Power 6/55 main ticket, special, and backups.")
     predict_parser.add_argument("--csv", default="data/power_6_55.csv", help="Path to the Power 6/55 CSV history.")
     predict_parser.add_argument("--blend-mode", default=None, help="Optional blend mode such as heuristic_only, deep_only, or blended.")
+    predict_parser.add_argument("--backup-count", default=None, type=int, help="Requested number of backup VIP tickets.")
     predict_parser.add_argument("--pure", action="store_true", help="Generate without writing tracking, metrics, or last_prediction state.")
 
     update_parser = subparsers.add_parser("update", help="Update tracking state after the actual draw is known.")
@@ -56,7 +57,13 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "predict":
-        payload = predictor_api.predict_with_options(args.csv, project_root=PROJECT_ROOT, blend_mode=args.blend_mode, pure=args.pure)
+        payload = predictor_api.predict_with_options(
+            args.csv,
+            project_root=PROJECT_ROOT,
+            backup_count=args.backup_count,
+            blend_mode=args.blend_mode,
+            pure=args.pure,
+        )
     elif args.command == "update":
         payload = predictor_api.update_after_actual(
             args.csv,

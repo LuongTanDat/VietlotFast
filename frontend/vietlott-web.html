@@ -768,39 +768,46 @@
         </div>
       </section>
       <section id="predictRootVip" class="card predict-card predict-root predict-root-vip" hidden>
-        <div class="predict-card-head">
-          <h2>Dự đoán VIP</h2>
+        <div class="predict-card-head predict-vip-head">
+          <div class="predict-vip-heading">
+            <span class="predict-vip-mark">VIP SELECT</span>
+            <h2>Dự đoán VIP</h2>
+          </div>
           <div class="predict-card-actions">
+            <span class="predict-card-chip predict-card-chip-vip"><span class="predict-vip-status-dot" aria-hidden="true"></span>Chọn lọc nghiêm ngặt</span>
             <button id="vipPredictionHistoryToggleBtn" type="button" class="predict-card-chip is-button">Lịch sử VIP</button>
-            <span class="predict-card-chip predict-card-chip-vip">Chọn lọc nghiêm ngặt</span>
           </div>
         </div>
         <div class="predict-layout">
           <div class="predict-config-panel">
+            <div class="predict-vip-config-head">
+              <span>Cấu hình dự đoán</span>
+              <span id="vipPredictBundleLimitLabel">Tối đa 10 bộ</span>
+            </div>
             <div class="predict-vip-controls">
               <div id="vipPdPlayModeRow" class="row predict-play-row">
-                <div id="vipPdPlayModeBox">
+                <div id="vipPdPlayModeBox" class="predict-vip-field">
                   <label>Cách chơi</label>
                   <select id="vipPdPlayMode">
                     <option value="normal" selected>Vé Thường</option>
                     <option value="bao">Bao Số</option>
                   </select>
                 </div>
-                <div id="vipPdBaoRow" style="display:none;">
+                <div id="vipPdBaoRow" class="predict-vip-field" style="display:none;">
                   <label>Chọn Bao</label>
                   <select id="vipPdBaoLevel"></select>
                 </div>
               </div>
               <div class="row predict-sub-row">
-                <div id="vipPdTypeCol">
+                <div id="vipPdTypeCol" class="predict-vip-field">
                   <label>Loại</label>
                   <select id="vipPdType"></select>
                 </div>
-                <div id="vipPdCountCol">
+                <div id="vipPdCountCol" class="predict-vip-field">
                   <label>Số bộ dự đoán</label>
-                  <input id="vipPdCount" type="number" min="1" max="3" value="1" />
+                  <input id="vipPdCount" type="number" min="1" max="10" value="1" />
                 </div>
-                <div id="vipPdEngineBox" style="display:none;">
+                <div id="vipPdEngineBox" class="predict-vip-field" style="display:none;">
                   <label>Engine AI</label>
                   <select id="vipPdEngine">
                     <option value="both" selected>Cả 2</option>
@@ -813,7 +820,7 @@
                     <button type="button" class="predict-engine-btn" data-vip-pd-engine="gen_local">AI Gen</button>
                   </div>
                 </div>
-                <div id="vipPdKenoLevelBox" style="display:none;">
+                <div id="vipPdKenoLevelBox" class="predict-vip-field" style="display:none;">
                   <label>Chọn bậc số</label>
                   <select id="vipPdKenoLevel">
                     <option value="1">Bậc 1 (1 số)</option>
@@ -829,22 +836,25 @@
                   </select>
                 </div>
               </div>
+              <div id="vipPdRiskModeBox" class="predict-risk-mode-box predict-vip-risk-strip" hidden>
+                <label>Chế độ AI</label>
+                <div id="vipPdRiskModeChoice" class="predict-risk-choice" role="tablist" aria-label="Chọn chế độ AI VIP">
+                  <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="stable">Ổn định</button>
+                  <button type="button" class="predict-risk-btn is-active" data-vip-pd-risk-mode="balanced">Cân bằng</button>
+                  <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="aggressive">Tấn công</button>
+                </div>
+              </div>
               <div class="predict-action-row">
                 <button id="vipPredictBtn">Dự đoán VIP</button>
-              </div>
-            </div>
-            <div id="vipPdRiskModeBox" class="predict-risk-mode-box predict-vip-risk-strip" hidden>
-              <label>Chế độ AI</label>
-              <div id="vipPdRiskModeChoice" class="predict-risk-choice" role="tablist" aria-label="Chọn chế độ AI VIP">
-                <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="stable">Ổn định</button>
-                <button type="button" class="predict-risk-btn is-active" data-vip-pd-risk-mode="balanced">Cân bằng</button>
-                <button type="button" class="predict-risk-btn" data-vip-pd-risk-mode="aggressive">Tấn công</button>
               </div>
             </div>
           </div>
           <div class="predict-output-panel">
             <div class="predict-output-head">
-              <span class="predict-output-title">Kết quả dự đoán VIP</span>
+              <div class="predict-vip-output-heading">
+                <span class="predict-vip-output-kicker">KẾT QUẢ</span>
+                <span class="predict-output-title">Dự đoán VIP</span>
+              </div>
               <span class="predict-output-note">Lớp VIP độc lập</span>
             </div>
             <div id="predictVipOut" class="result-box muted" aria-live="polite">Chưa có kết quả dự đoán VIP.</div>

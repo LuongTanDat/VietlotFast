@@ -57,6 +57,7 @@ AI_KENO_EVAL_SAMPLES = 240
 AI_TOP_RANKING_COUNT = 20
 AI_SPECIAL_TOP_COUNT = 55
 AI_MAX_BUNDLES = 100
+VIP_MAX_BUNDLES = 10
 AI_TOP_RANKING_RULES = {
     "LOTO_5_35": {
         "mainMin": 7, "mainMax": 15, "mainUniverseMin": 1, "mainUniverseMax": 35,
@@ -343,7 +344,7 @@ def apply_vip_prediction_profile(payload, bundle_count):
     tickets = list(result.get("tickets") or [])
     top_ranking = list(result.get("topRanking") or [])
     top_special = list(result.get("topSpecialRanking") or [])
-    requested_count = max(1, min(3, int(bundle_count or 1)))
+    requested_count = max(1, min(VIP_MAX_BUNDLES, int(bundle_count or 1)))
     if tickets:
         def ticket_score(ticket):
             coverage = _ticket_top_coverage(ticket, top_ranking[:20])
@@ -376,7 +377,7 @@ def build_loto_6_45_vip_prediction(bundle_count, requested_engine="", risk_mode=
 
     csv_path = dp.get_canonical_csv_read_path("LOTO_6_45")
     requested_total = max(1, int(bundle_count or 1))
-    backup_count = max(2, requested_total - 1)
+    backup_count = max(0, requested_total - 1)
     prediction = mega_645_predictor_api.predict_pure(csv_path, project_root=standalone_root, backup_count=backup_count)
     dataset = dict(prediction.get("dataset") or {})
     sync = dict(prediction.get("sync") or {})
@@ -567,7 +568,13 @@ def _pick_special_for_ticket(ticket_numbers, preferred_values, special_min=1, sp
 def build_loto_6_55_vip_prediction(bundle_count, requested_engine="", risk_mode="balanced"):
     standalone_root = STANDALONE_PREDICTORS_ROOT / "power_6_55_predictor"
     csv_path = dp.get_canonical_csv_read_path("LOTO_6_55")
-    prediction = _run_standalone_predict_cli(standalone_root, csv_path, extra_args=["--pure"])
+    requested_total = max(1, min(VIP_MAX_BUNDLES, int(bundle_count or 1)))
+    backup_count = max(0, requested_total - 1)
+    prediction = _run_standalone_predict_cli(
+        standalone_root,
+        csv_path,
+        extra_args=["--pure", "--backup-count", str(backup_count)],
+    )
 
     dataset = dict(prediction.get("dataset") or {})
     sync = dict(prediction.get("sync") or {})
@@ -587,8 +594,7 @@ def build_loto_6_55_vip_prediction(bundle_count, requested_engine="", risk_mode=
     quality_score = float(prediction.get("quality_score", 0.0) or 0.0)
     explanation = dict(prediction.get("explanation") or {})
     deep_status_line = str(prediction.get("deep_status_line", "") or "").strip()
-    requested_total = max(1, int(bundle_count or 1))
-    backup_count = max(2, requested_total - 1)
+    backup_count = max(0, requested_total - 1)
     scoped_backup_tickets = backup_tickets[:backup_count]
 
     ticket_payloads = []
@@ -4036,6 +4042,8 @@ def _predict_json_unlocked(type_key, bundle_count, keno_level=None, engine=AI_EN
     risk_mode = normalize_risk_mode(risk_mode)
     prediction_mode = normalize_prediction_mode(prediction_mode)
     bundle_count = normalize_positive_int(bundle_count, "Số bộ")
+    if prediction_mode == PREDICTION_MODE_VIP and bundle_count > VIP_MAX_BUNDLES:
+        raise ValueError(f"Số bộ dự đoán VIP tối đa là {VIP_MAX_BUNDLES} Bộ.")
     if type_key != "KENO" and bundle_count > AI_MAX_BUNDLES:
         raise ValueError(f"Số bộ dự đoán tối đa cho loại này là {AI_MAX_BUNDLES} Bộ.")
     if type_key == "KENO":
