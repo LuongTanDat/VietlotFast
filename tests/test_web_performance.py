@@ -189,6 +189,8 @@ class WebPerformanceContractTests(unittest.TestCase):
 
         self.assertIn('drawIds: drawIds.join(",")', block)
         self.assertNotIn('fetchLiveHistory(type, "all"', block)
+        self.assertIn("const mergedFeed = cloneLiveHistoryFeed(getLiveHistoryFeed(type))", block)
+        self.assertIn("mergeLiveHistoryDraw(mergedFeed, ky, nextFeed.results?.[ky])", block)
 
     def test_prediction_history_manual_refresh_repairs_and_scores_before_reconcile(self):
         data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
@@ -201,6 +203,7 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertLess(block.index("await repairPredictionHistoryCanonical"), block.index("await fetchPredictionHistoryDraws"))
         self.assertLess(block.index("await fetchPredictionHistoryDraws"), block.index("await scorePendingPredictionLedger"))
         self.assertLess(block.index("await scorePendingPredictionLedger"), block.index("reconcilePredictionLogsForType"))
+        self.assertIn("if (repairedFeed.order.length) setLiveHistoryFeed(type, repairedFeed)", data)
         self.assertIn("async function startPredictionHistoryRefresh", data)
         self.assertIn("silent: false, repairCanonical: true", core)
 

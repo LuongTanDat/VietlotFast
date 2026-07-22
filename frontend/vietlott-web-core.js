@@ -597,6 +597,8 @@
     let statsRecentKenoLevelValue = 10;
     let statsRecentSelectedByType = Object.create(null);
     let statsRecentActiveSetByType = Object.create(null);
+    let statsRecentSetCountByType = Object.create(null);
+    let statsRecentDraggedSetIndex = null;
     let statsModernInsightTab = "most";
     let statsModernInsightExpanded = false;
     const statsEntriesCache = new Map();
@@ -1056,9 +1058,13 @@
         statsRecentActiveSetByType = saved?.activeSetByType && typeof saved.activeSetByType === "object"
           ? saved.activeSetByType
           : Object.create(null);
+        statsRecentSetCountByType = saved?.setCountByType && typeof saved.setCountByType === "object"
+          ? saved.setCountByType
+          : Object.create(null);
       } catch {
         statsRecentSelectedByType = Object.create(null);
         statsRecentActiveSetByType = Object.create(null);
+        statsRecentSetCountByType = Object.create(null);
       }
     }
 
@@ -1072,6 +1078,9 @@
             : {},
           activeSetByType: statsRecentActiveSetByType && typeof statsRecentActiveSetByType === "object"
             ? statsRecentActiveSetByType
+            : {},
+          setCountByType: statsRecentSetCountByType && typeof statsRecentSetCountByType === "object"
+            ? statsRecentSetCountByType
             : {},
         });
         return true;
@@ -3233,7 +3242,7 @@
         const percent = (Number(segment.weight || 0) / totalWeight) * 100;
         const rarity = getLuckyWheelRarityMeta(percent);
         return `
-        <div class="lucky-wheel-prize-card" style="background: linear-gradient(155deg, ${segment.color}, rgba(11, 18, 31, .92));">
+        <div class="lucky-wheel-prize-card" style="--lucky-prize-color:${segment.color};">
           <div class="lucky-wheel-prize-title">${escapeHtml(segment.label)}</div>
           <div class="lucky-wheel-prize-desc type-${escapeHtml(segment.descVariant || "combo")}">${escapeHtml(segment.desc)}</div>
           <span class="lucky-wheel-prize-weight ${escapeHtml(rarity.className)}">${escapeHtml(rarity.label)}</span>
@@ -4073,6 +4082,7 @@
       syncSideAccountIdentity();
       document.getElementById("authOverlay").style.display = "none";
       document.getElementById("appShell").style.display = "block";
+      window.dispatchEvent(new CustomEvent("dvlf:auth-changed", { detail: { authenticated: true, user: currentUser } }));
       startLuckyWheelUiTimer();
       updateKenoCsvStatus();
       restoreLiveResultsCache();
@@ -4123,6 +4133,7 @@
       document.getElementById("appShell").style.display = "none";
       document.getElementById("authOverlay").style.display = "flex";
       document.getElementById("accountOverlay").style.display = "none";
+      window.dispatchEvent(new CustomEvent("dvlf:auth-changed", { detail: { authenticated: false } }));
       setAuthMode(true);
     }
 
@@ -4598,6 +4609,20 @@
       saveStatsUiState();
       renderStatsRecentSelectedHostOnly();
     });
+    document.addEventListener("change", event => {
+      const setCountSelect = event.target.closest("[data-stats-recent-set-count]");
+      if (setCountSelect) {
+        setStatsRecentSetCount(statsSelectedType, setCountSelect.value);
+        saveStatsRecentSelectedState();
+        renderStatsRecentSelectedHostOnly();
+        return;
+      }
+      const activeSetSelect = event.target.closest("[data-stats-recent-active-set-select]");
+      if (!activeSetSelect) return;
+      setStatsRecentActiveSetIndex(statsSelectedType, activeSetSelect.value);
+      saveStatsRecentSelectedState();
+      renderStatsRecentSelectedHostOnly();
+    });
     document.addEventListener("click", event => {
       const manualRefreshButton = event.target.closest("[data-stats-manual-refresh]");
       if (manualRefreshButton) {
@@ -4698,6 +4723,54 @@
         pickButton.dataset.statsRecentPickRole || "main",
       );
       renderStatsRecentSelectedHostOnly();
+    });
+    document.addEventListener("dragstart", event => {
+      const setCard = event.target.closest("[data-stats-recent-set-card]");
+      if (!setCard || !event.dataTransfer) return;
+      const sourceIndex = Number(setCard.dataset.statsRecentSetCard);
+      if (!Number.isInteger(sourceIndex)) return;
+      statsRecentDraggedSetIndex = sourceIndex;
+      setCard.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("text/plain", String(sourceIndex));
+    });
+    document.addEventListener("dragover", event => {
+      const setCard = event.target.closest("[data-stats-recent-set-card]");
+      if (!setCard || statsRecentDraggedSetIndex === null) return;
+      const targetIndex = Number(setCard.dataset.statsRecentSetCard);
+      if (!Number.isInteger(targetIndex) || targetIndex === statsRecentDraggedSetIndex) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      document.querySelectorAll("[data-stats-recent-set-card].is-drag-over").forEach(node => {
+        if (node !== setCard) node.classList.remove("is-drag-over");
+      });
+      setCard.classList.add("is-drag-over");
+    });
+    document.addEventListener("dragleave", event => {
+      const setCard = event.target.closest("[data-stats-recent-set-card]");
+      if (!setCard || setCard.contains(event.relatedTarget)) return;
+      setCard.classList.remove("is-drag-over");
+    });
+    document.addEventListener("drop", event => {
+      const setCard = event.target.closest("[data-stats-recent-set-card]");
+      if (!setCard || statsRecentDraggedSetIndex === null) return;
+      event.preventDefault();
+      const targetIndex = Number(setCard.dataset.statsRecentSetCard);
+      const copied = copyStatsRecentSelectedSet(statsSelectedType, statsRecentDraggedSetIndex, targetIndex);
+      statsRecentDraggedSetIndex = null;
+      document.querySelectorAll("[data-stats-recent-set-card].is-dragging, [data-stats-recent-set-card].is-drag-over").forEach(node => {
+        node.classList.remove("is-dragging", "is-drag-over");
+      });
+      if (!copied) return;
+      setStatsRecentActiveSetIndex(statsSelectedType, targetIndex);
+      saveStatsRecentSelectedState();
+      renderStatsRecentSelectedHostOnly();
+    });
+    document.addEventListener("dragend", () => {
+      statsRecentDraggedSetIndex = null;
+      document.querySelectorAll("[data-stats-recent-set-card].is-dragging, [data-stats-recent-set-card].is-drag-over").forEach(node => {
+        node.classList.remove("is-dragging", "is-drag-over");
+      });
     });
     let statsRecentHelpCloseTimer = null;
 

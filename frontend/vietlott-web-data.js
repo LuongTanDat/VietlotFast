@@ -1326,8 +1326,29 @@
           latestTime: res?.latestTime,
         }
       );
-      setLiveHistoryFeed(type, nextFeed);
-      return nextFeed;
+      // Keep draws returned by the preceding canonical-repair request.  The
+      // targeted drawIds request can legitimately return only a subset (and
+      // older running servers may ignore that parameter), so replacing the
+      // feed here used to discard a result that had just been downloaded.
+      const mergedFeed = cloneLiveHistoryFeed(getLiveHistoryFeed(type));
+      for (const ky of (nextFeed.order || [])) {
+        mergeLiveHistoryDraw(mergedFeed, ky, nextFeed.results?.[ky]);
+      }
+      Object.assign(mergedFeed, {
+        loadedAt: nextFeed.loadedAt || mergedFeed.loadedAt,
+        countKey: nextFeed.countKey || mergedFeed.countKey,
+        canonicalCount: Math.max(mergedFeed.canonicalCount || 0, nextFeed.canonicalCount || 0),
+        allCount: Math.max(mergedFeed.allCount || 0, nextFeed.allCount || 0),
+        todayCount: Math.max(mergedFeed.todayCount || 0, nextFeed.todayCount || 0),
+        canonicalFile: nextFeed.canonicalFile || mergedFeed.canonicalFile,
+        allFile: nextFeed.allFile || mergedFeed.allFile,
+        todayFile: nextFeed.todayFile || mergedFeed.todayFile,
+        latestKy: nextFeed.latestKy || mergedFeed.latestKy,
+        latestDate: nextFeed.latestDate || mergedFeed.latestDate,
+        latestTime: nextFeed.latestTime || mergedFeed.latestTime,
+      });
+      setLiveHistoryFeed(type, mergedFeed);
+      return getLiveHistoryFeed(type);
     }
 
     async function repairPredictionHistoryCanonical(type) {
@@ -1346,6 +1367,16 @@
       if (errors.length) {
         throw new Error(`Không thể cập nhật dữ liệu ${TYPES[type]?.label || type}: ${errors.join(" | ")}`);
       }
+      // The repair endpoint already returns fresh history.  Store it before
+      // the follow-up targeted fetch so reconciliation can use it immediately.
+      const repairedFeed = buildLiveHistoryFeedFromResponse(
+        type,
+        Array.isArray(response?.history) ? response.history : [],
+        String(response?.fetchedAt || ""),
+        String(response?.count || "20"),
+        response || {},
+      );
+      if (repairedFeed.order.length) setLiveHistoryFeed(type, repairedFeed);
       return response;
     }
 

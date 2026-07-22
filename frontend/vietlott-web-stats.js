@@ -1726,6 +1726,51 @@
         : 0;
     }
 
+    function getStatsRecentSetCount(type) {
+      const key = normalizeStatsType(type);
+      const config = getStatsRecentTicketConfig(key);
+      const numeric = Number(statsRecentSetCountByType[key]);
+      if (Number.isInteger(numeric)) return Math.min(Math.max(numeric, 1), config.maxSets);
+      const storedSets = Array.isArray(statsRecentSelectedByType[key]?.sets) ? statsRecentSelectedByType[key].sets : [];
+      const lastFilledIndex = storedSets.reduce((last, set, index) => (
+        (set?.main?.length || set?.special !== null) ? index : last
+      ), -1);
+      return Math.min(config.maxSets, Math.max(1, lastFilledIndex + 1, getStatsRecentActiveSetIndex(key) + 1));
+    }
+
+    function setStatsRecentSetCount(type, value) {
+      const key = normalizeStatsType(type);
+      const config = getStatsRecentTicketConfig(key);
+      const numeric = Number(value);
+      const count = Number.isInteger(numeric) ? Math.min(Math.max(numeric, 1), config.maxSets) : 1;
+      statsRecentSetCountByType[key] = count;
+      setStatsRecentActiveSetIndex(key, Math.min(getStatsRecentActiveSetIndex(key), count - 1));
+    }
+
+    function copyStatsRecentSelectedSet(type, sourceIndexValue, targetIndexValue) {
+      const key = normalizeStatsType(type);
+      const config = getStatsRecentTicketConfig(key);
+      const sourceIndex = Number(sourceIndexValue);
+      const targetIndex = Number(targetIndexValue);
+      if (
+        !Number.isInteger(sourceIndex) ||
+        !Number.isInteger(targetIndex) ||
+        sourceIndex === targetIndex ||
+        sourceIndex < 0 || targetIndex < 0 ||
+        sourceIndex >= config.maxSets || targetIndex >= getStatsRecentSetCount(key)
+      ) return false;
+      const sets = getStatsRecentSelectedSets(key);
+      const sourceSet = sets[sourceIndex];
+      if (!sourceSet || (!sourceSet.main.length && sourceSet.special === null)) return false;
+      while (sets.length <= targetIndex) sets.push(createStatsRecentTicketSet());
+      sets[targetIndex] = {
+        main: [...sourceSet.main],
+        special: sourceSet.special,
+      };
+      statsRecentSelectedByType[key] = { sets };
+      return true;
+    }
+
     function createStatsRecentTicketSet() {
       return { main: [], special: null };
     }
@@ -1735,7 +1780,8 @@
       const main = Array.isArray(set.main)
         ? set.main.map(value => Number(value)).filter(value => Number.isInteger(value))
         : [];
-      const special = Number(set.special);
+      const hasSpecialValue = set.special !== null && set.special !== undefined && String(set.special).trim() !== "";
+      const special = hasSpecialValue ? Number(set.special) : NaN;
       return {
         main: [...new Set(main)],
         special: Number.isInteger(special) ? special : null,
@@ -2570,17 +2616,22 @@
       const normalizedType = normalizeStatsType(type);
       const config = getStatsRecentTicketConfig(type);
       const selectedSets = getStatsRecentSelectedSets(type);
-      const activeSetIndex = getStatsRecentActiveSetIndex(type);
+      const setCount = getStatsRecentSetCount(type);
+      let activeSetIndex = getStatsRecentActiveSetIndex(type);
+      if (activeSetIndex >= setCount) {
+        setStatsRecentActiveSetIndex(type, setCount - 1);
+        activeSetIndex = getStatsRecentActiveSetIndex(type);
+      }
       const activeSet = selectedSets[activeSetIndex] || createStatsRecentTicketSet();
-      const visibleRows = Array.from({ length: config.maxSets }, (_, index) => ({
+      const visibleRows = Array.from({ length: setCount }, (_, index) => ({
         index,
         set: selectedSets[index] || createStatsRecentTicketSet(),
-      })).filter(({ set }) => set.main.length || set.special !== null);
-      const filledSetCount = selectedSets.filter(set => (set?.main?.length || 0) || set?.special !== null).length;
+      }));
+      const filledSetCount = selectedSets.slice(0, setCount).filter(set => (set?.main?.length || 0) || set?.special !== null).length;
       const isKeno = normalizedType === "KENO";
       const selectedSummary = isKeno
         ? `Bậc ${config.kenoLevel} • Bộ ${activeSetIndex + 1}: ${activeSet.main.length}/${config.mainCount}`
-        : `${filledSetCount}/${config.maxSets}`;
+        : `${filledSetCount}/${setCount}`;
       const hasSelection = activeSet.main.length > 0 || activeSet.special !== null;
       const renderTicketBall = (value, setIndex, role = "main") => `
         <button
@@ -2601,6 +2652,24 @@
               <small>(${selectedSummary})</small>
             </div>
             <div class="stats-modern-selected-actions">
+              ${isKeno ? renderStatsRecentKenoLevelControl(config) : ""}
+              <div class="stats-modern-set-dropdowns">
+                <label>
+                  <span>Số lượng</span>
+                  <select data-stats-recent-set-count aria-label="Chọn số lượng bộ">
+                    ${Array.from({ length: config.maxSets }, (_, index) => {
+                      const value = index + 1;
+                      return `<option value="${value}"${value === setCount ? " selected" : ""}>${value} bộ</option>`;
+                    }).join("")}
+                  </select>
+                </label>
+                <label>
+                  <span>Đang chọn</span>
+                  <select data-stats-recent-active-set-select aria-label="Chọn bộ đang thao tác">
+                    ${Array.from({ length: setCount }, (_, index) => `<option value="${index}"${index === activeSetIndex ? " selected" : ""}>Bộ ${index + 1}</option>`).join("")}
+                  </select>
+                </label>
+              </div>
               <button
                 type="button"
                 class="stats-modern-save-btn"
@@ -2615,25 +2684,20 @@
               >Xóa</button>
             </div>
           </div>
-          <div class="stats-modern-selection-controls${isKeno ? " is-keno" : ""}">
-            ${isKeno ? renderStatsRecentKenoLevelControl(config) : ""}
-            <div class="stats-modern-set-tabs" aria-label="Chọn bộ số đang thao tác">
-              ${Array.from({ length: config.maxSets }, (_, index) => `
-                <button
-                  type="button"
-                  class="${index === activeSetIndex ? "is-active" : ""}"
-                  data-stats-recent-active-set="${index}"
-                  aria-pressed="${index === activeSetIndex ? "true" : "false"}"
-                >Bộ ${index + 1}</button>
-              `).join("")}
-            </div>
-          </div>
-          <div class="stats-modern-selected-list${visibleRows.length ? "" : " is-empty"}">
-            ${visibleRows.length ? visibleRows.map(({ index, set }) => `
-              <div class="stats-modern-selected-row${index === activeSetIndex ? " is-active" : ""}">
-                <button type="button" class="stats-modern-selected-row-label" data-stats-recent-active-set="${index}">Bộ ${index + 1}</button>
+          <div class="stats-modern-selected-list is-compact-grid">
+            ${visibleRows.map(({ index, set }) => `
+              <div
+                class="stats-modern-selected-row${index === activeSetIndex ? " is-active" : ""}"
+                data-stats-recent-set-card="${index}"
+                draggable="true"
+                title="Kéo Bộ ${index + 1} sang Bộ khác để sao chép nhanh"
+              >
+                <button type="button" class="stats-modern-selected-row-label" data-stats-recent-active-set="${index}">
+                  <span>Bộ ${index + 1}</span>
+                  <small>${set.main.length}/${config.mainCount}</small>
+                </button>
                 <div class="stats-modern-selected-balls">
-                  ${set.main.length ? set.main.map(value => renderTicketBall(value, index, "main")).join("") : `<span class="stats-modern-selected-placeholder">${set.main.length}/${config.mainCount}</span>`}
+                  ${set.main.length ? set.main.map(value => renderTicketBall(value, index, "main")).join("") : `<button type="button" class="stats-modern-selected-placeholder" data-stats-recent-active-set="${index}">Chưa chọn số</button>`}
                   ${config.hasSpecial ? `
                     <span class="stats-modern-special-text">${escapeHtml(config.specialLabel)}:</span>
                     ${set.special !== null
@@ -2642,7 +2706,7 @@
                   ` : ""}
                 </div>
               </div>
-            `).join("") : `<span class="stats-modern-selected-empty">Chọn Bộ ${activeSetIndex + 1}, rồi bấm số trong bảng tần suất.</span>`}
+            `).join("")}
           </div>
         </section>
       `;
@@ -4308,20 +4372,20 @@
           <article class="chart-stats-summary-card">
             <div class="chart-stats-summary-label">Loại xổ số</div>
             <div class="chart-stats-summary-value">${escapeHtml(meta.label)}</div>
-            <div class="chart-stats-summary-meta">Nhóm số theo cấu hình của ${escapeHtml(meta.label)}</div>
+            <div class="chart-stats-summary-meta">Phân bố theo nhóm số</div>
           </article>
           <article class="chart-stats-summary-card">
-            <div class="chart-stats-summary-label">Kỳ yêu cầu</div>
+            <div class="chart-stats-summary-label">Kỳ đã chọn</div>
             <div class="chart-stats-summary-value">${escapeHtml(requestedInfo.mode === "all" ? "All" : formatLiveSyncCount(requestedInfo.requestedCount))}</div>
-            <div class="chart-stats-summary-meta">${escapeHtml(requestedInfo.helperText || "Phân tích theo số kỳ đã chọn")}</div>
+            <div class="chart-stats-summary-meta">${escapeHtml(requestedInfo.mode === "all" ? "Toàn bộ dữ liệu" : "Theo bộ lọc hiện tại")}</div>
           </article>
           <article class="chart-stats-summary-card">
-            <div class="chart-stats-summary-label">Kỳ thực dùng</div>
+            <div class="chart-stats-summary-label">Kỳ sử dụng</div>
             <div class="chart-stats-summary-value">${escapeHtml(formatLiveSyncCount(requestedInfo.actualUsedCount))}</div>
-            <div class="chart-stats-summary-meta">${escapeHtml(`Lấy từ ${formatLiveSyncCount(entries.length)} kỳ gần nhất phù hợp`)}</div>
+            <div class="chart-stats-summary-meta">Dữ liệu hợp lệ gần nhất</div>
           </article>
           <article class="chart-stats-summary-card">
-            <div class="chart-stats-summary-label">Tổng lượt số đã phân tích</div>
+            <div class="chart-stats-summary-label">Lượt số phân tích</div>
             <div class="chart-stats-summary-value">${escapeHtml(formatLiveSyncCount(totalHits))}</div>
             <div class="chart-stats-summary-meta">${escapeHtml(`${getChartStatsNumbersPerDraw(chartStatsSelectedType)} số / kỳ`)}</div>
           </article>
@@ -4334,17 +4398,18 @@
       return `
         <section class="chart-stats-block">
           <div class="chart-stats-block-head">
-            <div class="chart-stats-block-title">${escapeHtml(`${meta.label} - ${titleLabel} - Tần suất theo nhóm`)}</div>
-            <div class="chart-stats-block-meta">${escapeHtml(`Thực dùng ${formatLiveSyncCount(requestedInfo.actualUsedCount)} kỳ`)}</div>
+            <div class="chart-stats-block-title">Tần suất theo nhóm</div>
+            <div class="chart-stats-block-meta">${escapeHtml(`${meta.label} • ${titleLabel}`)}</div>
           </div>
           <div class="chart-stats-frequency-chart">
             ${rows.map(item => `
               <article class="chart-stats-frequency-item">
                 <div class="chart-stats-frequency-value">${escapeHtml(formatLiveSyncCount(item.count))}</div>
                 <div class="chart-stats-frequency-bar-shell">
-                  <div class="chart-stats-frequency-bar" style="height:${(Number(item.count || 0) > 0 ? Math.max(6, Number(item.frequencyRatio || 0) * 100) : 0).toFixed(2)}%; --chart-bar-color:${escapeHtml(item.color)}; --chart-bar-opacity:${(0.26 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.74).toFixed(3)}; --chart-bar-bright:${(0.76 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.44).toFixed(3)}; --chart-bar-sat:${(0.84 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.32).toFixed(3)};"></div>
+                  <div class="chart-stats-frequency-bar" style="--chart-bar-size:${(Number(item.count || 0) > 0 ? Math.max(6, Number(item.frequencyRatio || 0) * 100) : 0).toFixed(2)}%; --chart-bar-color:${escapeHtml(item.color)}; --chart-bar-opacity:${(0.82 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.18).toFixed(3)}; --chart-bar-bright:${(0.96 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.1).toFixed(3)}; --chart-bar-sat:${(1.02 + Math.max(0, Math.min(1, Number(item.frequencyRatio || 0))) * 0.08).toFixed(3)};"></div>
                 </div>
                 <div class="chart-stats-frequency-label">${escapeHtml(item.label)}</div>
+                <div class="chart-stats-frequency-percent">${escapeHtml(formatChartStatsPercent(item.percent))}</div>
               </article>
             `).join("")}
           </div>
@@ -4363,13 +4428,25 @@
         return `
           <section class="chart-stats-block">
             <div class="chart-stats-block-head">
-              <div class="chart-stats-block-title">${escapeHtml(`${meta.label} - ${titleLabel} - Tỷ trọng %`)}</div>
-              <div class="chart-stats-block-meta">${escapeHtml(`Tổng lượt số ${formatLiveSyncCount(totalHits)}`)}</div>
+              <div class="chart-stats-block-title">Tỷ trọng theo nhóm</div>
+              <div class="chart-stats-block-meta">${escapeHtml(`${formatLiveSyncCount(totalHits)} lượt số`)}</div>
             </div>
             <div class="chart-stats-donut-empty">Chưa có đủ dữ liệu để dựng donut tỷ trọng %.</div>
           </section>
         `;
       }
+      const separatorInnerRadius = radius - (stroke / 2) - 0.5;
+      const separatorOuterRadius = radius + (stroke / 2) + 0.5;
+      let separatorAccumulated = 0;
+      const donutSeparatorsHtml = activeRows.map(item => {
+        const angle = (separatorAccumulated / circumference) * Math.PI * 2;
+        const x1 = 90 + Math.cos(angle) * separatorInnerRadius;
+        const y1 = 90 + Math.sin(angle) * separatorInnerRadius;
+        const x2 = 90 + Math.cos(angle) * separatorOuterRadius;
+        const y2 = 90 + Math.sin(angle) * separatorOuterRadius;
+        separatorAccumulated += (Math.max(0, Number(item.percent || 0)) / 100) * circumference;
+        return `<line class="chart-stats-donut-separator" x1="${x1.toFixed(3)}" y1="${y1.toFixed(3)}" x2="${x2.toFixed(3)}" y2="${y2.toFixed(3)}"></line>`;
+      }).join("");
       let accumulated = 0;
       const donutSegmentsHtml = activeRows.map(item => {
         const percent = Math.max(0, Number(item.percent || 0));
@@ -4387,20 +4464,21 @@
           stroke-linecap="round"
           stroke-dasharray="${segmentLength.toFixed(3)} ${(circumference - segmentLength).toFixed(3)}"
           stroke-dashoffset="${dashOffset.toFixed(3)}"
-          style="--chart-bar-opacity:${(0.34 + Math.max(0, Math.min(1, percent / 100)) * 0.66).toFixed(3)}; --chart-bar-bright:${(0.84 + Math.max(0, Math.min(1, percent / 100)) * 0.34).toFixed(3)}; --chart-bar-sat:${(0.88 + Math.max(0, Math.min(1, percent / 100)) * 0.26).toFixed(3)};"
+          style="--chart-bar-opacity:${(0.86 + Math.max(0, Math.min(1, percent / 100)) * 0.14).toFixed(3)}; --chart-bar-bright:${(0.98 + Math.max(0, Math.min(1, percent / 100)) * 0.08).toFixed(3)}; --chart-bar-sat:${(1.02 + Math.max(0, Math.min(1, percent / 100)) * 0.08).toFixed(3)};"
         />`;
       }).join("");
       return `
         <section class="chart-stats-block">
           <div class="chart-stats-block-head">
-            <div class="chart-stats-block-title">${escapeHtml(`${meta.label} - ${titleLabel} - Tỷ trọng %`)}</div>
-            <div class="chart-stats-block-meta">${escapeHtml(`Tổng lượt số ${formatLiveSyncCount(totalHits)}`)}</div>
+            <div class="chart-stats-block-title">Tỷ trọng theo nhóm</div>
+            <div class="chart-stats-block-meta">${escapeHtml(`${meta.label} • ${titleLabel} • ${formatLiveSyncCount(totalHits)} lượt`)}</div>
           </div>
           <div class="chart-stats-donut-layout">
             <div class="chart-stats-donut-wrap">
               <svg class="chart-stats-donut-svg" viewBox="0 0 180 180" aria-hidden="true">
                 <circle class="chart-stats-donut-track" cx="90" cy="90" r="${radius}" fill="none" stroke-width="${stroke}"></circle>
                 <g class="chart-stats-donut-ring">${donutSegmentsHtml}</g>
+                <g class="chart-stats-donut-separators">${donutSeparatorsHtml}</g>
               </svg>
               <div class="chart-stats-donut-center">
                 <div class="chart-stats-donut-center-value">100%</div>
@@ -4503,7 +4581,7 @@
       out.innerHTML = `
         <div class="chart-stats-shell-grid ${escapeHtml(meta.fullAccentClass)}">
           ${renderChartStatsSummary(meta, requestedInfo, entries, rows)}
-          <div class="chart-stats-grid">
+          <div class="chart-stats-grid${chartBlocks.length === 1 ? " is-single" : ""}">
             ${chartBlocks.join("")}
           </div>
           ${renderChartStatsTable(rows)}

@@ -84,6 +84,7 @@ public class LottoWebServer {
     private final Path coreJsFile;
     private final Path statsJsFile;
     private final Path dataJsFile;
+    private final Path chatbotJsFile;
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
@@ -329,6 +330,7 @@ public class LottoWebServer {
         this.coreJsFile = rootDir.resolve("frontend").resolve("vietlott-web-core.js");
         this.statsJsFile = rootDir.resolve("frontend").resolve("vietlott-web-stats.js");
         this.dataJsFile = rootDir.resolve("frontend").resolve("vietlott-web-data.js");
+        this.chatbotJsFile = rootDir.resolve("frontend").resolve("vietlott-web-chatbot.js");
         this.faviconFile = rootDir.resolve("frontend").resolve("favicon.svg");
         this.dbFile = rootDir.resolve(DB_FILE);
         this.repo = new DatabaseRepo(dbFile);
@@ -347,6 +349,7 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-core.js", ex -> serveStaticTextFile(ex, coreJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-stats.js", ex -> serveStaticTextFile(ex, statsJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-chatbot.js", ex -> serveStaticTextFile(ex, chatbotJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);

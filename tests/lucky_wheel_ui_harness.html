@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../frontend/vietlott-web.css">
+  <link rel="stylesheet" href="../frontend/vietlott-web-extra.css">
+  <title>Lucky Wheel UI Harness</title>
+  <style>body{padding:22px}.wrap{padding:0;max-width:none}.sp-wheel-rotor{background:conic-gradient(#ed6b75 0 45deg,#df8b35 45deg 90deg,#e6c564 90deg 135deg,#b75be8 135deg 180deg,#45c5a4 180deg 225deg,#3b91d8 225deg 270deg,#6256db 270deg 315deg,#e4529c 315deg)}#spinCanvas{opacity:0}</style>
+</head>
+<body>
+<main class="wrap">
+  <section id="luckyWheelSection" class="lucky-wheel-board">
+    <div class="lucky-wheel-main"><div class="spin-popup-overlay active"><div class="sp-content">
+      <div class="sp-heading"><span class="sp-heading-mark">LUCKY DRAW</span><h2 class="sp-title"><span>✦</span> Quay thưởng mỗi ngày</h2><p class="sp-subtitle">Chọn số lượt, quay và nhận quà ngay vào tài khoản</p>
+        <details class="lucky-wheel-side"><summary class="lucky-wheel-prize-trigger"><span>?</span></summary><div class="lucky-wheel-prize-popover"><div class="lucky-wheel-prize-panel"><div class="lucky-wheel-section-head"><span class="lucky-wheel-section-title">Kho phần thưởng</span><span class="lucky-wheel-section-note">8 phần quà</span></div><div class="lucky-wheel-prize-grid">
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#ef6072"><div class="lucky-wheel-prize-title">+10.000 PayPal</div><div class="lucky-wheel-prize-desc type-paypal">PayPal</div><span class="lucky-wheel-prize-weight rarity-extreme">Cực hiếm</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#7062e8"><div class="lucky-wheel-prize-title">+1.000 PayPal</div><div class="lucky-wheel-prize-desc type-paypal">PayPal</div><span class="lucky-wheel-prize-weight rarity-rare">Hiếm</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#24b6bd"><div class="lucky-wheel-prize-title">+500 PayPal</div><div class="lucky-wheel-prize-desc type-paypal">PayPal</div><span class="lucky-wheel-prize-weight rarity-common">Thường xuyên</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#d4ad4c"><div class="lucky-wheel-prize-title">5 Kim cương + 100 PayPal</div><div class="lucky-wheel-prize-desc type-combo">Combo</div><span class="lucky-wheel-prize-weight rarity-common">Thường xuyên</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#39c690"><div class="lucky-wheel-prize-title">+1.000 Kim cương</div><div class="lucky-wheel-prize-desc type-diamond">Kim cương</div><span class="lucky-wheel-prize-weight rarity-extreme">Cực hiếm</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#df714c"><div class="lucky-wheel-prize-title">+100 Kim cương</div><div class="lucky-wheel-prize-desc type-diamond">Kim cương</div><span class="lucky-wheel-prize-weight rarity-rare">Hiếm</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#c453ca"><div class="lucky-wheel-prize-title">+10 Kim cương</div><div class="lucky-wheel-prize-desc type-diamond">Kim cương</div><span class="lucky-wheel-prize-weight rarity-common">Thường</span></div>
+          <div class="lucky-wheel-prize-card" style="--lucky-prize-color:#4f9bd5"><div class="lucky-wheel-prize-title">Thêm 50 lượt</div><div class="lucky-wheel-prize-desc type-spins">Lượt quay</div><span class="lucky-wheel-prize-weight rarity-extreme">Cực hiếm</span></div>
+        </div></div></div></details>
+      </div>
+      <div class="sp-layout">
+        <div class="lucky-wheel-shell"><div class="sp-wheel-frame"><div class="sp-wheel-shadow"></div><div class="sp-wheel-ring"></div><div class="sp-pointer"><svg viewBox="0 0 40 48"><path d="M20 48L4 28C4 28 0 22 0 16C0 7 9 0 20 0S40 7 40 16c0 6-4 12-4 12L20 48Z" fill="#fbbf24"/></svg></div><div class="sp-wheel-rotor"><canvas id="spinCanvas"></canvas><div class="lucky-wheel-center-badge"><span>QUAY</span><strong>NGAY</strong></div></div></div></div>
+        <div class="sp-dashboard">
+          <div class="sp-energy"><div class="sp-energy-track"><div class="sp-energy-bar"><div class="sp-energy-fill" style="width:78%"></div><div class="sp-energy-count">47/60</div></div></div><div class="sp-energy-next">Còn 13 phút nhận lượt mới</div></div>
+          <div class="sp-milestone"><div class="sp-milestone-head"><span>Mốc hộp quà</span><span class="sp-milestone-meta">Còn 20 lượt đến mốc 80</span></div><div class="sp-milestone-track"><div class="sp-milestone-bar"><div class="sp-milestone-fill" style="width:62%"></div></div><div class="sp-milestone-markers"><span class="sp-milestone-marker done" style="left:12%"><i class="sp-milestone-icon">🎁</i><b class="sp-milestone-value">10</b></span><span class="sp-milestone-marker" style="left:50%"><i class="sp-milestone-icon">🎁</i><b class="sp-milestone-value">50</b></span><span class="sp-milestone-marker edge-end" style="left:100%"><i class="sp-milestone-icon">🎁</i><b class="sp-milestone-value">100</b></span></div></div><div class="sp-milestone-next">Reset sau 11:56:38 • Mỗi ngày làm mới</div></div>
+          <div class="sp-controls"><div class="sp-multiplier-row"><button class="sp-multiplier-btn active">x1</button><button class="sp-multiplier-btn">x3</button><button class="sp-multiplier-btn">x5</button><button class="sp-multiplier-btn">x10</button></div><div class="sp-spin-row"><button id="luckyWheelSpinBtn">QUAY TỰ ĐỘNG</button><button class="sp-auto-btn">Mua thêm lượt</button></div></div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="lucky-wheel-history-box"><div class="lucky-wheel-history-head"><span class="lucky-wheel-section-title">Lịch sử</span><span class="lucky-wheel-history-count">18 lượt</span></div><div class="lucky-wheel-history-list">
+      <div class="lucky-wheel-history-item"><strong>50 Kim cương</strong><div class="lucky-wheel-history-reward">+50 Kim cương vào tài khoản</div><div class="lucky-wheel-history-time">12:54 19/07/2026</div></div>
+      <div class="lucky-wheel-history-item"><strong>+5.000 PayPal</strong><div class="lucky-wheel-history-reward">Phần thưởng PayPal</div><div class="lucky-wheel-history-time">12:51 19/07/2026</div></div>
+      <div class="lucky-wheel-history-item"><strong>Thêm 10 lượt</strong><div class="lucky-wheel-history-reward">+10 lượt quay</div><div class="lucky-wheel-history-time">12:48 19/07/2026</div></div>
+      <div class="lucky-wheel-history-item"><strong>100 Kim cương</strong><div class="lucky-wheel-history-reward">+100 Kim cương</div><div class="lucky-wheel-history-time">12:44 19/07/2026</div></div>
+      <div class="lucky-wheel-history-item"><strong>+500 PayPal</strong><div class="lucky-wheel-history-reward">Phần thưởng PayPal</div><div class="lucky-wheel-history-time">12:40 19/07/2026</div></div>
+      <div class="lucky-wheel-history-item"><strong>Thêm 30 lượt</strong><div class="lucky-wheel-history-reward">+30 lượt quay</div><div class="lucky-wheel-history-time">12:36 19/07/2026</div></div>
+    </div></div>
+  </section>
+</main>
+</body>
+</html>

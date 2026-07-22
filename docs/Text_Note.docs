@@ -6,21 +6,42 @@ Dọn dẹp những file thư mục trùng lặp."
 
 
 
-Tỷ Lệ Hiệu Xuất Kỳ
+1. Tỷ Lệ Hiệu Xuất Kỳ
+
 VD
+Số Chính
 Ngày 1 lần 1 Dự đoán 100 bộ 
-Trong đó 1 Bộ trùng 5 Số , 2 Bộ trùng 4 Số vv...
+Trong đó 1 Bộ trùng 5 Số (Tỉ lệ = (1/100)) , 2 Bộ trùng 4 Số (Tỉ lệ(2/100)) vv...
 Ngày 1 lần 2 dự đoán 10 bộ
+Trong đó 2 Bộ trùng 4 Số (Tỉ lệ(2/10)) vv...
 Ngày 1 lần 3 dự đoán 90 
+Trong đó 1 Bộ trùng 5 Số (Tỉ lệ(1/90)) vv...
 vv....
-1 Số - nsố vv...
-Đb - vv....
+Số Đb
+Ngày 1 lần 1 Dự đoán 100 bộ 
+Trong đó 16 Bộ trùng Đb (Tỉ lệ = (16/100)) 
+Ngày 1 lần 2 dự đoán 10 bộ
+Trong đó 2 Bộ trùng Đb (Tỉ lệ(2/10))
+Ngày 1 lần 3 dự đoán 50 
+Trong đó 8 Bộ trùng Đb (Tỉ lệ(8/50))
+Tức Là Chỉ tính tỉ lệ của 1 kỳ đó 
 
+2. Tỷ Kệ Tổng Hiệu Xuất
 
-
-Tỷ Kệ Tổng Hiệu Xuất
 VD
-Ngày 1 lần 1 Dự đoán 100 bộ trong đó có 3 bố trùng và 97 bộ trượt thì tỉ lệ dự đoán đúng ĐB của nó (3%)
-Ngày 2 lần 1 dự đoán 10 bộ  trong đó trúng 2 bộ ĐB và trượt 98 thì tỉ lệ của nó = 2+3/110
-Ngày 2 lần 2 dự đoán 90 bộ trúng 16 ĐB thì tỉ lệ Đb = (16+2+3/200)
+Số Chính
+Ngày 1 lần 1 Dự đoán 100 bộ 
+Trong đó 1 Bộ trùng 5 Số (Tỉ lệ = (1/100)) , 2 Bộ trùng 4 Số (Tỉ lệ(2/100)) vv...
+Ngày 2 lần 2 dự đoán 10 bộ
+Trong đó 2 Bộ trùng 4 Số (Tỉ lệ(4/110)) vv...
+Ngày 3 lần 1 dự đoán 90 
+Trong đó 1 Bộ trùng 5 Số (Tỉ lệ(2/200)) vv...
 vv....
+Số Đb
+Ngày 1 lần 1 Dự đoán 100 bộ 
+Trong đó 16 Bộ trùng Đb (Tỉ lệ = (16/100)) 
+Ngày 2 lần 1 dự đoán 10 bộ
+Trong đó 2 Bộ trùng Đb (Tỉ lệ(18/110))
+Ngày 3 lần 1 dự đoán 50 
+Trong đó 8 Bộ trùng Đb (Tỉ lệ(26/160))
+Tức Là Tổng tính tỉ lệ của các kỳ có thể cộng dồn nhiều ngày nhiều lần

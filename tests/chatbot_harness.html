@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>DVLF chatbot harness</title></head>
+<body>
+  <div id="numberCandidates"></div>
+  <div class="local-chatbot" data-local-chatbot>
+    <button data-local-chatbot-toggle></button>
+    <section data-local-chatbot-panel aria-hidden="true">
+      <button data-local-chatbot-settings-toggle></button>
+      <button data-local-chatbot-close></button>
+      <aside data-local-chatbot-settings>
+        <input type="range" min="25" max="100" step="25" value="25" data-local-chatbot-size-slider>
+        <span data-local-chatbot-size-option="25"></span>
+        <span data-local-chatbot-size-option="50"></span>
+        <span data-local-chatbot-size-option="75"></span>
+        <span data-local-chatbot-size-option="100"></span>
+        <button data-local-chatbot-reset></button>
+      </aside>
+      <div data-local-chatbot-context></div>
+      <div data-local-chatbot-messages></div>
+      <div data-local-chatbot-quick-actions>
+        <button data-local-chatbot-prompt="Kiểm tra các bộ đang chọn">Kiểm tra</button>
+        <button data-local-chatbot-prompt="Tạo 3 bộ Keno bậc 10">Tạo</button>
+      </div>
+      <form data-local-chatbot-form><textarea data-local-chatbot-input></textarea><button type="submit">Gửi</button></form>
+    </section>
+  </div>
+  <script>
+    localStorage.clear();
+    let currentUser = "tester";
+    let statsSelectedType = "KENO";
+    let statsRecentKenoLevelValue = 10;
+    let statsRecentSelectedByType = { KENO: { sets: [{ main: [1,2,3], special: null }] } };
+    let activeIndex = 0;
+    let setCount = 3;
+    const TYPES = { KENO: { mainMin: 1, mainMax: 80 } };
+    function normalizeStatsType(value) { return value; }
+    function getStatsRecentTicketConfig() { return { maxSets: 6, mainCount: statsRecentKenoLevelValue, hasSpecial: false }; }
+    function getStatsRecentSetCount() { return setCount; }
+    function setStatsRecentSetCount(type, value) { setCount = Number(value); }
+    function getStatsRecentSelectedSets() { return statsRecentSelectedByType.KENO.sets; }
+    function getStatsRecentActiveSetIndex() { return activeIndex; }
+    function setStatsRecentActiveSetIndex(type, value) { activeIndex = Number(value); }
+    function setStatsRecentKenoLevel(value) { statsRecentKenoLevelValue = Number(value); }
+    function saveStatsUiState() { return true; }
+    function saveStatsRecentSelectedState() { return true; }
+    function renderStatsRecentSelectedHostOnly() { document.body.dataset.rendered = "true"; }
+    document.getElementById("numberCandidates").innerHTML = Array.from({length:80}, (_, index) => {
+      const value = index + 1;
+      return `<button data-stats-recent-pick="${value}" data-stats-recent-pick-role="main" title="${value} • ${81-value} lần"></button>`;
+    }).join("");
+  </script>
+  <script src="../frontend/vietlott-web-chatbot.js"></script>
+  <script>
+    document.querySelector('[data-local-chatbot-prompt="Kiểm tra các bộ đang chọn"]').click();
+    document.querySelector('[data-local-chatbot-prompt="Tạo 3 bộ Keno bậc 10"]').click();
+    setTimeout(() => {
+      const apply = document.querySelector('[data-local-chatbot-action="apply-suggestions"]');
+      if (apply) apply.click();
+    }, 350);
+    setTimeout(() => {
+      const text = document.querySelector('[data-local-chatbot-messages]').textContent;
+      document.body.dataset.checkTest = text.includes('0/3 bộ đã hoàn chỉnh') ? 'pass' : 'fail';
+      document.body.dataset.suggestTest = text.includes('Gợi ý 3 bộ Keno') ? 'pass' : 'fail';
+      document.body.dataset.applyTest = document.body.dataset.rendered === 'true' && statsRecentSelectedByType.KENO.sets.length === 3 ? 'pass' : 'fail';
+      document.body.dataset.loginVisibleTest = document.querySelector('[data-local-chatbot]').classList.contains('is-authenticated') ? 'pass' : 'fail';
+      document.body.dataset.defaultSizeTest = document.querySelector('[data-local-chatbot]').dataset.chatSize === '25' ? 'pass' : 'fail';
+      const sizeSlider = document.querySelector('[data-local-chatbot-size-slider]');
+      sizeSlider.value = '75';
+      sizeSlider.dispatchEvent(new Event('input', { bubbles: true }));
+      document.body.dataset.sizeTest = document.querySelector('[data-local-chatbot]').dataset.chatSize === '75' && localStorage.getItem('dvlf_local_chatbot_size_v1') === '75' ? 'pass' : 'fail';
+      window.dispatchEvent(new CustomEvent('dvlf:auth-changed', { detail: { authenticated: false } }));
+      document.body.dataset.logoutHiddenTest = !document.querySelector('[data-local-chatbot]').classList.contains('is-authenticated') ? 'pass' : 'fail';
+    }, 800);
+  </script>
+</body>
+</html>

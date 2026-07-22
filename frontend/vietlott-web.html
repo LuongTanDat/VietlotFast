@@ -11,6 +11,7 @@
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
   <link rel="preload" href="/vietlott-web-data.js" as="script" />
   <link rel="preload" href="/vietlott-web-core.js" as="script" />
+  <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
   <!-- ---abc--- Loader / Boot Layer --- -->
@@ -346,84 +347,96 @@
       <div class="lucky-wheel-main">
         <div class="spin-popup-overlay active" id="spinPopup" data-init="1">
         <div class="sp-content">
-          <h2 class="sp-title">🎰 Quay ngay — Vận may chờ bạn!</h2>
-
-          <div class="lucky-wheel-shell">
-            <div class="sp-wheel-frame" id="wheelFrame">
-              <div class="sp-wheel-shadow"></div>
-              <div class="sp-wheel-ring"></div>
-              <div class="sp-wheel-ticks" id="spTicks"></div>
-              <div class="sp-pointer bounce" id="spPointer" aria-hidden="true">
-                <svg viewBox="0 0 40 48" fill="none">
-                  <path d="M20 48L4 28C4 28 0 22 0 16C0 7.163 8.954 0 20 0C31.046 0 40 7.163 40 16C40 22 36 28 36 28L20 48Z" fill="url(#ptrGradLucky)"></path>
-                  <circle cx="20" cy="16" r="8" fill="#fff" fill-opacity="0.92"></circle>
-                  <defs>
-                    <linearGradient id="ptrGradLucky" x1="20" y1="0" x2="20" y2="48" gradientUnits="userSpaceOnUse">
-                      <stop stop-color="#fbbf24"></stop>
-                      <stop offset="1" stop-color="#f59e0b"></stop>
-                    </linearGradient>
-                  </defs>
-                </svg>
+          <div class="sp-heading">
+            <span class="sp-heading-mark">LUCKY DRAW</span>
+            <h2 class="sp-title"><span aria-hidden="true">✦</span> Quay thưởng mỗi ngày</h2>
+            <p class="sp-subtitle">Chọn số lượt, quay và nhận quà ngay vào tài khoản</p>
+            <details class="lucky-wheel-side">
+              <summary class="lucky-wheel-prize-trigger" title="Xem kho phần thưởng" aria-label="Xem kho phần thưởng">
+                <span aria-hidden="true">?</span>
+              </summary>
+              <div class="lucky-wheel-prize-popover">
+                <div class="lucky-wheel-prize-panel">
+                  <div class="lucky-wheel-section-head">
+                    <span class="lucky-wheel-section-title">Kho phần thưởng</span>
+                    <span class="lucky-wheel-section-note">8 phần quà</span>
+                  </div>
+                  <div id="luckyWheelPrizeGrid" class="lucky-wheel-prize-grid"></div>
+                </div>
               </div>
-              <div id="luckyWheelDisc" class="sp-wheel-rotor">
-                <canvas id="spinCanvas" width="880" height="880"></canvas>
-                <div id="luckyWheelCenterBtn" class="lucky-wheel-center-badge" role="button" tabindex="0" aria-label="Quay Ngay">
-                  <span>QUAY</span>
-                  <strong>NGAY</strong>
+            </details>
+          </div>
+
+          <div class="sp-layout">
+            <div class="lucky-wheel-shell">
+              <div class="sp-wheel-frame" id="wheelFrame">
+                <div class="sp-wheel-shadow"></div>
+                <div class="sp-wheel-ring"></div>
+                <div class="sp-wheel-ticks" id="spTicks"></div>
+                <div class="sp-pointer bounce" id="spPointer" aria-hidden="true">
+                  <svg viewBox="0 0 40 48" fill="none">
+                    <path d="M20 48L4 28C4 28 0 22 0 16C0 7.163 8.954 0 20 0C31.046 0 40 7.163 40 16C40 22 36 28 36 28L20 48Z" fill="url(#ptrGradLucky)"></path>
+                    <circle cx="20" cy="16" r="8" fill="#fff" fill-opacity="0.92"></circle>
+                    <defs>
+                      <linearGradient id="ptrGradLucky" x1="20" y1="0" x2="20" y2="48" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#fbbf24"></stop>
+                        <stop offset="1" stop-color="#f59e0b"></stop>
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <div id="luckyWheelDisc" class="sp-wheel-rotor">
+                  <canvas id="spinCanvas" width="880" height="880"></canvas>
+                  <div id="luckyWheelCenterBtn" class="lucky-wheel-center-badge" role="button" tabindex="0" aria-label="Quay Ngay">
+                    <span>QUAY</span>
+                    <strong>NGAY</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sp-dashboard">
+              <div class="sp-energy" aria-live="polite">
+                <div class="sp-energy-track">
+                  <div class="sp-energy-bar">
+                    <div id="spinEnergyFill" class="sp-energy-fill"></div>
+                    <div id="spinEnergyCount" class="sp-energy-count">60/60</div>
+                  </div>
+                </div>
+                <div id="spinEnergyNext" class="sp-energy-next">Đã đầy kho lượt</div>
+              </div>
+              <div class="sp-milestone" aria-live="polite">
+                <div class="sp-milestone-head">
+                  <span>Mốc Hộp Quà</span>
+                  <span id="spinMilestoneMeta" class="sp-milestone-meta">Còn 80 lượt để mở mốc 80</span>
+                </div>
+                <div class="sp-milestone-track">
+                  <div class="sp-milestone-bar">
+                    <div id="spinMilestoneFill" class="sp-milestone-fill"></div>
+                  </div>
+                  <div id="spinMilestoneMarkers" class="sp-milestone-markers"></div>
+                </div>
+                <div id="spinMilestoneNext" class="sp-milestone-next">Reset sau 24:00:00 • 1 ngày reset lại</div>
+              </div>
+              <div class="sp-controls">
+                <div class="sp-multiplier-row" role="group" aria-label="Hệ số quay">
+                  <button id="spinMultiplier1" class="sp-multiplier-btn active" type="button" data-multiplier="1">x1</button>
+                  <button id="spinMultiplier3" class="sp-multiplier-btn" type="button" data-multiplier="3">x3</button>
+                  <button id="spinMultiplier5" class="sp-multiplier-btn" type="button" data-multiplier="5">x5</button>
+                  <button id="spinMultiplier10" class="sp-multiplier-btn" type="button" data-multiplier="10">x10</button>
+                </div>
+                <div class="sp-spin-row">
+                  <button id="luckyWheelSpinBtn" type="button">🎰 QUAY TỰ ĐỘNG</button>
+                  <button id="luckyWheelAutoBtn" class="sp-auto-btn" type="button">Mua Thêm Lượt Quay</button>
                 </div>
               </div>
             </div>
           </div>
-
-          <div class="sp-energy" aria-live="polite">
-            <div class="sp-energy-track">
-              <div class="sp-energy-bar">
-                <div id="spinEnergyFill" class="sp-energy-fill"></div>
-                <div id="spinEnergyCount" class="sp-energy-count">60/60</div>
-              </div>
-            </div>
-            <div id="spinEnergyNext" class="sp-energy-next">Đã đầy kho lượt</div>
-          </div>
-          <div class="sp-milestone" aria-live="polite">
-            <div class="sp-milestone-head">
-              <span>Mốc Hộp Quà</span>
-              <span id="spinMilestoneMeta" class="sp-milestone-meta">Còn 80 lượt để mở mốc 80</span>
-            </div>
-            <div class="sp-milestone-track">
-              <div class="sp-milestone-bar">
-                <div id="spinMilestoneFill" class="sp-milestone-fill"></div>
-              </div>
-              <div id="spinMilestoneMarkers" class="sp-milestone-markers"></div>
-            </div>
-            <div id="spinMilestoneNext" class="sp-milestone-next">Reset sau 24:00:00 • 1 ngày reset lại</div>
-          </div>
-
-          <div class="sp-controls">
-            <div class="sp-multiplier-row" role="group" aria-label="Hệ số quay">
-              <button id="spinMultiplier1" class="sp-multiplier-btn active" type="button" data-multiplier="1">x1</button>
-              <button id="spinMultiplier3" class="sp-multiplier-btn" type="button" data-multiplier="3">x3</button>
-              <button id="spinMultiplier5" class="sp-multiplier-btn" type="button" data-multiplier="5">x5</button>
-              <button id="spinMultiplier10" class="sp-multiplier-btn" type="button" data-multiplier="10">x10</button>
-            </div>
-            <div class="sp-spin-row">
-              <button id="luckyWheelSpinBtn" type="button">🎰 QUAY TỰ ĐỘNG</button>
-              <button id="luckyWheelAutoBtn" class="sp-auto-btn" type="button">Mua Thêm Lượt Quay</button>
-            </div>
-          </div>
         </div>
         </div>
 
       </div>
 
-      <div class="lucky-wheel-side">
-        <div class="lucky-wheel-prize-panel">
-          <div class="lucky-wheel-section-head">
-            <span class="lucky-wheel-section-title">Phần quà</span>
-            <span class="lucky-wheel-section-note">Độ hiếm phần quà</span>
-          </div>
-          <div id="luckyWheelPrizeGrid" class="lucky-wheel-prize-grid"></div>
-        </div>
-      </div>
       <div class="lucky-wheel-history-box">
         <div class="lucky-wheel-history-head">
           <span class="lucky-wheel-section-title">Lịch sử</span>
@@ -921,13 +934,16 @@
       </section>
       <section id="predictRootCharts" class="card predict-card predict-root predict-root-charts" hidden>
         <div class="predict-card-head">
-          <div>
-            <h2>Biểu Đồ Thống Kê</h2>
-            <p class="predict-card-subtitle">Chọn loại xổ số, số kỳ phân tích và xem ngay biểu đồ nhóm số, tỷ trọng phần trăm cùng bảng thống kê trực tiếp trên web.</p>
+          <div class="chart-stats-heading">
+            <span class="chart-stats-heading-mark">ANALYTICS</span>
+            <div>
+              <h2>Biểu đồ thống kê</h2>
+              <p class="predict-card-subtitle">Tần suất và tỷ trọng theo từng nhóm số.</p>
+            </div>
           </div>
           <div class="predict-card-actions">
-            <span class="predict-card-chip">Nguồn all_day.csv</span>
-            <span class="predict-card-chip predict-card-chip-vip">Nhóm Số Theo Kỳ</span>
+            <span class="predict-card-chip">all_day.csv</span>
+            <span class="predict-card-chip predict-card-chip-vip">Theo kỳ</span>
           </div>
         </div>
         <div class="chart-stats-shell">
@@ -943,13 +959,13 @@
             <div class="chart-stats-toolbar-group">
               <div class="chart-stats-toolbar-label">Kỳ tùy chỉnh</div>
               <input id="chartStatsCustomCount" type="number" min="1" step="1" class="chart-stats-count-input" aria-label="Nhập số kỳ tùy chỉnh để phân tích">
-              <div id="chartStatsCountHint" class="chart-stats-toolbar-note">Chọn preset hoặc chuyển sang Tùy chỉnh để nhập số kỳ bất kỳ.</div>
             </div>
             <div class="chart-stats-toolbar-group">
               <div class="chart-stats-toolbar-label">Chế độ xem</div>
               <select id="chartStatsViewSelect" class="chart-stats-select" aria-label="Chọn chế độ xem biểu đồ"></select>
             </div>
           </div>
+          <div id="chartStatsCountHint" class="chart-stats-toolbar-note">Chọn preset hoặc chuyển sang Tùy chỉnh để nhập số kỳ bất kỳ.</div>
           <div id="chartStatsOut" class="chart-stats-panel muted">Bấm tab Biểu Đồ Thống Kê để tải dữ liệu và xem biểu đồ theo nhóm số.</div>
         </div>
       </section>
@@ -1203,10 +1219,55 @@
       <div id="accountMsg" class="account-note">Chỉ admin mới có quyền thay đổi tài khoản.</div>
     </div>
   </div>
+  <div class="local-chatbot" data-local-chatbot>
+    <button type="button" class="local-chatbot-launcher" data-local-chatbot-toggle aria-label="Mở trợ lý DVLF" aria-expanded="false">
+      <span class="local-chatbot-launcher-icon">AI</span>
+      <span class="local-chatbot-launcher-status"></span>
+    </button>
+    <section class="local-chatbot-panel" data-local-chatbot-panel aria-label="Trợ lý nội bộ DVLF" aria-hidden="true">
+      <header class="local-chatbot-head">
+        <div class="local-chatbot-identity">
+          <span class="local-chatbot-avatar">DV</span>
+          <div><strong>Trợ lý DVLF</strong><small><i></i>Nội bộ • Không cần Internet</small></div>
+        </div>
+        <div class="local-chatbot-head-actions">
+          <button type="button" data-local-chatbot-settings-toggle aria-label="Mở cài đặt chatbot" aria-expanded="false" title="Cài đặt">⚙</button>
+          <button type="button" data-local-chatbot-close aria-label="Thu nhỏ chatbot" title="Thu nhỏ">−</button>
+        </div>
+      </header>
+      <aside class="local-chatbot-settings" data-local-chatbot-settings aria-hidden="true">
+        <div class="local-chatbot-settings-title"><strong>Cài đặt</strong><small>Giao diện chatbot</small></div>
+        <div class="local-chatbot-size-setting">
+          <span>Kích thước khung chat</span>
+          <input type="range" min="25" max="100" step="25" value="25" data-local-chatbot-size-slider aria-label="Kích thước khung chat">
+          <div class="local-chatbot-size-labels" aria-hidden="true">
+            <span data-local-chatbot-size-option="25">25</span>
+            <span data-local-chatbot-size-option="50">50</span>
+            <span data-local-chatbot-size-option="75">75</span>
+            <span data-local-chatbot-size-option="100">100</span>
+          </div>
+        </div>
+        <button type="button" class="local-chatbot-reset-btn" data-local-chatbot-reset>↻ <span>Đặt lại hội thoại</span></button>
+      </aside>
+      <div class="local-chatbot-context" data-local-chatbot-context>Đang đọc trạng thái trang...</div>
+      <div class="local-chatbot-messages" data-local-chatbot-messages aria-live="polite"></div>
+      <div class="local-chatbot-quick-actions" data-local-chatbot-quick-actions>
+        <button type="button" data-local-chatbot-prompt="Kiểm tra các bộ đang chọn">Kiểm tra bộ</button>
+        <button type="button" data-local-chatbot-prompt="Tạo gợi ý theo thống kê">Tạo gợi ý</button>
+        <button type="button" data-local-chatbot-prompt="Hướng dẫn sử dụng">Hướng dẫn</button>
+      </div>
+      <form class="local-chatbot-compose" data-local-chatbot-form>
+        <textarea data-local-chatbot-input rows="1" maxlength="500" placeholder="Nhập yêu cầu, ví dụ: Tạo 3 bộ Keno bậc 10"></textarea>
+        <button type="submit" aria-label="Gửi tin nhắn">➤</button>
+      </form>
+      <p class="local-chatbot-disclaimer">Gợi ý chỉ mang tính tham khảo, không đảm bảo trúng thưởng.</p>
+    </section>
+  </div>
   <!-- ------ App Scripts --- -->
   <script defer src="/vietlott-web-stats.js"></script>
   <script defer src="/vietlott-web-data.js"></script>
   <script defer src="/vietlott-web-core.js"></script>
+  <script defer src="/vietlott-web-chatbot.js"></script>
 
 </body>
 </html>
