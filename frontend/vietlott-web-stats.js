@@ -4889,20 +4889,17 @@
       }
       const badge = buildDashboardHeroStatus(type, entries);
       const formattedDate = latestEntry.date instanceof Date ? formatLiveDateFromDate(latestEntry.date) : "Chưa rõ ngày";
-      const hotMain = buildStatsFrequencyItems(type, entries)[0] || null;
-      const hotSpecial = TYPES[type]?.hasSpecial ? buildStatsFrequencyItems(type, entries, { special: true })[0] : null;
-      const insightLine = hotSpecial
-        ? `Nhiệt bóng: ${hotMain ? hotMain.label : "--"} • ĐB nóng: ${hotSpecial ? hotSpecial.label : "--"}`
-        : `Nhiệt bóng: ${hotMain ? hotMain.label : "--"} • ${meta.heroNote}`;
+      const feed = getLiveHistoryFeed(type);
+      const formattedTime = String(latestEntry.draw?.time || feed?.latestTime || "").trim() || "--:--";
       const rawDrawId = String(latestEntry.ky || "").trim().replace(/^#+\s*/, "");
       const drawIdLabel = rawDrawId ? `#${rawDrawId}` : "--";
       return `
         <article class="lotto-dashboard-hero-shell" style="--dashboard-accent:${escapeHtml(meta.accent)}">
           <div class="lotto-dashboard-hero-copy">
-            <div class="lotto-dashboard-hero-kicker">${escapeHtml(meta.label)}</div>
-            <h3 class="lotto-dashboard-hero-title">Kỳ quay mới nhất ${escapeHtml(drawIdLabel)}</h3>
-            <div class="lotto-dashboard-hero-meta">${escapeHtml(formattedDate)} • ${escapeHtml(`${formatDashboardInteger(latestEntry.hitCount)} kết quả ghi nhận`)}</div>
-            <div class="lotto-dashboard-hero-note">${escapeHtml(insightLine)}</div>
+            <div class="lotto-dashboard-hero-kicker">Loại: ${escapeHtml(meta.label)}</div>
+            <h3 class="lotto-dashboard-hero-title">Kỳ: ${escapeHtml(drawIdLabel)}</h3>
+            <div class="lotto-dashboard-hero-meta">Ngày quay: ${escapeHtml(formattedDate)}</div>
+            <div class="lotto-dashboard-hero-note">Thời gian quay: ${escapeHtml(formattedTime)}</div>
           </div>
           <div class="lotto-dashboard-hero-result">
             <div class="lotto-dashboard-hero-result-panel">

@@ -225,6 +225,9 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", dashboard_theme)
         self.assertIn("grid-auto-rows: 1fr;", dashboard_theme)
         self.assertIn('grid-template-areas:\n      "kicker title"\n      "subtitle subtitle";', dashboard_theme)
+        self.assertIn('grid-template-areas:\n      "game title"\n      "meta note";', dashboard_theme)
+        self.assertIn("grid-template-columns: max-content minmax(0, 1fr) max-content;", dashboard_theme)
+        self.assertIn(".lotto-dashboard-hero-result-head {\n    display: contents;", dashboard_theme)
         self.assertIn("min-height: 96px;", dashboard_theme)
         self.assertIn("min-height: 62px;", dashboard_theme)
         self.assertIn('role="tab"', dashboard_html)
@@ -236,6 +239,18 @@ class WebPerformanceContractTests(unittest.TestCase):
         stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
         self.assertIn('replace(/^#+\\s*/, "")', stats)
         self.assertIn("tabBar.scrollTo({", stats)
+
+    def test_dashboard_hero_only_shows_draw_identity_and_schedule(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        hero_start = stats.index("function renderDashboardHeroCard")
+        hero_end = stats.index("function computeDashboardQuickStats", hero_start)
+        hero_block = stats[hero_start:hero_end]
+
+        for label in ("Loại:", "Kỳ:", "Ngày quay:", "Thời gian quay:"):
+            self.assertIn(label, hero_block)
+        for removed_text in ("kết quả ghi nhận", "Nhiệt bóng:", "ĐB nóng:"):
+            self.assertNotIn(removed_text, hero_block)
+        self.assertIn("latestEntry.draw?.time || feed?.latestTime", hero_block)
 
     def test_dashboard_temperature_groups_reveal_their_numbers(self):
         stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
