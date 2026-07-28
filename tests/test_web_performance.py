@@ -237,6 +237,31 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertIn('replace(/^#+\\s*/, "")', stats)
         self.assertIn("tabBar.scrollTo({", stats)
 
+    def test_dashboard_temperature_groups_reveal_their_numbers(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+
+        temperature_start = stats.index("function buildDashboardTemperatureRows")
+        temperature_end = stats.index("function computeDashboardDistributionRows", temperature_start)
+        temperature_block = stats[temperature_start:temperature_end]
+        render_start = stats.index("function renderDashboardTemperatureDetail")
+        render_end = stats.index("function renderDashboardActivityStats", render_start)
+        render_block = stats[render_start:render_end]
+
+        self.assertIn("items: []", temperature_block)
+        self.assertIn("groups[bucketIndex].items.push(item)", temperature_block)
+        self.assertIn('data-dashboard-temperature-key="', render_block)
+        self.assertIn('aria-controls="lottoDashboardTemperatureDetail"', render_block)
+        self.assertIn('aria-expanded="', render_block)
+        self.assertIn('role="listitem"', render_block)
+        self.assertIn("bindDashboardTemperatureLegend(type, entries, mode)", render_block)
+        self.assertIn('let dashboardSelectedTemperatureKey = "";', core)
+        self.assertIn("dashboardSelectedTemperatureKey = \"\";", core)
+        self.assertIn("button.lotto-dashboard-donut-legend-item", styles)
+        self.assertIn(".lotto-dashboard-temperature-balls", styles)
+        self.assertIn(".lotto-dashboard-temperature-ball", styles)
+
     def test_live_history_has_java_csv_fast_path(self):
         source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
 

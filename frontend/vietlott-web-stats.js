@@ -5156,7 +5156,7 @@
       const items = Array.isArray(row.items) ? row.items : [];
       const unitLabel = getDashboardFamily(type) === "threeDigit" ? "bộ số" : "bóng số";
       return `
-        <section id="lottoDashboardTemperatureDetail" class="lotto-dashboard-temperature-detail" style="--dashboard-color:${escapeHtml(row.color)}" aria-live="polite">
+        <section id="lottoDashboardTemperatureDetail" class="lotto-dashboard-temperature-detail" style="--dashboard-color:${escapeHtml(row.color)}" role="region" aria-label="Các số thuộc nhóm ${escapeHtml(row.label)}" aria-live="polite">
           <div class="lotto-dashboard-temperature-detail-head">
             <div>
               <div class="lotto-dashboard-temperature-detail-title">${escapeHtml(row.label)}</div>
@@ -5164,10 +5164,11 @@
             </div>
             <span class="lotto-dashboard-temperature-detail-count">${escapeHtml(row.countLabel || "")}</span>
           </div>
-          <div class="lotto-dashboard-temperature-balls">
+          <div class="lotto-dashboard-temperature-balls" role="list" aria-label="${escapeHtml(unitLabel)} thuộc nhóm ${escapeHtml(row.label)}">
             ${items.map(item => `
               <span
                 class="lotto-dashboard-temperature-ball"
+                role="listitem"
                 title="${escapeHtml(`${item.label}: xuất hiện ${formatDashboardInteger(item.count)} lượt trong mẫu`)}"
               >${escapeHtml(item.label || formatPredictNumber(item.value, type))}</span>
             `).join("")}
