@@ -482,12 +482,25 @@
     }
 
     function renderPredictModeTabs() {
+      let activeButton = null;
       document.querySelectorAll("[data-predict-mode-tab]").forEach(button => {
         const tabMode = normalizePredictionMode(button.dataset.predictModeTab);
         const isActive = tabMode === predictPageModeValue;
         button.classList.toggle("is-active", isActive);
         button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        if (isActive) activeButton = button;
       });
+      const tabBar = activeButton?.closest(".predict-tab-bar");
+      if (tabBar && tabBar.scrollWidth > tabBar.clientWidth) {
+        window.requestAnimationFrame(() => {
+          const centeredLeft = activeButton.offsetLeft - ((tabBar.clientWidth - activeButton.offsetWidth) / 2);
+          const maxLeft = Math.max(0, tabBar.scrollWidth - tabBar.clientWidth);
+          tabBar.scrollTo({
+            left: Math.max(0, Math.min(maxLeft, centeredLeft)),
+            behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth",
+          });
+        });
+      }
       const normalRoot = document.getElementById("predictRootNormal");
       const vipRoot = document.getElementById("predictRootVip");
       const statsRoot = document.getElementById("predictRootStats");
@@ -4610,6 +4623,105 @@
       }
     }
 
+    function floorDashboardDate(dateValue) {
+      const next = new Date(dateValue instanceof Date ? dateValue.getTime() : getSyncedNowMs());
+      next.setHours(0, 0, 0, 0);
+      return next;
+    }
+
+    function shiftDashboardDate(dateValue, deltaDays) {
+      const next = new Date(dateValue.getTime());
+      next.setDate(next.getDate() + Number(deltaDays || 0));
+      return next;
+    }
+
+    function addDashboardMonths(dateValue, deltaMonths) {
+      return new Date(dateValue.getFullYear(), dateValue.getMonth() + Number(deltaMonths || 0), 1);
+    }
+
+    function getDashboardWeekStart(dateValue) {
+      const next = floorDashboardDate(dateValue);
+      const weekday = next.getDay();
+      const diff = weekday === 0 ? -6 : 1 - weekday;
+      next.setDate(next.getDate() + diff);
+      return next;
+    }
+
+    function formatDashboardDateKey(dateValue) {
+      const year = dateValue.getFullYear();
+      const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+      const day = String(dateValue.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDashboardShortDate(dateValue) {
+      const day = String(dateValue.getDate()).padStart(2, "0");
+      const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+      return `${day}/${month}`;
+    }
+
+    function formatDashboardMonthLabel(dateValue) {
+      const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+      return `${month}/${dateValue.getFullYear()}`;
+    }
+
+    function formatDashboardNumber(value, fractionDigits = 1) {
+      const numeric = Number(value || 0);
+      return new Intl.NumberFormat("vi-VN", {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(Number.isFinite(numeric) ? numeric : 0);
+    }
+
+    function formatDashboardInteger(value) {
+      return new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(value || 0)));
+    }
+
+    function formatDashboardRelativeTime(value) {
+      const parsed = value instanceof Date ? value : new Date(String(value || "").trim());
+      if (!(parsed instanceof Date) || Number.isNaN(parsed.getTime())) return "chưa rõ";
+      const diffMs = Math.max(0, getSyncedNowMs() - parsed.getTime());
+      const diffMinutes = Math.floor(diffMs / 60000);
+      if (diffMinutes < 1) return "vừa xong";
+      if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours < 24) return `${diffHours} giờ trước`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays} ngày trước`;
+    }
+
+    function filterDashboardEntriesInRange(entries, startDate, endDate) {
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+      return (Array.isArray(entries) ? entries : []).filter(entry => {
+        const currentTime = entry?.dayStart instanceof Date ? entry.dayStart.getTime() : NaN;
+        return Number.isFinite(currentTime) && currentTime >= startTime && currentTime <= endTime;
+      });
+    }
+
+    function buildDashboardSmoothPath(points) {
+      if (!Array.isArray(points) || !points.length) return "";
+      if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+      let path = `M ${points[0].x} ${points[0].y}`;
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const previous = points[index - 1] || points[index];
+        const current = points[index];
+        const next = points[index + 1];
+        const following = points[index + 2] || next;
+        const control1X = current.x + (next.x - previous.x) / 6;
+        const control1Y = current.y + (next.y - previous.y) / 6;
+        const control2X = next.x - (following.x - current.x) / 6;
+        const control2Y = next.y - (following.y - current.y) / 6;
+        path += ` C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
+      }
+      return path;
+    }
+
+    function buildDashboardAreaPath(points, baseY) {
+      if (!Array.isArray(points) || !points.length) return "";
+      return `${buildDashboardSmoothPath(points)} L ${points.at(-1).x} ${baseY} L ${points[0].x} ${baseY} Z`;
+    }
+
     function getDashboardTypeMeta(type) {
       const mapping = {
         KENO: { label: "Keno", accent: "#29d2d4", icon: "◎", family: "keno", heroNote: "20 số mỗi kỳ, ưu tiên nhìn dải nóng và nhịp lặp lại gần đây." },
@@ -4782,11 +4894,13 @@
       const insightLine = hotSpecial
         ? `Nhiệt bóng: ${hotMain ? hotMain.label : "--"} • ĐB nóng: ${hotSpecial ? hotSpecial.label : "--"}`
         : `Nhiệt bóng: ${hotMain ? hotMain.label : "--"} • ${meta.heroNote}`;
+      const rawDrawId = String(latestEntry.ky || "").trim().replace(/^#+\s*/, "");
+      const drawIdLabel = rawDrawId ? `#${rawDrawId}` : "--";
       return `
         <article class="lotto-dashboard-hero-shell" style="--dashboard-accent:${escapeHtml(meta.accent)}">
           <div class="lotto-dashboard-hero-copy">
             <div class="lotto-dashboard-hero-kicker">${escapeHtml(meta.label)}</div>
-            <h3 class="lotto-dashboard-hero-title">Kỳ quay mới nhất #${escapeHtml(latestEntry.ky || "--")}</h3>
+            <h3 class="lotto-dashboard-hero-title">Kỳ quay mới nhất ${escapeHtml(drawIdLabel)}</h3>
             <div class="lotto-dashboard-hero-meta">${escapeHtml(formattedDate)} • ${escapeHtml(`${formatDashboardInteger(latestEntry.hitCount)} kết quả ghi nhận`)}</div>
             <div class="lotto-dashboard-hero-note">${escapeHtml(insightLine)}</div>
           </div>
@@ -4942,11 +5056,11 @@
       const sorted = [...items].sort((a, b) => b.count - a.count || a.value - b.value);
       const total = Math.max(1, sorted.length);
       const groups = [
-        { key: "very-hot", label: "Rất nóng", color: "#ff7a63", count: 0 },
-        { key: "hot", label: "Nóng", color: "#ffb44d", count: 0 },
-        { key: "warm", label: "Trung tính", color: "#7aa8ff", count: 0 },
-        { key: "cold", label: "Lạnh", color: "#63d5ff", count: 0 },
-        { key: "sleep", label: "Vắng", color: "#d7e2ff", count: 0 },
+        { key: "very-hot", label: "Rất nóng", color: "#ff7a63", count: 0, items: [] },
+        { key: "hot", label: "Nóng", color: "#ffb44d", count: 0, items: [] },
+        { key: "warm", label: "Trung tính", color: "#7aa8ff", count: 0, items: [] },
+        { key: "cold", label: "Lạnh", color: "#63d5ff", count: 0, items: [] },
+        { key: "sleep", label: "Vắng", color: "#d7e2ff", count: 0, items: [] },
       ];
       sorted.forEach((item, index) => {
         const ratio = index / total;
@@ -4956,6 +5070,7 @@
         else if (ratio < 0.6) bucketIndex = 2;
         else if (ratio < 0.85) bucketIndex = 3;
         groups[bucketIndex].count += 1;
+        groups[bucketIndex].items.push(item);
       });
       return groups.map(group => ({
         ...group,
@@ -5029,8 +5144,42 @@
       return buildDashboardTemperatureRows(normalizedType, entries);
     }
 
+    function renderDashboardTemperatureDetail(type, row) {
+      if (!row) {
+        return `
+          <div id="lottoDashboardTemperatureDetail" class="lotto-dashboard-temperature-detail is-hint" aria-live="polite">
+            <span class="lotto-dashboard-temperature-detail-icon" aria-hidden="true">◎</span>
+            <span>Chọn một nhóm nhiệt để xem các bóng số thuộc nhóm đó.</span>
+          </div>
+        `;
+      }
+      const items = Array.isArray(row.items) ? row.items : [];
+      const unitLabel = getDashboardFamily(type) === "threeDigit" ? "bộ số" : "bóng số";
+      return `
+        <section id="lottoDashboardTemperatureDetail" class="lotto-dashboard-temperature-detail" style="--dashboard-color:${escapeHtml(row.color)}" aria-live="polite">
+          <div class="lotto-dashboard-temperature-detail-head">
+            <div>
+              <div class="lotto-dashboard-temperature-detail-title">${escapeHtml(row.label)}</div>
+              <div class="lotto-dashboard-temperature-detail-meta">${escapeHtml(`${formatDashboardInteger(items.length)} ${unitLabel} • xếp từ tần suất cao xuống thấp`)}</div>
+            </div>
+            <span class="lotto-dashboard-temperature-detail-count">${escapeHtml(row.countLabel || "")}</span>
+          </div>
+          <div class="lotto-dashboard-temperature-balls">
+            ${items.map(item => `
+              <span
+                class="lotto-dashboard-temperature-ball"
+                title="${escapeHtml(`${item.label}: xuất hiện ${formatDashboardInteger(item.count)} lượt trong mẫu`)}"
+              >${escapeHtml(item.label || formatPredictNumber(item.value, type))}</span>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
     function renderDashboardDistributionPanel(type, entries, mode) {
       const rows = computeDashboardDistributionRows(type, entries, mode);
+      const normalizedMode = normalizeDashboardDistributionView(mode);
+      const isTemperatureMode = normalizedMode === "temperature";
       const total = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
       const activeRows = rows.filter(row => Number(row.count || 0) > 0);
       if (!activeRows.length || !total) {
@@ -5046,7 +5195,16 @@
         accumulated += segmentLength;
         return `<circle class="lotto-dashboard-donut-segment" cx="100" cy="100" r="${radius}" fill="none" stroke="${escapeHtml(row.color)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${segmentLength.toFixed(3)} ${(circumference - segmentLength).toFixed(3)}" stroke-dashoffset="${dashOffset.toFixed(3)}"></circle>`;
       }).join("");
-      const centerLabel = getDashboardDistributionOptions(type).find(option => option.value === normalizeDashboardDistributionView(mode))?.label || "Tỷ trọng";
+      const selectedTemperatureRow = isTemperatureMode
+        ? rows.find(row => row.key === dashboardSelectedTemperatureKey && Number(row.count || 0) > 0) || null
+        : null;
+      const centerLabel = selectedTemperatureRow?.label
+        || getDashboardDistributionOptions(type).find(option => option.value === normalizedMode)?.label
+        || "Tỷ trọng";
+      const centerValue = selectedTemperatureRow
+        ? formatChartStatsPercent(selectedTemperatureRow.percent)
+        : "100%";
+      const centerMeta = selectedTemperatureRow?.countLabel || `${formatDashboardInteger(activeRows.length)} nhóm`;
       return `
         <div class="lotto-dashboard-donut-layout">
           <div class="lotto-dashboard-donut-wrap">
@@ -5055,14 +5213,20 @@
               <g class="lotto-dashboard-donut-ring">${segments}</g>
             </svg>
             <div class="lotto-dashboard-donut-center">
-              <div class="lotto-dashboard-donut-center-value">100%</div>
+              <div class="lotto-dashboard-donut-center-value">${escapeHtml(centerValue)}</div>
               <div class="lotto-dashboard-donut-center-label">${escapeHtml(centerLabel)}</div>
-              <div class="lotto-dashboard-donut-center-meta">${escapeHtml(`${formatDashboardInteger(activeRows.length)} nhóm`)}</div>
+              <div class="lotto-dashboard-donut-center-meta">${escapeHtml(centerMeta)}</div>
             </div>
           </div>
           <div class="lotto-dashboard-donut-legend">
-            ${rows.map(row => `
-              <div class="lotto-dashboard-donut-legend-item">
+            ${rows.map(row => {
+              const isSelected = isTemperatureMode && row.key === selectedTemperatureRow?.key;
+              const tagName = isTemperatureMode ? "button" : "div";
+              const interactiveAttributes = isTemperatureMode
+                ? ` type="button" data-dashboard-temperature-key="${escapeHtml(row.key)}" aria-controls="lottoDashboardTemperatureDetail" aria-expanded="${isSelected ? "true" : "false"}"${Number(row.count || 0) > 0 ? "" : " disabled"}`
+                : "";
+              return `
+              <${tagName} class="lotto-dashboard-donut-legend-item${isTemperatureMode ? " is-interactive" : ""}${isSelected ? " is-active" : ""}" style="--dashboard-color:${escapeHtml(row.color)}"${interactiveAttributes}>
                 <span class="lotto-dashboard-donut-legend-swatch" style="--dashboard-color:${escapeHtml(row.color)}"></span>
                 <div class="lotto-dashboard-donut-legend-copy">
                   <div class="lotto-dashboard-donut-legend-label">${escapeHtml(row.label)}</div>
@@ -5072,11 +5236,31 @@
                   <div class="lotto-dashboard-donut-legend-percent">${escapeHtml(formatChartStatsPercent(row.percent))}</div>
                   <div class="lotto-dashboard-donut-legend-count">${escapeHtml(row.countLabel || `${formatDashboardInteger(row.count)}`)}</div>
                 </div>
-              </div>
-            `).join("")}
+              </${tagName}>
+            `;
+            }).join("")}
           </div>
+          ${isTemperatureMode ? renderDashboardTemperatureDetail(type, selectedTemperatureRow) : ""}
         </div>
       `;
+    }
+
+    function bindDashboardTemperatureLegend(type, entries, mode) {
+      if (normalizeDashboardDistributionView(mode) !== "temperature") return;
+      const host = document.getElementById("lottoDashboardDistributionOut");
+      if (!host) return;
+      host.querySelectorAll("[data-dashboard-temperature-key]").forEach(button => {
+        button.addEventListener("click", () => {
+          const nextKey = String(button.dataset.dashboardTemperatureKey || "").trim();
+          if (!nextKey || button.disabled) return;
+          dashboardSelectedTemperatureKey = nextKey === dashboardSelectedTemperatureKey ? "" : nextKey;
+          host.innerHTML = renderDashboardDistributionPanel(type, entries, mode);
+          bindDashboardTemperatureLegend(type, entries, mode);
+          Array.from(host.querySelectorAll("[data-dashboard-temperature-key]"))
+            .find(nextButton => nextButton.dataset.dashboardTemperatureKey === nextKey)
+            ?.focus({ preventScroll: true });
+        });
+      });
     }
 
     function renderDashboardActivityStats(buckets, type) {
@@ -5136,8 +5320,8 @@
             <svg class="lotto-dashboard-line-chart" viewBox="0 0 ${width} ${height}" aria-hidden="true">
               <defs>
                 <linearGradient id="lottoDashboardAreaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="rgba(109, 92, 255, .24)"></stop>
-                  <stop offset="100%" stop-color="rgba(109, 92, 255, 0)"></stop>
+                  <stop offset="0%" stop-color="rgba(79, 200, 223, .28)"></stop>
+                  <stop offset="100%" stop-color="rgba(79, 200, 223, 0)"></stop>
                 </linearGradient>
               </defs>
               ${gridLines.map(line => `
@@ -5174,7 +5358,7 @@
         const viewMode = normalizeDashboardActivityView(button.dataset.dashboardActivityView);
         const isActive = viewMode === dashboardActivityViewMode;
         button.classList.toggle("is-active", isActive);
-        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
       });
     }
 
@@ -5184,12 +5368,13 @@
       const options = getDashboardDistributionOptions(dashboardSelectedGame);
       host.innerHTML = options.map(option => {
         const isActive = option.value === dashboardDistributionViewMode;
-        return `<button type="button" class="lotto-dashboard-tab${isActive ? " is-active" : ""}" data-dashboard-distribution-view="${escapeHtml(option.value)}" aria-pressed="${isActive ? "true" : "false"}">${escapeHtml(option.label)}</button>`;
+        return `<button type="button" class="lotto-dashboard-tab${isActive ? " is-active" : ""}" data-dashboard-distribution-view="${escapeHtml(option.value)}" role="tab" aria-selected="${isActive ? "true" : "false"}" aria-controls="lottoDashboardDistributionOut">${escapeHtml(option.label)}</button>`;
       }).join("");
       host.querySelectorAll("[data-dashboard-distribution-view]").forEach(button => {
         button.addEventListener("click", () => {
           const nextView = normalizeDashboardDistributionView(button.dataset.dashboardDistributionView);
           if (nextView === dashboardDistributionViewMode) return;
+          dashboardSelectedTemperatureKey = "";
           dashboardDistributionViewMode = nextView;
           saveDashboardUiState();
           renderDashboardPanel();
@@ -5318,6 +5503,7 @@
 
       distributionOut.className = "lotto-dashboard-panel-body";
       distributionOut.innerHTML = renderDashboardDistributionPanel(type, entries, dashboardDistributionViewMode);
+      bindDashboardTemperatureLegend(type, entries, dashboardDistributionViewMode);
       window.setTimeout(bindDashboardLineTooltip, 0);
     }
 

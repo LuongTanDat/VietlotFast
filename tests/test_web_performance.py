@@ -174,6 +174,69 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertNotIn("normalizeDashboardActivityViewMode(", source)
         self.assertNotIn("normalizeDashboardDistributionViewMode(", source)
 
+    def test_dashboard_render_helpers_are_declared(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+
+        for helper_name in (
+            "floorDashboardDate",
+            "shiftDashboardDate",
+            "addDashboardMonths",
+            "getDashboardWeekStart",
+            "formatDashboardDateKey",
+            "formatDashboardShortDate",
+            "formatDashboardMonthLabel",
+            "formatDashboardNumber",
+            "formatDashboardInteger",
+            "formatDashboardRelativeTime",
+            "filterDashboardEntriesInRange",
+            "buildDashboardSmoothPath",
+            "buildDashboardAreaPath",
+        ):
+            declaration = f"function {helper_name}("
+            self.assertEqual(stats.count(declaration), 1)
+
+        floor_start = stats.index("function floorDashboardDate")
+        floor_end = stats.index("function shiftDashboardDate", floor_start)
+        relative_start = stats.index("function formatDashboardRelativeTime")
+        relative_end = stats.index("function filterDashboardEntriesInRange", relative_start)
+        self.assertIn("getSyncedNowMs()", stats[floor_start:floor_end])
+        self.assertIn("getSyncedNowMs()", stats[relative_start:relative_end])
+
+    def test_dashboard_uses_compact_high_tech_theme(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+        dashboard_html = html[html.index('id="predictRootDashboard"'):html.index('id="predictRootAnalysis"')]
+        theme_start = styles.index("/* Compact high-tech Dashboard workspace. */")
+        theme_end = styles.index("/* ----- Local DVLF chatbot ----- */", theme_start)
+        dashboard_theme = styles[theme_start:theme_end]
+
+        for token in (
+            "--dash-bg:",
+            "--dash-surface:",
+            "--dash-border:",
+            "--dash-text:",
+            "--dash-accent:",
+        ):
+            self.assertIn(token, dashboard_theme)
+        self.assertIn(".predict-root-dashboard .lotto-dashboard-tab", dashboard_theme)
+        self.assertIn("width: auto;", dashboard_theme)
+        self.assertIn("body.light-theme .predict-root.predict-root-dashboard", dashboard_theme)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr));", dashboard_theme)
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", dashboard_theme)
+        self.assertIn("grid-auto-rows: 1fr;", dashboard_theme)
+        self.assertIn('grid-template-areas:\n      "kicker title"\n      "subtitle subtitle";', dashboard_theme)
+        self.assertIn("min-height: 96px;", dashboard_theme)
+        self.assertIn("min-height: 62px;", dashboard_theme)
+        self.assertIn('role="tab"', dashboard_html)
+        self.assertIn('role="tabpanel"', dashboard_html)
+        self.assertIn('aria-selected="true"', dashboard_html)
+        self.assertIn("body.light-theme .predict-workspace-title", styles)
+        self.assertNotIn("📊", dashboard_html)
+
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        self.assertIn('replace(/^#+\\s*/, "")', stats)
+        self.assertIn("tabBar.scrollTo({", stats)
+
     def test_live_history_has_java_csv_fast_path(self):
         source = (ROOT / "backend" / "LottoWebServer.java").read_text(encoding="utf-8")
 

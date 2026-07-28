@@ -974,19 +974,19 @@
           <section class="lotto-dashboard-overview">
             <div class="lotto-dashboard-header">
               <div class="lotto-dashboard-header-main">
-                <div class="lotto-dashboard-kicker">Theo game</div>
-                <h2><span class="lotto-dashboard-section-icon">📊</span>Tổng quan</h2>
-                <p class="lotto-dashboard-subtitle">Theo dõi riêng từng game với kết quả mới nhất, thống kê nhanh và biểu đồ phù hợp với đúng loại xổ số đang chọn.</p>
+                <div class="lotto-dashboard-kicker"><span>Live</span> Trung tâm phân tích</div>
+                <h2><span class="lotto-dashboard-section-icon" aria-hidden="true">⌁</span>Tổng quan dữ liệu</h2>
+                <p class="lotto-dashboard-subtitle">Kết quả mới nhất, nhịp hoạt động và phân bổ số theo từng game.</p>
               </div>
               <div class="lotto-dashboard-header-actions">
                 <div class="lotto-dashboard-game-picker">
-                  <span class="lotto-dashboard-picker-label">Game</span>
+                  <span class="lotto-dashboard-picker-label">Game đang theo dõi</span>
                   <select id="lottoDashboardGameSelect" class="lotto-dashboard-game-select" aria-label="Chọn game để xem dashboard"></select>
                 </div>
                 <button id="lottoDashboardStatusBtn" type="button" class="lotto-dashboard-icon-btn is-status" title="Trạng thái dữ liệu" aria-label="Trạng thái dữ liệu">●</button>
                 <button id="lottoDashboardSettingsBtn" type="button" class="lotto-dashboard-icon-btn" title="Tùy chỉnh dashboard" aria-label="Tùy chỉnh dashboard">⚙</button>
                 <div id="lottoDashboardUpdatedAt" class="lotto-dashboard-updated">Cập nhật: đang chờ dữ liệu</div>
-                <button id="lottoDashboardRefreshBtn" type="button" class="lotto-dashboard-refresh-btn">Làm mới</button>
+                <button id="lottoDashboardRefreshBtn" type="button" class="lotto-dashboard-refresh-btn"><span aria-hidden="true">↻</span>Làm mới</button>
               </div>
             </div>
 
@@ -1005,29 +1005,29 @@
             <section class="lotto-dashboard-panel">
               <div class="lotto-dashboard-panel-head">
                 <div>
-                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel">◔</span>Hoạt Động Phân Tích</div>
+                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel" aria-hidden="true">⌁</span>Hoạt Động Phân Tích</div>
                   <div id="lottoDashboardActivitySubtitle" class="lotto-dashboard-panel-subtitle">Theo dõi số lượt phân tích theo ngày, tuần hoặc tháng.</div>
                 </div>
                 <div class="lotto-dashboard-tabs" role="tablist" aria-label="Đổi trục thời gian dashboard">
-                  <button type="button" class="lotto-dashboard-tab is-active" data-dashboard-activity-view="day">Theo Ngày</button>
-                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="week">Theo Tuần</button>
-                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="month">Theo Tháng</button>
+                  <button type="button" class="lotto-dashboard-tab is-active" data-dashboard-activity-view="day" role="tab" aria-selected="true" aria-controls="lottoDashboardActivityOut">Theo Ngày</button>
+                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="week" role="tab" aria-selected="false" aria-controls="lottoDashboardActivityOut">Theo Tuần</button>
+                  <button type="button" class="lotto-dashboard-tab" data-dashboard-activity-view="month" role="tab" aria-selected="false" aria-controls="lottoDashboardActivityOut">Theo Tháng</button>
                 </div>
               </div>
               <div id="lottoDashboardActivityStats" class="lotto-dashboard-mini-stats"></div>
-              <div id="lottoDashboardActivityOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted">Chọn tab Dashboard Lotto để xem biểu đồ đường.</div>
+              <div id="lottoDashboardActivityOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted" role="tabpanel" aria-live="polite">Chọn tab Dashboard Lotto để xem biểu đồ đường.</div>
             </section>
 
             <section class="lotto-dashboard-panel">
               <div class="lotto-dashboard-panel-head">
                 <div>
-                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel">◌</span>Phân Bổ Số Lotto</div>
+                  <div class="lotto-dashboard-panel-title"><span class="lotto-dashboard-section-icon is-panel" aria-hidden="true">◈</span>Phân Bổ Số Lotto</div>
                   <div id="lottoDashboardDistributionSubtitle" class="lotto-dashboard-panel-subtitle">Phân loại số theo ngữ cảnh riêng của game đang chọn.</div>
                 </div>
                 <div id="lottoDashboardDistributionTabs" class="lotto-dashboard-tabs" role="tablist" aria-label="Đổi kiểu phân bổ dashboard">
                 </div>
               </div>
-              <div id="lottoDashboardDistributionOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted">Biểu đồ donut sẽ hiển thị tại đây sau khi dashboard nạp dữ liệu.</div>
+              <div id="lottoDashboardDistributionOut" class="lotto-dashboard-panel-body lotto-dashboard-panel-body-muted" role="tabpanel" aria-live="polite">Biểu đồ donut sẽ hiển thị tại đây sau khi dashboard nạp dữ liệu.</div>
             </section>
           </div>
         </div>

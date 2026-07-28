@@ -11676,6 +11676,11 @@ body.light-theme .predict-root-vip {
   box-shadow: 0 12px 28px rgba(20, 47, 84, .08);
 }
 
+body.light-theme .predict-workspace-title {
+  border-color: rgba(39, 130, 155, .2);
+  color: #15384b;
+}
+
 body.light-theme .predict-root-vip {
   --vip-bg: #f7fbfd;
   --vip-panel: #eef5f8;
@@ -14747,6 +14752,1541 @@ body.light-theme .predict-root-charts .chart-stats-table-chip {
 
 body.light-theme .predict-root-charts .chart-stats-table tbody tr:nth-child(even) {
   background: rgba(22, 136, 168, .035);
+}
+
+/* Compact high-tech Dashboard workspace. */
+.predict-root.predict-root-dashboard {
+  --dash-bg: #07131f;
+  --dash-surface: #0a1b2a;
+  --dash-surface-raised: #0c2132;
+  --dash-field: #06131f;
+  --dash-border: rgba(92, 198, 220, .24);
+  --dash-border-soft: rgba(92, 198, 220, .12);
+  --dash-grid: rgba(92, 198, 220, .035);
+  --dash-text: #edf7fb;
+  --dash-text-soft: #c9dce6;
+  --dash-muted: #8faabd;
+  --dash-accent: #4fc8df;
+  --dash-accent-strong: #72e5f3;
+  --dash-positive: #52d99a;
+  --dash-track: #142b3b;
+  --dash-shadow: 0 18px 44px rgba(0, 0, 0, .22);
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(79, 200, 223, .08), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, .012), transparent 120px),
+    var(--dash-bg);
+  color: var(--dash-text);
+  box-shadow: var(--dash-shadow);
+  font-variant-numeric: tabular-nums;
+}
+
+.predict-root.predict-root-dashboard:hover {
+  transform: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-shell {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-overview {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+  overflow: visible;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(var(--dash-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dash-grid) 1px, transparent 1px),
+    var(--dash-surface);
+  background-size: 32px 32px, 32px 32px, auto;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-header {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(530px, auto);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 1px 1px 7px;
+  border-bottom: 1px solid var(--dash-border-soft);
+}
+
+.predict-root-dashboard .lotto-dashboard-header-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  color: var(--dash-muted);
+  font-size: 8.5px;
+  font-weight: 850;
+  letter-spacing: .72px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.predict-root-dashboard .lotto-dashboard-kicker::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--dash-positive);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--dash-positive) 70%, transparent);
+  animation: lotto-dashboard-signal 2s ease-in-out infinite;
+}
+
+.predict-root-dashboard .lotto-dashboard-kicker span {
+  min-height: 16px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--dash-positive) 34%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--dash-positive) 9%, transparent);
+  color: color-mix(in srgb, var(--dash-positive) 78%, var(--dash-text));
+  font-size: 8px;
+  letter-spacing: .65px;
+}
+
+@keyframes lotto-dashboard-signal {
+  0%,
+  100% {
+    opacity: .62;
+    transform: scale(.88);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.predict-root-dashboard .lotto-dashboard-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--dash-text);
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.08;
+}
+
+.predict-root-dashboard .lotto-dashboard-section-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 23px;
+  width: 23px;
+  height: 23px;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--dash-accent) 38%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--dash-accent) 10%, transparent);
+  color: var(--dash-accent-strong);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.predict-root-dashboard .lotto-dashboard-section-icon.is-panel {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  margin: 0 7px 0 0;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.predict-root-dashboard .lotto-dashboard-subtitle {
+  max-width: 680px;
+  margin: 0;
+  color: var(--dash-muted);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.predict-root-dashboard .lotto-dashboard-header-actions {
+  display: grid;
+  grid-template-columns: minmax(165px, 196px) 30px 30px minmax(136px, auto) 88px;
+  align-items: end;
+  justify-content: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-picker-label {
+  color: var(--dash-muted);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .42px;
+  text-transform: uppercase;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-select {
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: var(--dash-field);
+  color: var(--dash-text);
+  font-size: 10.5px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-shell {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-trigger {
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 9px 0 10px;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: var(--dash-field);
+  color: var(--dash-text);
+  font-size: 10.5px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-trigger:hover,
+.predict-root-dashboard .lotto-dashboard-game-picker .select-trigger:focus-visible,
+.predict-root-dashboard .lotto-dashboard-game-picker .select-shell.open .select-trigger {
+  border-color: color-mix(in srgb, var(--dash-accent) 72%, transparent);
+  background: var(--dash-surface-raised);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dash-accent) 13%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-label {
+  color: var(--dash-text);
+  font-size: 10.5px;
+  line-height: 28px;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-caret {
+  border-top-color: var(--dash-accent);
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-menu {
+  padding: 4px;
+  border-color: var(--dash-border);
+  border-radius: 7px;
+  background: var(--dash-surface-raised);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, .32);
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-option {
+  min-height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dash-text-soft);
+  font-size: 10px;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-game-picker .select-option:hover,
+.predict-root-dashboard .lotto-dashboard-game-picker .select-option.active {
+  background: color-mix(in srgb, var(--dash-accent) 12%, transparent);
+  color: var(--dash-accent-strong);
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn,
+.predict-root-dashboard .lotto-dashboard-refresh-btn {
+  box-sizing: border-box;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: var(--dash-field);
+  color: var(--dash-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease;
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn {
+  display: inline-grid;
+  place-items: center;
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn:hover,
+.predict-root-dashboard .lotto-dashboard-refresh-btn:hover {
+  border-color: color-mix(in srgb, var(--dash-accent) 66%, transparent);
+  background: color-mix(in srgb, var(--dash-accent) 10%, var(--dash-surface));
+  color: var(--dash-accent-strong);
+  filter: none;
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn:focus-visible,
+.predict-root-dashboard .lotto-dashboard-refresh-btn:focus-visible,
+.predict-root-dashboard .lotto-dashboard-tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--dash-accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn.is-status.is-success {
+  border-color: color-mix(in srgb, var(--dash-positive) 38%, transparent);
+  background: color-mix(in srgb, var(--dash-positive) 9%, var(--dash-field));
+  color: var(--dash-positive);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--dash-positive) 10%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn.is-status.is-danger {
+  border-color: rgba(248, 113, 113, .38);
+  background: color-mix(in srgb, #f87171 9%, var(--dash-field));
+  color: #fb9292;
+}
+
+.predict-root-dashboard .lotto-dashboard-icon-btn.is-status.is-loading,
+.predict-root-dashboard .lotto-dashboard-icon-btn.is-status.is-idle {
+  border-color: var(--dash-border);
+  background: var(--dash-field);
+  color: var(--dash-muted);
+}
+
+.predict-root-dashboard .lotto-dashboard-updated {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  overflow: hidden;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--dash-surface-raised) 72%, transparent);
+  color: var(--dash-muted);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 88px;
+  padding: 0 8px;
+  border-color: color-mix(in srgb, var(--dash-accent) 46%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--dash-accent) 24%, var(--dash-field)), var(--dash-field));
+  color: var(--dash-accent-strong);
+  font-size: 9.5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-refresh-btn span {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.predict-root-dashboard .lotto-dashboard-status {
+  min-height: 30px;
+  padding: 7px 9px;
+  border: 1px solid rgba(251, 191, 36, .3);
+  border-left: 3px solid #fbbf24;
+  border-radius: 6px;
+  background: color-mix(in srgb, #fbbf24 7%, var(--dash-field));
+  color: #efd58e;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.predict-root-dashboard .lotto-dashboard-status.is-warning {
+  border-color: rgba(251, 191, 36, .3);
+  border-left-color: #fbbf24;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-card,
+.predict-root-dashboard .lotto-dashboard-quick-grid {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 8px 9px 8px 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--dashboard-accent) 30%, var(--dash-border));
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--dashboard-accent) 12%, transparent), transparent 38%),
+    var(--dash-surface-raised);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dashboard-accent) 82%, var(--dash-accent));
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 90px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--dashboard-accent) 78%, #fff));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--dashboard-accent) 28%, transparent);
+  pointer-events: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-kicker {
+  color: color-mix(in srgb, var(--dashboard-accent) 72%, var(--dash-text));
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .62px;
+  text-transform: uppercase;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-title {
+  max-width: none;
+  margin: 0;
+  color: var(--dash-text);
+  font-size: 16.5px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.08;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-meta,
+.predict-root-dashboard .lotto-dashboard-hero-note {
+  color: var(--dash-muted);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-note {
+  color: var(--dash-text-soft);
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result-panel {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 100%;
+  padding: 7px 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--dashboard-accent) 24%, var(--dash-border-soft));
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--dashboard-accent) 7%, var(--dash-field)), var(--dash-field));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result-panel::before {
+  display: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result-label {
+  color: var(--dash-muted);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: .58px;
+  text-transform: uppercase;
+}
+
+.predict-root-dashboard .lotto-dashboard-badge {
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.predict-root-dashboard .lotto-dashboard-badge.is-stable {
+  border-color: color-mix(in srgb, var(--dash-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--dash-accent) 9%, transparent);
+  color: var(--dash-accent-strong);
+}
+
+.predict-root-dashboard .lotto-dashboard-badge.is-up {
+  border-color: color-mix(in srgb, var(--dash-positive) 28%, transparent);
+  background: color-mix(in srgb, var(--dash-positive) 9%, transparent);
+  color: var(--dash-positive);
+}
+
+.predict-root-dashboard .lotto-dashboard-badge.is-down {
+  border-color: rgba(251, 191, 36, .28);
+  background: rgba(251, 191, 36, .09);
+  color: #f6ce70;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-result-body {
+  display: grid;
+  align-content: center;
+  min-height: 47px;
+}
+
+.predict-root-dashboard .lotto-dashboard-result-stack,
+.predict-root-dashboard .lotto-dashboard-result-stack.is-keno {
+  display: grid;
+  gap: 5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-result-ball,
+.predict-root-dashboard .lotto-dashboard-result-stack.is-keno .lotto-dashboard-result-ball {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 27px;
+  min-height: 27px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--dashboard-accent) 35%, var(--dash-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dashboard-accent) 12%, var(--dash-field));
+  color: var(--dash-text);
+  font-size: 10px;
+  font-weight: 900;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.predict-root-dashboard .lotto-dashboard-result-stack.is-keno .lotto-dashboard-result-ball {
+  min-width: 24px;
+  min-height: 24px;
+  padding-inline: 5px;
+  font-size: 9px;
+}
+
+.predict-root-dashboard .lotto-dashboard-result-ball.is-special {
+  border-color: rgba(251, 191, 36, .48);
+  background: linear-gradient(180deg, #f7c85c, #dc982f);
+  color: #2e2105;
+  box-shadow: 0 6px 14px rgba(217, 145, 34, .16);
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-lines {
+  display: grid;
+  gap: 5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-hero-line {
+  padding: 6px 7px;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 6px;
+  background: var(--dash-surface);
+  color: var(--dash-text-soft);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 7px 9px 6px;
+  overflow: hidden;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dash-surface-raised) 72%, var(--dash-surface));
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 10px;
+  left: 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--dash-muted) 34%, transparent), transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat.is-accent::before {
+  background: linear-gradient(90deg, transparent, var(--dash-accent), transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat.is-secondary::before {
+  background: linear-gradient(90deg, transparent, var(--dash-positive), transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat-label {
+  overflow: hidden;
+  color: var(--dash-muted);
+  font-size: 8.5px;
+  font-weight: 850;
+  letter-spacing: .42px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat-value {
+  color: var(--dash-text);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1.05;
+  word-break: normal;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat-meta {
+  overflow: hidden;
+  color: var(--dash-muted);
+  font-size: 9px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat.is-accent .lotto-dashboard-quick-stat-value {
+  color: var(--dash-accent-strong);
+}
+
+.predict-root-dashboard .lotto-dashboard-quick-stat.is-secondary .lotto-dashboard-quick-stat-value {
+  color: var(--dash-positive);
+}
+
+.predict-root-dashboard .lotto-dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  align-items: stretch;
+  gap: 9px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-panel {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  background: var(--dash-surface);
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-main-grid > .lotto-dashboard-panel:last-child {
+  grid-template-rows: auto 1fr;
+  align-content: stretch;
+}
+
+.predict-root-dashboard #lottoDashboardDistributionOut,
+.predict-root-dashboard #lottoDashboardDistributionOut .lotto-dashboard-donut-layout {
+  height: 100%;
+}
+
+.predict-root-dashboard .lotto-dashboard-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 76px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--dash-accent), transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--dash-accent) 24%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--dash-border-soft);
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-head > div:first-child {
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-title {
+  display: flex;
+  align-items: center;
+  color: var(--dash-text);
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-subtitle {
+  max-width: 360px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--dash-muted);
+  font-size: 9.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-tabs {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 3px;
+  max-width: 100%;
+  padding: 3px;
+  overflow-x: auto;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 6px;
+  background: var(--dash-field);
+  scrollbar-width: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-tab {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 68px;
+  height: 27px;
+  min-height: 27px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dash-muted);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
+}
+
+.predict-root-dashboard .lotto-dashboard-tab:hover {
+  border-color: var(--dash-border-soft);
+  background: color-mix(in srgb, var(--dash-accent) 7%, transparent);
+  color: var(--dash-text-soft);
+  filter: none;
+  transform: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-tab.is-active {
+  border-color: color-mix(in srgb, var(--dash-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--dash-accent) 14%, var(--dash-surface));
+  color: var(--dash-accent-strong);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--dash-accent) 74%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-mini-stat {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-height: 55px;
+  padding: 7px 8px;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 6px;
+  background: var(--dash-surface-raised);
+  text-align: left;
+}
+
+.predict-root-dashboard .lotto-dashboard-mini-stat-label,
+.predict-root-dashboard .lotto-dashboard-donut-center-label {
+  color: var(--dash-muted);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .38px;
+  text-transform: uppercase;
+}
+
+.predict-root-dashboard .lotto-dashboard-mini-stat-value {
+  margin: 0;
+  color: var(--dash-text);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-body {
+  min-width: 0;
+  min-height: 250px;
+  color: var(--dash-text-soft);
+}
+
+.predict-root-dashboard .lotto-dashboard-panel-body-muted {
+  display: grid;
+  place-items: center;
+  color: var(--dash-muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-chart-wrap {
+  position: relative;
+  min-height: 250px;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.predict-root-dashboard .lotto-dashboard-grid-line {
+  stroke: color-mix(in srgb, var(--dash-muted) 22%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 6;
+}
+
+.predict-root-dashboard .lotto-dashboard-grid-label,
+.predict-root-dashboard .lotto-dashboard-axis-label {
+  fill: var(--dash-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.predict-root-dashboard .lotto-dashboard-target-line {
+  stroke: color-mix(in srgb, var(--dash-positive) 72%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 7;
+}
+
+.predict-root-dashboard .lotto-dashboard-target-text {
+  fill: var(--dash-positive);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-path {
+  fill: none;
+  stroke: var(--dash-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 6px 10px color-mix(in srgb, var(--dash-accent) 22%, transparent));
+}
+
+.predict-root-dashboard .lotto-dashboard-line-point {
+  fill: var(--dash-accent);
+  stroke: var(--dash-surface);
+  stroke-width: 2.5;
+  cursor: pointer;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-point:hover {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--dash-accent) 68%, transparent));
+}
+
+.predict-root-dashboard .lotto-dashboard-line-tooltip {
+  z-index: 3;
+  min-width: 132px;
+  padding: 8px 9px;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--dash-surface-raised) 96%, transparent);
+  color: var(--dash-text);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .34);
+  transform: translate(-50%, -100%);
+}
+
+.predict-root-dashboard .lotto-dashboard-line-tooltip-label {
+  color: var(--dash-muted);
+  font-size: 8.5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-tooltip-value {
+  margin-top: 3px;
+  color: var(--dash-accent-strong);
+  font-size: 17px;
+}
+
+.predict-root-dashboard .lotto-dashboard-line-tooltip-meta {
+  margin-top: 3px;
+  color: var(--dash-muted);
+  font-size: 8px;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-layout {
+  display: grid;
+  grid-template-columns: minmax(155px, 172px) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 250px;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 170px;
+  aspect-ratio: 1 / 1;
+  margin-inline: auto;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .2));
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-track {
+  stroke: var(--dash-track);
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-center {
+  display: grid;
+  gap: 2px;
+  width: 86px;
+  justify-items: center;
+  text-align: center;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-center-value {
+  margin: 0;
+  color: var(--dash-text);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-center-meta {
+  color: var(--dash-muted);
+  font-size: 8px;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid var(--dash-border-soft);
+  border-radius: 6px;
+  background: var(--dash-surface-raised);
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dashboard-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--dashboard-color) 13%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-copy {
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-label,
+.predict-root-dashboard .lotto-dashboard-donut-legend-percent {
+  color: var(--dash-text-soft);
+  font-size: 9.5px;
+  font-weight: 850;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-meta,
+.predict-root-dashboard .lotto-dashboard-donut-legend-count {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--dash-muted);
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-values {
+  min-width: 46px;
+  text-align: right;
+}
+
+.predict-root-dashboard button.lotto-dashboard-donut-legend-item {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  appearance: none;
+  color: var(--dash-text-soft);
+  font: inherit;
+  line-height: normal;
+  text-align: left;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive {
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive:hover {
+  border-color: color-mix(in srgb, var(--dashboard-color) 48%, var(--dash-border));
+  background: color-mix(in srgb, var(--dashboard-color) 7%, var(--dash-surface-raised));
+  filter: none;
+  transform: translateY(-1px);
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive:focus-visible {
+  outline: 2px solid var(--dash-accent-strong);
+  outline-offset: 2px;
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive.is-active {
+  border-color: color-mix(in srgb, var(--dashboard-color) 58%, var(--dash-accent));
+  background: color-mix(in srgb, var(--dashboard-color) 12%, var(--dash-surface-raised));
+  box-shadow:
+    inset 3px 0 0 var(--dashboard-color),
+    0 0 0 1px color-mix(in srgb, var(--dashboard-color) 18%, transparent);
+}
+
+.predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive:disabled {
+  opacity: .55;
+  cursor: default;
+  transform: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--dashboard-color) 34%, var(--dash-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dashboard-color) 6%, var(--dash-field));
+  color: var(--dash-text-soft);
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail.is-hint {
+  --dashboard-color: var(--dash-accent);
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  min-height: 38px;
+  border-style: dashed;
+  color: var(--dash-muted);
+  font-size: 9.5px;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dash-accent) 12%, transparent);
+  color: var(--dash-accent-strong);
+  font-size: 10px;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-head > div {
+  min-width: 0;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-title {
+  color: var(--dash-text);
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-meta {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--dash-muted);
+  font-size: 8.5px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-detail-count {
+  flex: 0 0 auto;
+  min-height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--dashboard-color) 38%, var(--dash-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dashboard-color) 10%, transparent);
+  color: var(--dash-text-soft);
+  font-size: 8.5px;
+  font-weight: 850;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 92px;
+  padding: 1px 2px 1px 1px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--dashboard-color) 42%, var(--dash-border)) transparent;
+}
+
+.predict-root-dashboard .lotto-dashboard-temperature-ball {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--dashboard-color) 46%, var(--dash-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dashboard-color) 12%, var(--dash-surface));
+  color: var(--dash-text);
+  font-size: 9.5px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+
+.predict-root-dashboard .lotto-dashboard-empty-card {
+  grid-column: 1 / -1;
+  min-height: 70px;
+  padding: 14px;
+  border: 1px dashed var(--dash-border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dash-surface-raised) 64%, transparent);
+  color: var(--dash-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  box-shadow: none;
+}
+
+.predict-root-dashboard .lotto-dashboard-empty-state {
+  min-height: 200px;
+  padding: 16px;
+  border: 1px dashed var(--dash-border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--dash-surface-raised) 58%, transparent);
+  color: var(--dash-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (min-width: 1181px) {
+  .predict-root-dashboard .lotto-dashboard-header-main {
+    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-areas:
+      "kicker title"
+      "subtitle subtitle";
+    align-items: center;
+    gap: 2px 9px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-kicker {
+    grid-area: kicker;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-header h2 {
+    grid-area: title;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-subtitle {
+    grid-area: subtitle;
+    max-width: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .predict-root-dashboard .lotto-dashboard-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-header-actions {
+    grid-template-columns: minmax(165px, 196px) 30px 30px minmax(136px, 1fr) 88px;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 1020px) {
+  .predict-root-dashboard .lotto-dashboard-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .predict-root-dashboard .lotto-dashboard-quick-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .predict-root-dashboard .lotto-dashboard-donut-layout {
+    grid-template-columns: minmax(170px, 190px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .predict-root-dashboard .lotto-dashboard-hero-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .predict-root-dashboard .lotto-dashboard-header-actions {
+    grid-template-columns: minmax(0, 1fr) 30px 30px 88px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-updated {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 680px) {
+  .predict-root-dashboard .lotto-dashboard-shell {
+    padding: 7px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-overview {
+    padding: 8px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-header {
+    align-items: start;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-header-actions {
+    grid-template-columns: minmax(0, 1fr) 30px 30px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-refresh-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-updated {
+    grid-row: auto;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-panel-body,
+  .predict-root-dashboard .lotto-dashboard-line-chart-wrap {
+    min-height: 0;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-panel-subtitle {
+    max-width: none;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-tab {
+    flex: 1 0 auto;
+    min-width: max-content;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-donut-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .predict-root-dashboard .lotto-dashboard-donut-wrap {
+    max-width: 158px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-donut-legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .predict-root-dashboard .lotto-dashboard-temperature-detail {
+    padding: 7px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-temperature-detail-meta {
+    white-space: normal;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-temperature-balls {
+    max-height: 130px;
+  }
+}
+
+@media (max-width: 520px) {
+  .predict-root-dashboard .lotto-dashboard-header h2 {
+    font-size: 19px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-subtitle {
+    max-width: 34ch;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .predict-root-dashboard .lotto-dashboard-quick-stat {
+    min-height: 64px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-mini-stats {
+    grid-template-columns: repeat(3, minmax(92px, 1fr));
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-result-row {
+    gap: 4px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-result-ball,
+  .predict-root-dashboard .lotto-dashboard-result-stack.is-keno .lotto-dashboard-result-ball {
+    min-width: 26px;
+    min-height: 26px;
+    padding-inline: 5px;
+    font-size: 8.5px;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-temperature-ball {
+    min-width: 26px;
+    min-height: 26px;
+    padding-inline: 5px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .predict-root-dashboard .lotto-dashboard-kicker::before {
+    animation: none;
+  }
+
+  .predict-root-dashboard .lotto-dashboard-icon-btn,
+  .predict-root-dashboard .lotto-dashboard-refresh-btn,
+  .predict-root-dashboard .lotto-dashboard-tab,
+  .predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive {
+    transition: none;
+  }
+}
+
+body.light-theme .predict-root.predict-root-dashboard {
+  --dash-bg: #f4f8fb;
+  --dash-surface: #ffffff;
+  --dash-surface-raised: #f3f8fa;
+  --dash-field: #f9fcfd;
+  --dash-border: rgba(39, 128, 153, .28);
+  --dash-border-soft: rgba(39, 128, 153, .14);
+  --dash-grid: rgba(39, 128, 153, .04);
+  --dash-text: #15384b;
+  --dash-text-soft: #24495d;
+  --dash-muted: #587587;
+  --dash-accent: #1688a8;
+  --dash-accent-strong: #0c6f8a;
+  --dash-positive: #17845d;
+  --dash-track: #dbe8ed;
+  --dash-shadow: 0 14px 36px rgba(37, 79, 105, .12);
+  border-color: var(--dash-border);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(22, 136, 168, .08), transparent 30%),
+    var(--dash-bg);
+  color: var(--dash-text);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-shell,
+body.light-theme .predict-root-dashboard .lotto-dashboard-hero-card,
+body.light-theme .predict-root-dashboard .lotto-dashboard-quick-grid {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-overview,
+body.light-theme .predict-root-dashboard .lotto-dashboard-panel {
+  border-color: var(--dash-border);
+  color: var(--dash-text);
+  box-shadow: none;
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-header h2,
+body.light-theme .predict-root-dashboard .lotto-dashboard-panel-title,
+body.light-theme .predict-root-dashboard .lotto-dashboard-hero-title,
+body.light-theme .predict-root-dashboard .lotto-dashboard-quick-stat-value,
+body.light-theme .predict-root-dashboard .lotto-dashboard-mini-stat-value,
+body.light-theme .predict-root-dashboard .lotto-dashboard-donut-center-value {
+  color: var(--dash-text);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-subtitle,
+body.light-theme .predict-root-dashboard .lotto-dashboard-panel-subtitle,
+body.light-theme .predict-root-dashboard .lotto-dashboard-updated,
+body.light-theme .predict-root-dashboard .lotto-dashboard-kicker,
+body.light-theme .predict-root-dashboard .lotto-dashboard-hero-meta,
+body.light-theme .predict-root-dashboard .lotto-dashboard-donut-legend-meta,
+body.light-theme .predict-root-dashboard .lotto-dashboard-donut-legend-count {
+  color: var(--dash-muted);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-game-picker .select-trigger,
+body.light-theme .predict-root-dashboard .lotto-dashboard-game-select,
+body.light-theme .predict-root-dashboard .lotto-dashboard-icon-btn,
+body.light-theme .predict-root-dashboard .lotto-dashboard-refresh-btn,
+body.light-theme .predict-root-dashboard .lotto-dashboard-tab {
+  border-color: var(--dash-border);
+  background: var(--dash-field);
+  color: var(--dash-text-soft);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-tab.is-active {
+  border-color: color-mix(in srgb, var(--dash-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--dash-accent) 12%, #fff);
+  color: var(--dash-accent-strong);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-donut-legend-item.is-interactive.is-active {
+  border-color: color-mix(in srgb, var(--dashboard-color) 46%, var(--dash-accent));
+  background: color-mix(in srgb, var(--dashboard-color) 10%, #fff);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-temperature-detail {
+  border-color: color-mix(in srgb, var(--dashboard-color) 40%, var(--dash-accent));
+  background: color-mix(in srgb, var(--dashboard-color) 8%, #fff);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-temperature-ball {
+  border-color: color-mix(in srgb, var(--dashboard-color) 42%, var(--dash-accent));
+  background: color-mix(in srgb, var(--dashboard-color) 12%, #fff);
+  color: var(--dash-text);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-result-ball {
+  color: var(--dash-text);
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-result-ball.is-special {
+  color: #3a2703;
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-line-point {
+  stroke: #fff;
+}
+
+body.light-theme .predict-root-dashboard .lotto-dashboard-status {
+  color: #7a5914;
 }
 
 /* ----- Local DVLF chatbot ----- */

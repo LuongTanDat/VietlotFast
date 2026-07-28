@@ -637,6 +637,7 @@
     let dashboardSelectedGame = "KENO";
     let dashboardActivityViewMode = "day";
     let dashboardDistributionViewMode = "range";
+    let dashboardSelectedTemperatureKey = "";
     let dashboardPanelLoading = false;
     let dashboardPanelError = "";
     let dashboardPanelRefreshToken = 0;
@@ -4528,6 +4529,7 @@
       button.addEventListener("click", () => {
         const nextView = normalizeDashboardDistributionView(button.dataset.dashboardDistributionView);
         if (nextView === dashboardDistributionViewMode) return;
+        dashboardSelectedTemperatureKey = "";
         dashboardDistributionViewMode = nextView;
         saveDashboardUiState();
         renderDashboardPanel();
@@ -4545,6 +4547,7 @@
         const nextGame = normalizeDashboardGame(lottoDashboardGameSelect.value);
         if (nextGame === dashboardSelectedGame) return;
         dashboardSelectedGame = nextGame;
+        dashboardSelectedTemperatureKey = "";
         const allowedViews = getDashboardDistributionOptions(nextGame).map(item => item.value);
         if (!allowedViews.includes(dashboardDistributionViewMode)) {
           dashboardDistributionViewMode = allowedViews[0] || "range";
