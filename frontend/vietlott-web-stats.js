@@ -502,6 +502,7 @@
         });
       }
       const normalRoot = document.getElementById("predictRootNormal");
+      const manualRoot = document.getElementById("predictRootManual");
       const vipRoot = document.getElementById("predictRootVip");
       const statsRoot = document.getElementById("predictRootStats");
       const statsV2Root = document.getElementById("predictRootStatsV2");
@@ -509,6 +510,7 @@
       const dashboardRoot = document.getElementById("predictRootDashboard");
       const analysisRoot = document.getElementById("predictRootAnalysis");
       if (normalRoot) normalRoot.hidden = predictPageModeValue !== PREDICTION_MODE_NORMAL;
+      if (manualRoot) manualRoot.hidden = predictPageModeValue !== PREDICTION_MODE_MANUAL;
       if (vipRoot) vipRoot.hidden = predictPageModeValue !== PREDICTION_MODE_VIP;
       if (statsRoot) statsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_STATS;
       if (statsV2Root) statsV2Root.hidden = predictPageModeValue !== PREDICTION_MODE_STATS_V2;
@@ -519,6 +521,752 @@
       syncStatsV2AutoRefreshTimer();
       if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) startAnalysisAutoRefresh();
       else stopAnalysisAutoRefresh();
+    }
+
+    function normalizeManualPredictionType(value) {
+      const normalized = String(value || "").trim().toUpperCase();
+      return TYPE_KEYS.includes(normalized) ? normalized : "LOTO_5_35";
+    }
+
+    function normalizeManualPredictionBundleCount(value) {
+      const parsed = Number.parseInt(String(value || "").replace(/\D/g, ""), 10);
+      return Number.isInteger(parsed) ? Math.max(1, Math.min(PREDICT_MAX_BUNDLES, parsed)) : 1;
+    }
+
+    function createManualPredictionBundle() {
+      return { main: [], special: [] };
+    }
+
+    function ensureManualPredictionBundles() {
+      manualPredictBundleCountValue = normalizeManualPredictionBundleCount(manualPredictBundleCountValue);
+      const current = Array.isArray(manualPredictBundles) ? manualPredictBundles : [];
+      manualPredictBundles = Array.from({ length: manualPredictBundleCountValue }, (_, index) => {
+        const bundle = current[index];
+        return {
+          main: Array.isArray(bundle?.main) ? bundle.main : [],
+          special: Array.isArray(bundle?.special) ? bundle.special : [],
+        };
+      });
+      manualPredictActiveBundleIndex = Math.max(
+        0,
+        Math.min(manualPredictBundles.length - 1, Number(manualPredictActiveBundleIndex || 0) || 0),
+      );
+      const pageCount = Math.max(1, Math.ceil(manualPredictBundles.length / MANUAL_PREDICT_BUNDLE_PAGE_SIZE));
+      manualPredictBundlePageValue = Math.max(
+        0,
+        Math.min(pageCount - 1, Number(manualPredictBundlePageValue || 0) || 0),
+      );
+      const activeBundle = manualPredictBundles[manualPredictActiveBundleIndex] || createManualPredictionBundle();
+      manualPredictMainNumbers = activeBundle.main;
+      manualPredictSpecialNumbers = activeBundle.special;
+      return activeBundle;
+    }
+
+    function resetManualPredictionBundles(notice = "") {
+      manualPredictBundleCountValue = normalizeManualPredictionBundleCount(manualPredictBundleCountValue);
+      manualPredictBundles = Array.from({ length: manualPredictBundleCountValue }, createManualPredictionBundle);
+      manualPredictActiveBundleIndex = 0;
+      manualPredictBundlePageValue = 0;
+      manualPredictEditorOpenValue = false;
+      manualPredictNotice = notice;
+      clearManualPredictionCalculationLog();
+      ensureManualPredictionBundles();
+      renderManualPredictionPanel();
+    }
+
+    function setManualPredictionBundleCount(value) {
+      const nextCount = normalizeManualPredictionBundleCount(value);
+      ensureManualPredictionBundles();
+      manualPredictBundleCountValue = nextCount;
+      ensureManualPredictionBundles();
+      manualPredictNotice = "";
+      renderManualPredictionPanel();
+    }
+
+    function changeManualPredictionBundlePage(offset) {
+      ensureManualPredictionBundles();
+      const pageCount = Math.max(1, Math.ceil(manualPredictBundles.length / MANUAL_PREDICT_BUNDLE_PAGE_SIZE));
+      const nextPage = Math.max(
+        0,
+        Math.min(pageCount - 1, manualPredictBundlePageValue + Number(offset || 0)),
+      );
+      if (nextPage === manualPredictBundlePageValue) return;
+      manualPredictBundlePageValue = nextPage;
+      manualPredictEditorOpenValue = false;
+      manualPredictNotice = "";
+      renderManualPredictionPanel();
+    }
+
+    async function saveManualPrediction() {
+      const meta = getManualPredictionMeta();
+      ensureManualPredictionBundles();
+      const completedBundles = manualPredictBundles.filter(bundle => isManualPredictionBundleComplete(bundle, meta));
+      if (!completedBundles.length) {
+        manualPredictNotice = "Hãy hoàn thành ít nhất 1 bộ trước khi lưu.";
+        renderManualPredictionPanel();
+        return;
+      }
+      const predictionDataset = buildPredictionResultDataset(meta.type);
+      const predictedKy = getNextPredictionKy(meta.type, predictionDataset);
+      if (!predictedKy) {
+        manualPredictNotice = "Chưa xác định được kỳ quay tiếp theo để lưu.";
+        renderManualPredictionPanel();
+        return;
+      }
+      const saveButton = document.getElementById("manualPredictSaveBtn");
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = "Đang lưu...";
+      }
+      const playMode = meta.isBao ? "bao" : "normal";
+      const tickets = completedBundles.map(bundle => ({
+        main: [...bundle.main],
+        special: meta.hasManualSpecial && Number.isInteger(bundle.special[0]) ? bundle.special[0] : null,
+        playMode,
+        baoLevel: meta.isBao ? meta.baoLevel : null,
+      }));
+      try {
+        upsertPredictionLog(meta.type, {
+          id: `manual_${meta.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          createdAt: getSyncedIsoString(),
+          predictedKy,
+          predictionMode: PREDICTION_MODE_MANUAL,
+          strategyKey: "manual_selection",
+          strategyLabel: "Dự đoán thủ công",
+          modelKey: "manual_selection",
+          modelLabel: "Người chơi tự chọn",
+          engineKey: "manual",
+          engineLabel: "Thủ công",
+          playMode,
+          baoLevel: meta.isBao ? meta.baoLevel : null,
+          pickSize: meta.isKeno ? meta.required : 0,
+          bundleCount: tickets.length,
+          tickets,
+          topMainRanking: [...new Set(tickets.flatMap(ticket => ticket.main))],
+          topSpecialRanking: [...new Set(tickets.map(ticket => ticket.special).filter(Number.isInteger))],
+          triggerMode: "manual_save",
+        });
+        const saved = await saveStore({ reason: "manual_prediction_save" });
+        if (saved === false) throw new Error("Không thể đồng bộ dữ liệu");
+        manualPredictNotice = `Đã lưu ${tickets.length} bộ hoàn chỉnh vào lịch sử.`;
+      } catch (error) {
+        manualPredictNotice = `Lưu thất bại: ${error?.message || error}`;
+      } finally {
+        renderManualPredictionPanel();
+      }
+    }
+
+    function activateManualPredictionBundle(index) {
+      ensureManualPredictionBundles();
+      manualPredictActiveBundleIndex = Math.max(
+        0,
+        Math.min(manualPredictBundles.length - 1, Number(index || 0) || 0),
+      );
+      manualPredictBundlePageValue = Math.floor(manualPredictActiveBundleIndex / MANUAL_PREDICT_BUNDLE_PAGE_SIZE);
+      manualPredictEditorOpenValue = true;
+      manualPredictNotice = "";
+      clearManualPredictionCalculationLog();
+      ensureManualPredictionBundles();
+      renderManualPredictionPanel();
+    }
+
+    // Rút gọn một giá trị về miền 1..maxNumber theo quy tắc thương + số dư.
+    function reduceToRange(value, maxNumber, detailLog = null) {
+      if (!Number.isInteger(value) || value < 0) {
+        throw new Error("Giá trị cần rút gọn phải là số nguyên không âm.");
+      }
+      if (!Number.isInteger(maxNumber) || maxNumber <= 0) {
+        throw new Error("maxNumber phải là số nguyên lớn hơn 0.");
+      }
+      if (maxNumber === 1) {
+        if (Array.isArray(detailLog) && value !== 1) detailLog.push(`${value} → miền chỉ có số 1`);
+        return 1;
+      }
+
+      let result = value;
+      while (result > maxNumber) {
+        const quotient = Math.floor(result / maxNumber);
+        const remainder = result % maxNumber;
+        const nextValue = quotient + remainder;
+        if (Array.isArray(detailLog)) {
+          detailLog.push(`${result} / ${maxNumber} → thương ${quotient}, dư ${remainder}`);
+          detailLog.push(`${quotient} + ${remainder} = ${nextValue}`);
+        }
+        result = nextValue;
+      }
+
+      if (result === 0) {
+        result = maxNumber;
+        if (Array.isArray(detailLog)) detailLog.push(`Kết quả 0 → đổi thành ${maxNumber}`);
+      }
+      return result;
+    }
+
+    // Nếu số đã có, tăng dần và quay về minNumber khi vượt giới hạn.
+    function resolveDuplicate(value, usedNumbers, maxNumber, minNumber = 1, detailLog = null) {
+      if (!(usedNumbers instanceof Set)) {
+        throw new Error("usedNumbers phải là một Set.");
+      }
+      if (!Number.isInteger(minNumber) || !Number.isInteger(maxNumber) || minNumber > maxNumber) {
+        throw new Error("Khoảng số không hợp lệ.");
+      }
+
+      const rangeSize = maxNumber - minNumber + 1;
+      let result = value;
+      let checkedCount = 0;
+      while (usedNumbers.has(result)) {
+        const duplicatedValue = result;
+        result += 1;
+        const didWrap = result > maxNumber;
+        if (didWrap) result = minNumber;
+        if (Array.isArray(detailLog)) {
+          detailLog.push(
+            `${duplicatedValue} bị trùng → ${didWrap ? "quay vòng" : "tăng"} thành ${result}`,
+          );
+        }
+        checkedCount += 1;
+        if (checkedCount >= rangeSize) {
+          throw new Error("Không còn số hợp lệ chưa được sử dụng.");
+        }
+      }
+      return result;
+    }
+
+    // Sinh số theo đúng thứ tự vị trí; không tự động sắp xếp kết quả.
+    function generateNumbers(timeValue, numberCount, maxNumber, minNumber = 1, detailLog = null) {
+      if (!Number.isInteger(timeValue) || timeValue < 0) {
+        throw new Error("timeValue phải là số nguyên không âm.");
+      }
+      if (!Number.isInteger(numberCount) || numberCount <= 0) {
+        throw new Error("numberCount phải là số nguyên lớn hơn 0.");
+      }
+      if (!Number.isInteger(maxNumber) || maxNumber <= 0) {
+        throw new Error("maxNumber phải là số nguyên lớn hơn 0.");
+      }
+      if (!Number.isInteger(minNumber) || minNumber < 0 || minNumber > maxNumber) {
+        throw new Error("minNumber không hợp lệ.");
+      }
+
+      const rangeSize = maxNumber - minNumber + 1;
+      if (numberCount > rangeSize) {
+        throw new Error("Số lượng cần tạo không được lớn hơn giới hạn số.");
+      }
+
+      const effectiveTimeValue = timeValue === 0 ? maxNumber : timeValue;
+      const numbers = [];
+      const usedNumbers = new Set();
+      for (let i = 1; i <= numberCount; i += 1) {
+        const positionLog = [];
+        const rawValue = effectiveTimeValue * i;
+        positionLog.push(`Số thứ ${i}:`);
+        if (timeValue === 0) {
+          positionLog.push(`timeValue = 00 → dùng ${maxNumber}`);
+        }
+        positionLog.push(`${effectiveTimeValue} × ${i} = ${rawValue}`);
+
+        const reducedValue = reduceToRange(rawValue, rangeSize, positionLog);
+        let result = minNumber === 1 ? reducedValue : minNumber + reducedValue - 1;
+        if (minNumber !== 1) {
+          positionLog.push(`Quy đổi về ${minNumber}–${maxNumber}: ${result}`);
+        }
+        result = resolveDuplicate(result, usedNumbers, maxNumber, minNumber, positionLog);
+        positionLog.push(`Kết quả: ${result}`);
+        if (Array.isArray(detailLog)) {
+          detailLog.push(...positionLog, "");
+        }
+        numbers.push(result);
+        usedNumbers.add(result);
+      }
+      return numbers;
+    }
+
+    function getManualPredictionRealtimeNow() {
+      return globalThis.performance?.now?.() ?? Date.now();
+    }
+
+    function formatManualPredictionRealtimeCounter(nowValue = getManualPredictionRealtimeNow()) {
+      const elapsedCentiseconds = Math.max(
+        0,
+        Math.floor((nowValue - manualPredictRealtimeCounterStartedAt) / 10),
+      );
+      const minutes = Math.floor(elapsedCentiseconds / 6000) % 100;
+      const seconds = Math.floor(elapsedCentiseconds / 100) % 60;
+      const centiseconds = elapsedCentiseconds % 100;
+      return [minutes, seconds, centiseconds]
+        .map(value => String(value).padStart(2, "0"))
+        .join(":");
+    }
+
+    function updateManualPredictionRealtimeCounter() {
+      const counter = document.getElementById("manualPredictRealtimeCounter");
+      if (counter) counter.textContent = formatManualPredictionRealtimeCounter();
+    }
+
+    function ensureManualPredictionRealtimeCounter() {
+      updateManualPredictionRealtimeCounter();
+      if (manualPredictRealtimeCounterTimer !== null) return;
+      manualPredictRealtimeCounterTimer = window.setInterval(
+        updateManualPredictionRealtimeCounter,
+        10,
+      );
+    }
+
+    function captureManualPredictionTimeValue() {
+      const displayedValue = String(
+        document.getElementById("manualPredictRealtimeCounter")?.textContent || "",
+      );
+      const match = displayedValue.match(/(\d{2})\s*$/);
+      if (match) return Number(match[1]);
+      const elapsedCentiseconds = Math.max(
+        0,
+        Math.floor((getManualPredictionRealtimeNow() - manualPredictRealtimeCounterStartedAt) / 10),
+      );
+      return elapsedCentiseconds % 100;
+    }
+
+    function clearManualPredictionCalculationLog() {
+      const log = document.getElementById("manualPredictRandomLog");
+      const content = document.getElementById("manualPredictRandomLogContent");
+      if (log) {
+        log.hidden = true;
+        log.open = false;
+      }
+      if (content) content.textContent = "";
+    }
+
+    function showManualPredictionCalculationLog(timeValue, meta, mainLog, specialLog = []) {
+      const log = document.getElementById("manualPredictRandomLog");
+      const content = document.getElementById("manualPredictRandomLogContent");
+      if (!log || !content) return;
+      const sections = [
+        `timeValue = ${String(timeValue).padStart(2, "0")} (đã chụp cố định)`,
+        `SỐ CHÍNH · ${meta.required} số · phạm vi ${meta.min}–${meta.max}`,
+        ...mainLog,
+      ];
+      if (meta.hasManualSpecial) {
+        sections.push(
+          `SỐ ĐẶC BIỆT · 1 số · phạm vi ${meta.specialMin}–${meta.specialMax}`,
+          ...specialLog,
+        );
+      }
+      content.textContent = sections.join("\n").trim();
+      log.hidden = false;
+      log.open = false;
+    }
+
+    function sampleManualPredictionNumbers(minValue, maxValue, count, useSecureRandom = false, excludedValues = []) {
+      const excluded = new Set(Array.isArray(excludedValues) ? excludedValues.map(Number) : []);
+      const pool = Array.from(
+        { length: Math.max(0, maxValue - minValue + 1) },
+        (_, index) => minValue + index,
+      ).filter(value => !excluded.has(value));
+      const randomIndex = upperBound => {
+        if (useSecureRandom && globalThis.crypto?.getRandomValues) {
+          const value = new Uint32Array(1);
+          globalThis.crypto.getRandomValues(value);
+          return value[0] % upperBound;
+        }
+        return Math.floor(Math.random() * upperBound);
+      };
+      for (let index = pool.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomIndex(index + 1);
+        [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+      }
+      return pool.slice(0, Math.max(0, count)).sort((a, b) => a - b);
+    }
+
+    function randomizeManualPredictionBundle(variant = "fortune") {
+      const meta = getManualPredictionMeta();
+      const activeBundle = ensureManualPredictionBundles();
+      if (variant === "fortune") {
+        const timeValue = captureManualPredictionTimeValue();
+        const mainLog = [];
+        const specialLog = [];
+        activeBundle.main = generateNumbers(
+          timeValue,
+          meta.required,
+          meta.max,
+          meta.min,
+          mainLog,
+        );
+        if (meta.hasManualSpecial) {
+          activeBundle.special = generateNumbers(
+            timeValue,
+            1,
+            meta.specialMax,
+            meta.specialMin,
+            specialLog,
+          );
+          if (meta.specialExcludesMain) {
+            activeBundle.special[0] = resolveDuplicate(
+              activeBundle.special[0],
+              new Set(activeBundle.main),
+              meta.specialMax,
+              meta.specialMin,
+              specialLog,
+            );
+            specialLog.push(`Kết quả sau khi loại trùng số chính: ${activeBundle.special[0]}`, "");
+          }
+        } else {
+          activeBundle.special = [];
+        }
+        showManualPredictionCalculationLog(timeValue, meta, mainLog, specialLog);
+        manualPredictNotice = `Đã tạo Ngẫu nhiên 1 từ timeValue ${String(timeValue).padStart(2, "0")}.`;
+      } else {
+        activeBundle.main = sampleManualPredictionNumbers(meta.min, meta.max, meta.required, true);
+        if (meta.hasManualSpecial) {
+          activeBundle.special = sampleManualPredictionNumbers(
+            meta.specialMin,
+            meta.specialMax,
+            1,
+            true,
+            meta.specialExcludesMain ? activeBundle.main : [],
+          );
+        } else {
+          activeBundle.special = [];
+        }
+        clearManualPredictionCalculationLog();
+        manualPredictNotice = "Đã tạo phương án Ngẫu nhiên 2; bạn có thể chỉnh lại từng số.";
+      }
+      ensureManualPredictionBundles();
+      renderManualPredictionPanel();
+    }
+
+    function getManualPredictionMeta(typeValue = manualPredictTypeValue) {
+      const type = normalizeManualPredictionType(typeValue);
+      const source = TYPES[type] || TYPES.LOTO_5_35;
+      const isKeno = type === "KENO";
+      const isThreeDigit = Boolean(source.threeDigit);
+      const baoLevels = getPredictBaoLevels(type);
+      const supportsBao = baoLevels.length > 0;
+      const isBao = supportsBao && String(manualPredictPlayModeValue || "").trim().toLowerCase() === "bao";
+      const selectedBaoLevel = Number(manualPredictBaoLevelValue || 0);
+      const baoLevel = isBao
+        ? (baoLevels.includes(selectedBaoLevel) ? selectedBaoLevel : Number(baoLevels[0] || source.mainCount || 1))
+        : 0;
+      if (!supportsBao) manualPredictPlayModeValue = "normal";
+      if (isBao) manualPredictBaoLevelValue = String(baoLevel);
+      return {
+        type,
+        label: String(source.label || type).replaceAll("_", " "),
+        min: Number(source.mainMin || 0),
+        max: Number(source.mainMax || 0),
+        required: isBao
+          ? baoLevel
+          : isKeno
+            ? Math.max(1, Math.min(10, Number(manualPredictKenoLevelValue || 5) || 5))
+            : Math.max(1, Number(source.mainCount || 1)),
+        isKeno,
+        isThreeDigit,
+        supportsBao,
+        isBao,
+        baoLevels,
+        baoLevel,
+        hasManualSpecial: Boolean(source.hasSpecial),
+        specialMin: Number(source.specialMin || 0),
+        specialMax: Number(source.specialMax || 0),
+        specialExcludesMain: type === "LOTO_6_55",
+      };
+    }
+
+    function formatManualPredictionNumber(value, isThreeDigit = false) {
+      return String(Math.max(0, Number(value) || 0)).padStart(isThreeDigit ? 3 : 2, "0");
+    }
+
+    function getManualPredictionVisibleNumbers(meta) {
+      if (meta.isThreeDigit) {
+        const page = Math.max(0, Math.min(9, Number(manualPredict3dPageValue || 0) || 0));
+        return Array.from({ length: 100 }, (_, index) => (page * 100) + index);
+      }
+      return Array.from({ length: Math.max(0, meta.max - meta.min + 1) }, (_, index) => meta.min + index);
+    }
+
+    function renderManualPredictionNumberButtons(values, selectedValues, options = {}) {
+      const selected = new Set(Array.isArray(selectedValues) ? selectedValues.map(Number) : []);
+      const disabled = new Set(Array.isArray(options.disabledValues) ? options.disabledValues.map(Number) : []);
+      const isThreeDigit = Boolean(options.isThreeDigit);
+      const kindLabel = options.kind === "special" ? "số đặc biệt" : "số";
+      return values.map(value => {
+        const isSelected = selected.has(Number(value));
+        const isDisabled = disabled.has(Number(value)) && !isSelected;
+        const label = formatManualPredictionNumber(value, isThreeDigit);
+        return `
+          <button
+            type="button"
+            class="manual-predict-number${isSelected ? " is-selected" : ""}${isDisabled ? " is-disabled" : ""}"
+            data-manual-predict-number="${Number(value)}"
+            aria-pressed="${isSelected ? "true" : "false"}"
+            ${isDisabled ? "disabled" : ""}
+            aria-label="${isSelected ? "Bỏ chọn" : "Chọn"} ${kindLabel} ${label}"
+          >${label}</button>
+        `;
+      }).join("");
+    }
+
+    function toggleManualPredictionNumber(kind, rawValue) {
+      ensureManualPredictionBundles();
+      const meta = getManualPredictionMeta();
+      const value = Number(rawValue);
+      const isSpecial = kind === "special";
+      if (!Number.isInteger(value)) return;
+      if (isSpecial && (!meta.hasManualSpecial || value < meta.specialMin || value > meta.specialMax)) return;
+      if (!isSpecial && (value < meta.min || value > meta.max)) return;
+      if (isSpecial && meta.specialExcludesMain && manualPredictMainNumbers.includes(value)) {
+        manualPredictNotice = "Số đặc biệt của Power 6/55 không được trùng số chính.";
+        renderManualPredictionPanel();
+        return;
+      }
+
+      const selected = isSpecial ? manualPredictSpecialNumbers : manualPredictMainNumbers;
+      const limit = isSpecial ? 1 : meta.required;
+      const existingIndex = selected.indexOf(value);
+      if (existingIndex >= 0) {
+        selected.splice(existingIndex, 1);
+        manualPredictNotice = "";
+      } else if (isSpecial && limit === 1) {
+        selected.splice(0, selected.length, value);
+        manualPredictNotice = "";
+      } else if (selected.length >= limit) {
+        manualPredictNotice = `Đã chọn đủ ${limit} số. Bỏ một số trước khi chọn số khác.`;
+      } else {
+        selected.push(value);
+        if (!isSpecial && meta.specialExcludesMain && manualPredictSpecialNumbers.includes(value)) {
+          manualPredictSpecialNumbers.splice(manualPredictSpecialNumbers.indexOf(value), 1);
+        }
+        manualPredictNotice = "";
+      }
+      clearManualPredictionCalculationLog();
+      renderManualPredictionPanel();
+    }
+
+    function isManualPredictionBundleComplete(bundle, meta) {
+      const mainCount = Array.isArray(bundle?.main) ? bundle.main.length : 0;
+      const specialCount = Array.isArray(bundle?.special) ? bundle.special.length : 0;
+      return mainCount === meta.required && (!meta.hasManualSpecial || specialCount === 1);
+    }
+
+    function renderManualPredictionPanel() {
+      const root = document.getElementById("predictRootManual");
+      if (!root) return;
+      ensureManualPredictionRealtimeCounter();
+      manualPredictTypeValue = normalizeManualPredictionType(manualPredictTypeValue);
+      const meta = getManualPredictionMeta();
+      ensureManualPredictionBundles();
+      manualPredictBundles.forEach(bundle => {
+        bundle.main = bundle.main
+          .map(Number)
+          .filter(value => Number.isInteger(value) && value >= meta.min && value <= meta.max)
+          .slice(0, meta.required);
+        bundle.special = meta.hasManualSpecial
+          ? bundle.special
+              .map(Number)
+              .filter(value => Number.isInteger(value) && value >= meta.specialMin && value <= meta.specialMax)
+              .filter(value => !meta.specialExcludesMain || !bundle.main.includes(value))
+              .slice(0, 1)
+          : [];
+      });
+      const activeBundle = manualPredictBundles[manualPredictActiveBundleIndex] || createManualPredictionBundle();
+      manualPredictMainNumbers = activeBundle.main;
+      manualPredictSpecialNumbers = activeBundle.special;
+
+      const typeSelect = document.getElementById("manualPredictTypeSelect");
+      if (typeSelect) {
+        typeSelect.value = meta.type;
+        if (typeof typeSelect.__syncCustomSelect === "function") typeSelect.__syncCustomSelect();
+      }
+      const playModeControl = document.getElementById("manualPredictPlayModeControl");
+      const playModeSelect = document.getElementById("manualPredictPlayMode");
+      if (playModeControl) playModeControl.hidden = !meta.supportsBao;
+      if (playModeSelect) {
+        playModeSelect.value = meta.isBao ? "bao" : "normal";
+        if (typeof playModeSelect.__syncCustomSelect === "function") playModeSelect.__syncCustomSelect();
+      }
+      const baoLevelControl = document.getElementById("manualPredictBaoLevelControl");
+      const baoLevelSelect = document.getElementById("manualPredictBaoLevel");
+      if (baoLevelControl) baoLevelControl.hidden = !meta.isBao;
+      if (baoLevelSelect) {
+        baoLevelSelect.innerHTML = meta.baoLevels.map(level => `<option value="${level}">Bao ${level}</option>`).join("");
+        baoLevelSelect.value = meta.isBao ? String(meta.baoLevel) : "";
+        if (typeof baoLevelSelect.__syncCustomSelect === "function") baoLevelSelect.__syncCustomSelect();
+      }
+      const kenoControl = document.getElementById("manualPredictKenoLevelControl");
+      const kenoLevel = document.getElementById("manualPredictKenoLevel");
+      if (kenoControl) kenoControl.hidden = !meta.isKeno;
+      if (kenoLevel) {
+        kenoLevel.value = String(meta.required);
+        if (typeof kenoLevel.__syncCustomSelect === "function") kenoLevel.__syncCustomSelect();
+      }
+      const pageControl = document.getElementById("manualPredict3dPageControl");
+      const pageSelect = document.getElementById("manualPredict3dPage");
+      if (pageControl) pageControl.hidden = !meta.isThreeDigit;
+      if (pageSelect) {
+        pageSelect.value = String(Math.max(0, Math.min(9, Number(manualPredict3dPageValue || 0) || 0)));
+        if (typeof pageSelect.__syncCustomSelect === "function") pageSelect.__syncCustomSelect();
+      }
+      const bundleCountInput = document.getElementById("manualPredictBundleCount");
+      if (bundleCountInput && document.activeElement !== bundleCountInput) {
+        bundleCountInput.value = String(manualPredictBundleCountValue);
+      }
+      const toolbar = document.querySelector("#predictRootManual .manual-predict-toolbar");
+      if (toolbar) {
+        const toolbarColumnCount = 3
+          + Number(meta.supportsBao)
+          + Number(meta.isBao)
+          + Number(meta.isKeno)
+          + Number(meta.isThreeDigit);
+        toolbar.style.setProperty("--manual-toolbar-columns", String(toolbarColumnCount));
+      }
+
+      const numberGrid = document.getElementById("manualPredictNumberGrid");
+      if (numberGrid) {
+        const typeGridClass = ` is-${meta.type.toLowerCase().replaceAll("_", "-")}`;
+        numberGrid.className = `manual-predict-number-grid${typeGridClass}${meta.isKeno ? " is-keno" : ""}${meta.isThreeDigit ? " is-three-digit" : ""}`;
+        numberGrid.innerHTML = renderManualPredictionNumberButtons(
+          getManualPredictionVisibleNumbers(meta),
+          manualPredictMainNumbers,
+          { isThreeDigit: meta.isThreeDigit },
+        );
+      }
+
+      const specialSection = document.getElementById("manualPredictSpecialSection");
+      const specialGrid = document.getElementById("manualPredictSpecialGrid");
+      if (specialSection) specialSection.hidden = !meta.hasManualSpecial;
+      if (specialGrid) {
+        specialGrid.className = `manual-predict-number-grid is-special is-${meta.type.toLowerCase().replaceAll("_", "-")}${meta.specialMax > 12 ? " is-wide" : ""}`;
+        specialGrid.innerHTML = meta.hasManualSpecial
+          ? renderManualPredictionNumberButtons(
+              Array.from({ length: Math.max(0, meta.specialMax - meta.specialMin + 1) }, (_, index) => meta.specialMin + index),
+              manualPredictSpecialNumbers,
+              {
+                kind: "special",
+                disabledValues: meta.specialExcludesMain ? manualPredictMainNumbers : [],
+              },
+            )
+          : "";
+      }
+
+      const mainComplete = manualPredictMainNumbers.length === meta.required;
+      const specialComplete = !meta.hasManualSpecial || manualPredictSpecialNumbers.length === 1;
+      const isComplete = mainComplete && specialComplete;
+      const readyBundleCount = manualPredictBundles.filter(bundle => isManualPredictionBundleComplete(bundle, meta)).length;
+      const remaining = Math.max(0, meta.required - manualPredictMainNumbers.length);
+      const activeBundleNumber = manualPredictActiveBundleIndex + 1;
+      const defaultStatus = isComplete
+        ? `Bộ ${String(activeBundleNumber).padStart(2, "0")} đã đủ và sẵn sàng.`
+        : remaining > 0
+          ? `Chọn thêm ${remaining} số chính${meta.hasManualSpecial && !specialComplete ? " và 1 số đặc biệt" : ""}.`
+          : "Chọn thêm 1 số đặc biệt.";
+      const selectedMainHtml = manualPredictMainNumbers
+        .map(value => `<span class="manual-predict-selected-ball">${formatManualPredictionNumber(value, meta.isThreeDigit)}</span>`)
+        .join("");
+      const selectedSpecialHtml = manualPredictSpecialNumbers.length
+        ? `<span class="manual-predict-selected-ball is-special" title="Số đặc biệt ${formatManualPredictionNumber(manualPredictSpecialNumbers[0])}" aria-label="Số đặc biệt ${formatManualPredictionNumber(manualPredictSpecialNumbers[0])}">${formatManualPredictionNumber(manualPredictSpecialNumbers[0])}</span>`
+        : "";
+      const selectedHtml = selectedMainHtml || selectedSpecialHtml
+        ? `${selectedMainHtml}${selectedSpecialHtml}`
+        : '<span class="manual-predict-empty">Chưa chọn số</span>';
+
+      const setText = (id, value) => {
+        const host = document.getElementById(id);
+        if (host) host.textContent = value;
+      };
+      const modeLabel = meta.isBao ? `Bao ${meta.baoLevel}` : meta.isKeno ? `Bậc ${meta.required}` : "Vé thường";
+      const specialRangeLabel = `${formatManualPredictionNumber(meta.specialMin)}–${formatManualPredictionNumber(meta.specialMax)}`;
+      setText("manualPredictBoardTitle", `${meta.label} • ${modeLabel}`);
+      setText("manualPredictSummaryType", `${meta.label} • ${modeLabel}`);
+      setText("manualPredictMainCount", `${manualPredictMainNumbers.length} / ${meta.required}`);
+      setText("manualPredictSpecialCount", `${manualPredictSpecialNumbers.length} / 1`);
+      setText("manualPredictSpecialTitle", `Chọn 1 số từ ${specialRangeLabel}`);
+      setText(
+        "manualPredictActiveBundleLabel",
+        manualPredictEditorOpenValue
+          ? `Bộ ${String(activeBundleNumber).padStart(2, "0")} đang chọn`
+          : "Chọn bộ",
+      );
+      setText(
+        "manualPredictHint",
+        meta.isBao
+          ? `Bao ${meta.baoLevel}: mỗi bộ chọn đúng ${meta.required} số chính${meta.hasManualSpecial ? " và 1 số đặc biệt" : ""}.`
+          : meta.isThreeDigit
+            ? `Mỗi bộ chọn ${meta.required} bộ 3 chữ số. Dùng mục Nhóm số để chuyển giữa 000–999.`
+            : meta.isKeno
+              ? `Mỗi bộ chọn đúng ${meta.required} số cho Keno bậc ${meta.required}.`
+              : `Mỗi bộ chọn đủ ${meta.required} số chính${meta.hasManualSpecial ? " và 1 số đặc biệt" : ""}.`,
+      );
+      const bundleTabs = document.getElementById("manualPredictBundleTabs");
+      const bundlePageCount = Math.max(1, Math.ceil(manualPredictBundles.length / MANUAL_PREDICT_BUNDLE_PAGE_SIZE));
+      manualPredictBundlePageValue = Math.max(0, Math.min(bundlePageCount - 1, manualPredictBundlePageValue));
+      const bundlePageStart = manualPredictBundlePageValue * MANUAL_PREDICT_BUNDLE_PAGE_SIZE;
+      const bundlePageEnd = Math.min(bundlePageStart + MANUAL_PREDICT_BUNDLE_PAGE_SIZE, manualPredictBundles.length);
+      const visibleBundleCount = Math.max(1, bundlePageEnd - bundlePageStart);
+      const workspace = document.querySelector("#predictRootManual .manual-predict-workspace");
+      if (workspace) {
+        const workspaceMinHeight = Math.max(214, Math.min(554, 124 + visibleBundleCount * 43));
+        workspace.style.setProperty("--manual-workspace-min-height", `${workspaceMinHeight}px`);
+      }
+      if (bundleTabs) {
+        bundleTabs.innerHTML = manualPredictBundles.slice(bundlePageStart, bundlePageEnd).map((bundle, offset) => {
+          const index = bundlePageStart + offset;
+          const isActive = manualPredictEditorOpenValue && index === manualPredictActiveBundleIndex;
+          const isReady = isManualPredictionBundleComplete(bundle, meta);
+          const hasSelection = bundle.main.length > 0 || bundle.special.length > 0;
+          const bundleLabel = `Bộ ${String(index + 1).padStart(2, "0")}`;
+          const preview = bundle.main.length
+            ? bundle.main.slice(0, 5).map(value => formatManualPredictionNumber(value, meta.isThreeDigit)).join(" · ")
+            : "Chưa chọn số";
+          const countLabel = `${bundle.main.length}/${meta.required}${meta.hasManualSpecial ? ` · ĐB ${bundle.special.length}/1` : ""}`;
+          return `
+            <button
+              type="button"
+              class="manual-predict-bundle-tab${isActive ? " is-active" : ""}${isReady ? " is-ready" : ""}${hasSelection && !isReady ? " has-selection" : ""}"
+              data-manual-predict-bundle="${index}"
+              role="tab"
+              aria-selected="${isActive ? "true" : "false"}"
+              aria-label="${bundleLabel}${isReady ? ", đã đủ số" : ", chưa đủ số"}"
+            >
+              <span class="manual-predict-bundle-identity"><strong>${bundleLabel}</strong><small>${countLabel}</small></span>
+              <span class="manual-predict-bundle-preview">${preview}</span>
+              <i aria-hidden="true"></i>
+            </button>
+          `;
+        }).join("");
+      }
+      setText("manualPredictBundleRange", `${bundlePageStart + 1}–${bundlePageEnd}`);
+      setText("manualPredictBundleTotal", `${manualPredictBundleCountValue} bộ`);
+      const bundlePrev = document.getElementById("manualPredictBundlePrev");
+      const bundleNext = document.getElementById("manualPredictBundleNext");
+      if (bundlePrev) bundlePrev.disabled = manualPredictBundlePageValue === 0;
+      if (bundleNext) bundleNext.disabled = manualPredictBundlePageValue >= bundlePageCount - 1;
+      const editorEmpty = document.getElementById("manualPredictEditorEmpty");
+      const editorContent = document.getElementById("manualPredictEditorContent");
+      if (editorEmpty) editorEmpty.hidden = manualPredictEditorOpenValue;
+      if (editorContent) editorContent.hidden = !manualPredictEditorOpenValue;
+      const selectedHost = document.getElementById("manualPredictSelectedNumbers");
+      if (selectedHost) selectedHost.innerHTML = selectedHtml;
+      const summaryHost = document.querySelector("#predictRootManual .manual-predict-summary");
+      if (summaryHost) summaryHost.classList.toggle("is-three-digit", meta.isThreeDigit);
+      const status = document.getElementById("manualPredictStatus");
+      if (status) {
+        const isSavedNotice = /^(Đã lưu |Đã tạo )/.test(String(manualPredictNotice || ""));
+        status.textContent = manualPredictNotice || defaultStatus;
+        status.classList.toggle("is-ready", isComplete && (!manualPredictNotice || isSavedNotice));
+        status.classList.toggle("is-warning", Boolean(manualPredictNotice) && !isSavedNotice);
+      }
+      const readyBadge = document.getElementById("manualPredictReadyBadge");
+      if (readyBadge) {
+        readyBadge.textContent = manualPredictBundleCountValue === 1
+          ? (isComplete ? "Đã đủ số" : "Chưa đủ số")
+          : `${readyBundleCount} / ${manualPredictBundleCountValue} bộ đã đủ`;
+        readyBadge.classList.toggle("is-ready", readyBundleCount === manualPredictBundleCountValue);
+      }
+      const saveButton = document.getElementById("manualPredictSaveBtn");
+      if (saveButton) {
+        saveButton.disabled = readyBundleCount === 0;
+        saveButton.textContent = "Lưu";
+        saveButton.title = readyBundleCount
+          ? `Lưu ${readyBundleCount} bộ hoàn chỉnh`
+          : "Cần ít nhất 1 bộ hoàn chỉnh";
+      }
     }
 
     function getStatsTypeUiMeta(typeKey) {
@@ -4766,7 +5514,7 @@
 
     function buildDashboardEntries() {
       const type = normalizeDashboardGame(dashboardSelectedGame);
-      return buildStatsEntriesForFeed(type, getLiveHistoryFeed(type))
+      const entries = buildStatsEntriesForFeed(type, getLiveHistoryFeed(type))
         .map(entry => {
           const parsedDate = parseLiveDate(entry.draw?.date || "");
           if (!(parsedDate instanceof Date) || Number.isNaN(parsedDate.getTime())) return null;
@@ -4790,6 +5538,28 @@
           if (dateDelta !== 0) return dateDelta;
           return kySortValue(a.ky) - kySortValue(b.ky);
         });
+      return filterDashboardEntriesByScope(entries);
+    }
+
+    function filterDashboardEntriesByScope(entries) {
+      const safeEntries = Array.isArray(entries) ? entries : [];
+      const preset = normalizeDashboardScopePreset(dashboardScopePreset);
+      if (!safeEntries.length || preset === "all") return safeEntries;
+
+      if (preset === "today") {
+        const todayTime = floorDashboardDate(getSyncedNowDate()).getTime();
+        return safeEntries.filter(entry => entry?.dayStart instanceof Date && entry.dayStart.getTime() === todayTime);
+      }
+
+      const count = normalizeDashboardScopeCount(dashboardScopeCount);
+      if (normalizeDashboardScopeMode(dashboardScopeMode) === "draw") {
+        return safeEntries.slice(-count);
+      }
+
+      const latestDay = safeEntries.at(-1)?.dayStart;
+      if (!(latestDay instanceof Date) || Number.isNaN(latestDay.getTime())) return safeEntries;
+      const startTime = shiftDashboardDate(latestDay, -(count - 1)).getTime();
+      return safeEntries.filter(entry => entry?.dayStart instanceof Date && entry.dayStart.getTime() >= startTime);
     }
 
     function getDashboardBucketKey(dateValue, mode) {
@@ -4896,7 +5666,7 @@
       return `
         <article class="lotto-dashboard-hero-shell" style="--dashboard-accent:${escapeHtml(meta.accent)}">
           <div class="lotto-dashboard-hero-copy">
-            <div class="lotto-dashboard-hero-kicker">Loại: ${escapeHtml(meta.label)}</div>
+            <div class="lotto-dashboard-hero-kicker">${escapeHtml(meta.label)}</div>
             <h3 class="lotto-dashboard-hero-title">Kỳ: ${escapeHtml(drawIdLabel)}</h3>
             <div class="lotto-dashboard-hero-meta">Ngày quay: ${escapeHtml(formattedDate)}</div>
             <div class="lotto-dashboard-hero-note">Thời gian quay: ${escapeHtml(formattedTime)}</div>
@@ -5038,6 +5808,56 @@
       if (typeof host.__syncCustomSelect === "function") host.__syncCustomSelect();
     }
 
+    function getDashboardScopeDisplay() {
+      const mode = normalizeDashboardScopeMode(dashboardScopeMode);
+      const preset = normalizeDashboardScopePreset(dashboardScopePreset);
+      const modeLabel = mode === "draw" ? "Kỳ" : "Ngày";
+      const rangeLabel = preset === "today"
+        ? "Today"
+        : preset === "all"
+          ? "All"
+          : formatDashboardInteger(normalizeDashboardScopeCount(dashboardScopeCount));
+      return { mode, preset, modeLabel, rangeLabel };
+    }
+
+    function renderDashboardScopeFilter() {
+      const summaryHost = document.getElementById("lottoDashboardScopeSummary");
+      const countInput = document.getElementById("lottoDashboardScopeCount");
+      const inputLabel = document.getElementById("lottoDashboardScopeInputLabel");
+      const customPresetButton = document.getElementById("lottoDashboardScopeCustomPreset");
+      const hintHost = document.getElementById("lottoDashboardScopeHint");
+      const scope = getDashboardScopeDisplay();
+      if (summaryHost) summaryHost.textContent = `${scope.modeLabel} · ${scope.rangeLabel}`;
+      if (inputLabel) inputLabel.textContent = scope.mode === "draw" ? "Số kỳ" : "Số ngày";
+      if (countInput) {
+        countInput.placeholder = scope.mode === "draw" ? "Nhập số kỳ" : "Nhập số ngày";
+        countInput.setAttribute("aria-label", countInput.placeholder);
+        countInput.value = scope.preset === "custom" ? String(normalizeDashboardScopeCount(dashboardScopeCount)) : "";
+      }
+      if (customPresetButton) {
+        const customCount = formatDashboardInteger(normalizeDashboardScopeCount(dashboardScopeCount));
+        customPresetButton.textContent = `${customCount} ${scope.mode === "draw" ? "kỳ" : "ngày"}`;
+        customPresetButton.title = `Hiển thị ${customCount} ${scope.mode === "draw" ? "kỳ gần nhất" : "ngày gần nhất"}`;
+      }
+      document.querySelectorAll("[data-dashboard-scope-mode]").forEach(button => {
+        const isActive = normalizeDashboardScopeMode(button.dataset.dashboardScopeMode) === scope.mode;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+      document.querySelectorAll("[data-dashboard-scope-preset]").forEach(button => {
+        const isActive = normalizeDashboardScopePreset(button.dataset.dashboardScopePreset) === scope.preset;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      if (hintHost) {
+        hintHost.textContent = scope.preset === "today"
+          ? "Chỉ hiển thị các kỳ quay trong hôm nay."
+          : scope.preset === "all"
+            ? `Đang hiển thị toàn bộ ${scope.mode === "draw" ? "kỳ" : "ngày"} có dữ liệu.`
+            : `Hiển thị ${scope.rangeLabel} ${scope.mode === "draw" ? "kỳ gần nhất" : "ngày gần nhất"}.`;
+      }
+    }
+
     function getDashboardDistributionSubtitle(type, mode) {
       const meta = getDashboardTypeMeta(type);
       const normalizedMode = normalizeDashboardDistributionView(mode);
@@ -5174,6 +5994,58 @@
       `;
     }
 
+    function renderDashboardPieSegments(rows) {
+      const safeRows = (Array.isArray(rows) ? rows : []).filter(row => Number(row.percent || 0) > 0);
+      const radius = 88;
+      let accumulatedPercent = 0;
+      const pointAtAngle = angle => {
+        const radians = (angle * Math.PI) / 180;
+        return {
+          x: 100 + (radius * Math.cos(radians)),
+          y: 100 + (radius * Math.sin(radians)),
+        };
+      };
+      return safeRows.map(row => {
+        const percent = Math.max(0, Math.min(100, Number(row.percent || 0)));
+        const startAngle = -90 + (accumulatedPercent * 3.6);
+        const endAngle = startAngle + (percent * 3.6);
+        accumulatedPercent += percent;
+        const exactPercent = formatChartStatsPercent(percent);
+        const roundedPercent = `${Math.round(percent)}%`;
+        if (percent >= 99.999) {
+          return `
+            <g class="lotto-dashboard-pie-slice">
+              <circle class="lotto-dashboard-pie-segment" cx="100" cy="100" r="${radius}" fill="${escapeHtml(row.color)}">
+                <title>${escapeHtml(`${row.label}: ${exactPercent}`)}</title>
+              </circle>
+              <text class="lotto-dashboard-pie-slice-label is-full" x="100" y="101">${escapeHtml(roundedPercent)}</text>
+            </g>
+          `;
+        }
+        const start = pointAtAngle(startAngle);
+        const end = pointAtAngle(endAngle);
+        const largeArcFlag = percent > 50 ? 1 : 0;
+        const labelAngle = startAngle + ((percent * 3.6) / 2);
+        const labelRadius = percent < 12 ? 65 : 56;
+        const labelRadians = (labelAngle * Math.PI) / 180;
+        const labelX = 100 + (labelRadius * Math.cos(labelRadians));
+        const labelY = 100 + (labelRadius * Math.sin(labelRadians));
+        const label = percent >= 7
+          ? `<text class="lotto-dashboard-pie-slice-label" x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}">${escapeHtml(roundedPercent)}</text>`
+          : "";
+        return `
+          <g class="lotto-dashboard-pie-slice">
+            <path
+              class="lotto-dashboard-pie-segment"
+              d="M 100 100 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z"
+              fill="${escapeHtml(row.color)}"
+            ><title>${escapeHtml(`${row.label}: ${exactPercent}`)}</title></path>
+            ${label}
+          </g>
+        `;
+      }).join("");
+    }
+
     function renderDashboardDistributionPanel(type, entries, mode) {
       const rows = computeDashboardDistributionRows(type, entries, mode);
       const normalizedMode = normalizeDashboardDistributionView(mode);
@@ -5183,16 +6055,7 @@
       if (!activeRows.length || !total) {
         return `<div class="lotto-dashboard-empty-state">Chưa đủ dữ liệu để dựng phân bổ riêng cho ${escapeHtml(getDashboardTypeMeta(type).label)}.</div>`;
       }
-      const radius = 76;
-      const stroke = 22;
-      const circumference = 2 * Math.PI * radius;
-      let accumulated = 0;
-      const segments = activeRows.map(row => {
-        const segmentLength = (Number(row.percent || 0) / 100) * circumference;
-        const dashOffset = circumference - accumulated;
-        accumulated += segmentLength;
-        return `<circle class="lotto-dashboard-donut-segment" cx="100" cy="100" r="${radius}" fill="none" stroke="${escapeHtml(row.color)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${segmentLength.toFixed(3)} ${(circumference - segmentLength).toFixed(3)}" stroke-dashoffset="${dashOffset.toFixed(3)}"></circle>`;
-      }).join("");
+      const segments = renderDashboardPieSegments(activeRows);
       const selectedTemperatureRow = isTemperatureMode
         ? rows.find(row => row.key === dashboardSelectedTemperatureKey && Number(row.count || 0) > 0) || null
         : null;
@@ -5206,14 +6069,15 @@
       return `
         <div class="lotto-dashboard-donut-layout">
           <div class="lotto-dashboard-donut-wrap">
-            <svg class="lotto-dashboard-donut-svg" viewBox="0 0 200 200" aria-hidden="true">
-              <circle class="lotto-dashboard-donut-track" cx="100" cy="100" r="${radius}" fill="none" stroke-width="${stroke}"></circle>
-              <g class="lotto-dashboard-donut-ring">${segments}</g>
+            <svg class="lotto-dashboard-donut-svg is-pie" viewBox="0 0 200 200" role="img" aria-label="Biểu đồ tròn tỷ lệ ${escapeHtml(centerLabel)}">
+              <g class="lotto-dashboard-pie">${segments}</g>
             </svg>
-            <div class="lotto-dashboard-donut-center">
-              <div class="lotto-dashboard-donut-center-value">${escapeHtml(centerValue)}</div>
-              <div class="lotto-dashboard-donut-center-label">${escapeHtml(centerLabel)}</div>
-              <div class="lotto-dashboard-donut-center-meta">${escapeHtml(centerMeta)}</div>
+            <div class="lotto-dashboard-pie-summary">
+              <div class="lotto-dashboard-pie-summary-value">${escapeHtml(centerValue)}</div>
+              <div class="lotto-dashboard-pie-summary-copy">
+                <div class="lotto-dashboard-pie-summary-label">${escapeHtml(centerLabel)}</div>
+                <div class="lotto-dashboard-pie-summary-meta">${escapeHtml(centerMeta)}</div>
+              </div>
             </div>
           </div>
           <div class="lotto-dashboard-donut-legend">
@@ -5229,6 +6093,9 @@
                 <div class="lotto-dashboard-donut-legend-copy">
                   <div class="lotto-dashboard-donut-legend-label">${escapeHtml(row.label)}</div>
                   <div class="lotto-dashboard-donut-legend-meta">${escapeHtml(row.meta || "")}</div>
+                  <div class="lotto-dashboard-donut-legend-ratio" aria-hidden="true">
+                    <span style="width:${Math.max(0, Math.min(100, Number(row.percent || 0))).toFixed(2)}%;--dashboard-color:${escapeHtml(row.color)}"></span>
+                  </div>
                 </div>
                 <div class="lotto-dashboard-donut-legend-values">
                   <div class="lotto-dashboard-donut-legend-percent">${escapeHtml(formatChartStatsPercent(row.percent))}</div>
@@ -5422,6 +6289,7 @@
       if (!heroHost || !quickStatsHost || !activityStatsHost || !activityOut || !distributionOut || !updatedAtHost || !statusHost) return;
 
       renderDashboardGameSelect();
+      renderDashboardScopeFilter();
       renderDashboardActivityTabs();
       renderDashboardDistributionTabs();
 

@@ -160,6 +160,43 @@
       </div>
       <div class="top-right">
         <div class="currency-bar">
+          <div id="vipMembershipWrap" class="header-tool-wrap vip-membership-wrap is-expired" data-vip-tooltip="Đã hết hạn">
+            <button id="vipMembershipBtn" class="vip-membership-btn" type="button" title="VIP đã hết hạn" aria-label="VIP đã hết hạn. Bấm để xem và gia hạn." aria-expanded="false" aria-controls="vipMembershipPanel">
+              <svg class="vip-membership-logo" viewBox="0 0 64 64" aria-hidden="true">
+                <defs>
+                  <linearGradient id="vipLogoGradient" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#fff7ba"></stop>
+                    <stop offset=".42" stop-color="#ffd44f"></stop>
+                    <stop offset="1" stop-color="#f08b22"></stop>
+                  </linearGradient>
+                </defs>
+                <path class="vip-membership-logo-frame" d="M32 3 55 16v32L32 61 9 48V16Z" fill="rgba(251,191,36,.12)" stroke="url(#vipLogoGradient)" stroke-width="2"></path>
+                <path class="vip-membership-logo-crown" d="m14 20 10 8 8-15 8 15 10-8-5 24H19Z" fill="url(#vipLogoGradient)" stroke="#fff3b0" stroke-width=".9" stroke-linejoin="round"></path>
+                <path class="vip-membership-logo-line" d="M20 48h24" fill="none" stroke="#ffd761" stroke-width="2.4" stroke-linecap="round"></path>
+                <text class="vip-membership-logo-text" x="32" y="58" text-anchor="middle">VIP</text>
+              </svg>
+            </button>
+            <div id="vipMembershipPanel" class="header-popover vip-membership-popover" hidden>
+              <div class="header-popover-head">
+                <div><strong>Thành viên VIP</strong><span id="vipMembershipPanelStatus">Trạng thái tài khoản</span></div>
+                <span id="vipMembershipStateBadge" class="vip-membership-state-badge is-expired">Hết hạn</span>
+              </div>
+              <div class="vip-membership-card">
+                <div class="vip-membership-card-mark" aria-hidden="true">VIP</div>
+                <div class="vip-membership-card-copy">
+                  <span id="vipMembershipRemainingLabel">Thời gian còn lại</span>
+                  <strong id="vipMembershipRemaining">Đã hết hạn</strong>
+                  <time id="vipMembershipExpiry">Chưa có thời hạn VIP</time>
+                </div>
+              </div>
+              <div class="vip-membership-access-note">
+                <span class="vip-membership-access-dot" aria-hidden="true"></span>
+                <div><strong id="vipMembershipAccessTitle">Quyền VIP đang khóa</strong><span>Các mục VIP tương ứng đã sẵn sàng để kết nối ở bản cập nhật sau.</span></div>
+              </div>
+              <button id="vipMembershipRenewBtn" class="header-panel-command vip-membership-renew-btn" type="button"><span aria-hidden="true">↻</span><span>Gia hạn VIP</span></button>
+              <div id="vipMembershipRenewMessage" class="vip-membership-renew-message" aria-live="polite" hidden></div>
+            </div>
+          </div>
           <span class="currency-chip">
             <span class="currency-icon" aria-hidden="true">◆</span>
             <span id="diamondBalance">0</span>
@@ -667,12 +704,167 @@
         <div class="predict-workspace-title">Thống kê và dự đoán</div>
         <div class="predict-tab-bar" role="tablist" aria-label="Chọn hệ dự đoán">
           <button id="predictModeNormalTab" type="button" class="predict-tab-btn is-active" data-predict-mode-tab="normal">Dự đoán thường</button>
+          <button id="predictModeManualTab" type="button" class="predict-tab-btn" data-predict-mode-tab="manual">Dự đoán thủ công</button>
           <button id="predictModeVipTab" type="button" class="predict-tab-btn" data-predict-mode-tab="vip">Dự đoán VIP</button>
           <button id="predictModeStatsTab" type="button" class="predict-tab-btn" data-predict-mode-tab="stats">Thống kê</button>
           <button id="predictModeStatsV2Tab" type="button" class="predict-tab-btn" data-predict-mode-tab="stats-v2">Thống kê V2</button>
           <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu đồ</button>
           <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard</button>
           <button id="predictModeAnalysisTab" type="button" class="predict-tab-btn" data-predict-mode-tab="analysis">Phân tích</button>
+        </div>
+      </section>
+      <section id="predictRootManual" class="card predict-card predict-root predict-root-manual" hidden>
+        <div class="predict-card-head">
+          <div>
+            <span class="predict-manual-kicker">MANUAL MODE</span>
+            <h2>Dự Đoán Thủ Công</h2>
+            <p class="predict-card-subtitle">Chọn loại xổ số rồi bấm trực tiếp vào bảng số để tạo bộ dự đoán của bạn.</p>
+          </div>
+          <div class="predict-card-actions">
+            <button id="manualPredictionHistoryBtn" type="button" class="predict-card-chip is-button manual-predict-history-btn" aria-label="Mở lịch sử dự đoán" aria-haspopup="dialog" aria-controls="predictionHistoryOverlay" title="Lịch sử dự đoán">Lịch Sử</button>
+            <span id="manualPredictReadyBadge" class="predict-card-chip">Chưa đủ số</span>
+          </div>
+        </div>
+        <div class="manual-predict-toolbar">
+          <label class="manual-predict-control">
+            <span>Chọn loại</span>
+            <select id="manualPredictTypeSelect" aria-label="Chọn loại xổ số để dự đoán thủ công">
+              <option value="LOTO_5_35" selected>Lotto 5/35</option>
+              <option value="LOTO_6_45">Mega 6/45</option>
+              <option value="LOTO_6_55">Power 6/55</option>
+              <option value="KENO">Keno</option>
+              <option value="MAX_3D">Max 3D</option>
+              <option value="MAX_3D_PRO">Max 3D Pro</option>
+            </select>
+          </label>
+          <label id="manualPredictPlayModeControl" class="manual-predict-control">
+            <span>Cách chơi</span>
+            <select id="manualPredictPlayMode" aria-label="Chọn vé thường hoặc bao số">
+              <option value="normal" selected>Vé thường</option>
+              <option value="bao">Bao số</option>
+            </select>
+          </label>
+          <label id="manualPredictBaoLevelControl" class="manual-predict-control" hidden>
+            <span>Chọn Bao</span>
+            <select id="manualPredictBaoLevel" aria-label="Chọn cấp Bao"></select>
+          </label>
+          <label id="manualPredictKenoLevelControl" class="manual-predict-control" hidden>
+            <span>Bậc Keno</span>
+            <select id="manualPredictKenoLevel" aria-label="Chọn số lượng số Keno">
+              <option value="1">Bậc 1</option>
+              <option value="2">Bậc 2</option>
+              <option value="3">Bậc 3</option>
+              <option value="4">Bậc 4</option>
+              <option value="5" selected>Bậc 5</option>
+              <option value="6">Bậc 6</option>
+              <option value="7">Bậc 7</option>
+              <option value="8">Bậc 8</option>
+              <option value="9">Bậc 9</option>
+              <option value="10">Bậc 10</option>
+            </select>
+          </label>
+          <label id="manualPredict3dPageControl" class="manual-predict-control" hidden>
+            <span>Nhóm số</span>
+            <select id="manualPredict3dPage" aria-label="Chọn nhóm số ba chữ số">
+              <option value="0">000 – 099</option>
+              <option value="1">100 – 199</option>
+              <option value="2">200 – 299</option>
+              <option value="3">300 – 399</option>
+              <option value="4">400 – 499</option>
+              <option value="5">500 – 599</option>
+              <option value="6">600 – 699</option>
+              <option value="7">700 – 799</option>
+              <option value="8">800 – 899</option>
+              <option value="9">900 – 999</option>
+            </select>
+          </label>
+          <label class="manual-predict-control">
+            <span>Số bộ · Tối đa 100</span>
+            <input id="manualPredictBundleCount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" spellcheck="false" value="1" aria-label="Nhập số bộ dự đoán thủ công">
+          </label>
+          <div class="manual-predict-toolbar-actions">
+            <button id="manualPredictSaveBtn" type="button" class="manual-predict-save-btn" disabled>Lưu</button>
+            <button id="manualPredictResetBtn" type="button" class="manual-predict-reset-btn">Xóa tất cả</button>
+          </div>
+        </div>
+        <div id="manualPredictHint" class="manual-predict-hint">Chọn đủ 5 số chính và 1 số đặc biệt.</div>
+        <div class="manual-predict-workspace">
+          <aside class="manual-predict-bundle-nav">
+            <div class="manual-predict-bundle-nav-head">
+              <span>Danh sách bộ</span>
+              <strong id="manualPredictActiveBundleLabel">Chọn một bộ</strong>
+            </div>
+            <div class="manual-predict-bundle-pager" aria-label="Chuyển nhóm bộ số">
+              <button id="manualPredictBundlePrev" type="button" aria-label="Xem 10 bộ trước" title="10 bộ trước">▲</button>
+              <span id="manualPredictBundleRange" aria-live="polite">1–1</span>
+              <button id="manualPredictBundleNext" type="button" aria-label="Xem 10 bộ tiếp theo" title="10 bộ tiếp theo">▼</button>
+            </div>
+            <div id="manualPredictBundleTabs" class="manual-predict-bundle-tabs" role="tablist" aria-label="Chọn bộ số muốn chỉnh">
+              <button type="button" class="manual-predict-bundle-tab is-active" data-manual-predict-bundle="0" role="tab" aria-selected="true"><span>Bộ 01</span><i aria-hidden="true"></i></button>
+            </div>
+            <div class="manual-predict-bundle-nav-foot">
+              <span id="manualPredictBundleTotal">1 bộ</span>
+              <small>Bấm vào một bộ để chọn số</small>
+            </div>
+          </aside>
+          <div id="manualPredictEditorEmpty" class="manual-predict-editor-empty">
+            <span aria-hidden="true">＋</span>
+            <strong>Chọn một bộ ở cột bên trái</strong>
+            <small>Bảng số tương ứng sẽ mở tại đây.</small>
+          </div>
+          <div id="manualPredictEditorContent" class="manual-predict-layout" hidden>
+            <section class="manual-predict-board">
+              <div class="manual-predict-board-head">
+                <div>
+                  <span class="manual-predict-board-kicker">BẢNG CHỌN SỐ</span>
+                  <strong id="manualPredictBoardTitle">Lotto 5/35</strong>
+                </div>
+                <span id="manualPredictMainCount" class="manual-predict-count">0 / 5</span>
+              </div>
+              <div id="manualPredictNumberGrid" class="manual-predict-number-grid" role="group" aria-label="Bảng chọn số chính"></div>
+              <section id="manualPredictSpecialSection" class="manual-predict-special" hidden>
+                <div class="manual-predict-board-head is-special">
+                  <div>
+                    <span class="manual-predict-board-kicker">SỐ ĐẶC BIỆT</span>
+                    <strong id="manualPredictSpecialTitle">Chọn 1 số từ 01–12</strong>
+                  </div>
+                  <span id="manualPredictSpecialCount" class="manual-predict-count is-special">0 / 1</span>
+                </div>
+                <div id="manualPredictSpecialGrid" class="manual-predict-number-grid is-special" role="group" aria-label="Bảng chọn số đặc biệt"></div>
+              </section>
+              <div class="manual-predict-random-actions" aria-label="Tạo nhanh bộ số ngẫu nhiên">
+                <div class="manual-predict-random-counter" aria-label="Bộ đếm thời gian dùng cho Ngẫu nhiên 1">
+                  <span>TIME SEED</span>
+                  <strong id="manualPredictRealtimeCounter" aria-live="off">00:00:00</strong>
+                  <small>Lấy 2 số cuối khi bấm</small>
+                </div>
+                <button id="manualPredictFortuneBtn" type="button" class="manual-predict-random-btn is-fortune">
+                  <span aria-hidden="true">✦</span>
+                  <strong>Thần Tài</strong>
+                  <small>Ngẫu nhiên 1</small>
+                </button>
+                <button id="manualPredictCustomRandomBtn" type="button" class="manual-predict-random-btn is-custom">
+                  <span aria-hidden="true">⟳</span>
+                  <strong>Tự Chọn</strong>
+                  <small>Ngẫu nhiên 2</small>
+                </button>
+                <details id="manualPredictRandomLog" class="manual-predict-random-log" hidden>
+                  <summary>Chi tiết tính Ngẫu Nhiên 1</summary>
+                  <pre id="manualPredictRandomLogContent"></pre>
+                </details>
+              </div>
+            </section>
+            <aside class="manual-predict-summary">
+              <div class="manual-predict-summary-head">
+                <span>Bộ số đã chọn</span>
+                <span id="manualPredictSummaryType">Lotto 5/35</span>
+              </div>
+              <div id="manualPredictSelectedNumbers" class="manual-predict-selected-numbers">
+                <span class="manual-predict-empty">Chưa chọn số</span>
+              </div>
+              <div id="manualPredictStatus" class="manual-predict-status" aria-live="polite">Hãy chọn số trên bảng.</div>
+            </aside>
+          </div>
         </div>
       </section>
       <!-- ----- Khu dự đoán kỳ tới ----- -->
@@ -983,6 +1175,31 @@
                   <span class="lotto-dashboard-picker-label">Game đang theo dõi</span>
                   <select id="lottoDashboardGameSelect" class="lotto-dashboard-game-select" aria-label="Chọn game để xem dashboard"></select>
                 </div>
+                <div class="lotto-dashboard-scope-picker">
+                  <span class="lotto-dashboard-picker-label">Kiểu dữ liệu</span>
+                  <details id="lottoDashboardScopeFilter" class="lotto-dashboard-scope-filter">
+                    <summary class="lotto-dashboard-scope-summary" aria-label="Chọn kiểu và phạm vi dữ liệu">
+                      <strong id="lottoDashboardScopeSummary">Ngày · All</strong>
+                      <span class="lotto-dashboard-scope-caret" aria-hidden="true"></span>
+                    </summary>
+                    <div class="lotto-dashboard-scope-popover">
+                      <div class="lotto-dashboard-scope-mode" role="tablist" aria-label="Lọc dữ liệu theo ngày hoặc kỳ">
+                        <button type="button" data-dashboard-scope-mode="day" role="tab" aria-selected="true">Ngày</button>
+                        <button type="button" data-dashboard-scope-mode="draw" role="tab" aria-selected="false">Kỳ</button>
+                      </div>
+                      <label class="lotto-dashboard-scope-input-wrap" for="lottoDashboardScopeCount">
+                        <span id="lottoDashboardScopeInputLabel">Số ngày</span>
+                        <input id="lottoDashboardScopeCount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" spellcheck="false" placeholder="Nhập số ngày">
+                      </label>
+                      <div class="lotto-dashboard-scope-presets" aria-label="Chọn nhanh phạm vi dữ liệu">
+                        <button type="button" data-dashboard-scope-preset="today">Today</button>
+                        <button id="lottoDashboardScopeCustomPreset" type="button" data-dashboard-scope-preset="custom">30 ngày</button>
+                        <button type="button" data-dashboard-scope-preset="all" class="is-active">All</button>
+                      </div>
+                      <p id="lottoDashboardScopeHint" class="lotto-dashboard-scope-hint">Đang hiển thị toàn bộ ngày có dữ liệu.</p>
+                    </div>
+                  </details>
+                </div>
                 <button id="lottoDashboardStatusBtn" type="button" class="lotto-dashboard-icon-btn is-status" title="Trạng thái dữ liệu" aria-label="Trạng thái dữ liệu">●</button>
                 <button id="lottoDashboardSettingsBtn" type="button" class="lotto-dashboard-icon-btn" title="Tùy chỉnh dashboard" aria-label="Tùy chỉnh dashboard">⚙</button>
                 <div id="lottoDashboardUpdatedAt" class="lotto-dashboard-updated">Cập nhật: đang chờ dữ liệu</div>
@@ -1102,7 +1319,7 @@
             <div class="predict-history-head">
               <div class="predict-history-head-main">
                 <div class="predict-history-head-top">
-                  <div class="predict-history-title">Lịch Sử Dự Đoán</div>
+                  <div id="predictionHistoryTitle" class="predict-history-title">Lịch Sử Dự Đoán</div>
                 </div>
                 <div class="predict-history-subtitle">Tự lưu sau mỗi lần dự đoán để bạn đối chiếu khi kỳ đó đã xổ.</div>
               </div>

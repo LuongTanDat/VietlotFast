@@ -74,6 +74,49 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertIn(".header-icon-badge", styles)
         self.assertIn(".side-account-card", styles)
 
+    def test_header_vip_membership_badge_tracks_expiry_and_renewal(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+        top_right = html[html.index('<div class="top-right">'):html.index("</header>")]
+
+        for element_id in (
+            "vipMembershipWrap",
+            "vipMembershipBtn",
+            "vipMembershipPanel",
+            "vipMembershipStateBadge",
+            "vipMembershipRemaining",
+            "vipMembershipExpiry",
+            "vipMembershipRenewBtn",
+            "vipMembershipRenewMessage",
+        ):
+            self.assertIn(f'id="{element_id}"', top_right)
+        self.assertIn('class="vip-membership-logo"', top_right)
+        self.assertIn('class="vip-membership-logo-text"', top_right)
+        self.assertIn('fill="url(#vipLogoGradient)"', top_right)
+        self.assertNotIn("pngtree.com", top_right)
+
+        self.assertIn('vipStartedAt: ""', core)
+        self.assertIn('vipExpiresAt: ""', core)
+        self.assertIn("base.vipExpiresAt = String(parsed.vipExpiresAt || \"\")", core)
+        self.assertIn("function getVipMembershipState", core)
+        self.assertIn("function formatVipMembershipRemaining", core)
+        self.assertIn("function hasActiveVipMembership", core)
+        self.assertIn("function renderVipMembership", core)
+        self.assertIn("function requestVipMembershipRenewal", core)
+        self.assertIn("function setVipMembershipExpiry", core)
+        self.assertIn('new CustomEvent("vip-renew-request"', core)
+        self.assertIn('document.documentElement.dataset.vipMembership = state.active ? "active" : "expired"', core)
+        self.assertIn("if (document.hidden) return;", core)
+        self.assertIn('toggleHeaderPopover("vipMembershipBtn", "vipMembershipPanel")', core)
+
+        self.assertIn(".vip-membership-wrap.is-active .vip-membership-btn", styles)
+        self.assertIn(".vip-membership-wrap.is-expired .vip-membership-btn", styles)
+        self.assertIn(".vip-membership-logo-text", styles)
+        self.assertIn(".vip-membership-wrap:hover::after", styles)
+        self.assertIn(".vip-membership-renew-btn", styles)
+        self.assertIn("@keyframes vip-membership-active-glow", styles)
+
     def test_store_saves_are_coalesced_and_unchanged_snapshots_are_skipped(self):
         source = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
 
@@ -113,6 +156,133 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertNotIn("renderPredictOutput()", timer_block)
         self.assertNotIn("renderPredictVipOutput()", timer_block)
         self.assertIn("updateLiveResultsCountdownText()", timer_block)
+
+    def test_manual_prediction_has_a_dedicated_navigation_mode(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="predictModeManualTab"', html)
+        self.assertIn('data-predict-mode-tab="manual">Dự đoán thủ công</button>', html)
+        self.assertIn('id="predictRootManual"', html)
+        self.assertIn('const PREDICTION_MODE_MANUAL = "manual";', core)
+        self.assertIn("if (normalized === PREDICTION_MODE_MANUAL)", core)
+        self.assertIn('document.getElementById("predictRootManual")', stats)
+        self.assertIn("manualRoot.hidden = predictPageModeValue !== PREDICTION_MODE_MANUAL", stats)
+        self.assertIn("grid-template-columns: repeat(8, minmax(0, 1fr));", styles)
+        for element_id in (
+            "manualPredictTypeSelect",
+            "manualPredictPlayMode",
+            "manualPredictBaoLevel",
+            "manualPredictKenoLevel",
+            "manualPredict3dPage",
+            "manualPredictBundleCount",
+            "manualPredictBundleTabs",
+            "manualPredictBundleRange",
+            "manualPredictBundlePrev",
+            "manualPredictBundleNext",
+            "manualPredictEditorEmpty",
+            "manualPredictEditorContent",
+            "manualPredictNumberGrid",
+            "manualPredictSpecialGrid",
+            "manualPredictFortuneBtn",
+            "manualPredictCustomRandomBtn",
+            "manualPredictRealtimeCounter",
+            "manualPredictRandomLog",
+            "manualPredictRandomLogContent",
+            "manualPredictSelectedNumbers",
+            "manualPredictSaveBtn",
+            "manualPredictResetBtn",
+            "manualPredictionHistoryBtn",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn("function renderManualPredictionPanel()", stats)
+        self.assertIn("function toggleManualPredictionNumber(kind, rawValue)", stats)
+        self.assertIn("function setManualPredictionBundleCount(value)", stats)
+        self.assertIn("function activateManualPredictionBundle(index)", stats)
+        self.assertIn("function resetManualPredictionBundles(notice", stats)
+        self.assertIn("hasManualSpecial: Boolean(source.hasSpecial)", stats)
+        self.assertIn("getPredictBaoLevels(type)", stats)
+        self.assertIn("required: isBao", stats)
+        self.assertIn("manualPredictBundles.filter", stats)
+        self.assertIn("replace(/\\D/g, \"\")", core)
+        self.assertIn("Array.from({ length: 100 }", stats)
+        self.assertIn(".manual-predict-number-grid", styles)
+        self.assertIn(".manual-predict-bundle-tabs", styles)
+        self.assertIn(".manual-predict-workspace", styles)
+        self.assertIn("grid-template-columns: repeat(var(--manual-toolbar-columns), minmax(0, 1fr));", styles)
+        self.assertIn('toolbar.style.setProperty("--manual-toolbar-columns"', stats)
+        self.assertIn(".manual-predict-control[hidden]", styles)
+        self.assertIn('.manual-predict-toolbar .manual-predict-control input:not([type="checkbox"]):not([type="radio"])', styles)
+        self.assertNotIn("manual-predict-toolbar-fields", html)
+        self.assertIn("overflow-y: auto;", styles)
+        self.assertIn("manualPredictEditorOpenValue = true", stats)
+        self.assertIn("const MANUAL_PREDICT_BUNDLE_PAGE_SIZE = 10;", core)
+        self.assertIn("function changeManualPredictionBundlePage(offset)", stats)
+        self.assertIn("slice(bundlePageStart, bundlePageEnd)", stats)
+        self.assertIn("grid-auto-rows: 40px;", styles)
+        self.assertIn("--manual-workspace-min-height: 214px;", styles)
+        self.assertIn('workspace.style.setProperty("--manual-workspace-min-height"', stats)
+        self.assertNotIn("activeTab.scrollIntoView", stats)
+        self.assertNotIn('id="manualPredictSelectedSpecial"', html)
+        self.assertIn('class="manual-predict-selected-ball is-special"', stats)
+        self.assertIn(".manual-predict-selected-ball.is-special", styles)
+        self.assertNotIn(".manual-predict-selected-special", styles)
+        self.assertIn('manualPredictionHistoryBtn.addEventListener("click"', core)
+        self.assertIn('document.getElementById("manualPredictionHistoryBtn")', data)
+        self.assertIn(".manual-predict-history-btn", styles)
+        self.assertIn('title="Lịch sử dự đoán">Lịch Sử</button>', html)
+        self.assertNotIn('<span aria-hidden="true">↺</span>', html)
+        self.assertIn("async function saveManualPrediction()", stats)
+        self.assertIn("predictionMode: PREDICTION_MODE_MANUAL", stats)
+        self.assertIn('saveStore({ reason: "manual_prediction_save" })', stats)
+        self.assertIn(".manual-predict-save-btn", styles)
+        self.assertIn("predictionHistoryDisplayModeValue", data)
+        self.assertIn("function randomizeManualPredictionBundle(variant", stats)
+        self.assertIn("function sampleManualPredictionNumbers(", stats)
+        self.assertIn(".manual-predict-random-actions", styles)
+        self.assertIn(".manual-predict-random-counter", styles)
+        self.assertIn(".manual-predict-random-log", styles)
+
+    def test_manual_random_one_matches_required_vectors(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+
+        self.assertIn("function reduceToRange(", stats)
+        self.assertIn("function resolveDuplicate(", stats)
+        self.assertIn("function generateNumbers(", stats)
+        self.assertIn("function captureManualPredictionTimeValue()", stats)
+        self.assertIn("const effectiveTimeValue = timeValue === 0 ? maxNumber : timeValue;", stats)
+        generate_start = stats.index("function generateNumbers(")
+        generate_end = stats.index("function getManualPredictionRealtimeNow()", generate_start)
+        self.assertNotIn(".sort(", stats[generate_start:generate_end])
+
+        def reduce_to_range(value, max_number):
+            while value > max_number:
+                quotient = value // max_number
+                remainder = value % max_number
+                value = quotient + remainder
+            return max_number if value == 0 else value
+
+        def resolve_duplicate(value, used_numbers, max_number):
+            checked_count = 0
+            while value in used_numbers:
+                value += 1
+                if value > max_number:
+                    value = 1
+                checked_count += 1
+                if checked_count >= max_number:
+                    raise ValueError("Không còn số hợp lệ chưa được sử dụng.")
+            return value
+
+        self.assertEqual(reduce_to_range(90, 35), 22)
+        self.assertEqual(reduce_to_range(180, 35), 10)
+        self.assertEqual(reduce_to_range(540, 35), 30)
+        self.assertEqual(reduce_to_range(1620, 35), 22)
+        self.assertEqual(reduce_to_range(90, 12), 2)
+        self.assertEqual(resolve_duplicate(22, {22}, 35), 23)
+        self.assertEqual(resolve_duplicate(35, {35, 1, 2}, 35), 3)
 
     def test_live_cards_refresh_only_the_selected_lottery_type(self):
         data = (ROOT / "frontend" / "vietlott-web-data.js").read_text(encoding="utf-8")
@@ -246,11 +416,82 @@ class WebPerformanceContractTests(unittest.TestCase):
         hero_end = stats.index("function computeDashboardQuickStats", hero_start)
         hero_block = stats[hero_start:hero_end]
 
-        for label in ("Loại:", "Kỳ:", "Ngày quay:", "Thời gian quay:"):
+        for label in ("Kỳ:", "Ngày quay:", "Thời gian quay:"):
             self.assertIn(label, hero_block)
-        for removed_text in ("kết quả ghi nhận", "Nhiệt bóng:", "ĐB nóng:"):
+        self.assertIn('<div class="lotto-dashboard-hero-kicker">${escapeHtml(meta.label)}</div>', hero_block)
+        for removed_text in ("Loại:", "kết quả ghi nhận", "Nhiệt bóng:", "ĐB nóng:"):
             self.assertNotIn(removed_text, hero_block)
         self.assertIn("latestEntry.draw?.time || feed?.latestTime", hero_block)
+
+    def test_dashboard_scope_filter_supports_day_draw_today_and_all(self):
+        html = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
+        core = (ROOT / "frontend" / "vietlott-web-core.js").read_text(encoding="utf-8")
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+
+        for element_id in (
+            "lottoDashboardScopeFilter",
+            "lottoDashboardScopeSummary",
+            "lottoDashboardScopeCount",
+            "lottoDashboardScopeCustomPreset",
+            "lottoDashboardScopeHint",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn('data-dashboard-scope-mode="day"', html)
+        self.assertIn('data-dashboard-scope-mode="draw"', html)
+        self.assertIn('data-dashboard-scope-preset="today"', html)
+        self.assertIn('data-dashboard-scope-preset="custom"', html)
+        self.assertIn('data-dashboard-scope-preset="all"', html)
+        self.assertIn('<span class="lotto-dashboard-picker-label">Kiểu dữ liệu</span>', html)
+        self.assertIn('inputmode="numeric"', html)
+        self.assertIn('pattern="[0-9]*"', html)
+        self.assertIn('maxlength="6"', html)
+
+        self.assertIn('const DASHBOARD_SCOPE_MODES = ["day", "draw"];', core)
+        self.assertIn('const DASHBOARD_SCOPE_PRESETS = ["custom", "today", "all"];', core)
+        self.assertIn("function normalizeDashboardScopeCount", core)
+        self.assertIn('dashboardScopePreset = "custom";', core)
+        self.assertIn("DASHBOARD_SCOPE_MODE_KEY", core)
+        self.assertIn("DASHBOARD_SCOPE_PRESET_KEY", core)
+        self.assertIn("DASHBOARD_SCOPE_COUNT_KEY", core)
+        self.assertIn("function sanitizeDashboardScopeDigits", core)
+        self.assertIn('replace(/\\D+/g, "")', core)
+        self.assertIn('addEventListener("beforeinput"', core)
+        self.assertIn('addEventListener("paste"', core)
+        self.assertIn('addEventListener("input", keepDashboardScopeDigitsOnly)', core)
+
+        filter_start = stats.index("function filterDashboardEntriesByScope")
+        filter_end = stats.index("function getDashboardBucketKey", filter_start)
+        filter_block = stats[filter_start:filter_end]
+        self.assertIn('preset === "today"', filter_block)
+        self.assertIn('dashboardScopeMode) === "draw"', filter_block)
+        self.assertIn("safeEntries.slice(-count)", filter_block)
+        self.assertIn("shiftDashboardDate(latestDay, -(count - 1))", filter_block)
+        self.assertIn("function renderDashboardScopeFilter", stats)
+        self.assertIn('scope.mode === "draw" ? "kỳ" : "ngày"', stats)
+        self.assertIn(".lotto-dashboard-scope-popover", styles)
+        self.assertIn(".lotto-dashboard-scope-input-wrap input", styles)
+        self.assertIn("grid-template-columns: repeat(2, minmax(165px, 196px))", styles)
+
+    def test_dashboard_distribution_uses_clear_proportional_pie(self):
+        stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "vietlott-web-extra.css").read_text(encoding="utf-8")
+        pie_start = stats.index("function renderDashboardPieSegments")
+        pie_end = stats.index("function renderDashboardDistributionPanel", pie_start)
+        pie_block = stats[pie_start:pie_end]
+        distribution_end = stats.index("function bindDashboardTemperatureLegend", pie_end)
+        distribution_block = stats[pie_end:distribution_end]
+
+        self.assertIn('class="lotto-dashboard-pie-segment"', pie_block)
+        self.assertIn('class="lotto-dashboard-pie-slice-label', pie_block)
+        self.assertIn("percent * 3.6", pie_block)
+        self.assertIn("largeArcFlag", pie_block)
+        self.assertIn("renderDashboardPieSegments(activeRows)", distribution_block)
+        self.assertIn("lotto-dashboard-pie-summary", distribution_block)
+        self.assertIn("lotto-dashboard-donut-legend-ratio", distribution_block)
+        self.assertIn(".lotto-dashboard-pie-segment", styles)
+        self.assertIn(".lotto-dashboard-pie-slice-label", styles)
+        self.assertIn(".lotto-dashboard-donut-legend-ratio span", styles)
 
     def test_dashboard_temperature_groups_reveal_their_numbers(self):
         stats = (ROOT / "frontend" / "vietlott-web-stats.js").read_text(encoding="utf-8")

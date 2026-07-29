@@ -179,6 +179,9 @@
     const DASHBOARD_SELECTED_GAME_KEY = "vietlott_dashboard_selected_game_v1";
     const DASHBOARD_ACTIVITY_VIEW_KEY = "vietlott_dashboard_activity_view_v1";
     const DASHBOARD_DISTRIBUTION_VIEW_KEY = "vietlott_dashboard_distribution_view_v1";
+    const DASHBOARD_SCOPE_MODE_KEY = "vietlott_dashboard_scope_mode_v1";
+    const DASHBOARD_SCOPE_PRESET_KEY = "vietlott_dashboard_scope_preset_v1";
+    const DASHBOARD_SCOPE_COUNT_KEY = "vietlott_dashboard_scope_count_v1";
     const CHART_STATS_SELECTED_TYPE_KEY = "vietlott_chart_stats_selected_type_v1";
     const CHART_STATS_SELECTED_PRESET_KEY = "vietlott_chart_stats_selected_preset_v1";
     const CHART_STATS_CUSTOM_COUNT_KEY = "vietlott_chart_stats_custom_count_v1";
@@ -205,6 +208,7 @@
     const LIVE_UPDATE_BADGE_CACHE_KEY = "vietlott_live_update_badges_v1";
     const MAX_RESULTS_PER_TYPE = 60;
     const PREDICT_MAX_BUNDLES = 100;
+    const MANUAL_PREDICT_BUNDLE_PAGE_SIZE = 10;
     const APP_SHORT_NAME = "DVLF";
     const APP_FULL_NAME = "Deep Vietlott Fast";
     const HEADER_NOTIFICATION_READ_KEY = "dvlf_header_notification_read_v1";
@@ -258,6 +262,7 @@
       { key: "aggressive", label: "Tấn Công", summary: "Meta đang mở rộng cửa cho tín hiệu nóng và quota co giãn mạnh hơn." },
     ];
     const PREDICTION_MODE_NORMAL = "normal";
+    const PREDICTION_MODE_MANUAL = "manual";
     const PREDICTION_MODE_VIP = "vip";
     const VIP_PREDICT_MAX_BUNDLES = 10;
     const PREDICTION_MODE_STATS = "stats";
@@ -333,6 +338,8 @@
     const DASHBOARD_LOTTO_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const DASHBOARD_ACTIVITY_VIEW_OPTIONS = ["day", "week", "month"];
     const DASHBOARD_DISTRIBUTION_VIEW_OPTIONS = ["range", "parity", "temperature", "head", "tail"];
+    const DASHBOARD_SCOPE_MODES = ["day", "draw"];
+    const DASHBOARD_SCOPE_PRESETS = ["custom", "today", "all"];
     const DASHBOARD_ACTIVITY_BUCKET_LIMITS = {
       day: 14,
       week: 12,
@@ -510,6 +517,8 @@
     const emptyStore = () => ({
       diamondBalance: 0,
       paypalBalance: 0,
+      vipStartedAt: "",
+      vipExpiresAt: "",
       results: Object.fromEntries(TYPE_KEYS.map(k => [k, {}])),
       picks: Object.fromEntries(TYPE_KEYS.map(k => [k, {}])),
       resultOrder: Object.fromEntries(TYPE_KEYS.map(k => [k, []])),
@@ -536,6 +545,8 @@
     let currentUser = null;
     let currentUserRole = "user";
     let store = emptyStore();
+    let vipMembershipTimer = null;
+    let vipMembershipRenderSignature = "";
     let storeSaveState = {
       pending: false,
       ok: true,
@@ -568,6 +579,21 @@
     let liveResultsProgressHistoryRefreshCursor = {};
     let liveResultsProgressHistoryRefreshBusy = false;
     let predictPageModeValue = "normal";
+    let manualPredictTypeValue = "LOTO_5_35";
+    let manualPredictPlayModeValue = "normal";
+    let manualPredictBaoLevelValue = "";
+    let manualPredictKenoLevelValue = 5;
+    let manualPredict3dPageValue = 0;
+    let manualPredictBundleCountValue = 1;
+    let manualPredictBundlePageValue = 0;
+    let manualPredictActiveBundleIndex = 0;
+    let manualPredictEditorOpenValue = false;
+    let manualPredictBundles = [{ main: [], special: [] }];
+    let manualPredictMainNumbers = [];
+    let manualPredictSpecialNumbers = [];
+    let manualPredictNotice = "";
+    let manualPredictRealtimeCounterStartedAt = globalThis.performance?.now?.() ?? Date.now();
+    let manualPredictRealtimeCounterTimer = null;
     let predictPlayModeValue = "normal";
     let predictBaoLevelValue = "";
     let predictEngineValue = "both";
@@ -637,6 +663,9 @@
     let dashboardSelectedGame = "KENO";
     let dashboardActivityViewMode = "day";
     let dashboardDistributionViewMode = "range";
+    let dashboardScopeMode = "day";
+    let dashboardScopePreset = "all";
+    let dashboardScopeCount = 30;
     let dashboardSelectedTemperatureKey = "";
     let dashboardPanelLoading = false;
     let dashboardPanelError = "";
@@ -671,6 +700,7 @@
     let liveResultsProgressButtonReset = null;
     let liveResultsLegacyFallbackRunning = false;
     let predictionHistoryPanelOpen = false;
+    let predictionHistoryDisplayModeValue = PREDICTION_MODE_NORMAL;
     let predictionHistorySelectedType = "KENO";
     let predictionHistorySelectedRange = "5k";
     let predictionHistorySelectedPlayMode = "normal";
@@ -894,6 +924,7 @@
 
     function normalizePredictionMode(value) {
       const normalized = String(value || "").trim().toLowerCase();
+      if (normalized === PREDICTION_MODE_MANUAL) return PREDICTION_MODE_MANUAL;
       if (normalized === PREDICTION_MODE_VIP) return PREDICTION_MODE_VIP;
       if (normalized === PREDICTION_MODE_STATS) return PREDICTION_MODE_STATS;
       if (normalized === PREDICTION_MODE_STATS_V2) return PREDICTION_MODE_STATS_V2;
@@ -973,6 +1004,25 @@
       return DASHBOARD_LOTTO_TYPES.includes(normalized) ? normalized : "KENO";
     }
 
+    function normalizeDashboardScopeMode(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return DASHBOARD_SCOPE_MODES.includes(normalized) ? normalized : "day";
+    }
+
+    function normalizeDashboardScopePreset(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      return DASHBOARD_SCOPE_PRESETS.includes(normalized) ? normalized : "all";
+    }
+
+    function sanitizeDashboardScopeDigits(value) {
+      return String(value || "").replace(/\D+/g, "").slice(0, 6);
+    }
+
+    function normalizeDashboardScopeCount(value) {
+      const parsed = Number.parseInt(sanitizeDashboardScopeDigits(value), 10);
+      return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, 100000) : 30;
+    }
+
     function getDashboardDistributionOptions(type) {
       const normalizedType = normalizeDashboardGame(type);
       if (normalizedType === "MAX_3D" || normalizedType === "MAX_3D_PRO") {
@@ -1001,6 +1051,9 @@
         dashboardSelectedGame = normalizeDashboardGame(localStorage.getItem(DASHBOARD_SELECTED_GAME_KEY) || "KENO");
         dashboardActivityViewMode = normalizeDashboardActivityView(localStorage.getItem(DASHBOARD_ACTIVITY_VIEW_KEY) || "day");
         dashboardDistributionViewMode = normalizeDashboardDistributionView(localStorage.getItem(DASHBOARD_DISTRIBUTION_VIEW_KEY) || getDashboardDistributionOptions(dashboardSelectedGame)[0]?.value || "range");
+        dashboardScopeMode = normalizeDashboardScopeMode(localStorage.getItem(DASHBOARD_SCOPE_MODE_KEY) || "day");
+        dashboardScopePreset = normalizeDashboardScopePreset(localStorage.getItem(DASHBOARD_SCOPE_PRESET_KEY) || "all");
+        dashboardScopeCount = normalizeDashboardScopeCount(localStorage.getItem(DASHBOARD_SCOPE_COUNT_KEY) || "30");
       } catch {}
       const allowed = getDashboardDistributionOptions(dashboardSelectedGame).map(item => item.value);
       if (!allowed.includes(dashboardDistributionViewMode)) {
@@ -1013,6 +1066,9 @@
         localStorage.setItem(DASHBOARD_SELECTED_GAME_KEY, normalizeDashboardGame(dashboardSelectedGame));
         localStorage.setItem(DASHBOARD_ACTIVITY_VIEW_KEY, normalizeDashboardActivityView(dashboardActivityViewMode));
         localStorage.setItem(DASHBOARD_DISTRIBUTION_VIEW_KEY, normalizeDashboardDistributionView(dashboardDistributionViewMode));
+        localStorage.setItem(DASHBOARD_SCOPE_MODE_KEY, normalizeDashboardScopeMode(dashboardScopeMode));
+        localStorage.setItem(DASHBOARD_SCOPE_PRESET_KEY, normalizeDashboardScopePreset(dashboardScopePreset));
+        localStorage.setItem(DASHBOARD_SCOPE_COUNT_KEY, String(normalizeDashboardScopeCount(dashboardScopeCount)));
       } catch {}
     }
 
@@ -1982,7 +2038,7 @@
     }
 
     function closeHeaderPopovers() {
-      for (const [buttonId, panelId] of [["notificationBtn", "notificationPanel"], ["settingsBtn", "settingsPanel"]]) {
+      for (const [buttonId, panelId] of [["vipMembershipBtn", "vipMembershipPanel"], ["notificationBtn", "notificationPanel"], ["settingsBtn", "settingsPanel"]]) {
         const button = document.getElementById(buttonId);
         const panel = document.getElementById(panelId);
         if (panel) panel.hidden = true;
@@ -1999,6 +2055,7 @@
       panel.hidden = !willOpen;
       button.setAttribute("aria-expanded", willOpen ? "true" : "false");
       if (willOpen && panelId === "notificationPanel") renderHeaderNotifications();
+      if (willOpen && panelId === "vipMembershipPanel") renderVipMembership();
     }
 
     // ---abc--- Store / Session / Persistence ---
@@ -2044,6 +2101,8 @@
       const base = emptyStore();
       base.diamondBalance = Math.max(0, Number(parsed.diamondBalance || 0));
       base.paypalBalance = Math.max(0, Number(parsed.paypalBalance || 0));
+      base.vipStartedAt = String(parsed.vipStartedAt || "");
+      base.vipExpiresAt = String(parsed.vipExpiresAt || "");
       for (const t of TYPE_KEYS) {
         base.results[t] = parsed.results?.[t] || {};
         base.picks[t] = parsed.picks?.[t] || {};
@@ -2163,6 +2222,136 @@
       return storeSaveLoopPromise;
     }
 
+    function formatVipMembershipRemaining(remainingMs) {
+      const totalSeconds = Math.max(0, Math.floor(Number(remainingMs || 0) / 1000));
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const clock = [hours, minutes, seconds].map(value => String(value).padStart(2, "0")).join(":");
+      return days > 0 ? `${days} ngày ${clock}` : clock;
+    }
+
+    function getVipMembershipState(nowMs = getSyncedNowMs()) {
+      const expiresAt = String(store?.vipExpiresAt || "").trim();
+      const expiresAtMs = Date.parse(expiresAt);
+      const active = !!currentUser && Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
+      const remainingMs = active ? Math.max(0, expiresAtMs - nowMs) : 0;
+      const expiryText = Number.isFinite(expiresAtMs)
+        ? new Date(expiresAtMs).toLocaleString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      return {
+        active,
+        expiresAt,
+        expiresAtMs,
+        expiryText,
+        remainingMs,
+        remainingText: active ? formatVipMembershipRemaining(remainingMs) : "Đã hết hạn",
+      };
+    }
+
+    function hasActiveVipMembership() {
+      return getVipMembershipState().active;
+    }
+
+    function renderVipMembership() {
+      const state = getVipMembershipState();
+      const wrap = document.getElementById("vipMembershipWrap");
+      const button = document.getElementById("vipMembershipBtn");
+      const panelStatus = document.getElementById("vipMembershipPanelStatus");
+      const stateBadge = document.getElementById("vipMembershipStateBadge");
+      const remaining = document.getElementById("vipMembershipRemaining");
+      const expiry = document.getElementById("vipMembershipExpiry");
+      const accessTitle = document.getElementById("vipMembershipAccessTitle");
+      const renewButton = document.getElementById("vipMembershipRenewBtn");
+      const renewMessage = document.getElementById("vipMembershipRenewMessage");
+      const tooltip = state.active ? `VIP còn ${state.remainingText}` : "Đã hết hạn";
+
+      if (wrap) {
+        wrap.classList.toggle("is-active", state.active);
+        wrap.classList.toggle("is-expired", !state.active);
+        wrap.dataset.vipTooltip = tooltip;
+      }
+      if (button) {
+        button.title = tooltip;
+        button.setAttribute("aria-label", state.active
+          ? `VIP còn ${state.remainingText}. Bấm để xem thời hạn.`
+          : "VIP đã hết hạn. Bấm để xem và gia hạn.");
+      }
+      if (panelStatus) panelStatus.textContent = state.active ? "Đang hoạt động" : "Trạng thái tài khoản";
+      if (stateBadge) {
+        stateBadge.className = `vip-membership-state-badge ${state.active ? "is-active" : "is-expired"}`;
+        stateBadge.textContent = state.active ? "Còn hạn" : "Hết hạn";
+      }
+      if (remaining) remaining.textContent = state.remainingText;
+      if (expiry) {
+        expiry.textContent = state.expiryText
+          ? `${state.active ? "Hết hạn" : "Đã hết hạn"}: ${state.expiryText}`
+          : "Chưa có thời hạn VIP";
+        if (state.expiresAt) expiry.setAttribute("datetime", state.expiresAt);
+        else expiry.removeAttribute("datetime");
+      }
+      if (accessTitle) accessTitle.textContent = state.active ? "Quyền VIP đang mở" : "Quyền VIP đang khóa";
+      if (renewButton) renewButton.hidden = state.active;
+      if (state.active && renewMessage) renewMessage.hidden = true;
+      document.documentElement.dataset.vipMembership = state.active ? "active" : "expired";
+
+      const signature = `${currentUser || ""}|${state.active ? "1" : "0"}|${state.expiresAt}`;
+      if (signature !== vipMembershipRenderSignature) {
+        vipMembershipRenderSignature = signature;
+        try {
+          window.dispatchEvent(new CustomEvent("vip-membership-change", {
+            detail: { active: state.active, expiresAt: state.expiresAt, remainingMs: state.remainingMs },
+          }));
+        } catch {}
+      }
+      return state;
+    }
+
+    function requestVipMembershipRenewal() {
+      const state = getVipMembershipState();
+      const message = document.getElementById("vipMembershipRenewMessage");
+      const event = new CustomEvent("vip-renew-request", {
+        cancelable: true,
+        detail: { username: currentUser || "", expiredAt: state.expiresAt },
+      });
+      const handledByIntegration = !window.dispatchEvent(event);
+      if (message) {
+        message.hidden = false;
+        message.textContent = handledByIntegration
+          ? "Đang mở cổng gia hạn VIP..."
+          : "Yêu cầu gia hạn đã được ghi nhận. Gói và cổng thanh toán sẽ được kết nối ở bản cập nhật tiếp theo.";
+      }
+    }
+
+    async function setVipMembershipExpiry(expiresAt, { startedAt = getSyncedIsoString() } = {}) {
+      if (!currentUser) throw new Error("Cần đăng nhập để cập nhật thời hạn VIP.");
+      const expiryMs = Date.parse(String(expiresAt || "").trim());
+      if (!Number.isFinite(expiryMs)) throw new Error("Thời hạn VIP không hợp lệ.");
+      store.vipStartedAt = String(startedAt || getSyncedIsoString());
+      store.vipExpiresAt = new Date(expiryMs).toISOString();
+      renderVipMembership();
+      return saveStore({ reason: "vip_membership_update" });
+    }
+
+    function startVipMembershipTimer() {
+      if (vipMembershipTimer) window.clearInterval(vipMembershipTimer);
+      renderVipMembership();
+      vipMembershipTimer = window.setInterval(() => {
+        if (document.hidden) return;
+        renderVipMembership();
+      }, 1000);
+    }
+
+    window.hasActiveVipMembership = hasActiveVipMembership;
+    window.setVipMembershipExpiry = setVipMembershipExpiry;
+
     function renderCurrencyBar() {
       const d = document.getElementById("diamondBalance");
       const p = document.getElementById("paypalBalance");
@@ -2172,6 +2361,7 @@
       if (dp) dp.textContent = formatLuckyWheelAmount(Math.max(0, Number(store?.paypalBalance || 0)));
       const ltb = document.getElementById("luckyWheelTopupBalance");
       if (ltb) ltb.textContent = `${formatLuckyWheelAmount(Math.max(0, Number(store?.paypalBalance || 0)))} PP`;
+      renderVipMembership();
     }
 
     function ensurePaypalTopupState() {
@@ -3921,6 +4111,11 @@
       "pdBaoLevel",
       "pdEngine",
       "pdKenoLevel",
+      "manualPredictTypeSelect",
+      "manualPredictPlayMode",
+      "manualPredictBaoLevel",
+      "manualPredictKenoLevel",
+      "manualPredict3dPage",
       "statsTypeSelect",
       "statsWindowSelect",
       "lottoDashboardGameSelect",
@@ -3959,6 +4154,8 @@
       brandReloadBtn.dataset.tooltip = `${APP_SHORT_NAME} là tên viết tắt của ${APP_FULL_NAME}`;
       brandReloadBtn.onclick = () => window.location.reload();
     }
+    document.getElementById("vipMembershipBtn").onclick = () => toggleHeaderPopover("vipMembershipBtn", "vipMembershipPanel");
+    document.getElementById("vipMembershipRenewBtn").onclick = requestVipMembershipRenewal;
     document.getElementById("notificationBtn").onclick = () => toggleHeaderPopover("notificationBtn", "notificationPanel");
     document.getElementById("settingsBtn").onclick = () => toggleHeaderPopover("settingsBtn", "settingsPanel");
     document.getElementById("notificationMarkReadBtn").onclick = markHeaderNotificationsRead;
@@ -3970,6 +4167,7 @@
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") closeHeaderPopovers();
     });
+    startVipMembershipTimer();
 
     function openSideMenu() {
       closeHeaderPopovers();
@@ -4485,7 +4683,12 @@
       button.addEventListener("click", () => {
         const nextMode = savePredictPageMode(button.dataset.predictModeTab || PREDICTION_MODE_NORMAL);
         renderPredictModeTabs();
-        if (nextMode === PREDICTION_MODE_STATS) {
+        if (nextMode === PREDICTION_MODE_MANUAL) {
+          renderManualPredictionPanel();
+          window.setTimeout(() => {
+            document.getElementById("predictRootManual")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 40);
+        } else if (nextMode === PREDICTION_MODE_STATS) {
           renderStatsPanel();
           startStatsPanelRefresh({ force: true, silent: true });
         } else if (nextMode === PREDICTION_MODE_STATS_V2) {
@@ -4516,6 +4719,142 @@
         }
       });
     });
+    const manualPredictTypeSelect = document.getElementById("manualPredictTypeSelect");
+    if (manualPredictTypeSelect) {
+      manualPredictTypeSelect.addEventListener("change", () => {
+        manualPredictTypeValue = normalizeManualPredictionType(manualPredictTypeSelect.value);
+        if (!hasPredictBaoMode(manualPredictTypeValue)) {
+          manualPredictPlayModeValue = "normal";
+          manualPredictBaoLevelValue = "";
+        }
+        manualPredictNotice = "";
+        resetManualPredictionBundles();
+      });
+    }
+    const manualPredictPlayMode = document.getElementById("manualPredictPlayMode");
+    if (manualPredictPlayMode) {
+      manualPredictPlayMode.addEventListener("change", () => {
+        const supportsBao = hasPredictBaoMode(manualPredictTypeValue);
+        manualPredictPlayModeValue = supportsBao && String(manualPredictPlayMode.value || "").trim().toLowerCase() === "bao"
+          ? "bao"
+          : "normal";
+        const levels = getPredictBaoLevels(manualPredictTypeValue);
+        if (manualPredictPlayModeValue === "bao" && !levels.map(String).includes(String(manualPredictBaoLevelValue))) {
+          manualPredictBaoLevelValue = String(levels[0] || "");
+        }
+        manualPredictNotice = "";
+        resetManualPredictionBundles();
+      });
+    }
+    const manualPredictBaoLevel = document.getElementById("manualPredictBaoLevel");
+    if (manualPredictBaoLevel) {
+      manualPredictBaoLevel.addEventListener("change", () => {
+        manualPredictBaoLevelValue = String(manualPredictBaoLevel.value || "").trim();
+        manualPredictNotice = "";
+        resetManualPredictionBundles();
+      });
+    }
+    const manualPredictKenoLevel = document.getElementById("manualPredictKenoLevel");
+    if (manualPredictKenoLevel) {
+      manualPredictKenoLevel.addEventListener("change", () => {
+        manualPredictKenoLevelValue = Math.max(1, Math.min(10, Number(manualPredictKenoLevel.value || 5) || 5));
+        manualPredictNotice = "";
+        resetManualPredictionBundles();
+      });
+    }
+    const manualPredict3dPage = document.getElementById("manualPredict3dPage");
+    if (manualPredict3dPage) {
+      manualPredict3dPage.addEventListener("change", () => {
+        manualPredict3dPageValue = Math.max(0, Math.min(9, Number(manualPredict3dPage.value || 0) || 0));
+        manualPredictNotice = "";
+        renderManualPredictionPanel();
+      });
+    }
+    const manualPredictBundleCount = document.getElementById("manualPredictBundleCount");
+    if (manualPredictBundleCount) {
+      const keepManualBundleCountDigitsOnly = () => {
+        const sanitized = String(manualPredictBundleCount.value || "").replace(/\D/g, "").slice(0, 3);
+        if (manualPredictBundleCount.value !== sanitized) manualPredictBundleCount.value = sanitized;
+        return sanitized;
+      };
+      const applyManualBundleCount = () => {
+        const digits = keepManualBundleCountDigitsOnly();
+        setManualPredictionBundleCount(digits || 1);
+      };
+      manualPredictBundleCount.addEventListener("beforeinput", event => {
+        if (!String(event.inputType || "").startsWith("insert") || event.data == null) return;
+        if (/\D/.test(String(event.data))) event.preventDefault();
+      });
+      manualPredictBundleCount.addEventListener("keydown", event => {
+        if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+        if (!/^\d$/.test(event.key)) event.preventDefault();
+      });
+      manualPredictBundleCount.addEventListener("paste", event => {
+        const pastedDigits = String(event.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, 3);
+        event.preventDefault();
+        if (!pastedDigits) return;
+        manualPredictBundleCount.value = pastedDigits;
+        applyManualBundleCount();
+      });
+      manualPredictBundleCount.addEventListener("input", keepManualBundleCountDigitsOnly);
+      manualPredictBundleCount.addEventListener("change", applyManualBundleCount);
+      manualPredictBundleCount.addEventListener("blur", applyManualBundleCount);
+      manualPredictBundleCount.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        applyManualBundleCount();
+      });
+    }
+    const manualPredictBundleTabs = document.getElementById("manualPredictBundleTabs");
+    if (manualPredictBundleTabs) {
+      manualPredictBundleTabs.addEventListener("click", event => {
+        const button = event.target.closest("[data-manual-predict-bundle]");
+        if (!button) return;
+        activateManualPredictionBundle(Number(button.dataset.manualPredictBundle));
+      });
+    }
+    const manualPredictBundlePrev = document.getElementById("manualPredictBundlePrev");
+    if (manualPredictBundlePrev) {
+      manualPredictBundlePrev.addEventListener("click", () => changeManualPredictionBundlePage(-1));
+    }
+    const manualPredictBundleNext = document.getElementById("manualPredictBundleNext");
+    if (manualPredictBundleNext) {
+      manualPredictBundleNext.addEventListener("click", () => changeManualPredictionBundlePage(1));
+    }
+    const manualPredictNumberGrid = document.getElementById("manualPredictNumberGrid");
+    if (manualPredictNumberGrid) {
+      manualPredictNumberGrid.addEventListener("click", event => {
+        const button = event.target.closest("[data-manual-predict-number]");
+        if (!button) return;
+        toggleManualPredictionNumber("main", Number(button.dataset.manualPredictNumber));
+      });
+    }
+    const manualPredictSpecialGrid = document.getElementById("manualPredictSpecialGrid");
+    if (manualPredictSpecialGrid) {
+      manualPredictSpecialGrid.addEventListener("click", event => {
+        const button = event.target.closest("[data-manual-predict-number]");
+        if (!button) return;
+        toggleManualPredictionNumber("special", Number(button.dataset.manualPredictNumber));
+      });
+    }
+    const manualPredictFortuneBtn = document.getElementById("manualPredictFortuneBtn");
+    if (manualPredictFortuneBtn) {
+      manualPredictFortuneBtn.addEventListener("click", () => randomizeManualPredictionBundle("fortune"));
+    }
+    const manualPredictCustomRandomBtn = document.getElementById("manualPredictCustomRandomBtn");
+    if (manualPredictCustomRandomBtn) {
+      manualPredictCustomRandomBtn.addEventListener("click", () => randomizeManualPredictionBundle("custom"));
+    }
+    const manualPredictResetBtn = document.getElementById("manualPredictResetBtn");
+    if (manualPredictResetBtn) {
+      manualPredictResetBtn.addEventListener("click", () => {
+        resetManualPredictionBundles("Đã xóa lựa chọn của tất cả các bộ.");
+      });
+    }
+    const manualPredictSaveBtn = document.getElementById("manualPredictSaveBtn");
+    if (manualPredictSaveBtn) {
+      manualPredictSaveBtn.addEventListener("click", () => saveManualPrediction());
+    }
     document.querySelectorAll("[data-dashboard-activity-view]").forEach(button => {
       button.addEventListener("click", () => {
         const nextView = normalizeDashboardActivityView(button.dataset.dashboardActivityView);
@@ -4555,6 +4894,79 @@
         saveDashboardUiState();
         renderDashboardPanel();
         startDashboardRefresh({ silent: true });
+      });
+    }
+    const lottoDashboardScopeFilter = document.getElementById("lottoDashboardScopeFilter");
+    document.querySelectorAll("[data-dashboard-scope-mode]").forEach(button => {
+      button.addEventListener("click", () => {
+        const nextMode = normalizeDashboardScopeMode(button.dataset.dashboardScopeMode);
+        if (nextMode === dashboardScopeMode) return;
+        dashboardScopeMode = nextMode;
+        dashboardSelectedTemperatureKey = "";
+        saveDashboardUiState();
+        renderDashboardPanel();
+      });
+    });
+    document.querySelectorAll("[data-dashboard-scope-preset]").forEach(button => {
+      button.addEventListener("click", () => {
+        dashboardScopePreset = normalizeDashboardScopePreset(button.dataset.dashboardScopePreset);
+        dashboardSelectedTemperatureKey = "";
+        saveDashboardUiState();
+        renderDashboardPanel();
+      });
+    });
+    const lottoDashboardScopeCount = document.getElementById("lottoDashboardScopeCount");
+    if (lottoDashboardScopeCount) {
+      const keepDashboardScopeDigitsOnly = () => {
+        const sanitized = sanitizeDashboardScopeDigits(lottoDashboardScopeCount.value);
+        if (lottoDashboardScopeCount.value !== sanitized) lottoDashboardScopeCount.value = sanitized;
+        return sanitized;
+      };
+      const applyDashboardScopeCount = () => {
+        const rawValue = keepDashboardScopeDigitsOnly();
+        if (!rawValue) return;
+        const nextCount = normalizeDashboardScopeCount(rawValue);
+        lottoDashboardScopeCount.value = String(nextCount);
+        dashboardScopeCount = nextCount;
+        dashboardScopePreset = "custom";
+        dashboardSelectedTemperatureKey = "";
+        saveDashboardUiState();
+        renderDashboardPanel();
+      };
+      lottoDashboardScopeCount.addEventListener("beforeinput", event => {
+        if (!String(event.inputType || "").startsWith("insert") || event.data == null) return;
+        if (/\D/.test(String(event.data))) event.preventDefault();
+      });
+      lottoDashboardScopeCount.addEventListener("keydown", event => {
+        if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+        if (!/^\d$/.test(event.key)) event.preventDefault();
+      });
+      lottoDashboardScopeCount.addEventListener("paste", event => {
+        const pastedDigits = sanitizeDashboardScopeDigits(event.clipboardData?.getData("text") || "");
+        event.preventDefault();
+        if (!pastedDigits) return;
+        const start = lottoDashboardScopeCount.selectionStart ?? lottoDashboardScopeCount.value.length;
+        const end = lottoDashboardScopeCount.selectionEnd ?? start;
+        lottoDashboardScopeCount.setRangeText(pastedDigits, start, end, "end");
+        keepDashboardScopeDigitsOnly();
+      });
+      lottoDashboardScopeCount.addEventListener("input", keepDashboardScopeDigitsOnly);
+      lottoDashboardScopeCount.addEventListener("change", applyDashboardScopeCount);
+      lottoDashboardScopeCount.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        applyDashboardScopeCount();
+      });
+    }
+    if (lottoDashboardScopeFilter) {
+      document.addEventListener("click", event => {
+        if (!lottoDashboardScopeFilter.open || lottoDashboardScopeFilter.contains(event.target)) return;
+        lottoDashboardScopeFilter.removeAttribute("open");
+      });
+      lottoDashboardScopeFilter.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        lottoDashboardScopeFilter.removeAttribute("open");
+        lottoDashboardScopeFilter.querySelector("summary")?.focus();
       });
     }
     const lottoDashboardSettingsBtn = document.getElementById("lottoDashboardSettingsBtn");
@@ -5085,7 +5497,17 @@
     }
     const predictionHistoryToggleBtn = document.getElementById("predictionHistoryToggleBtn");
     if (predictionHistoryToggleBtn) {
-      predictionHistoryToggleBtn.addEventListener("click", () => togglePredictionHistoryPanel());
+      predictionHistoryToggleBtn.addEventListener("click", () => {
+        predictionHistoryDisplayModeValue = PREDICTION_MODE_NORMAL;
+        togglePredictionHistoryPanel();
+      });
+    }
+    const manualPredictionHistoryBtn = document.getElementById("manualPredictionHistoryBtn");
+    if (manualPredictionHistoryBtn) {
+      manualPredictionHistoryBtn.addEventListener("click", () => {
+        predictionHistoryDisplayModeValue = PREDICTION_MODE_MANUAL;
+        togglePredictionHistoryPanel();
+      });
     }
     const vipPredictionHistoryToggleBtn = document.getElementById("vipPredictionHistoryToggleBtn");
     if (vipPredictionHistoryToggleBtn) {
@@ -5273,7 +5695,7 @@
           predictionHistorySelectedRange,
           predictionHistorySelectedPlayMode,
           predictionHistorySelectedBaoLevel,
-          PREDICTION_MODE_NORMAL
+          predictionHistoryDisplayModeValue
         );
         const entry = entries[entryIndex];
         if (!entry) return;
@@ -5466,6 +5888,7 @@
       restoreAnalysisUiState();
       renderPredictEngineChoice();
       renderPredictModeTabs();
+      renderManualPredictionPanel();
       renderStatsTypeTabs();
       renderStatsWindowTabs();
       renderKenoTrainingToggle();

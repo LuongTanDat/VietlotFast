@@ -641,6 +641,11 @@
     }
 
     function getPreferredPredictionHistoryType() {
+      const manualRoot = document.getElementById("predictRootManual");
+      if (manualRoot && !manualRoot.hidden) {
+        const manualType = document.getElementById("manualPredictTypeSelect");
+        return normalizePredictionHistoryType(manualType?.value || manualPredictTypeValue);
+      }
       const pdType = document.getElementById("pdType");
       return normalizePredictionHistoryType(pdType?.value || predictionHistorySelectedType);
     }
@@ -1780,11 +1785,23 @@
       const panel = document.getElementById("predictionHistoryPanel");
       const list = document.getElementById("predictionHistoryList");
       const countEl = document.getElementById("predictionHistoryCount");
+      const titleEl = document.getElementById("predictionHistoryTitle");
       const toggleBtn = document.getElementById("predictionHistoryToggleBtn");
+      const manualToggleBtn = document.getElementById("manualPredictionHistoryBtn");
       if (!overlay || !panel || !list || !countEl) return;
       overlay.hidden = !predictionHistoryPanelOpen;
       syncPredictionHistoryBodyScroll(predictionHistoryPanelOpen || vipPredictionHistoryPanelOpen);
       if (toggleBtn) toggleBtn.classList.toggle("is-active", predictionHistoryPanelOpen);
+      if (manualToggleBtn) {
+        manualToggleBtn.classList.toggle("is-active", predictionHistoryPanelOpen);
+        manualToggleBtn.setAttribute("aria-expanded", predictionHistoryPanelOpen ? "true" : "false");
+      }
+      const displayMode = normalizePredictionMode(predictionHistoryDisplayModeValue);
+      if (titleEl) {
+        titleEl.textContent = displayMode === PREDICTION_MODE_MANUAL
+          ? "Lịch Sử Dự Đoán Thủ Công"
+          : "Lịch Sử Dự Đoán";
+      }
       predictionHistorySelectedType = normalizePredictionHistoryType(predictionHistorySelectedType);
       predictionHistorySelectedRange = normalizePredictionHistoryRange(predictionHistorySelectedRange, predictionHistorySelectedType);
       predictionHistorySelectedPlayMode = hasPredictBaoMode(predictionHistorySelectedType)
@@ -1813,7 +1830,7 @@
         predictionHistorySelectedRange,
         selectedPlayMode,
         predictionHistorySelectedBaoLevel,
-        PREDICTION_MODE_NORMAL
+        displayMode
       );
       const currentIndex = clampPredictionHistoryCurrentIndex(entries.length);
       renderPredictionHistoryNavigator(entries.length);
@@ -1867,7 +1884,7 @@
           normalizePredictionHistoryRange(predictionHistorySelectedRange, selectedType),
           selectedPlayMode,
           predictionHistorySelectedBaoLevel,
-          PREDICTION_MODE_NORMAL
+          predictionHistoryDisplayModeValue
         );
         const currentIndex = clampPredictionHistoryCurrentIndex(entries.length);
         updatePredictionHistoryCountdownForList("predictionHistoryList", entries[currentIndex] || null, nowValue);
