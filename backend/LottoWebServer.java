@@ -135,6 +135,7 @@ public class LottoWebServer {
         String label = "";
         String sourceUrl = "";
         String sourceDate = "";
+        Map<String, Long> prizes = new LinkedHashMap<>();
         LocalDate parsedDate = null;
     }
 
@@ -1155,6 +1156,10 @@ public class LottoWebServer {
     }
 
     private String canonicalHistoryRowJson(CanonicalHistoryRow row) {
+        StringBuilder prizesJson = new StringBuilder();
+        for (Map.Entry<String, Long> prize : row.prizes.entrySet()) {
+            prizesJson.append(",\"").append(prize.getKey()).append("\":").append(prize.getValue());
+        }
         return "{"
                 + "\"ky\":\"" + esc(row.ky) + "\","
                 + "\"date\":\"" + esc(row.date) + "\","
@@ -1165,7 +1170,19 @@ public class LottoWebServer {
                 + "\"label\":\"" + esc(row.label) + "\","
                 + "\"sourceUrl\":\"" + esc(row.sourceUrl) + "\","
                 + "\"sourceDate\":\"" + esc(row.sourceDate) + "\""
+                + prizesJson
                 + "}";
+    }
+
+    private void readCanonicalPrize(CanonicalHistoryRow row, List<String> cells,
+                                    Map<String, Integer> columns, String header, String key) {
+        String raw = canonicalCell(cells, columns, header);
+        if (!raw.matches("[0-9]+")) return;
+        try {
+            long amount = Long.parseLong(raw);
+            if (amount > 0) row.prizes.put(key, amount);
+        } catch (NumberFormatException ignored) {
+        }
     }
 
     private String canonicalHistoryRangeLabel(String type, String count) {
@@ -1253,6 +1270,14 @@ public class LottoWebServer {
                 row.sourceUrl = canonicalCell(cells, columns, "Link cập nhật");
                 row.sourceDate = canonicalCell(cells, columns, "Ngày cập nhật");
                 if (row.sourceDate.isEmpty()) row.sourceDate = row.date;
+                if ("LOTO_5_35".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Giải Đặc biệt (VNĐ)", "specialPrize");
+                } else if ("LOTO_6_45".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Jackpot (VNĐ)", "jackpot");
+                } else if ("LOTO_6_55".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Jackpot 1 (VNĐ)", "jackpot1");
+                    readCanonicalPrize(row, cells, columns, "Jackpot 2 (VNĐ)", "jackpot2");
+                }
                 row.parsedDate = parseCanonicalDate(row.date);
                 if (!row.ky.isEmpty()) allRows.add(row);
             }

@@ -59,6 +59,21 @@ AI_GEN_LOCAL_TRAIN_TIMEOUT_SECONDS = 120
 NUMBER_SCORING_EXPORT_TIMEOUT_SECONDS = 120
 CSV_FIELDS = ["Ky", "Thu", "Ngay", "Time", "Main", "Special", "DisplayLines", "Label", "SourceUrl", "SourceDate"]
 CSV_HEADER = ["Kỳ", "Thứ", "Ngày", "Giờ", "Bộ Số", "ĐB", "Hiển thị", "Loại", "Link cập nhật", "Ngày cập nhật"]
+PRIZE_FIELDS_BY_TYPE = {
+    "LOTO_5_35": ("SpecialPrize",),
+    "LOTO_6_45": ("Jackpot",),
+    "LOTO_6_55": ("Jackpot1", "Jackpot2"),
+}
+PRIZE_CSV_HEADERS = {
+    "SpecialPrize": "Giải Đặc biệt (VNĐ)",
+    "Jackpot": "Jackpot (VNĐ)",
+    "Jackpot1": "Jackpot 1 (VNĐ)",
+    "Jackpot2": "Jackpot 2 (VNĐ)",
+}
+PRIZE_RESULT_KEYS = {
+    "SpecialPrize": "specialPrize", "Jackpot": "jackpot",
+    "Jackpot1": "jackpot1", "Jackpot2": "jackpot2",
+}
 CSV_HEADER_ALIASES = {
     "ky": "Ky",
     "thu": "Thu",
@@ -82,6 +97,14 @@ CSV_HEADER_ALIASES = {
     "sourcedate": "SourceDate",
     "source date": "SourceDate",
     "ngay cap nhat": "SourceDate",
+    "specialprize": "SpecialPrize",
+    "giai dac biet (vnd)": "SpecialPrize",
+    "jackpot": "Jackpot",
+    "jackpot (vnd)": "Jackpot",
+    "jackpot1": "Jackpot1",
+    "jackpot 1 (vnd)": "Jackpot1",
+    "jackpot2": "Jackpot2",
+    "jackpot 2 (vnd)": "Jackpot2",
 }
 KENO_CSV_FIELDS = ["Ky", "Thu", "Ngay", "Time", "Numbers", "L/-/N", "C/-/L", "SourceUrl"]
 KENO_CSV_HEADER = ["Kỳ", "Thứ", "Ngày", "Giờ", "Bộ Số", "Lớn/-/Nhỏ", "Chẵn/-/Lẻ", "Link cập nhật"]
@@ -665,6 +688,11 @@ def request_with_retry(session, method, url, allow_404=False, **kwargs):
                     response.raise_for_status()
                 time.sleep(REQUEST_RETRY_SLEEP_SECONDS * (attempt + 1))
                 continue
+            if response.status_code == 200 and "<title>Đang kiểm tra truy cập...</title>" in response.text:
+                if attempt >= REQUEST_RETRY_COUNT:
+                    raise requests.HTTPError("MinhChinh đang giới hạn truy cập; thử lại sau.", response=response)
+                time.sleep(5 * (attempt + 1))
+                continue
             response.raise_for_status()
             return response
         except requests.RequestException as exc:
@@ -758,6 +786,21 @@ def write_canonical_meta(type_key, meta):
         json.dumps(payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+def build_prize_amount_meta(type_key, rows_by_ky, previous=None):
+    fields = PRIZE_FIELDS_BY_TYPE[type_key]
+    missing = [row["Ky"] for row in rows_by_ky.values() if any(not row.get(f) for f in fields)]
+    return {
+        **({"sourceOverrides": previous["sourceOverrides"]}
+           if isinstance(previous, dict) and previous.get("sourceOverrides") else {}),
+        "unit": "VND", "source": "https://www.minhchinh.com/",
+        "updatedAt": now_iso(), "complete": not missing,
+        "totalRows": len(rows_by_ky), "completeRows": len(rows_by_ky) - len(missing),
+        "missingRows": len(missing), "missingDraws": missing,
+        "columns": [PRIZE_CSV_HEADERS[f] for f in fields],
+        "amountMeaning": "Advertised draw prize pool, before division among winners",
+    }
 
 
 def retrain_gen_local_models(progress=None, skip_types=None):
@@ -1106,7 +1149,7 @@ def load_csv_rows(csv_path, return_info=False):
             info["sanitized"] = True
             if "extra_fields" not in info["issues"]:
                 info["issues"].append("extra_fields")
-        normalized = normalize_csv_row_dict(header_map, row, CSV_FIELDS)
+        normalized = normalize_csv_row_dict(header_map, row, CSV_FIELDS + list(PRIZE_CSV_HEADERS))
         ky = re.sub(r"\D", "", str(normalized.get("Ky", "")).strip())
         row_date = parse_csv_date(normalized.get("Ngay"))
         if not ky or row_date is None:
@@ -1183,22 +1226,31 @@ def result_to_csv_row(result):
         "Label": str(result.get("label", "")).strip(),
         "SourceUrl": str(result.get("sourceUrl", "")).strip(),
         "SourceDate": str(result.get("sourceDate", "")).strip(),
+        **{field: str(result.get(key) or "") for field, key in PRIZE_RESULT_KEYS.items()},
     }
 
 
-def write_csv_rows(csv_path, rows_by_ky):
+def write_csv_rows(csv_path, rows_by_ky, type_key=None):
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     sorted_rows = sorted(
         rows_by_ky.values(),
         key=lambda item: sort_key_from_ky(item.get("Ky", "")),
         reverse=True,
     )
+    if type_key is None:
+        type_key = next((key for key, cfg in LIVE_TYPES.items()
+                         if any(row.get("Label") == cfg.label for row in sorted_rows)), None)
+        if type_key is None:
+            type_key = next((key for key, stem in CANONICAL_OUTPUT_STEMS.items()
+                             if csv_path.name.startswith(stem + "_")), None)
+    prize_fields = PRIZE_FIELDS_BY_TYPE.get(type_key, ())
+    fields = CSV_FIELDS + list(prize_fields)
     temp_path = csv_path.with_name(f"{csv_path.name}.tmp")
     with temp_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(CSV_HEADER)
+        writer.writerow(CSV_HEADER + [PRIZE_CSV_HEADERS[field] for field in prize_fields])
         for row in sorted_rows:
-            writer.writerow([str(row.get(field, "") or "").strip() for field in CSV_FIELDS])
+            writer.writerow([str(row.get(field, "") or "").strip() for field in fields])
     os.replace(str(temp_path), str(csv_path))
 
 
@@ -1218,7 +1270,7 @@ def row_matches_type_key(type_key, row):
     if type_key == "KENO":
         return True
 
-    label = normalize_space(row.get("Label", "")).lower()
+    label = normalize_space(str(row.get("Label", "")).replace("_", " ")).lower()
     source_url = normalize_space(row.get("SourceUrl", "")).lower()
 
     if type_key == "LOTO_5_35":
@@ -1336,6 +1388,8 @@ def csv_row_to_history_item(row):
         "label": label,
         "sourceUrl": source_url,
         "sourceDate": str(row.get("SourceDate", "")).strip(),
+        **{key: int(str(row[field]).strip()) for field, key in PRIZE_RESULT_KEYS.items()
+           if str(row.get(field, "")).strip().isdigit() and int(str(row[field]).strip()) > 0},
     }
 
 
@@ -1470,6 +1524,9 @@ def history_item_to_live_result(type_key, item):
         "importable": True,
         "sourceUrl": str(item.get("sourceUrl", "")).strip(),
         "sourceDate": str(item.get("sourceDate", "")).strip(),
+        **{PRIZE_RESULT_KEYS[field]: item[PRIZE_RESULT_KEYS[field]]
+           for field in PRIZE_FIELDS_BY_TYPE.get(type_key, ())
+           if item.get(PRIZE_RESULT_KEYS[field])},
     }
 
 
@@ -1616,18 +1673,46 @@ def get_keno_search_date(soup):
 def parse_keno_rows(soup, source_url=None):
     row_source_url = source_url or KENO_URL
     results = []
-    rows = soup.select("#containerKQKeno .wrapperKQKeno")
-    for row in rows:
-        ky_node = row.select_one(".kyKQKeno")
+    candidates = []
+    for row in soup.select("#containerKQKeno .wrapperKQKeno, #containerKQKeno .kn-row"):
+        ky_node = row.select_one(".kyKQKeno, .kn-ky")
         time_parts = row.select(".timeKQ > div")
-        numbers = [int(node.get_text(strip=True)) for node in row.select(".boxKQKeno > div")]
+        date_node = row.select_one(".kn-date")
+        time_node = row.select_one(".kn-time")
+        date_value = date_node.get_text(strip=True) if date_node else (time_parts[0].get_text(strip=True) if len(time_parts) >= 2 else "")
+        time_value = time_node.get_text(strip=True) if time_node else (time_parts[1].get_text(strip=True) if len(time_parts) >= 2 else "")
+        candidates.append((ky_node.get_text(" ", strip=True) if ky_node else "", date_value, time_value,
+                           [node.get_text(strip=True) for node in row.select(".boxKQKeno > div, .kn-ball")]))
 
-        if not ky_node or len(time_parts) < 2 or len(numbers) != 20:
+    # The live page displays each draw across two table rows.
+    for row in soup.select("#kq table.tblKQ tr"):
+        cells = row.find_all("td", recursive=False)
+        if len(cells) != 12 or cells[0].get("rowspan") != "2":
             continue
+        time_parts = cells[1].find_all("div", recursive=False)
+        next_row = row.find_next_sibling("tr")
+        next_cells = next_row.find_all("td", recursive=False) if next_row else []
+        if len(time_parts) != 2 or len(next_cells) != 10:
+            continue
+        candidates.append((str(cells[0].contents[0]), time_parts[0].get_text(strip=True),
+                           time_parts[1].get_text(strip=True),
+                           [cell.get_text(strip=True) for cell in cells[2:] + next_cells]))
 
-        ky = re.sub(r"\D", "", ky_node.get_text(" ", strip=True))
-        date_value = time_parts[0].get_text(strip=True)
-        time_value = time_parts[1].get_text(strip=True)
+    seen_ky = set()
+    for ky_text, date_value, time_value, number_texts in candidates:
+        if not re.fullmatch(r"#?\s*\d+", ky_text) or len(number_texts) != 20:
+            continue
+        if not all(re.fullmatch(r"\d{1,2}", value) for value in number_texts):
+            continue
+        numbers = [int(value) for value in number_texts]
+        if len(set(numbers)) != 20 or not all(1 <= value <= 80 for value in numbers):
+            continue
+        if not parse_csv_date(date_value) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", time_value):
+            continue
+        ky = str(int(re.sub(r"\D", "", ky_text)))
+        if int(ky) <= 0 or ky in seen_ky:
+            continue
+        seen_ky.add(ky)
         results.append({
             "key": "KENO",
             "label": "Keno",
@@ -1693,6 +1778,7 @@ def fetch_keno_day_results(session, target_date, page_progress=None, deadline_mo
 
         soup = BeautifulSoup(response.text, "html.parser")
         page_results = parse_keno_rows(soup)
+        page_results = [result for result in page_results if parse_csv_date(result["date"]) == target_date]
         if not page_results:
             if page_progress:
                 page_progress(page=page, new_count=0, has_results=False, will_continue=False, new_results=[], collected_count=len(day_results))
@@ -1961,6 +2047,12 @@ def merge_result_rows(rows_by_ky, results):
         row = result_to_csv_row(result)
         ky = row["Ky"]
         previous = rows_by_ky.get(ky)
+        # A fallback source may omit amounts; retain previously verified prizes.
+        if previous and all(previous.get(field, "") == row.get(field, "")
+                            for field in ("Ngay", "Time", "Main", "Special")):
+            for field in PRIZE_CSV_HEADERS:
+                if not row.get(field):
+                    row[field] = previous.get(field, "")
         if previous is None:
             new_rows += 1
         elif previous != row:
@@ -2253,6 +2345,31 @@ def collect_draw_balls(lines, start, needed, line_limit=20):
     return numbers
 
 
+def parse_numeric_prizes(cfg, lines):
+    """Read advertised prize pools, not per-winner payouts in the prize table."""
+    labels = {
+        "LOTO_5_35": {"gia tri doc dac": "specialPrize", "gia tri dac biet": "specialPrize"},
+        "LOTO_6_45": {"gia tri jackpot": "jackpot"},
+        "LOTO_6_55": {"gia tri jackpot 1": "jackpot1", "gia tri jackpot 2": "jackpot2"},
+    }.get(cfg.key, {})
+    prizes = {}
+    for index, line in enumerate(lines):
+        text = normalize_header_label(line).strip(" :")
+        for label, key in labels.items():
+            if key in prizes or not (text == label or text.startswith(label + ":")):
+                continue
+            inline = line.split(":", 1)[1].strip() if ":" in line else ""
+            candidates = [inline] + lines[index + 1:index + 3]
+            for candidate in candidates:
+                match = re.fullmatch(r"\s*(\d{1,3}(?:[.,]\d{3})+|\d{7,})(?:\s*(?:VN[DĐ]|đồng|đ))?\s*", candidate, re.IGNORECASE)
+                if match:
+                    amount = int(re.sub(r"\D", "", match.group(1)))
+                    if amount > 0:
+                        prizes[key] = amount
+                    break
+    return prizes
+
+
 def build_numeric_result(cfg, ky, date_value, time_value, balls, source_url):
     main = balls[:cfg.main_count]
     special = balls[cfg.main_count] if cfg.has_special else None
@@ -2322,10 +2439,17 @@ def collect_block_slice(lines, start, max_lines=120):
     return lines[start:end]
 
 
-def collect_prize_tokens(block_lines, start_idx, end_idx):
+def collect_prize_tokens(block_lines, start_idx, end_idx, expected_count=None):
     tokens = []
     for line in block_lines[start_idx + 1:end_idx]:
-        tokens.extend(re.findall(r"\b\d{3}\b", line))
+        # Winner counts such as "210K: 150" are not drawn numbers. Keep only
+        # ball lines and stop before quantities in the following table cells.
+        text = normalize_space(line)
+        if not re.fullmatch(r"\d{3}(?:\s+\d{3})*", text):
+            continue
+        tokens.extend(text.split())
+        if expected_count is not None and len(tokens) >= expected_count:
+            return tokens[:expected_count]
     return tokens
 
 
@@ -2382,7 +2506,7 @@ def parse_numeric_section(cfg, section_lines, source_url):
     if len(balls) != needed:
         return None
 
-    return build_numeric_result(
+    result = build_numeric_result(
         cfg,
         header["ky"],
         header["date"],
@@ -2390,6 +2514,8 @@ def parse_numeric_section(cfg, section_lines, source_url):
         balls,
         source_url,
     )
+    result.update(parse_numeric_prizes(cfg, section_lines))
+    return result
 
 
 def parse_display_section(cfg, section_lines, source_url, label_specs):
@@ -2429,7 +2555,10 @@ def parse_display_section(cfg, section_lines, source_url, label_specs):
             end_idx = find_next_prize_boundary(section_lines, start_idx)
             if end_idx < 0:
                 end_idx = len(section_lines)
-        tokens = collect_prize_tokens(section_lines, start_idx, end_idx)
+        expected_count = 2 * (idx + 1)
+        tokens = collect_prize_tokens(section_lines, start_idx, end_idx, expected_count)
+        if len(tokens) != expected_count:
+            return None
         if tokens:
             display_lines.append(f"{label}: {' '.join(tokens)}")
 
@@ -2493,7 +2622,10 @@ def parse_display_block(cfg, lines, source_url, label_specs):
             end_idx = find_next_prize_boundary(block_lines, start_idx)
             if end_idx < 0:
                 end_idx = len(block_lines)
-        tokens = collect_prize_tokens(block_lines, start_idx, end_idx)
+        expected_count = 2 * (idx + 1)
+        tokens = collect_prize_tokens(block_lines, start_idx, end_idx, expected_count)
+        if len(tokens) != expected_count:
+            return None
         if tokens:
             display_lines.append(f"{label}: {' '.join(tokens)}")
 
@@ -2656,7 +2788,26 @@ def fetch_live_result(session, cache, type_key):
         return parse_keno_from_minhchinh(session)
     if cfg.kind in {"max3d", "max3dpro"}:
         return fetch_latest_minhchinh_result(session, cache, cfg)
-    return fetch_latest_vietlott_result(session, cache, cfg)
+    result = fetch_latest_vietlott_result(session, cache, cfg)
+    prize_fields = PRIZE_FIELDS_BY_TYPE.get(type_key, ())
+    if any(not result.get(PRIZE_RESULT_KEYS[field]) for field in prize_fields):
+        # The live source may only publish draw balls. Enrich that same draw
+        # from the canonical history source without substituting another draw.
+        try:
+            day = parse_csv_date(result.get("date"))
+            matches = fetch_history_results_for_date(session, cache, cfg, day) if day else []
+            for match in matches:
+                if (match.get("ky") == result.get("ky")
+                        and match.get("main") == result.get("main")
+                        and match.get("special") == result.get("special")):
+                    for field in prize_fields:
+                        key = PRIZE_RESULT_KEYS[field]
+                        if match.get(key):
+                            result[key] = match[key]
+                    break
+        except requests.RequestException:
+            pass
+    return result
 
 
 def parse_history_results(cfg, lines, source_url, source_date):
@@ -2951,6 +3102,15 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     dates_to_fetch.update(gap_dates)
     dates_to_fetch.update(recent_dates)
 
+    # A complete draw can still have truncated or missing provenance fields.
+    for row in scoped_rows.values():
+        if (not str(row.get("SourceUrl", "")).startswith("https://www.minhchinh.com/")
+                or not parse_csv_date(row.get("SourceDate"))
+                or any(not row.get(field) for field in PRIZE_FIELDS_BY_TYPE.get(type_key, ()))):
+            row_date = parse_csv_date(row.get("Ngay"))
+            if row_date and row_date <= today:
+                dates_to_fetch.add(row_date)
+
     sorted_dates_to_fetch = sorted(dates_to_fetch, reverse=True)
     if progress:
         progress.set_phase(
@@ -3028,6 +3188,8 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     meta["effectiveEarliestKy"] = earliest_ky
     meta["effectiveEarliestDate"] = str(earliest_row.get("Ngay", "")).strip()
     meta["sourceLimited"] = source_limited
+    if type_key in PRIZE_FIELDS_BY_TYPE:
+        meta["prizeAmounts"] = build_prize_amount_meta(type_key, rows_by_ky, meta.get("prizeAmounts"))
     write_canonical_meta(type_key, meta)
     return {
         "type": type_key,

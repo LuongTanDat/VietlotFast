@@ -2,9 +2,46 @@
   "type": "KENO",
   "bootstrapComplete": false,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-08-19T23:03:23",
+  "lastSyncAt": "2026-10-03T22:22:48",
   "lastBootstrapAt": "",
   "effectiveEarliestKy": "273963",
   "effectiveEarliestDate": "16/03/2026",
-  "sourceLimited": true
+  "sourceLimited": true,
+  "dataQuality": {
+    "inputRows": 24025,
+    "outputRows": 24025,
+    "duplicateRowsRemoved": 0,
+    "changedCells": 0,
+    "changesByColumn": {},
+    "internalGaps": [],
+    "missingDrawsInsideRange": 0,
+    "earliestKy": "273963",
+    "latestKy": "297987",
+    "sourceVerifiedDraws": 116,
+    "warnings": 1,
+    "errors": 0,
+    "checkedAt": "2026-10-03T21:18:35",
+    "valid": false,
+    "structuralValid": true,
+    "warningDetails": [
+      {
+        "type": "KENO",
+        "draws": [
+          "276032",
+          "276033"
+        ],
+        "date": "02/04/2026",
+        "times": [
+          "12:40",
+          "12:24"
+        ],
+        "message": "Draw IDs contradict chronological order",
+        "sourceUrl": "https://www.minhchinh.com/xo-so-dien-toan-keno.html",
+        "sourceConfirmed": true,
+        "resolution": "Preserved source timestamps; no inferred correction"
+      }
+    ],
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "scope": "Existing canonical draws; no history extrapolation"
+  }
 }

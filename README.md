@@ -63,6 +63,24 @@ Một số item side menu hiện là mục hiển thị/chưa có handler riêng
 
 ### Bảng Dữ Liệu Canonical CSV
 
+Ba CSV số tự chọn lưu thêm giá trị giải thưởng công bố cho từng kỳ, bằng số nguyên VNĐ:
+`loto_5_35_all_day.csv` có `Giải Đặc biệt (VNĐ)`, `mega_6_45_all_day.csv` có
+`Jackpot (VNĐ)`, `power_6_55_all_day.csv` có `Jackpot 1 (VNĐ)` và `Jackpot 2 (VNĐ)`.
+Đây là tổng giá trị giải của kỳ quay, trước khi chia cho những người cùng trúng.
+Ô trống nghĩa là chưa lấy được giá trị từ nguồn, không phải giải bằng 0.
+Chạy `py -3 scripts/update_prize_history.py` để bổ sung tiền thưởng cho lịch sử đã có;
+script đối chiếu kỳ/ngày/giờ/bộ số, sao lưu đầu vào và chỉ sửa cột tiền thưởng.
+Độ đầy đủ và nguồn tiền thưởng được ghi trong `prizeAmounts` của file meta tương ứng.
+Tiền thưởng từng kỳ được hiển thị trong Bảng Dữ Liệu, lịch sử CSV và thẻ kết quả live.
+File Excel tải xuống có các cột tiền thưởng dạng số VNĐ; Power 6/55 tách Jackpot 1 và Jackpot 2.
+
+Kiểm tra và làm sạch cả sáu CSV bằng `py -3 scripts/clean_canonical_data.py`.
+Lệnh mặc định chỉ xuất báo cáo. Thêm `--apply --verify-max3d-source` để đối chiếu
+lịch sử Max 3D với nguồn, sửa lỗi số người trúng bị lẫn vào bộ số và chuẩn hóa dữ liệu.
+Script sao lưu CSV/meta trước khi áp dụng; bản ghi không hợp lệ hoặc mâu thuẫn chặn
+việc ghi dữ liệu. Các bộ ba số lặp hợp lệ và số 0 đầu được giữ nguyên. Báo cáo nằm
+trong `runtime/data_cleaning_<ngày>/runs/`, metadata có mục `dataQuality`.
+
 - `Hiển thị`: tải và hiển thị dữ liệu theo loại vé, số dòng và bộ lọc thời gian.
 - `Tải Xuống`: xuất bảng hiện tại thành file tải về.
 - `Xóa lọc`: reset bộ lọc thứ/ngày/tháng/năm.

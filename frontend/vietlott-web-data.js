@@ -2214,6 +2214,37 @@
       };
     }
 
+    const DRAW_PRIZE_COLUMNS = {
+      LOTO_5_35: [{ key: "specialPrize", label: "Giải Đặc biệt" }],
+      LOTO_6_45: [{ key: "jackpot", label: "Jackpot" }],
+      LOTO_6_55: [{ key: "jackpot1", label: "Jackpot 1" }, { key: "jackpot2", label: "Jackpot 2" }],
+    };
+
+    function getDrawPrizeAmount(draw, key) {
+      const amount = Number(draw?.[key]);
+      return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+    }
+
+    function getDrawPrizeFields(type, draw) {
+      const fields = {};
+      for (const { key } of (DRAW_PRIZE_COLUMNS[type] || [])) {
+        const amount = getDrawPrizeAmount(draw, key);
+        if (amount !== null) fields[key] = amount;
+      }
+      return fields;
+    }
+
+    function formatDrawPrizeAmount(draw, key) {
+      const amount = getDrawPrizeAmount(draw, key);
+      return amount === null ? "Chưa có dữ liệu" : `${amount.toLocaleString("vi-VN")} VNĐ`;
+    }
+
+    function formatDrawPrizes(type, draw) {
+      return (DRAW_PRIZE_COLUMNS[type] || [])
+        .map(({ key, label }) => `${label}: ${formatDrawPrizeAmount(draw, key)}`)
+        .join(" • ");
+    }
+
     function emptyLiveHistoryState() {
       return Object.fromEntries(
         LIVE_HISTORY_TYPES.map(meta => [meta.key, emptyLiveHistoryFeed(meta.label)])
@@ -2381,6 +2412,7 @@
           sourceUrl: String(row?.sourceUrl || ""),
           sourceDate: String(row?.sourceDate || ""),
           label: String(row?.label || meta.label),
+          ...getDrawPrizeFields(type, row),
         });
       });
       next.allCount = Math.max(next.allCount, next.order.length);
@@ -2630,6 +2662,8 @@
         if (!draw) return;
         const metaParts = buildLiveMetaParts(ky, draw.date, draw.time);
         lines.push(`${feed.label || type} ${metaParts.join(" • ")}: ${formatLiveHistoryDraw(type, draw)}`);
+        const prizes = formatDrawPrizes(type, draw);
+        if (prizes) lines.push(`  ${prizes}`);
       });
       line(out, lines.join("\n"));
     }
@@ -2814,7 +2848,8 @@
 
     function getDataTableHeaders(type) {
       const hasSpecialColumn = !!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit;
-      return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : [])];
+      return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : []),
+        ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ label }) => `${label} (VNĐ)`)];
     }
 
     function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters()) {
@@ -2840,6 +2875,7 @@
           draw.time || "",
           cells.numbers || "",
           ...((!!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
+          ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ key }) => getDrawPrizeAmount(draw, key) ?? ""),
         ];
       });
     }
@@ -2882,7 +2918,10 @@
       }
 
       body.innerHTML = rows.map(rowCells => {
-        return `<tr>${rowCells.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+        const prizeStart = headers.length - (DRAW_PRIZE_COLUMNS[type] || []).length;
+        return `<tr>${rowCells.map((value, index) => index >= prizeStart
+          ? `<td class="data-table-prize">${escapeHtml(value === "" ? "Chưa có dữ liệu" : Number(value).toLocaleString("vi-VN"))}</td>`
+          : `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
       }).join("");
     }
 
@@ -2982,6 +3021,9 @@
         const rowNumber = rowIndex + 1;
         const cells = row.map((value, cellIndex) => {
           const cellRef = `${getExcelColumnName(cellIndex + 1)}${rowNumber}`;
+          if (typeof value === "number" && Number.isFinite(value)) {
+            return `<c r="${cellRef}" t="n" s="1"><v>${value}</v></c>`;
+          }
           const text = escapeXml(value);
           return `<c r="${cellRef}" t="inlineStr"><is><t xml:space="preserve">${text}</t></is></c>`;
         }).join("");
@@ -2998,6 +3040,7 @@
     <col min="1" max="4" width="14" customWidth="1"/>
     <col min="5" max="5" width="72" customWidth="1"/>
     <col min="6" max="6" width="24" customWidth="1"/>
+    ${headers.length > 6 ? `<col min="7" max="${headers.length}" width="24" customWidth="1"/>` : ""}
   </cols>
   <sheetData>${rowXml}</sheetData>
 </worksheet>`;
@@ -3048,7 +3091,7 @@
   <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="1"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+  <cellXfs count="2"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
 </styleSheet>`,
         "xl/worksheets/sheet1.xml": buildXlsxSheetXml(headers, rows),
       };
@@ -4587,6 +4630,9 @@
         }
         const metaParts = buildUpcomingLiveMetaParts(meta.key, item, nowValue);
         const lines = renderLiveCardMainLines(meta.key, item);
+        const prizeLines = (DRAW_PRIZE_COLUMNS[meta.key] || []).map(({ key, label }) =>
+          `<div class="live-card-amount"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatDrawPrizeAmount(item, key))}</strong></div>`
+        ).join("");
         let sourceHost = "";
         try {
           sourceHost = item.sourceUrl ? new URL(item.sourceUrl).hostname : "";
@@ -4605,6 +4651,7 @@
               ${refreshButton}
             </div>
             <div class="live-card-main">${lines}</div>
+            ${prizeLines ? `<div class="live-card-amounts">${prizeLines}</div>` : ""}
             <div class="live-card-foot">${escapeHtml(footParts.join(" • "))}</div>
           </article>
         `;

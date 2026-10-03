@@ -1,0 +1,27 @@
+[
+  {
+    "key": "LOTO_6_45",
+    "label": "Mega_6/45",
+    "ky": "506",
+    "date": "16/10/2019",
+    "time": "",
+    "main": [
+      1,
+      4,
+      23,
+      28,
+      41,
+      42
+    ],
+    "special": null,
+    "displayLines": [
+      "01 04 23 28 41 42"
+    ],
+    "importable": true,
+    "sourceUrl": "https://www.ketquadientoan.com/ket-qua-xo-so-dien-toan-mega-6-45/16-10-2019.html",
+    "jackpot": 14327867000,
+    "retrievedAt": "2026-10-03T21:08:14",
+    "htmlSha256": "92bad286734806a7e6648c37e2224e9722a0cc9447cb1342a5809eb6009662fb",
+    "corroboratingSource": "https://www.minhngoc.net/ket-qua-xo-so/dien-toan-vietlott/17-10-2019.html"
+  }
+]

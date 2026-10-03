@@ -2,9 +2,32 @@
   "type": "MAX_3D",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-08-19T23:03:27",
+  "lastSyncAt": "2026-10-03T22:22:52",
   "lastBootstrapAt": "2026-03-21T10:08:04",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "22/04/2019",
-  "sourceLimited": false
+  "sourceLimited": false,
+  "dataQuality": {
+    "inputRows": 1140,
+    "outputRows": 1140,
+    "duplicateRowsRemoved": 0,
+    "changedCells": 2032,
+    "changesByColumn": {
+      "Hiển thị": 989,
+      "Loại": 1043
+    },
+    "internalGaps": [],
+    "missingDrawsInsideRange": 0,
+    "earliestKy": "1",
+    "latestKy": "1140",
+    "sourceVerifiedDraws": 1140,
+    "warnings": 0,
+    "errors": 0,
+    "checkedAt": "2026-10-03T21:18:35",
+    "valid": true,
+    "structuralValid": true,
+    "warningDetails": [],
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "scope": "Existing canonical draws; no history extrapolation"
+  }
 }

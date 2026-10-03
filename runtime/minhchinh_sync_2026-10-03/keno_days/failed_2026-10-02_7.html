@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đang kiểm tra truy cập...</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #333;
+        }
+
+        .card {
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0078d4;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #111;
+        }
+
+        p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .timer {
+            font-weight: bold;
+            color: #0078d4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="spinner"></div>
+        <h2>Hệ thống đang xử lý truy cập</h2>
+        <p>Phát hiện nhiều truy cập cùng lúc từ thiết bị của bạn. Trang sẽ tự động tải lại sau <span class="timer" id="countdown">5</span> giây.</p>
+    </div>
+
+    <script>
+        let seconds = 5;
+        const countdownEl = document.getElementById('countdown');
+        const interval = setInterval(() => {
+            seconds--;
+            countdownEl.innerText = seconds;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                window.location.reload();
+            }
+        }, 1000);
+    </script>
+</body>
+
+</html>

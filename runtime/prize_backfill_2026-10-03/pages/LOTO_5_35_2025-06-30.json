@@ -1,0 +1,91 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-30-06-2025.html",
+  "retrievedAt": "2026-10-03T21:03:32",
+  "htmlSha256": "ba3fb4b15b794463ad807806cdd9d68a621f0b9a2299dbfa6d4f288edfa20c82",
+  "results": [
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "4",
+      "date": "30/06/2025",
+      "time": "21:00",
+      "main": [
+        1,
+        12,
+        13,
+        27,
+        28
+      ],
+      "special": 7,
+      "displayLines": [
+        "01 12 13 27 28 | ĐB 07"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-30-06-2025.html",
+      "specialPrize": 6518352500
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "3",
+      "date": "30/06/2025",
+      "time": "13:00",
+      "main": [
+        2,
+        8,
+        16,
+        23,
+        24
+      ],
+      "special": 9,
+      "displayLines": [
+        "02 08 16 23 24 | ĐB 09"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-30-06-2025.html",
+      "specialPrize": 6315905000
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "2",
+      "date": "29/06/2025",
+      "time": "21:00",
+      "main": [
+        6,
+        12,
+        14,
+        18,
+        25
+      ],
+      "special": 8,
+      "displayLines": [
+        "06 12 14 18 25 | ĐB 08"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-30-06-2025.html",
+      "specialPrize": 6231295000
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "1",
+      "date": "29/06/2025",
+      "time": "13:00",
+      "main": [
+        7,
+        9,
+        10,
+        16,
+        19
+      ],
+      "special": 9,
+      "displayLines": [
+        "07 09 10 16 19 | ĐB 09"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-30-06-2025.html",
+      "specialPrize": 6112312500
+    }
+  ]
+}

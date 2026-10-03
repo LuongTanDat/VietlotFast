@@ -1880,8 +1880,12 @@
         String(item.ky || ""),
         String(item.date || ""),
         String(item.time || ""),
-        Array.isArray(item.numbers) ? item.numbers.join(",") : "",
+        Array.isArray(item.main) ? item.main.join(",") : (Array.isArray(item.numbers) ? item.numbers.join(",") : ""),
         String(item.special ?? ""),
+        String(item.specialPrize ?? ""),
+        String(item.jackpot ?? ""),
+        String(item.jackpot1 ?? ""),
+        String(item.jackpot2 ?? ""),
         String(item.updatedAt || "")
       ].join("|");
     }

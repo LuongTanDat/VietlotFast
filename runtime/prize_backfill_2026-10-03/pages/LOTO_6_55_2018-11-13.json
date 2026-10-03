@@ -1,0 +1,122 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+  "retrievedAt": "2026-10-03T21:05:57",
+  "htmlSha256": "9c32f144e296af1f622a7150102c9146f96889e1b1e147f84422340623b4cbca",
+  "results": [
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "201",
+      "date": "13/11/2018",
+      "time": "",
+      "main": [
+        3,
+        25,
+        26,
+        32,
+        41,
+        47
+      ],
+      "special": 5,
+      "displayLines": [
+        "03 25 26 32 41 47 | ĐB 05"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+      "jackpot1": 41305528200,
+      "jackpot2": 3365007250
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "200",
+      "date": "10/11/2018",
+      "time": "",
+      "main": [
+        3,
+        5,
+        19,
+        22,
+        29,
+        39
+      ],
+      "special": 15,
+      "displayLines": [
+        "03 05 19 22 29 39 | ĐB 15"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+      "jackpot1": 39307347750,
+      "jackpot2": 3142987200
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "199",
+      "date": "08/11/2018",
+      "time": "",
+      "main": [
+        22,
+        28,
+        31,
+        39,
+        52,
+        53
+      ],
+      "special": 14,
+      "displayLines": [
+        "22 28 31 39 52 53 | ĐB 14"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+      "jackpot1": 38020462950,
+      "jackpot2": 5236233250
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "198",
+      "date": "06/11/2018",
+      "time": "",
+      "main": [
+        19,
+        22,
+        23,
+        43,
+        47,
+        53
+      ],
+      "special": 3,
+      "displayLines": [
+        "19 22 23 43 47 53 | ĐB 03"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+      "jackpot1": 36334813350,
+      "jackpot2": 5048938850
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "197",
+      "date": "03/11/2018",
+      "time": "",
+      "main": [
+        14,
+        17,
+        20,
+        23,
+        25,
+        45
+      ],
+      "special": 34,
+      "displayLines": [
+        "14 17 20 23 25 45 | ĐB 34"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-13-11-2018.html",
+      "jackpot1": 34340501100,
+      "jackpot2": 4827348600
+    }
+  ]
+}

@@ -1,0 +1,298 @@
+{
+  "source": "https://www.minhchinh.com/",
+  "requestedThrough": "2026-10-03",
+  "startedAt": "2026-10-03T20:39:12",
+  "types": {
+    "LOTO_5_35": {
+      "before": {
+        "count": 923,
+        "earliestKy": "1",
+        "earliestDate": "29/06/2025",
+        "latestKy": "923",
+        "latestDate": "03/10/2026",
+        "latestTime": "13:00",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "newRows": 0,
+      "updatedRows": 2,
+      "beforeCount": 923,
+      "afterCount": 923,
+      "latestKy": "923",
+      "latestDate": "03/10/2026",
+      "latestTime": "13:00",
+      "internalMissingKy": 0,
+      "issues": [],
+      "repairedSourceRows": [
+        "220",
+        "218"
+      ],
+      "changedDrawIds": [
+        "220",
+        "218"
+      ],
+      "after": {
+        "count": 923,
+        "earliestKy": "1",
+        "earliestDate": "29/06/2025",
+        "latestKy": "923",
+        "latestDate": "03/10/2026",
+        "latestTime": "13:00",
+        "missingKyCount": 0,
+        "gaps": []
+      }
+    },
+    "LOTO_6_45": {
+      "before": {
+        "count": 1569,
+        "earliestKy": "2",
+        "earliestDate": "20/07/2016",
+        "latestKy": "1570",
+        "latestDate": "02/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "newRows": 0,
+      "updatedRows": 4,
+      "beforeCount": 1569,
+      "afterCount": 1569,
+      "latestKy": "1570",
+      "latestDate": "02/10/2026",
+      "latestTime": "",
+      "internalMissingKy": 0,
+      "issues": [],
+      "repairedSourceRows": [
+        "139",
+        "85",
+        "84",
+        "140"
+      ],
+      "changedDrawIds": [
+        "140",
+        "139",
+        "85",
+        "84"
+      ],
+      "after": {
+        "count": 1569,
+        "earliestKy": "2",
+        "earliestDate": "20/07/2016",
+        "latestKy": "1570",
+        "latestDate": "02/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      }
+    },
+    "LOTO_6_55": {
+      "before": {
+        "count": 1402,
+        "earliestKy": "5",
+        "earliestDate": "01/08/2017",
+        "latestKy": "1406",
+        "latestDate": "03/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "newRows": 0,
+      "updatedRows": 6,
+      "beforeCount": 1402,
+      "afterCount": 1402,
+      "latestKy": "1406",
+      "latestDate": "03/10/2026",
+      "latestTime": "",
+      "internalMissingKy": 0,
+      "issues": [],
+      "repairedSourceRows": [
+        "978",
+        "868",
+        "779",
+        "765",
+        "582",
+        "514"
+      ],
+      "changedDrawIds": [
+        "978",
+        "868",
+        "779",
+        "765",
+        "582",
+        "514"
+      ],
+      "after": {
+        "count": 1402,
+        "earliestKy": "5",
+        "earliestDate": "01/08/2017",
+        "latestKy": "1406",
+        "latestDate": "03/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      }
+    },
+    "KENO": {
+      "before": {
+        "count": 21622,
+        "earliestKy": "273963",
+        "earliestDate": "16/03/2026",
+        "latestKy": "297987",
+        "latestDate": "03/10/2026",
+        "latestTime": "20:32",
+        "missingKyCount": 119,
+        "gaps": [
+          [
+            297760,
+            297878
+          ]
+        ]
+      },
+      "newRows": 2403,
+      "updatedRows": 28,
+      "after": {
+        "count": 24025,
+        "earliestKy": "273963",
+        "earliestDate": "16/03/2026",
+        "latestKy": "297987",
+        "latestDate": "03/10/2026",
+        "latestTime": "20:32",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "beforeCount": 21622,
+      "afterCount": 24025,
+      "latestKy": "297987",
+      "latestDate": "03/10/2026",
+      "latestTime": "20:32",
+      "internalMissingKy": 0,
+      "issues": [],
+      "changedDrawIds": [
+        "276032",
+        "276031",
+        "276030",
+        "276029",
+        "276028",
+        "276027",
+        "276026",
+        "276025",
+        "276024",
+        "276023",
+        "276022",
+        "276021",
+        "276020",
+        "276019",
+        "276018",
+        "276017",
+        "276016",
+        "276015",
+        "276014",
+        "276013",
+        "276012",
+        "276011",
+        "276010",
+        "276009",
+        "276008",
+        "276007",
+        "276006",
+        "276005"
+      ]
+    },
+    "MAX_3D": {
+      "before": {
+        "count": 1140,
+        "earliestKy": "1",
+        "earliestDate": "22/04/2019",
+        "latestKy": "1140",
+        "latestDate": "02/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "newRows": 0,
+      "updatedRows": 0,
+      "beforeCount": 1140,
+      "afterCount": 1140,
+      "latestKy": "1140",
+      "latestDate": "02/10/2026",
+      "latestTime": "",
+      "internalMissingKy": 0,
+      "issues": [],
+      "repairedSourceRows": [],
+      "changedDrawIds": [],
+      "after": {
+        "count": 1140,
+        "earliestKy": "1",
+        "earliestDate": "22/04/2019",
+        "latestKy": "1140",
+        "latestDate": "02/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      }
+    },
+    "MAX_3D_PRO": {
+      "before": {
+        "count": 787,
+        "earliestKy": "1",
+        "earliestDate": "14/09/2021",
+        "latestKy": "787",
+        "latestDate": "03/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      },
+      "newRows": 0,
+      "updatedRows": 5,
+      "beforeCount": 787,
+      "afterCount": 787,
+      "latestKy": "787",
+      "latestDate": "03/10/2026",
+      "latestTime": "",
+      "internalMissingKy": 0,
+      "issues": [],
+      "repairedSourceRows": [
+        "575",
+        "106",
+        "75",
+        "43",
+        "44"
+      ],
+      "changedDrawIds": [
+        "575",
+        "106",
+        "75",
+        "44",
+        "43"
+      ],
+      "after": {
+        "count": 787,
+        "earliestKy": "1",
+        "earliestDate": "14/09/2021",
+        "latestKy": "787",
+        "latestDate": "03/10/2026",
+        "latestTime": "",
+        "missingKyCount": 0,
+        "gaps": []
+      }
+    }
+  },
+  "errors": [],
+  "updatedAt": "2026-10-03T20:42:59",
+  "finishedAt": "2026-10-03T20:42:59",
+  "kenoScope": "16/03/2026 through 03/10/2026, as selected by the user",
+  "sourceUnavailableInitialDraws": {
+    "LOTO_6_45": [
+      "1"
+    ],
+    "LOTO_6_55": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ]
+  },
+  "validation": "CSV row counts, unique draw IDs, number ranges, weekdays, source URLs, metadata, internal draw continuity",
+  "validationPassed": true,
+  "liveResultsTestsPassed": 9
+}

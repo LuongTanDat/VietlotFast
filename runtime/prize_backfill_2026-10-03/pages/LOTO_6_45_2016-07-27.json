@@ -1,0 +1,95 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+  "retrievedAt": "2026-10-03T21:06:40",
+  "htmlSha256": "436e4f3022c9e5cf7c0839ea966acb83d4899ef99f273d5f9a18008dab1b5e3f",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "5",
+      "date": "27/07/2016",
+      "time": "",
+      "main": [
+        14,
+        17,
+        21,
+        25,
+        31,
+        37
+      ],
+      "special": null,
+      "displayLines": [
+        "14 17 21 25 31 37"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 13942033000
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "4",
+      "date": "24/07/2016",
+      "time": "",
+      "main": [
+        1,
+        10,
+        16,
+        18,
+        23,
+        38
+      ],
+      "special": null,
+      "displayLines": [
+        "01 10 16 18 23 38"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 13271044500
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "3",
+      "date": "22/07/2016",
+      "time": "",
+      "main": [
+        3,
+        4,
+        14,
+        20,
+        25,
+        35
+      ],
+      "special": null,
+      "displayLines": [
+        "03 04 14 20 25 35"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 12858704500
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "2",
+      "date": "20/07/2016",
+      "time": "",
+      "main": [
+        2,
+        17,
+        33,
+        37,
+        38,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "02 17 33 37 38 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 12000000000
+    }
+  ]
+}

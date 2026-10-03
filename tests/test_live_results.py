@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest import mock
 
 import backend.live_results as lr
+from bs4 import BeautifulSoup
 
 
 def make_keno_results(start_ky, count, draw_date):
@@ -34,6 +35,42 @@ def make_keno_rows(results):
         row = lr.keno_result_to_csv_row(result)
         rows_by_ky[row["Ky"]] = row
     return rows_by_ky
+
+
+class KenoHtmlParserTests(unittest.TestCase):
+    def test_access_check_is_retried_instead_of_being_parsed_as_empty_history(self):
+        challenge = mock.Mock(status_code=200, text="<title>Đang kiểm tra truy cập...</title>")
+        success = mock.Mock(status_code=200, text="<html>Results</html>")
+        session = mock.Mock()
+        session.request.side_effect = [challenge, success]
+        with mock.patch.object(lr.time, "sleep") as sleep:
+            self.assertIs(success, lr.request_with_retry(session, "post", lr.KENO_URL))
+        sleep.assert_called_once_with(5)
+        self.assertEqual(2, session.request.call_count)
+
+    def test_history_layouts_and_live_table_return_same_draw(self):
+        numbers = list(range(1, 21))
+        old_balls = "".join(f"<div>{n:02d}</div>" for n in numbers)
+        new_balls = "".join(f'<span class="kn-ball">{n:02d}</span>' for n in numbers)
+        cells = [f"<td>{n:02d}</td>" for n in numbers]
+        layouts = [
+            f'<div id="containerKQKeno"><div class="wrapperKQKeno"><div class="kyKQKeno">#000123</div><div class="timeKQ"><div>03/10/2026</div><div>20:24</div></div><div class="boxKQKeno">{old_balls}</div></div></div>',
+            f'<div id="containerKQKeno"><div class="kn-row"><div class="kn-ky">#000123</div><div class="kn-date">03/10/2026</div><div class="kn-time">20:24</div>{new_balls}</div></div>',
+            f'<div id="kq"><table class="tblKQ"><tr><td rowspan="2">#000123<br><span>LẺ 12</span></td><td rowspan="2"><div>03/10/2026</div><div>20:24</div></td>{"".join(cells[:10])}</tr><tr>{"".join(cells[10:])}</tr></table></div>',
+        ]
+        for html in layouts:
+            with self.subTest(html=html[:60]):
+                results = lr.parse_keno_rows(BeautifulSoup(html, "html.parser"))
+                self.assertEqual(1, len(results))
+                self.assertEqual("123", results[0]["ky"])
+                self.assertEqual(numbers, results[0]["main"])
+                self.assertEqual("20:24", results[0]["time"])
+
+    def test_incomplete_or_invalid_draws_are_rejected(self):
+        for values in [list(range(1, 20)), [1] * 20, list(range(62, 82))]:
+            balls = "".join(f'<span class="kn-ball">{n}</span>' for n in values)
+            html = f'<div id="containerKQKeno"><div class="kn-row"><div class="kn-ky">#123</div><div class="kn-date">03/10/2026</div><div class="kn-time">20:24</div>{balls}</div></div>'
+            self.assertEqual([], lr.parse_keno_rows(BeautifulSoup(html, "html.parser")))
 
 
 class FixedDateTime(datetime):

@@ -9426,6 +9426,32 @@ button.secondary {
     0 10px 24px rgba(0, 0, 0, .14);
 }
 
+#liveBoardSection .live-card-amounts {
+  display: grid;
+  gap: 5px;
+  padding: 0 2px;
+}
+
+#liveBoardSection .live-card-amount {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#liveBoardSection .live-card-amount strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table-grid td.data-table-prize {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 #liveBoardSection .live-card-line {
   gap: 6px;
 }

@@ -1,0 +1,122 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+  "retrievedAt": "2026-10-03T21:05:55",
+  "htmlSha256": "369e0eb504be7c1a397e7d0080bdf97c8f8f3fea1ccc98cb73f50b0891cade1c",
+  "results": [
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "226",
+      "date": "10/01/2019",
+      "time": "",
+      "main": [
+        12,
+        22,
+        31,
+        35,
+        40,
+        47
+      ],
+      "special": 8,
+      "displayLines": [
+        "12 22 31 35 40 47 | ĐB 08"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+      "jackpot1": 73202106900,
+      "jackpot2": 3519027500
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "225",
+      "date": "08/01/2019",
+      "time": "",
+      "main": [
+        3,
+        5,
+        9,
+        11,
+        45,
+        48
+      ],
+      "special": 40,
+      "displayLines": [
+        "03 05 09 11 45 48 | ĐB 40"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+      "jackpot1": 70875624450,
+      "jackpot2": 3260529450
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "224",
+      "date": "05/01/2019",
+      "time": "",
+      "main": [
+        10,
+        11,
+        38,
+        47,
+        53,
+        55
+      ],
+      "special": 51,
+      "displayLines": [
+        "10 11 38 47 53 55 | ĐB 51"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+      "jackpot1": 68530859400,
+      "jackpot2": 3451848750
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "223",
+      "date": "03/01/2019",
+      "time": "",
+      "main": [
+        23,
+        31,
+        37,
+        45,
+        49,
+        54
+      ],
+      "special": 18,
+      "displayLines": [
+        "23 31 37 45 49 54 | ĐB 18"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+      "jackpot1": 66387325800,
+      "jackpot2": 3213678350
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "222",
+      "date": "01/01/2019",
+      "time": "",
+      "main": [
+        2,
+        19,
+        21,
+        27,
+        37,
+        46
+      ],
+      "special": 12,
+      "displayLines": [
+        "02 19 21 27 37 46 | ĐB 12"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-01-2019.html",
+      "jackpot1": 64464220650,
+      "jackpot2": 3655801500
+    }
+  ]
+}

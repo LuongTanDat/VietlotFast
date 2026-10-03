@@ -1,0 +1,44 @@
+{
+  "source": "https://www.minhchinh.com/",
+  "unit": "VND",
+  "amountMeaning": "Advertised draw prize pool, before division among winners",
+  "startedAt": "2026-10-03T21:08:15",
+  "types": {
+    "LOTO_5_35": {
+      "totalRows": 923,
+      "completeRows": 923,
+      "missingRows": 0,
+      "missingDraws": [],
+      "columns": [
+        "Giải Đặc biệt (VNĐ)"
+      ]
+    },
+    "LOTO_6_45": {
+      "totalRows": 1569,
+      "completeRows": 1569,
+      "missingRows": 0,
+      "missingDraws": [],
+      "columns": [
+        "Jackpot (VNĐ)"
+      ]
+    },
+    "LOTO_6_55": {
+      "totalRows": 1402,
+      "completeRows": 1402,
+      "missingRows": 0,
+      "missingDraws": [],
+      "columns": [
+        "Jackpot 1 (VNĐ)",
+        "Jackpot 2 (VNĐ)"
+      ]
+    }
+  },
+  "errors": [],
+  "supplementalSources": {
+    "LOTO_6_45": {
+      "506": "https://www.ketquadientoan.com/ket-qua-xo-so-dien-toan-mega-6-45/16-10-2019.html"
+    }
+  },
+  "updatedAt": "2026-10-03T21:08:15",
+  "finishedAt": "2026-10-03T21:08:16"
+}
