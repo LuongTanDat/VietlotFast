@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+  "retrievedAt": "2026-10-04T15:26:55",
+  "htmlSha256": "484b55970c597f6daef2793bd6d522c1519dd6d7c9d472f057f6228619a6208b",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "80",
+      "date": "18/01/2017",
+      "time": "",
+      "main": [
+        11,
+        22,
+        26,
+        28,
+        35,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "11 22 26 28 35 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+      "jackpot": 24189181500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "79",
+      "date": "15/01/2017",
+      "time": "",
+      "main": [
+        5,
+        25,
+        27,
+        29,
+        31,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "05 25 27 29 31 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+      "jackpot": 17152877000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "78",
+      "date": "13/01/2017",
+      "time": "",
+      "main": [
+        12,
+        24,
+        29,
+        32,
+        37,
+        39
+      ],
+      "special": null,
+      "displayLines": [
+        "12 24 29 32 37 39"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+      "jackpot": 17491608500,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "77",
+      "date": "11/01/2017",
+      "time": "",
+      "main": [
+        2,
+        8,
+        21,
+        29,
+        37,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "02 08 21 29 37 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+      "jackpot": 28747032500,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "76",
+      "date": "08/01/2017",
+      "time": "",
+      "main": [
+        12,
+        18,
+        29,
+        32,
+        39,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "12 18 29 32 39 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-01-2017.html",
+      "jackpot": 18718983500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

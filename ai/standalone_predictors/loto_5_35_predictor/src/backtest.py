@@ -244,7 +244,10 @@ def run_ablation_report(csv_path=None, min_history=24, mode="fast", window="expa
         "backtest_mode": str(mode or "fast"),
         "window": str(window or "expanding"),
         "rolling_window": rolling_window,
-        "metrics": dict(mode_reports.get("blended") or {}),
+        "metrics": dict(mode_reports[winner_mode]),
+        "evaluated_mode": winner_mode,
+        "selection_on_evaluation": True,
+        "mode_metrics": {key: {k: v for k, v in value.items() if k != "folds"} for key, value in mode_reports.items()},
     }
 
 
@@ -284,7 +287,12 @@ def run_backtest(
         "backtest_mode": str(mode or "fast"),
         "window": str(window or "expanding"),
         "rolling_window": rolling_window,
-        "retrain_interval": int(retrain_interval or 1),
+        "retrain_interval": None,
+        "requested_retrain_interval": retrain_interval,
+        "retraining_policy": "fixed_artifacts_no_fold_retraining",
+        "evaluated_mode": ablation_report["evaluated_mode"],
+        "selection_on_evaluation": True,
+        "mode_metrics": ablation_report["mode_metrics"],
         "leakage_guard": {
             "history_rule": "each fold uses draws before target_draw_id only",
             "deep_policy": "latest artifacts are rejected for a fold when trained_on_latest_draw_id >= target_draw_id",

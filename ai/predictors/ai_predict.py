@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -410,6 +410,9 @@ def build_loto_6_45_vip_prediction(bundle_count, requested_engine="", risk_mode=
         "vipProfile": "mega_6_45_adaptive",
         "vipSummary": f"Vip Mega 6/45 đang dùng predictor adaptive riêng với {1 + len(backup_tickets)} bộ.",
         "engine": "mega_6_45_vip",
+        "requestedEngine": requested_engine,
+        "requestedEngineApplied": False,
+        "riskModeApplied": False,
         "engineLabel": "Mega 6/45 Vip Adaptive",
         "type": "LOTO_6_45",
         "label": "Mega_6/45",
@@ -474,9 +477,9 @@ def build_loto_6_45_vip_prediction(bundle_count, requested_engine="", risk_mode=
             *[note for note in notes if note],
         ],
         "explanation": explanation,
-        "riskMode": normalize_risk_mode(risk_mode),
-        "riskModeLabel": AI_RISK_MODE_LABELS.get(normalize_risk_mode(risk_mode), AI_RISK_MODE_LABELS[AI_RISK_MODE_BALANCED]),
-        "riskModeSummary": build_risk_mode_summary(risk_mode),
+        "riskMode": "balanced",
+        "riskModeLabel": "Cấu hình Mega đã lưu",
+        "riskModeSummary": "Mega Vip dùng cấu hình predictor riêng; lựa chọn engine/risk của client không áp dụng.",
     }
 
 
@@ -3386,6 +3389,9 @@ def attach_controlled_probability_metadata(payload):
     result["raw_score"] = score_payload
     result["rankingScore"] = score_payload
     result["ranking_score"] = score_payload
+    result["estimatedProbability"] = probability_rows
+    result["probabilityCalibrationStatus"] = "uncalibrated"
+    # Legacy keys retained for old clients; calibration status is explicit.
     result["calibratedProbability"] = probability_rows
     result["calibrated_probability"] = probability_rows
     result["probabilities"] = {str(key): float(value) for key, value in calibrated.items()}
@@ -3396,7 +3402,8 @@ def attach_controlled_probability_metadata(payload):
         "mainDrawSize": draw_size,
         "mainUniverseSize": universe_size,
         "method": "adaptive_coverage_gumbel" if adaptive_probability else "ranking_to_capped_simplex",
-        "note": "calibratedProbability is a marginal number probability; ticketQualityScore is not a probability.",
+        "calibrationStatus": "uncalibrated",
+        "note": "Ước lượng biên từng số chưa hiệu chỉnh ngoài mẫu; không phải xác suất trúng cả vé. Điểm chất lượng không phải xác suất.",
     }
     special_universe = int(cfg.get("special_universe_size") or 0)
     if special_universe:
@@ -3431,13 +3438,51 @@ def finalize_controlled_prediction_payload(payload, username="", lock_ledger=Tru
     if type_key not in CONTROLLED_ML_TYPES or not bool(lock_ledger):
         return result
     try:
-        locked = prediction_ledger.lock_prediction(result, username=username)
+        from ai.controlled_models import record_execution_snapshot
+        actual = ml_pipeline.load_actual_draws(type_key)
+        target = str(result.get("target_draw_id") or result.get("nextKy") or "").strip().lstrip("#")
+        cutoff = str(result.get("data_cutoff_draw_id") or result.get("latestKy") or "").strip().lstrip("#")
+        if actual and (not target.isdecimal() or int(target) <= max(int(n) for n in actual)):
+            raise ValueError("Kỳ mục tiêu đã có kết quả; hãy cập nhật dữ liệu rồi dự đoán lại.")
+        if actual and cutoff.isdecimal() and int(cutoff) > max(int(n) for n in actual):
+            raise ValueError("payload cutoff exceeds server canonical history")
+        target_at = _parse_prediction_draw_datetime(result.get("target_date"), result.get("target_slot") or "18:00")
+        if type_key == "KENO":
+            target_iso = result.get("targetDrawAt") or result.get("target_draw_at")
+            target_at = datetime.fromisoformat(target_iso) if target_iso else None
+        elif actual and cutoff in actual:
+            row = actual[cutoff]
+            latest_at = _parse_prediction_draw_datetime(row["date"], row["time"] or "18:00")
+            if latest_at is not None:
+                if type_key == "LOTO_5_35":
+                    target_at = latest_at.replace(hour=21, minute=0) if latest_at.hour < 21 else (latest_at + timedelta(days=1)).replace(hour=13, minute=0)
+                else:
+                    weekdays = {"LOTO_6_45": {2, 4, 6}, "LOTO_6_55": {1, 3, 5}}[type_key]
+                    target_at = (latest_at + timedelta(days=1)).replace(hour=18, minute=0)
+                    while target_at.weekday() not in weekdays:
+                        target_at += timedelta(days=1)
+        if target_at is not None:
+            if target_at.tzinfo is None:
+                target_at = target_at.replace(tzinfo=timezone(timedelta(hours=7)))
+            result["predictionDeadline"] = target_at.isoformat(timespec="seconds")
+            if datetime.now(timezone.utc) >= target_at:
+                raise ValueError("Kỳ mục tiêu đã đến giờ quay; hãy cập nhật kết quả trước khi dự đoán lại.")
+        elif actual:
+            raise ValueError("cannot verify target draw time from canonical history")
+        result["dataHash"] = __import__('hashlib').sha256(prediction_ledger.canonical_json(
+            [row for row in sorted(actual.values(), key=lambda row: int(row["ky"])) if int(row["ky"]) <= int(cutoff)]
+        ).encode("utf-8")).hexdigest()
+        result = record_execution_snapshot(result)
+        locked = prediction_ledger.lock_prediction(result, username=username,
+                random_seed=int(result.get("randomSeed") or 20260403))
         result["predictionId"] = locked["prediction_id"]
         result["predictionStatus"] = locked["status"]
         result["dataCutoffDrawId"] = locked["data_cutoff_draw_id"]
         result["payloadChecksum"] = locked["payload_checksum"]
     except Exception as exc:
-        result["predictionStatus"] = "lock_failed"
+        result["predictionStatus"] = "validation_rejected" if isinstance(exc, ValueError) else "lock_failed"
+        if isinstance(exc, ValueError):
+            result["ready"] = False
         result["ledgerError"] = str(exc)
         notes = list(result.get("notes") or [])
         result["notes"] = [f"Prediction ledger lock failed: {exc}", *notes]
@@ -4164,9 +4209,12 @@ def predict_json(
     lock_ledger=True,
     pure=False,
 ):
-    payload = _predict_json_unlocked(type_key, bundle_count, keno_level, engine, risk_mode, prediction_mode, pure=pure)
+    from ai.controlled_models import champion_prediction
+    payload = champion_prediction(type_key, int(bundle_count), int(keno_level or 10) if type_key == "KENO" else (5 if type_key == "LOTO_5_35" else 6), prediction_mode) if type_key in CONTROLLED_ML_TYPES else None
+    if payload is None:
+        payload = _predict_json_unlocked(type_key, bundle_count, keno_level, engine, risk_mode, prediction_mode, pure=pure)
     payload = align_prediction_target_with_schedule(payload)
-    if normalize_prediction_mode(prediction_mode) == PREDICTION_MODE_NORMAL:
+    if normalize_prediction_mode(prediction_mode) == PREDICTION_MODE_NORMAL and not payload.get("registryModel"):
         payload = apply_adaptive_coverage(payload, risk_mode=risk_mode)
     payload = normalize_prediction_top_rankings(payload)
     if pure:

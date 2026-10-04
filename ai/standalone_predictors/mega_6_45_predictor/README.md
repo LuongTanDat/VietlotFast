@@ -7,12 +7,14 @@ The project is intentionally modular:
 - `config/` stores predictor knobs, schema aliases, and feature flags.
 - `data/` stores the CSV input copied from the repo and optional processed exports.
 - `state/` stores tracking memory, the last prediction payload, and run metrics.
-- `models/` stores optional future deep-learning artifacts.
+- `models/` stores CNN–GRU NumPy model, scaler and metadata artifacts.
 - `src/` contains the loader, feature, scoring, ticket, API, and backtest modules.
 - `tests/` contains focused regression tests for loader, features, tracking, and ticket generation.
 
-Heuristic mode works with Python standard library only.
-Deep-learning support is scaffolded and stays optional.
+Install the dependencies from the repository requirements.txt (including NumPy).
+Deep scoring uses a trained CNN–GRU NumPy model when its artifact, schema and cutoff are valid; otherwise it falls back to heuristic scoring.
+Inference uses complete history to construct the final sequence, matching training features.
+Regime-head validation measures the observed-history label, not evidence of future winning numbers.
 
 Quick start:
 

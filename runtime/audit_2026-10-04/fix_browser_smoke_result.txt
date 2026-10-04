@@ -1,0 +1,1 @@
+{"ok":true,"remembered":{"user":"browser_owner"},"walletVersion":1,"historyCount":1,"unusedMaxColumns":false}

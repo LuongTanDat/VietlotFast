@@ -35,12 +35,16 @@ class PrizeWebTests(unittest.TestCase):
             (work / "runtime").mkdir()
             shutil.copy2(ROOT / "backend/lib/sqlite-jdbc-3.51.2.0.jar", work / "sqlite-jdbc.jar")
             expected = {}
-            for key, fields in lr.PRIZE_FIELDS_BY_TYPE.items():
+            for key in (*lr.PRIZE_FIELDS_BY_TYPE, "MAX_3D", "MAX_3D_PRO"):
+                fields = lr.PRIZE_FIELDS_BY_TYPE.get(key, ())
                 rows = {}
                 for ky in (1, 2):
                     row = {field: "" for field in lr.CSV_FIELDS}
                     row.update(Ky=str(ky), Ngay="01/10/2026", Main="1,2,3,4,5,6", Label=lr.LIVE_TYPES[key].label)
+                    if key.startswith("MAX"):
+                        row.update(Main="", DisplayLines="Đặc biệt: 000 000 || Giải nhất: 001 002 003 004 || Giải nhì: 005 006 007 008 009 010 || Giải ba: 011 012 013 014 015 016 017 018")
                     row.update({field: str(178900548500 + index) if ky == 2 else "" for index, field in enumerate(fields)})
+                    row["PrizeHit"] = {"LOTO_5_35": "ĐB", "LOTO_6_45": "Jackpot", "LOTO_6_55": "Jackpot 1, 2"}.get(key, "") if ky == 2 else ""
                     rows[str(ky)] = row
                 lr.write_csv_rows(canonical / f"{lr.CANONICAL_OUTPUT_STEMS[key]}_all_day.csv", rows, type_key=key)
                 expected[key] = [lr.csv_row_to_history_item(rows[str(ky)]) for ky in (2, 1)]
@@ -66,7 +70,7 @@ public class PrizeHistoryHarness {
                 key = payload["type"]
                 self.assertEqual(2, len(payload["history"]))
                 for actual, wanted in zip(payload["history"], expected[key]):
-                    for field in ("ky", "main", "date", *[lr.PRIZE_RESULT_KEYS[f] for f in lr.PRIZE_FIELDS_BY_TYPE[key]]):
+                    for field in ("ky", "main", "date", "special", "displayLines", "label", "prizeHit", *[lr.PRIZE_RESULT_KEYS[f] for f in lr.PRIZE_FIELDS_BY_TYPE.get(key, ())]):
                         self.assertEqual(wanted.get(field), actual.get(field))
 
     @unittest.skipUnless(Path(CHROME).exists(), "Chrome required")
@@ -76,23 +80,31 @@ public class PrizeHistoryHarness {
         columns_start = source.index("    const DRAW_PRIZE_COLUMNS")
         columns_end = source.index("    function getDrawPrizeAmount", columns_start)
         code = source[columns_start:columns_end]
-        for name in ("emptyLiveHistoryFeed", "getDrawPrizeAmount", "getDrawPrizeFields", "formatDrawPrizeAmount", "formatDrawPrizes", "cloneDraw", "kySortValue", "normalizeLiveHistoryKy", "mergeLiveHistoryDraw", "normalizeLiveHistoryRepairErrors", "buildLiveHistoryFeedFromResponse", "getDataTableHeaders", "getDataTableMatchingKeys", "getDataTableSelectedKeys", "buildDataTableRows", "renderDataTableRows", "renderLiveResultsBoard", "getExcelColumnName", "buildXlsxSheetXml"):
+        for name in ("emptyLiveHistoryFeed", "getDrawPrizeAmount", "getDrawPrizeFields", "getDrawPrizeHit", "formatDrawPrizeAmount", "formatDrawPrizes", "cloneDraw", "kySortValue", "normalizeLiveHistoryKy", "mergeLiveHistoryDraw", "normalizeLiveHistoryRepairErrors", "buildLiveHistoryFeedFromResponse", "getDataTableHeaders", "getDataTableMatchingKeys", "getDataTableSelectedKeys", "buildDataTableRows", "renderDataTableRows", "renderLiveResultsBoard", "getExcelColumnName", "buildXlsxSheetXml"):
             code += js_function(source, name) + "\n"
         code += js_function(core, "getLiveResultSignature")
+        for name in ("parseDataTableDateParts", "normalizeDataTableFilterNumber", "normalizeDataTableWeekdayFilter", "getDataTableDateFilters", "hasDataTableDateFilter", "isDataTableDrawInDateFilter", "setDataTableFilterSelectValue", "syncDataTableDateFilterControls", "resetDataTableDateFilters", "syncDataTableHitFilterControl"):
+            code += js_function(source, name) + "\n"
+        bindings_start = core.index('    {\n      const dataTableHitFilterBtn =')
+        bindings_end = core.index('    {\n      const dataTableRefreshBtn =', bindings_start)
+        code += core[bindings_start:bindings_end]
         script = '''
 const TYPES = {LOTO_5_35: {hasSpecial:true}, LOTO_6_45:{}, LOTO_6_55:{hasSpecial:true}, KENO:{}};
 const LIVE_HISTORY_TYPES = Object.keys(TYPES).map(key => ({key,label:key}));
 const LIVE_RESULT_TYPES = LIVE_HISTORY_TYPES;
 const liveSingleRefreshBusy = new Set();
 let liveResultsState = {};
+let dataTableSelectedType = 'LOTO_5_35';
+let dataTableHitOnly = false;
+let dataTableDateFilters = {weekday:'all',day:'all',month:'all',year:'all'};
+let tableLoadCalls = 0;
+async function loadDataTableRows() { tableLoadCalls++; }
 const normalizeKy = ky => String(ky);
 const formatLiveKy = ky => String(ky);
 const escapeHtml = value => String(value).replaceAll('&','&amp;').replaceAll('<','&lt;');
 const escapeXml = escapeHtml;
 const formatDataTableWeekday = () => 'Thứ 5';
 const getDataTableLimitValue = () => 'all';
-const getDataTableDateFilters = () => ({});
-const isDataTableDrawInDateFilter = () => true;
 const formatDataTableNumbers = (type,draw) => ({numbers:draw.main.join(' '),special:draw.special ?? ''});
 const getSyncedNowDate = () => new Date('2026-10-03T14:00:00Z');
 const getLiveResultsBoardSignature = () => JSON.stringify(liveResultsState);
@@ -106,29 +118,85 @@ function check(value,message) { if (!value) throw new Error(message); }
 try {
   for (const [type,columns] of Object.entries(DRAW_PRIZE_COLUMNS)) {
     const money = Object.fromEntries(columns.map(({key},index) => [key,178900548500+index]));
-    const row = {ky:'2',date:'01/10/2026',main:[1,2,3,4,5,6],special:10,...money};
-    const feed = buildLiveHistoryFeedFromResponse(type,[row,{...row,ky:'1',...Object.fromEntries(columns.map(({key}) => [key,null]))}]);
+    const marker = {LOTO_5_35:'ĐB',LOTO_6_45:'Jackpot',LOTO_6_55:'Jackpot 1, 2'}[type];
+    const row = {ky:'2',date:'01/10/2026',main:[1,2,3,4,5,6],special:10,prizeHit:marker,...money};
+    const feed = buildLiveHistoryFeedFromResponse(type,[row,{...row,ky:'1',prizeHit:'',...Object.fromEntries(columns.map(({key}) => [key,null]))}]);
     const rows = buildDataTableRows(type,feed,'all',{});
     const headers = getDataTableHeaders(type);
     check(rows[0].length === headers.length,'header alignment');
+    check(headers.at(-1) === 'Nổ','missing hit column');
+    check(rows[0].at(-1) === marker && rows[1].at(-1) === '', 'hit must match source and nonhit must be blank');
+    check(feed.results['2'].prizeHit === marker,'feed lost hit');
+    check(getLiveResultSignature(row) !== getLiveResultSignature({...row,prizeHit:''}),'hit refresh missed');
     columns.forEach(({key},index) => {
       check(feed.results['2'][key] === money[key],'feed lost amount');
-      check(rows[0][headers.length-columns.length+index] === money[key],'export lost amount');
-      check(rows[1][headers.length-columns.length+index] === '','missing export must be blank');
+      check(rows[0][headers.length-columns.length-1+index] === money[key],'export lost amount');
+      check(rows[1][headers.length-columns.length-1+index] === '','missing export must be blank');
       check(getLiveResultSignature(row) !== getLiveResultSignature({...row,[key]:money[key]+1}),'amount refresh missed');
     });
     renderDataTableRows(type,feed,{});
     check(document.getElementById('dataTableBody').textContent.includes('178.900.548.500'),'table money formatting');
     check(document.getElementById('dataTableBody').textContent.includes('Chưa có dữ liệu'),'missing table money');
+    const rendered = document.querySelectorAll('#dataTableBody tr');
+    check(rendered[0].lastElementChild.textContent === marker, 'hit table cell');
+    check(rendered[1].lastElementChild.textContent === '', 'nonhit table cell must be empty');
+    check(!document.getElementById('dataTableBody').textContent.includes('NaN'),'hit incorrectly formatted as money');
     check(formatDrawPrizes(type,row).includes('178.900.548.500 VNĐ'),'history money formatting');
     const xml = buildXlsxSheetXml(headers,rows);
     check(xml.includes('t="n" s="1"><v>178900548500</v>'),'Excel money must be numeric');
+    check(xml.includes('>Nổ</t>') && xml.includes('>'+marker+'</t>'),'Excel lost hit column');
     liveResultsState[type] = {...row,key:type};
   }
   renderLiveResultsBoard({force:true});
   check(document.querySelectorAll('.live-card-amount').length === 4,'three games must have four prize values');
   check(document.getElementById('liveResultGrid').textContent.includes('178.900.548.500 VNĐ'),'live card amount');
   check(!getDrawPrizeFields('KENO',{jackpot:100}).jackpot,'unrelated game prize');
+  check(!getDataTableHeaders('KENO').includes('Nổ') && !getDataTableHeaders('MAX_3D').includes('Nổ'),'unrelated game hit column');
+  for (const marker of ['Jackpot 1','Jackpot 2','Jackpot 1, 2','']) {
+    const feed = buildLiveHistoryFeedFromResponse('LOTO_6_55',[{ky:'3',date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit:marker}]);
+    renderDataTableRows('LOTO_6_55',feed,{});
+    check(document.querySelector('#dataTableBody tr').lastElementChild.textContent === marker,'Power marker rendering');
+  }
+  const hitButton = document.getElementById('dataTableHitFilterBtn');
+  const clearButton = document.getElementById('dataTableClearFilterBtn');
+  for (const type of Object.keys(DRAW_PRIZE_COLUMNS)) {
+    dataTableSelectedType = type;
+    syncDataTableHitFilterControl();
+    check(!hitButton.disabled && hitButton.getAttribute('aria-pressed') === 'false','available hit toggle');
+    const markers = type === 'LOTO_6_55' ? ['Jackpot 1','Jackpot 2','Jackpot 1, 2'] : [type === 'LOTO_5_35' ? 'ĐB' : 'Jackpot'];
+    const hitFeed = buildLiveHistoryFeedFromResponse(type,[
+      {ky:'9',date:'03/10/2026',main:[1,2,3,4,5,6],prizeHit:''},
+      ...markers.map((prizeHit,i) => ({ky:String(8-i),date:i ? '01/09/2026' : '01/10/2026',main:[1,2,3,4,5,6],prizeHit})),
+      {ky:'1',date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit:'   '},
+    ]);
+    const allDates = {weekday:'all',day:'all',month:'all',year:'all'};
+    hitButton.click();
+    check(dataTableHitOnly && hitButton.getAttribute('aria-pressed') === 'true','click activates hit toggle');
+    const filteredRows = buildDataTableRows(type,hitFeed,'all',allDates);
+    check(filteredRows.length === markers.length && filteredRows.every(row => markers.includes(row.at(-1))),'only verified hits, all Power variants');
+    check(buildDataTableRows(type,hitFeed,'1',allDates)[0][0] === '8','filter hits before row limit');
+    const october = {...allDates,month:'10',year:'2026',weekday:'4'};
+    check(buildDataTableRows(type,hitFeed,'all',october).length === 1,'combine hit and date filters');
+    const xml = buildXlsxSheetXml(getDataTableHeaders(type),filteredRows);
+    check((xml.match(/<row r=/g) || []).length === markers.length+1,'Excel includes only filtered rows');
+    renderDataTableRows(type,hitFeed,{...allDates,year:'2025'});
+    check(document.getElementById('dataTableBody').textContent.includes('Không có kỳ nổ'),'empty hit filter message');
+    hitButton.click();
+    check(!dataTableHitOnly && buildDataTableRows(type,hitFeed,'all',allDates).length === markers.length+2,'click restores all rows');
+  }
+  hitButton.click();
+  document.getElementById('dataTableMonth').value = '10';
+  getDataTableDateFilters();
+  clearButton.click();
+  check(!dataTableHitOnly && !hasDataTableDateFilter() && hitButton.getAttribute('aria-pressed') === 'false','clear resets hit and date filters');
+  for (const type of ['KENO','MAX_3D','MAX_3D_PRO']) {
+    dataTableHitOnly = true;
+    syncDataTableHitFilterControl(type);
+    check(!dataTableHitOnly && hitButton.disabled && hitButton.getAttribute('aria-pressed') === 'false','unsupported game resets toggle');
+    hitButton.click();
+    check(!dataTableHitOnly,'disabled button cannot filter');
+  }
+  check(tableLoadCalls === 8,'toggle and clear must reload table');
   for (const value of [null,'',0,-1,'bad',Number.MAX_SAFE_INTEGER+1]) check(getDrawPrizeAmount({jackpot:value},'jackpot') === null,'invalid money');
   document.getElementById('result').textContent = 'PASS';
 } catch(error) { document.getElementById('result').textContent = 'FAIL: '+error.stack; }
@@ -136,8 +204,8 @@ try {
         with tempfile.TemporaryDirectory(prefix="lotto-prize-browser-", dir=TEST_TMP) as folder:
             work = Path(folder)
             page = work / "test.html"
-            page.write_text('<!doctype html><meta charset="utf-8"><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
-            output = subprocess.run([CHROME,"--headless","--disable-gpu","--no-first-run","--no-default-browser-check","--user-data-dir="+str(work / "profile"),"--dump-dom",page.as_uri()], capture_output=True, timeout=30, creationflags=0x08000000 if os.name == "nt" else 0)
+            page.write_text('<!doctype html><meta charset="utf-8"><button id="dataTableHitFilterBtn" aria-pressed="false">Nổ</button><button id="dataTableClearFilterBtn">Xóa lọc</button><select id="dataTableMonth"><option value="all">Tất Cả</option><option value="10">10</option></select><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
+            output = subprocess.run([CHROME,"--headless","--disable-gpu","--no-sandbox","--no-first-run","--no-default-browser-check","--user-data-dir="+str(work / "profile"),"--dump-dom",page.as_uri()], capture_output=True, timeout=30, creationflags=0x08000000 if os.name == "nt" else 0)
             dom = output.stdout.decode("utf-8", errors="replace")
             result = re.search(r'<pre id="result">(.*?)</pre>', dom, re.DOTALL)
             self.assertEqual("PASS", result.group(1) if result else output.stderr.decode("utf-8", errors="replace")[-1500:])

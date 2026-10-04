@@ -1,0 +1,47 @@
+{
+  "type": "LOTO_6_45",
+  "bootstrapComplete": true,
+  "requestedStartMode": "full_history",
+  "lastSyncAt": "2026-10-04T14:57:44",
+  "lastBootstrapAt": "2026-03-16T23:59:00",
+  "effectiveEarliestKy": "2",
+  "effectiveEarliestDate": "20/07/2016",
+  "sourceLimited": true,
+  "prizeAmounts": {
+    "sourceOverrides": {
+      "506": "https://www.ketquadientoan.com/ket-qua-xo-so-dien-toan-mega-6-45/16-10-2019.html"
+    },
+    "unit": "VND",
+    "source": "https://www.minhchinh.com/",
+    "updatedAt": "2026-10-04T14:57:44",
+    "complete": true,
+    "totalRows": 1569,
+    "completeRows": 1569,
+    "missingRows": 0,
+    "missingDraws": [],
+    "columns": [
+      "Jackpot (VNĐ)"
+    ],
+    "amountMeaning": "Advertised draw prize pool, before division among winners"
+  },
+  "dataQuality": {
+    "inputRows": 1569,
+    "outputRows": 1569,
+    "duplicateRowsRemoved": 0,
+    "changedCells": 0,
+    "changesByColumn": {},
+    "internalGaps": [],
+    "missingDrawsInsideRange": 0,
+    "earliestKy": "2",
+    "latestKy": "1570",
+    "sourceVerifiedDraws": 0,
+    "warnings": 0,
+    "errors": 0,
+    "checkedAt": "2026-10-03T22:28:41",
+    "valid": true,
+    "structuralValid": true,
+    "warningDetails": [],
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\222839_608114\\report.json",
+    "scope": "Existing canonical draws; no history extrapolation"
+  }
+}

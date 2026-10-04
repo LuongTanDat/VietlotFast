@@ -1,0 +1,66 @@
+{
+  "quick_check": "ok",
+  "table_counts": {
+    "users": 1,
+    "stores": 1,
+    "prediction_runs": 229,
+    "prediction_scores": 186,
+    "model_registry": 6,
+    "training_runs": 6
+  },
+  "models": [
+    {
+      "game_type": "KENO",
+      "status": "rejected",
+      "count": 3
+    },
+    {
+      "game_type": "LOTO_5_35",
+      "status": "rejected",
+      "count": 1
+    },
+    {
+      "game_type": "LOTO_6_45",
+      "status": "rejected",
+      "count": 1
+    },
+    {
+      "game_type": "LOTO_6_55",
+      "status": "rejected",
+      "count": 1
+    }
+  ],
+  "prediction_summary": [
+    {
+      "game_type": "KENO",
+      "status": "locked",
+      "count": 20
+    },
+    {
+      "game_type": "LOTO_6_55",
+      "status": "locked",
+      "count": 23
+    },
+    {
+      "game_type": "KENO",
+      "status": "scored",
+      "count": 91
+    },
+    {
+      "game_type": "LOTO_5_35",
+      "status": "scored",
+      "count": 75
+    },
+    {
+      "game_type": "LOTO_6_45",
+      "status": "scored",
+      "count": 4
+    },
+    {
+      "game_type": "LOTO_6_55",
+      "status": "scored",
+      "count": 16
+    }
+  ],
+  "missing_model_ids": 229
+}

@@ -2,7 +2,7 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-03T22:19:36",
+  "lastSyncAt": "2026-10-04T15:35:57",
   "lastBootstrapAt": "2026-03-17T19:34:02",
   "effectiveEarliestKy": "5",
   "effectiveEarliestDate": "01/08/2017",
@@ -10,7 +10,7 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-03T22:19:36",
+    "updatedAt": "2026-10-04T15:35:57",
     "complete": true,
     "totalRows": 1402,
     "completeRows": 1402,
@@ -25,6 +25,19 @@
   "dataQuality": {
     "inputRows": 1402,
     "outputRows": 1402,
+    "removedColumns": [],
+    "outputColumns": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "ĐB",
+      "Link cập nhật",
+      "Ngày cập nhật",
+      "Jackpot 1 (VNĐ)",
+      "Jackpot 2 (VNĐ)"
+    ],
     "duplicateRowsRemoved": 0,
     "changedCells": 0,
     "changesByColumn": {},
@@ -35,11 +48,25 @@
     "sourceVerifiedDraws": 0,
     "warnings": 0,
     "errors": 0,
-    "checkedAt": "2026-10-03T21:18:35",
+    "checkedAt": "2026-10-04T15:02:45",
     "valid": true,
     "structuralValid": true,
     "warningDetails": [],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
     "scope": "Existing canonical draws; no history extrapolation"
+  },
+  "prizeHits": {
+    "rows": 1402,
+    "verifiedRows": 1402,
+    "missingDraws": [],
+    "hitCounts": {
+      "Jackpot 2": 330,
+      "Jackpot 1": 40,
+      "Jackpot 1, 2": 18
+    },
+    "checkedAt": "2026-10-04T15:28:24",
+    "complete": true,
+    "meaning": "At least one winning ticket in the top-prize table",
+    "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   }
 }

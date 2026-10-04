@@ -112,7 +112,7 @@ class DataCleaningTests(unittest.TestCase):
                 with path.open("w", encoding="utf-8", newline="") as stream:
                     writer = csv.DictWriter(stream, fieldnames=headers)
                     writer.writeheader()
-                    writer.writerows(rows)
+                    writer.writerows({name: row[name] for name in headers} for row in rows)
                 original[key] = path.read_bytes()
             evidence = root / "evidence.json"
             evidence.write_text(json.dumps([{"key": "KENO", "ky": str(ky), "date": "30/09/2026",

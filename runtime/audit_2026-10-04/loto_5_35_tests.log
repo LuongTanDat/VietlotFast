@@ -1,0 +1,10 @@
+test_feature_snapshot_contains_main_and_bonus_scores (test_features.FeatureSnapshotTest.test_feature_snapshot_contains_main_and_bonus_scores) ... ok
+test_load_history_from_local_snapshot (test_loader.LoaderTest.test_load_history_from_local_snapshot) ... ok
+test_predict_honors_vip_bundle_count_from_one_to_ten (test_ticket_generation.PredictorApiTest.test_predict_honors_vip_bundle_count_from_one_to_ten) ... ok
+test_predict_returns_new_standalone_engine (test_ticket_generation.PredictorApiTest.test_predict_returns_new_standalone_engine) ... ok
+test_update_after_actual_marks_hits_and_bonus (test_tracking.TrackingTest.test_update_after_actual_marks_hits_and_bonus) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 7.699s
+
+OK

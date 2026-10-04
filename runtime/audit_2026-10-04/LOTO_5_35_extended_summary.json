@@ -1,0 +1,42 @@
+{
+  "game": "LOTO_5_35",
+  "elapsed_seconds": 34.51,
+  "fixed_mode": "blended",
+  "fold_count": 120,
+  "metrics": {
+    "blend_mode": "blended",
+    "draws_tested": 120,
+    "fold_count": 120,
+    "average_hits": 0.7833333333333333,
+    "avgHits": 0.7833333333333333,
+    "avgHitRate": 0.15666666666666668,
+    "top_k_recall": 0.3066666666666667,
+    "bonus_or_special_accuracy": 0.09166666666666666,
+    "ticket_quality_mean": 65.85908333333333,
+    "brier_score": 0.1268274881571483,
+    "log_loss": 0.4652610240227189,
+    "calibration_error": 0.04292318096387744
+  },
+  "baseline_comparison": {
+    "same_folds": true,
+    "fold_count": 120,
+    "mean_hit": 0.7833333333333333,
+    "expected_random_hits": 0.7142857142857143,
+    "lift": 0.09666666666666668,
+    "paired_bootstrap_ci": {
+      "mean": 0.06904761904761901,
+      "lower": -0.07261904761904765,
+      "upper": 0.2107142857142857,
+      "confidence": 0.95
+    },
+    "paired_permutation_test": {
+      "observed": 0.06904761904761901,
+      "p_value": 0.29141716566866266,
+      "iterations": 500.0
+    },
+    "warning": ""
+  },
+  "deep_status_counts": {
+    "trained_active": 120
+  }
+}

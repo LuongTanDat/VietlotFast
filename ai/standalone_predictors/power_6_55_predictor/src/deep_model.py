@@ -318,7 +318,7 @@ def score_numbers(
     del tracking_state
     try:
         sample = deep_dataset.build_inference_sample(
-            draws=list(prediction_context.get("recent_secondary") or []),
+            draws=list(prediction_context.get("draws") or []),
             predictor_config=predictor_config,
             time_slot_enabled=bool(prediction_context.get("target_time")),
             sequence_length=int((_deep_config(predictor_config)).get("sequence_length", 10) or 10),

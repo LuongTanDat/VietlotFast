@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+  "retrievedAt": "2026-10-04T15:25:55",
+  "htmlSha256": "166d847a01751a24653d22c4fe3d9f4ddaa3686dbfc2286b0971d8dd8a48fe82",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "515",
+      "date": "06/11/2019",
+      "time": "",
+      "main": [
+        3,
+        15,
+        22,
+        23,
+        38,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "03 15 22 23 38 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+      "jackpot": 25973365000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "514",
+      "date": "03/11/2019",
+      "time": "",
+      "main": [
+        28,
+        30,
+        32,
+        38,
+        44,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "28 30 32 38 44 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+      "jackpot": 24662089000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "513",
+      "date": "01/11/2019",
+      "time": "",
+      "main": [
+        6,
+        11,
+        20,
+        30,
+        37,
+        40
+      ],
+      "special": null,
+      "displayLines": [
+        "06 11 20 30 37 40"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+      "jackpot": 23289402000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "512",
+      "date": "30/10/2019",
+      "time": "",
+      "main": [
+        2,
+        5,
+        8,
+        12,
+        29,
+        38
+      ],
+      "special": null,
+      "displayLines": [
+        "02 05 08 12 29 38"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+      "jackpot": 21917627500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "511",
+      "date": "27/10/2019",
+      "time": "",
+      "main": [
+        1,
+        19,
+        29,
+        30,
+        40,
+        42
+      ],
+      "special": null,
+      "displayLines": [
+        "01 19 29 30 40 42"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-06-11-2019.html",
+      "jackpot": 20715497000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

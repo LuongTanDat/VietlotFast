@@ -1,0 +1,301 @@
+{
+  "startedAt": "2026-10-04T15:02:53",
+  "applied": true,
+  "files": {
+    "ai/standalone_predictors/loto_5_35_predictor/data/loto_5_35.csv": {
+      "kind": "snapshot",
+      "inputRows": 556,
+      "outputRows": 556,
+      "blankRowsRemoved": 0,
+      "changed": true,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "prizeColumnsAdded": [],
+      "removedColumns": [
+        "Hiển thị",
+        "Loại"
+      ],
+      "drawIdentityVerified": 556,
+      "completePrizeRows": 556
+    },
+    "ai/standalone_predictors/mega_6_45_predictor/data/mega_6_45.csv": {
+      "kind": "snapshot",
+      "inputRows": 1490,
+      "outputRows": 1490,
+      "blankRowsRemoved": 0,
+      "changed": true,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "prizeColumnsAdded": [],
+      "removedColumns": [
+        "ĐB",
+        "Hiển thị",
+        "Loại"
+      ],
+      "drawIdentityVerified": 1490,
+      "completePrizeRows": 1490
+    },
+    "ai/standalone_predictors/power_6_55_predictor/data/power_6_55.csv": {
+      "kind": "snapshot",
+      "inputRows": 1323,
+      "outputRows": 1323,
+      "blankRowsRemoved": 0,
+      "changed": true,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "prizeColumnsAdded": [],
+      "removedColumns": [
+        "Hiển thị",
+        "Loại"
+      ],
+      "drawIdentityVerified": 1323,
+      "completePrizeRows": 1323
+    },
+    "data/exports/scoring/keno_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 80,
+      "outputRows": 80,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_5_35_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 35,
+      "outputRows": 35,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_5_35_special_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 12,
+      "outputRows": 12,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_6_45_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 45,
+      "outputRows": 45,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_6_55_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 55,
+      "outputRows": 55,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/max_3d_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 1000,
+      "outputRows": 1000,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/max_3d_pro_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 1000,
+      "outputRows": 1000,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    }
+  },
+  "errors": [],
+  "canonicalReport": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
+  "canonicalTypes": {
+    "LOTO_5_35": {
+      "inputRows": 925,
+      "outputRows": 925,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Giải Đặc biệt (VNĐ)"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "925",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_45": {
+      "inputRows": 1569,
+      "outputRows": 1569,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot (VNĐ)"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "2",
+      "latestKy": "1570",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_55": {
+      "inputRows": 1402,
+      "outputRows": 1402,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot 1 (VNĐ)",
+        "Jackpot 2 (VNĐ)"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "5",
+      "latestKy": "1406",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "KENO": {
+      "inputRows": 24102,
+      "outputRows": 24102,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "Lớn/-/Nhỏ",
+        "Chẵn/-/Lẻ",
+        "Link cập nhật"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "273963",
+      "latestKy": "298064",
+      "sourceVerifiedDraws": 116,
+      "warnings": 1,
+      "errors": 0
+    },
+    "MAX_3D": {
+      "inputRows": 1140,
+      "outputRows": 1140,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Hiển thị",
+        "Link cập nhật",
+        "Ngày cập nhật"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "1140",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "MAX_3D_PRO": {
+      "inputRows": 787,
+      "outputRows": 787,
+      "removedColumns": [],
+      "outputColumns": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Hiển thị",
+        "Link cập nhật",
+        "Ngày cập nhật"
+      ],
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "787",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "warnings": [
+    {
+      "type": "KENO",
+      "draws": [
+        "276032",
+        "276033"
+      ],
+      "date": "02/04/2026",
+      "times": [
+        "12:40",
+        "12:24"
+      ],
+      "message": "Draw IDs contradict chronological order",
+      "sourceUrl": "https://www.minhchinh.com/xo-so-dien-toan-keno.html",
+      "sourceConfirmed": true,
+      "resolution": "Preserved source timestamps; no inferred correction"
+    }
+  ],
+  "backupDirectory": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\csv_cleaning_2026-10-04\\150253_050293\\before",
+  "finishedAt": "2026-10-04T15:02:54"
+}

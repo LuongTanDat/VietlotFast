@@ -1,0 +1,13 @@
+test_candidate_has_real_artifact_and_separate_chronological_evaluation (tests.test_audit_fixes.AuditFixTests.test_candidate_has_real_artifact_and_separate_chronological_evaluation) ... ok
+test_champion_and_rollback_select_actual_artifact (tests.test_audit_fixes.AuditFixTests.test_champion_and_rollback_select_actual_artifact) ... ok
+test_deep_production_input_matches_training_at_same_cutoff (tests.test_audit_fixes.AuditFixTests.test_deep_production_input_matches_training_at_same_cutoff) ... ok
+test_ledger_rejects_past_target_and_expired_deadline (tests.test_audit_fixes.AuditFixTests.test_ledger_rejects_past_target_and_expired_deadline) ... ok
+test_ledger_uses_server_timestamp (tests.test_audit_fixes.AuditFixTests.test_ledger_uses_server_timestamp) ... ok
+test_promotion_rejects_missing_nonfinite_and_equal_baseline_metrics (tests.test_audit_fixes.AuditFixTests.test_promotion_rejects_missing_nonfinite_and_equal_baseline_metrics) ... ok
+test_random_portfolio_does_not_gain_lift_from_ticket_count (tests.test_audit_fixes.AuditFixTests.test_random_portfolio_does_not_gain_lift_from_ticket_count) ... ok
+test_real_java_auth_store_vip_and_wallet_handlers (tests.test_security_fixes.SecurityFixTests.test_real_java_auth_store_vip_and_wallet_handlers) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 12.870s
+
+OK

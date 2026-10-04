@@ -1,0 +1,112 @@
+{
+  "startedAt": "2026-10-04T15:01:24",
+  "applied": false,
+  "types": {
+    "LOTO_5_35": {
+      "inputRows": 925,
+      "outputRows": 925,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "925",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_45": {
+      "inputRows": 1569,
+      "outputRows": 1569,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "2",
+      "latestKy": "1570",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_55": {
+      "inputRows": 1402,
+      "outputRows": 1402,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "5",
+      "latestKy": "1406",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "KENO": {
+      "inputRows": 24102,
+      "outputRows": 24102,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "273963",
+      "latestKy": "298064",
+      "sourceVerifiedDraws": 116,
+      "warnings": 1,
+      "errors": 0
+    },
+    "MAX_3D": {
+      "inputRows": 1140,
+      "outputRows": 1140,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "1140",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "MAX_3D_PRO": {
+      "inputRows": 787,
+      "outputRows": 787,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "787",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "type": "KENO",
+      "draws": [
+        "276032",
+        "276033"
+      ],
+      "date": "02/04/2026",
+      "times": [
+        "12:40",
+        "12:24"
+      ],
+      "message": "Draw IDs contradict chronological order",
+      "sourceUrl": "https://www.minhchinh.com/xo-so-dien-toan-keno.html",
+      "sourceConfirmed": true,
+      "resolution": "Preserved source timestamps; no inferred correction"
+    }
+  ],
+  "changes": [],
+  "backupDirectory": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150124_664221\\before",
+  "finishedAt": "2026-10-04T15:01:28"
+}

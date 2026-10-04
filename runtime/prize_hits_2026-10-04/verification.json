@@ -1,0 +1,59 @@
+{
+  "files": [
+    {
+      "file": "data/canonical/loto_5_35_all_day.csv",
+      "rows": 925,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "ĐB": 42
+      }
+    },
+    {
+      "file": "data/canonical/mega_6_45_all_day.csv",
+      "rows": 1569,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "Jackpot": 165
+      }
+    },
+    {
+      "file": "data/canonical/power_6_55_all_day.csv",
+      "rows": 1402,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "Jackpot 2": 330,
+        "Jackpot 1, 2": 18,
+        "Jackpot 1": 40
+      }
+    },
+    {
+      "file": "ai/standalone_predictors/loto_5_35_predictor/data/loto_5_35.csv",
+      "rows": 556,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "ĐB": 20
+      }
+    },
+    {
+      "file": "ai/standalone_predictors/mega_6_45_predictor/data/mega_6_45.csv",
+      "rows": 1490,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "Jackpot": 156
+      }
+    },
+    {
+      "file": "ai/standalone_predictors/power_6_55_predictor/data/power_6_55.csv",
+      "rows": 1323,
+      "retainedValuesUnchanged": true,
+      "hitCounts": {
+        "Jackpot 2": 311,
+        "Jackpot 1": 39,
+        "Jackpot 1, 2": 15
+      }
+    }
+  ],
+  "drawsVerified": 3896,
+  "totalRows": 7265,
+  "testsPassed": 88
+}

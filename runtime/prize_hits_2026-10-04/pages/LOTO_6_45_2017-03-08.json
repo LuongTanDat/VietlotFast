@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+  "retrievedAt": "2026-10-04T15:26:55",
+  "htmlSha256": "785948cbb004ce5eb4b1f0cac14926cc532720cf9baa38a0f3fc6b4b3349f130",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "100",
+      "date": "08/03/2017",
+      "time": "",
+      "main": [
+        5,
+        11,
+        14,
+        20,
+        32,
+        42
+      ],
+      "special": null,
+      "displayLines": [
+        "05 11 14 20 32 42"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+      "jackpot": 16235308500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "99",
+      "date": "05/03/2017",
+      "time": "",
+      "main": [
+        18,
+        21,
+        24,
+        26,
+        39,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "18 21 24 26 39 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+      "jackpot": 20208845500,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 2
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "98",
+      "date": "03/03/2017",
+      "time": "",
+      "main": [
+        2,
+        4,
+        13,
+        22,
+        23,
+        41
+      ],
+      "special": null,
+      "displayLines": [
+        "02 04 13 22 23 41"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+      "jackpot": 15908249000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "97",
+      "date": "01/03/2017",
+      "time": "",
+      "main": [
+        3,
+        4,
+        26,
+        30,
+        35,
+        44
+      ],
+      "special": null,
+      "displayLines": [
+        "03 04 26 30 35 44"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+      "jackpot": 41241151500,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "96",
+      "date": "26/02/2017",
+      "time": "",
+      "main": [
+        7,
+        11,
+        16,
+        19,
+        38,
+        39
+      ],
+      "special": null,
+      "displayLines": [
+        "07 11 16 19 38 39"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-08-03-2017.html",
+      "jackpot": 28881350000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

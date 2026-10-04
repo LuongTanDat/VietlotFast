@@ -1,0 +1,6555 @@
+{
+  "files": [
+    {
+      "path": "ai\\__init__.py",
+      "bytes": 48,
+      "lines": 1,
+      "sha256": "05d0fa0073bc79b1f551a08f5b615eb06bb30ecc011655c6c07a97eed76a6536",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\adaptive_coverage.py",
+      "bytes": 22255,
+      "lines": 550,
+      "sha256": "f5803adc0e469d46a869968642de4304587459d6cc4a4e1f5b904fcba2ddefc6",
+      "functions": [
+        {
+          "name": "candidate_pool_size",
+          "line": 87
+        },
+        {
+          "name": "_normalize_risk_mode",
+          "line": 98
+        },
+        {
+          "name": "_coerce_number",
+          "line": 105
+        },
+        {
+          "name": "_extract_ranking",
+          "line": 112
+        },
+        {
+          "name": "_ranking_score_map",
+          "line": 126
+        },
+        {
+          "name": "_edge_gate",
+          "line": 135
+        },
+        {
+          "name": "_exploration_rate",
+          "line": 178
+        },
+        {
+          "name": "_build_probability_map",
+          "line": 193
+        },
+        {
+          "name": "_stable_seed",
+          "line": 209
+        },
+        {
+          "name": "_gumbel_top_k",
+          "line": 225
+        },
+        {
+          "name": "_ticket_key",
+          "line": 243
+        },
+        {
+          "name": "_ticket_quality",
+          "line": 247
+        },
+        {
+          "name": "_normalize_existing_ticket",
+          "line": 258
+        },
+        {
+          "name": "_generate_candidates",
+          "line": 274
+        },
+        {
+          "name": "_select_portfolio",
+          "line": 351
+        },
+        {
+          "name": "_portfolio_summary",
+          "line": 419
+        },
+        {
+          "name": "apply_adaptive_coverage",
+          "line": 434
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\analysis\\__init__.py",
+      "bytes": 32,
+      "lines": 1,
+      "sha256": "dbf7d3fd5c0aeb60e5a336196b140ad6214c58da6a16d0c4e73f42b4ba118d0b",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\analysis\\analysis.py",
+      "bytes": 47670,
+      "lines": 1215,
+      "sha256": "f31db0e5c24d6a0b0f8520177f4cc974afc664a11e3822ebb75cb277f99b813a",
+      "functions": [
+        {
+          "name": "normalize_header",
+          "line": 124
+        },
+        {
+          "name": "normalize_type",
+          "line": 131
+        },
+        {
+          "name": "parse_date_value",
+          "line": 148
+        },
+        {
+          "name": "date_iso",
+          "line": 158
+        },
+        {
+          "name": "parse_time_minutes",
+          "line": 162
+        },
+        {
+          "name": "ky_sort_value",
+          "line": 173
+        },
+        {
+          "name": "parse_number_tokens",
+          "line": 178
+        },
+        {
+          "name": "format_token",
+          "line": 182
+        },
+        {
+          "name": "token_to_int",
+          "line": 189
+        },
+        {
+          "name": "normalize_csv_row",
+          "line": 196
+        },
+        {
+          "name": "read_csv_rows",
+          "line": 205
+        },
+        {
+          "name": "row_to_draw",
+          "line": 211
+        },
+        {
+          "name": "load_draws",
+          "line": 247
+        },
+        {
+          "name": "filter_draws_by_period",
+          "line": 263
+        },
+        {
+          "name": "number_universe",
+          "line": 296
+        },
+        {
+          "name": "draw_to_json",
+          "line": 313
+        },
+        {
+          "name": "mean",
+          "line": 327
+        },
+        {
+          "name": "stddev",
+          "line": 332
+        },
+        {
+          "name": "quantile",
+          "line": 340
+        },
+        {
+          "name": "status_by_quantiles",
+          "line": 348
+        },
+        {
+          "name": "latest_numbers",
+          "line": 358
+        },
+        {
+          "name": "draw_features",
+          "line": 362
+        },
+        {
+          "name": "frequency_counts",
+          "line": 390
+        },
+        {
+          "name": "top_count_items",
+          "line": 401
+        },
+        {
+          "name": "combo_counts",
+          "line": 410
+        },
+        {
+          "name": "build_overview",
+          "line": 423
+        },
+        {
+          "name": "build_general",
+          "line": 447
+        },
+        {
+          "name": "build_distribution",
+          "line": 468
+        },
+        {
+          "name": "build_ratios",
+          "line": 509
+        },
+        {
+          "name": "build_latest_draw",
+          "line": 541
+        },
+        {
+          "name": "consecutive_runs",
+          "line": 564
+        },
+        {
+          "name": "build_consecutive",
+          "line": 580
+        },
+        {
+          "name": "build_overdue",
+          "line": 607
+        },
+        {
+          "name": "build_poisson",
+          "line": 652
+        },
+        {
+          "name": "build_knn",
+          "line": 694
+        },
+        {
+          "name": "build_chain",
+          "line": 727
+        },
+        {
+          "name": "build_relationships",
+          "line": 759
+        },
+        {
+          "name": "build_modulo",
+          "line": 801
+        },
+        {
+          "name": "is_prime",
+          "line": 823
+        },
+        {
+          "name": "compute_beauty_score",
+          "line": 832
+        },
+        {
+          "name": "build_advanced",
+          "line": 860
+        },
+        {
+          "name": "build_special",
+          "line": 899
+        },
+        {
+          "name": "build_weekday",
+          "line": 926
+        },
+        {
+          "name": "parse_input_numbers",
+          "line": 952
+        },
+        {
+          "name": "build_smart_wheel",
+          "line": 961
+        },
+        {
+          "name": "build_score",
+          "line": 995
+        },
+        {
+          "name": "build_all",
+          "line": 1039
+        },
+        {
+          "name": "build_analysis_payload",
+          "line": 1075
+        },
+        {
+          "name": "parse_args",
+          "line": 1161
+        },
+        {
+          "name": "truthy",
+          "line": 1180
+        },
+        {
+          "name": "main",
+          "line": 1184
+        },
+        {
+          "name": "dist",
+          "line": 804
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\configs\\__init__.py",
+      "bytes": 62,
+      "lines": 1,
+      "sha256": "05dbfad89957ab7270148e05b0608fd53fe0c5b85df101fa78405a2fad49dc52",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\configs\\data_paths.py",
+      "bytes": 4446,
+      "lines": 132,
+      "sha256": "8f3e538febe15d1c1e1e445ca02e469c52c531d8bbed6158ee73ef492c2136c7",
+      "functions": [
+        {
+          "name": "load_data_registry",
+          "line": 45
+        },
+        {
+          "name": "get_registry_value",
+          "line": 58
+        },
+        {
+          "name": "_resolve_project_relative",
+          "line": 62
+        },
+        {
+          "name": "_canonical_registry_key",
+          "line": 74
+        },
+        {
+          "name": "get_canonical_csv_write_path",
+          "line": 81
+        },
+        {
+          "name": "get_canonical_meta_write_path",
+          "line": 85
+        },
+        {
+          "name": "get_canonical_csv_legacy_path",
+          "line": 89
+        },
+        {
+          "name": "get_canonical_meta_legacy_path",
+          "line": 94
+        },
+        {
+          "name": "_prefer_existing",
+          "line": 99
+        },
+        {
+          "name": "get_canonical_csv_read_path",
+          "line": 107
+        },
+        {
+          "name": "get_canonical_meta_read_path",
+          "line": 111
+        },
+        {
+          "name": "get_scoring_export_dir",
+          "line": 115
+        },
+        {
+          "name": "get_legacy_scoring_export_dir",
+          "line": 119
+        },
+        {
+          "name": "get_model_dir",
+          "line": 123
+        },
+        {
+          "name": "get_gen_model_path",
+          "line": 127
+        },
+        {
+          "name": "get_meta_model_path",
+          "line": 131
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\configs\\data_registry.json",
+      "bytes": 896,
+      "lines": 15,
+      "sha256": "8d35706150aa2dc2514c1ff6150f03b0210b27e920668c66782acffc83cd2dca"
+    },
+    {
+      "path": "ai\\evaluation\\__init__.py",
+      "bytes": 898,
+      "lines": 30,
+      "sha256": "f174080e80e876a3d34ad88b0b558abe2e15cb4833a36553c226bd472b62ebd6",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\evaluation\\baselines.py",
+      "bytes": 1983,
+      "lines": 46,
+      "sha256": "b9f62fa6d470e97176777486eaf9ad9cef814e8e9a45dd15b31ad9ea954854b2",
+      "functions": [
+        {
+          "name": "random_number_probability",
+          "line": 6
+        },
+        {
+          "name": "hypergeometric_match_distribution",
+          "line": 16
+        },
+        {
+          "name": "expected_random_hits",
+          "line": 36
+        },
+        {
+          "name": "random_baseline_summary",
+          "line": 40
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\evaluation\\metrics.py",
+      "bytes": 6138,
+      "lines": 146,
+      "sha256": "b6ff1b6db82688cdfb8d3d691888793fe5b2dd1f078e985a30cd86938195b2c9",
+      "functions": [
+        {
+          "name": "_coerce_probability_vector",
+          "line": 12
+        },
+        {
+          "name": "_coerce_label_vector",
+          "line": 21
+        },
+        {
+          "name": "clip_probability",
+          "line": 31
+        },
+        {
+          "name": "brier_score",
+          "line": 35
+        },
+        {
+          "name": "log_loss",
+          "line": 52
+        },
+        {
+          "name": "mean_hit",
+          "line": 72
+        },
+        {
+          "name": "match_count_distribution",
+          "line": 83
+        },
+        {
+          "name": "lift",
+          "line": 92
+        },
+        {
+          "name": "calibration_error",
+          "line": 99
+        },
+        {
+          "name": "evaluate_ticket_predictions",
+          "line": 133
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\evaluation\\probability.py",
+      "bytes": 8398,
+      "lines": 196,
+      "sha256": "4ad7cb18e016ff08b22a43fcb9b0ad7d9a6ff2d6bf046af8a465a29c1d0a6495",
+      "functions": [
+        {
+          "name": "capped_simplex_projection",
+          "line": 9
+        },
+        {
+          "name": "project_probability_map",
+          "line": 50
+        },
+        {
+          "name": "scores_to_probabilities",
+          "line": 59
+        },
+        {
+          "name": "fit_platt_scaler",
+          "line": 76
+        },
+        {
+          "name": "apply_platt_scaler",
+          "line": 110
+        },
+        {
+          "name": "calibrate_score_map_with_platt",
+          "line": 123
+        },
+        {
+          "name": "fit_isotonic_calibrator",
+          "line": 139
+        },
+        {
+          "name": "apply_isotonic_calibrator",
+          "line": 169
+        },
+        {
+          "name": "calibrate_scores",
+          "line": 185
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\evaluation\\statistical_tests.py",
+      "bytes": 2517,
+      "lines": 70,
+      "sha256": "bac1dbb6b5f6e279cc75d01506925ecdb2b1aa165f38a1610f739a8bf39089de",
+      "functions": [
+        {
+          "name": "_default_statistic",
+          "line": 8
+        },
+        {
+          "name": "paired_differences",
+          "line": 12
+        },
+        {
+          "name": "paired_bootstrap_ci",
+          "line": 18
+        },
+        {
+          "name": "paired_permutation_test",
+          "line": 48
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\evaluation\\walk_forward.py",
+      "bytes": 6454,
+      "lines": 156,
+      "sha256": "9d8e02a1638acd92c80a0ead64da8c32260db771e9c12122cff45b7527ebb284",
+      "functions": [
+        {
+          "name": "normalize_draw_id",
+          "line": 24
+        },
+        {
+          "name": "model_is_safe_for_target",
+          "line": 32
+        },
+        {
+          "name": "walk_forward_indices",
+          "line": 40
+        },
+        {
+          "name": "run_walk_forward_backtest",
+          "line": 94
+        },
+        {
+          "name": "__init__",
+          "line": 61
+        },
+        {
+          "name": "fit",
+          "line": 66
+        },
+        {
+          "name": "transform",
+          "line": 82
+        },
+        {
+          "name": "assert_fit_before",
+          "line": 88
+        }
+      ],
+      "classes": [
+        "WalkForwardConfig",
+        "SimpleStandardScaler"
+      ]
+    },
+    {
+      "path": "ai\\ml_pipeline.py",
+      "bytes": 21745,
+      "lines": 510,
+      "sha256": "7e43eae40d8d208444fc3b2ad7628c21e8aa21ac06912359ed7ee1c38812a7b4",
+      "functions": [
+        {
+          "name": "normalize_game_type",
+          "line": 73
+        },
+        {
+          "name": "game_config",
+          "line": 80
+        },
+        {
+          "name": "parse_int_list",
+          "line": 84
+        },
+        {
+          "name": "load_actual_draws",
+          "line": 88
+        },
+        {
+          "name": "actual_lookup",
+          "line": 114
+        },
+        {
+          "name": "latest_actual_draw_id",
+          "line": 120
+        },
+        {
+          "name": "_draw_sort_key",
+          "line": 127
+        },
+        {
+          "name": "chronological_actual_draws",
+          "line": 131
+        },
+        {
+          "name": "_score_keno_history",
+          "line": 135
+        },
+        {
+          "name": "run_keno_backtest",
+          "line": 160
+        },
+        {
+          "name": "_run_standalone_json",
+          "line": 255
+        },
+        {
+          "name": "_utc_stamp",
+          "line": 276
+        },
+        {
+          "name": "_folds_from_backtest",
+          "line": 280
+        },
+        {
+          "name": "_persist_backtest_result",
+          "line": 297
+        },
+        {
+          "name": "_add_baseline_comparison",
+          "line": 307
+        },
+        {
+          "name": "_compact_metrics",
+          "line": 327
+        },
+        {
+          "name": "_fold_count",
+          "line": 335
+        },
+        {
+          "name": "run_backtest",
+          "line": 348
+        },
+        {
+          "name": "status",
+          "line": 387
+        },
+        {
+          "name": "predictions",
+          "line": 410
+        },
+        {
+          "name": "score_pending_predictions",
+          "line": 414
+        },
+        {
+          "name": "train_candidate",
+          "line": 426
+        },
+        {
+          "name": "_random_brier_baseline",
+          "line": 463
+        },
+        {
+          "name": "_candidate_passes",
+          "line": 468
+        },
+        {
+          "name": "promote_candidate",
+          "line": 491
+        },
+        {
+          "name": "rollback",
+          "line": 509
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\prediction_ledger.py",
+      "bytes": 26933,
+      "lines": 630,
+      "sha256": "a2caf989a45cb0a7c4d6bb2318828a0337e30a34c292506b8f236a0522c2f72a",
+      "functions": [
+        {
+          "name": "now_iso",
+          "line": 19
+        },
+        {
+          "name": "canonical_json",
+          "line": 23
+        },
+        {
+          "name": "payload_checksum",
+          "line": 27
+        },
+        {
+          "name": "connect",
+          "line": 31
+        },
+        {
+          "name": "migrate",
+          "line": 43
+        },
+        {
+          "name": "_json_loads",
+          "line": 165
+        },
+        {
+          "name": "normalize_probability_payload",
+          "line": 172
+        },
+        {
+          "name": "row_to_dict",
+          "line": 184
+        },
+        {
+          "name": "lock_prediction",
+          "line": 194
+        },
+        {
+          "name": "list_predictions",
+          "line": 272
+        },
+        {
+          "name": "_ticket_main",
+          "line": 327
+        },
+        {
+          "name": "_ticket_special",
+          "line": 333
+        },
+        {
+          "name": "score_prediction_payload",
+          "line": 342
+        },
+        {
+          "name": "score_pending_predictions",
+          "line": 391
+        },
+        {
+          "name": "register_model",
+          "line": 452
+        },
+        {
+          "name": "list_models",
+          "line": 501
+        },
+        {
+          "name": "promote_candidate",
+          "line": 519
+        },
+        {
+          "name": "reject_candidate",
+          "line": 544
+        },
+        {
+          "name": "rollback_champion",
+          "line": 557
+        },
+        {
+          "name": "create_training_run",
+          "line": 582
+        },
+        {
+          "name": "finish_training_run",
+          "line": 600
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\predictors\\__init__.py",
+      "bytes": 34,
+      "lines": 1,
+      "sha256": "1cc5a85b5487db59a7a6cd7affdb0aa6c6cc669ec82e3525289ac4d22f1d5f97",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\predictors\\ai_predict.py",
+      "bytes": 209695,
+      "lines": 4825,
+      "sha256": "208e4e1f1a47094e2eca70d730d75ada6b54143f24389fffcb395a043ccbecd0",
+      "functions": [
+        {
+          "name": "normalize_risk_mode",
+          "line": 189
+        },
+        {
+          "name": "build_risk_mode_summary",
+          "line": 204
+        },
+        {
+          "name": "attach_risk_mode_metadata",
+          "line": 213
+        },
+        {
+          "name": "normalize_prediction_mode",
+          "line": 222
+        },
+        {
+          "name": "_ranked_probability_numbers",
+          "line": 227
+        },
+        {
+          "name": "_collect_unique_ranking",
+          "line": 248
+        },
+        {
+          "name": "normalize_prediction_top_rankings",
+          "line": 266
+        },
+        {
+          "name": "_ticket_top_coverage",
+          "line": 334
+        },
+        {
+          "name": "apply_vip_prediction_profile",
+          "line": 342
+        },
+        {
+          "name": "build_loto_6_45_vip_prediction",
+          "line": 371
+        },
+        {
+          "name": "build_loto_5_35_vip_prediction",
+          "line": 483
+        },
+        {
+          "name": "_read_json_file",
+          "line": 506
+        },
+        {
+          "name": "_normalize_adaptive_backtest",
+          "line": 513
+        },
+        {
+          "name": "_run_standalone_predict_cli",
+          "line": 533
+        },
+        {
+          "name": "_pick_special_for_ticket",
+          "line": 555
+        },
+        {
+          "name": "build_loto_6_55_vip_prediction",
+          "line": 568
+        },
+        {
+          "name": "now_iso",
+          "line": 926
+        },
+        {
+          "name": "canonical_history_path",
+          "line": 930
+        },
+        {
+          "name": "read_ai_source_meta",
+          "line": 934
+        },
+        {
+          "name": "sync_summary_is_ready",
+          "line": 938
+        },
+        {
+          "name": "normalize_positive_int",
+          "line": 942
+        },
+        {
+          "name": "normalize_engine",
+          "line": 952
+        },
+        {
+          "name": "clamp01",
+          "line": 963
+        },
+        {
+          "name": "normalize_optional_positive_int",
+          "line": 967
+        },
+        {
+          "name": "default_scoring_recent_window",
+          "line": 976
+        },
+        {
+          "name": "default_scoring_backtest_top_k",
+          "line": 980
+        },
+        {
+          "name": "build_scoring_number_formatter",
+          "line": 984
+        },
+        {
+          "name": "build_scoring_universe",
+          "line": 990
+        },
+        {
+          "name": "build_scoring_draws",
+          "line": 997
+        },
+        {
+          "name": "safe_rate",
+          "line": 1011
+        },
+        {
+          "name": "recent_window_for_type",
+          "line": 1017
+        },
+        {
+          "name": "load_ai_source_rows",
+          "line": 1021
+        },
+        {
+          "name": "build_sync_summary",
+          "line": 1026
+        },
+        {
+          "name": "sync_ai_history",
+          "line": 1052
+        },
+        {
+          "name": "build_readonly_sync_summary",
+          "line": 1059
+        },
+        {
+          "name": "parse_numeric_draws",
+          "line": 1074
+        },
+        {
+          "name": "parse_keno_draws",
+          "line": 1103
+        },
+        {
+          "name": "is_three_digit_type",
+          "line": 1131
+        },
+        {
+          "name": "parse_three_digit_draws",
+          "line": 1135
+        },
+        {
+          "name": "load_ai_draws",
+          "line": 1165
+        },
+        {
+          "name": "split_three_digit_number",
+          "line": 1174
+        },
+        {
+          "name": "build_three_digit_digit_profile",
+          "line": 1179
+        },
+        {
+          "name": "build_three_digit_context",
+          "line": 1191
+        },
+        {
+          "name": "score_three_digit_candidate",
+          "line": 1254
+        },
+        {
+          "name": "rank_three_digit_candidates",
+          "line": 1283
+        },
+        {
+          "name": "evaluate_three_digit_strategies",
+          "line": 1291
+        },
+        {
+          "name": "initialize_state",
+          "line": 1330
+        },
+        {
+          "name": "normalized_recent_counts",
+          "line": 1358
+        },
+        {
+          "name": "normalize_feature_values",
+          "line": 1370
+        },
+        {
+          "name": "compute_feature_scores",
+          "line": 1379
+        },
+        {
+          "name": "update_state",
+          "line": 1452
+        },
+        {
+          "name": "build_ranking_from_strategy",
+          "line": 1482
+        },
+        {
+          "name": "evaluate_strategies",
+          "line": 1496
+        },
+        {
+          "name": "build_numeric_main_items",
+          "line": 1540
+        },
+        {
+          "name": "build_numeric_special_items",
+          "line": 1544
+        },
+        {
+          "name": "next_target_weekday",
+          "line": 1553
+        },
+        {
+          "name": "next_prediction_ky",
+          "line": 1568
+        },
+        {
+          "name": "_parse_prediction_draw_datetime",
+          "line": 1577
+        },
+        {
+          "name": "_next_keno_schedule_datetime",
+          "line": 1589
+        },
+        {
+          "name": "align_prediction_target_with_schedule",
+          "line": 1615
+        },
+        {
+          "name": "get_luan_so_relation_configs",
+          "line": 1651
+        },
+        {
+          "name": "get_relation_value_set",
+          "line": 1693
+        },
+        {
+          "name": "limit_luan_so_draws",
+          "line": 1700
+        },
+        {
+          "name": "base_pair_note",
+          "line": 1707
+        },
+        {
+          "name": "classify_luan_so_pair",
+          "line": 1723
+        },
+        {
+          "name": "apply_luan_so_shrinkage",
+          "line": 1744
+        },
+        {
+          "name": "build_luan_so_pair_rows",
+          "line": 1766
+        },
+        {
+          "name": "build_luan_so_pair_index",
+          "line": 1915
+        },
+        {
+          "name": "build_luan_so_strength",
+          "line": 1928
+        },
+        {
+          "name": "build_luan_so_top_numbers",
+          "line": 1957
+        },
+        {
+          "name": "summarize_luan_so_analysis",
+          "line": 2008
+        },
+        {
+          "name": "build_luan_so_report",
+          "line": 2040
+        },
+        {
+          "name": "choose_luan_so_champion",
+          "line": 2114
+        },
+        {
+          "name": "compute_luan_so_confidence",
+          "line": 2190
+        },
+        {
+          "name": "build_luan_so_notes",
+          "line": 2210
+        },
+        {
+          "name": "build_luan_so_prediction",
+          "line": 2231
+        },
+        {
+          "name": "ensure_gen_local_model_dir",
+          "line": 2332
+        },
+        {
+          "name": "get_gen_local_model_path",
+          "line": 2336
+        },
+        {
+          "name": "write_gen_local_model",
+          "line": 2340
+        },
+        {
+          "name": "read_gen_local_model",
+          "line": 2349
+        },
+        {
+          "name": "gen_local_model_is_fresh",
+          "line": 2368
+        },
+        {
+          "name": "compute_recent_hit_rate",
+          "line": 2380
+        },
+        {
+          "name": "very_recent_window_for_type",
+          "line": 2388
+        },
+        {
+          "name": "medium_recent_window_for_type",
+          "line": 2392
+        },
+        {
+          "name": "compute_recent_hit_profile",
+          "line": 2396
+        },
+        {
+          "name": "compute_hit_stability",
+          "line": 2404
+        },
+        {
+          "name": "normalize_weighted_entries",
+          "line": 2414
+        },
+        {
+          "name": "build_consensus_ranking",
+          "line": 2423
+        },
+        {
+          "name": "compute_ranking_agreement_score",
+          "line": 2444
+        },
+        {
+          "name": "build_gen_local_strategy_entries",
+          "line": 2463
+        },
+        {
+          "name": "blend_strategy_rankings",
+          "line": 2555
+        },
+        {
+          "name": "compute_gen_local_confidence",
+          "line": 2575
+        },
+        {
+          "name": "serializable_strategy_entry",
+          "line": 2595
+        },
+        {
+          "name": "build_gen_local_profile",
+          "line": 2617
+        },
+        {
+          "name": "build_numeric_gen_local_model",
+          "line": 2667
+        },
+        {
+          "name": "build_keno_gen_local_model",
+          "line": 2729
+        },
+        {
+          "name": "build_three_digit_gen_local_model",
+          "line": 2774
+        },
+        {
+          "name": "train_gen_local_model",
+          "line": 2807
+        },
+        {
+          "name": "ensure_gen_local_model",
+          "line": 2828
+        },
+        {
+          "name": "meta_config_for_type",
+          "line": 2838
+        },
+        {
+          "name": "get_online_meta_model_path",
+          "line": 2842
+        },
+        {
+          "name": "read_online_meta_model",
+          "line": 2846
+        },
+        {
+          "name": "write_online_meta_model",
+          "line": 2863
+        },
+        {
+          "name": "online_meta_model_is_fresh",
+          "line": 2872
+        },
+        {
+          "name": "normalize_weight_map",
+          "line": 2884
+        },
+        {
+          "name": "apply_weight_shift_limit",
+          "line": 2905
+        },
+        {
+          "name": "compute_weight_shift",
+          "line": 2920
+        },
+        {
+          "name": "compute_top_ranking_overlap",
+          "line": 2927
+        },
+        {
+          "name": "build_gen_local_meta_snapshot",
+          "line": 2950
+        },
+        {
+          "name": "build_luan_so_meta_snapshot",
+          "line": 2970
+        },
+        {
+          "name": "compute_gen_local_meta_reward",
+          "line": 2986
+        },
+        {
+          "name": "compute_luan_so_meta_reward",
+          "line": 3004
+        },
+        {
+          "name": "compute_online_meta_signals",
+          "line": 3032
+        },
+        {
+          "name": "compute_target_meta_weights",
+          "line": 3065
+        },
+        {
+          "name": "build_online_meta_model",
+          "line": 3079
+        },
+        {
+          "name": "ensure_online_meta_model",
+          "line": 3132
+        },
+        {
+          "name": "meta_expert_key_for_engine",
+          "line": 3142
+        },
+        {
+          "name": "build_online_meta_note_lines",
+          "line": 3150
+        },
+        {
+          "name": "apply_online_meta_to_result",
+          "line": 3173
+        },
+        {
+          "name": "build_online_meta_summary",
+          "line": 3221
+        },
+        {
+          "name": "build_gen_local_training_summary",
+          "line": 3235
+        },
+        {
+          "name": "train_gen_local_json",
+          "line": 3256
+        },
+        {
+          "name": "train_all_gen_local_json",
+          "line": 3264
+        },
+        {
+          "name": "build_prediction_bundles",
+          "line": 3284
+        },
+        {
+          "name": "_controlled_probability_config",
+          "line": 3310
+        },
+        {
+          "name": "_ranking_scores_from_payload",
+          "line": 3322
+        },
+        {
+          "name": "_format_probability_list",
+          "line": 3355
+        },
+        {
+          "name": "attach_controlled_probability_metadata",
+          "line": 3362
+        },
+        {
+          "name": "finalize_controlled_prediction_payload",
+          "line": 3428
+        },
+        {
+          "name": "summarize_sync_notes",
+          "line": 3447
+        },
+        {
+          "name": "build_bootstrap_pending_payload",
+          "line": 3481
+        },
+        {
+          "name": "summarize_gen_local_notes",
+          "line": 3520
+        },
+        {
+          "name": "three_digit_game_label",
+          "line": 3541
+        },
+        {
+          "name": "summarize_three_digit_notes",
+          "line": 3546
+        },
+        {
+          "name": "build_three_digit_prediction",
+          "line": 3554
+        },
+        {
+          "name": "build_three_digit_gen_local_prediction",
+          "line": 3608
+        },
+        {
+          "name": "build_luan_so_three_digit_prediction",
+          "line": 3660
+        },
+        {
+          "name": "build_numeric_gen_local_prediction",
+          "line": 3765
+        },
+        {
+          "name": "build_keno_gen_local_prediction",
+          "line": 3824
+        },
+        {
+          "name": "build_numeric_prediction",
+          "line": 3876
+        },
+        {
+          "name": "build_keno_prediction",
+          "line": 3973
+        },
+        {
+          "name": "_predict_json_unlocked",
+          "line": 4038
+        },
+        {
+          "name": "predict_json",
+          "line": 4156
+        },
+        {
+          "name": "sync_json",
+          "line": 4179
+        },
+        {
+          "name": "build_scoring_csv_text",
+          "line": 4189
+        },
+        {
+          "name": "write_scoring_csv_export",
+          "line": 4208
+        },
+        {
+          "name": "build_special_scoring_draws",
+          "line": 4224
+        },
+        {
+          "name": "build_special_scoring_universe",
+          "line": 4238
+        },
+        {
+          "name": "export_special_scoring_csv",
+          "line": 4249
+        },
+        {
+          "name": "score_json",
+          "line": 4283
+        },
+        {
+          "name": "score_csv",
+          "line": 4380
+        },
+        {
+          "name": "extract_engine_arg",
+          "line": 4435
+        },
+        {
+          "name": "extract_risk_mode_arg",
+          "line": 4452
+        },
+        {
+          "name": "extract_prediction_mode_arg",
+          "line": 4466
+        },
+        {
+          "name": "extract_recent_window_arg",
+          "line": 4480
+        },
+        {
+          "name": "extract_weights_arg",
+          "line": 4494
+        },
+        {
+          "name": "extract_co_top_k_arg",
+          "line": 4508
+        },
+        {
+          "name": "extract_backtest_args",
+          "line": 4522
+        },
+        {
+          "name": "extract_limit_arg",
+          "line": 4544
+        },
+        {
+          "name": "extract_top_only_arg",
+          "line": 4558
+        },
+        {
+          "name": "extract_export_csv_arg",
+          "line": 4576
+        },
+        {
+          "name": "extract_username_arg",
+          "line": 4594
+        },
+        {
+          "name": "extract_no_ledger_lock_arg",
+          "line": 4608
+        },
+        {
+          "name": "extract_pure_arg",
+          "line": 4626
+        },
+        {
+          "name": "extract_ml_common_args",
+          "line": 4644
+        },
+        {
+          "name": "main",
+          "line": 4686
+        },
+        {
+          "name": "build_window_counts",
+          "line": 1210
+        },
+        {
+          "name": "sort_ranking",
+          "line": 1996
+        },
+        {
+          "name": "ticket_score",
+          "line": 349
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\predictors\\number_scoring.py",
+      "bytes": 9805,
+      "lines": 259,
+      "sha256": "bdf766097e8bb4cf04d720c1354cf7ec36782f1aade339ddb831e42fb8df57b0",
+      "functions": [
+        {
+          "name": "normalize_weights",
+          "line": 19
+        },
+        {
+          "name": "clamp_positive_int",
+          "line": 43
+        },
+        {
+          "name": "_normalize_flat_aware",
+          "line": 53
+        },
+        {
+          "name": "build_number_scoring_rows",
+          "line": 67
+        },
+        {
+          "name": "backtest_number_scoring",
+          "line": 185
+        }
+      ],
+      "classes": [
+        "NumberScoringConfig"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\config\\column_mapping.json",
+      "bytes": 555,
+      "lines": 43,
+      "sha256": "501dc7b571e22b00448020e743ae257eb0b779cb3707f0e03223e165c176c8c3"
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\config\\feature_flags.json",
+      "bytes": 189,
+      "lines": 9,
+      "sha256": "e7565b7d488c7f603dc2c572336545d8cb587e2f902184c5445871c8e6bbbf98"
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\config\\predictor_config.json",
+      "bytes": 3978,
+      "lines": 198,
+      "sha256": "bf647332cfe79055522254e33276f6d9410fd671a86d48c24b75c8f8b4a5ab40"
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\main.py",
+      "bytes": 5468,
+      "lines": 91,
+      "sha256": "e78dd3ac2a890d297a5e79cfda6bb2ef60fcc7bf1df60e68b80714d14a083426",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 16
+        },
+        {
+          "name": "main",
+          "line": 57
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\README.md",
+      "bytes": 850,
+      "lines": 23,
+      "sha256": "72797d426aa829d4a86ceca148b7763e77060bfd15ae9f292825ebddb4876ef8"
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\requirements.txt",
+      "bytes": 82,
+      "lines": 1,
+      "sha256": "e90275211d4c7e6bcd8c206e78c5ad308603bee0b90a98b8b2a11422fbb89d83"
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\__init__.py",
+      "bytes": 77,
+      "lines": 3,
+      "sha256": "b73258f71ac7a7b4720acc454f23c39e7356c23f06ec79c77adf04f7ecfb7c3d",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\backtest.py",
+      "bytes": 13004,
+      "lines": 312,
+      "sha256": "9da64136ecb5551d797681b21292f535c3bd8a24c95bc667d291c5325deb8a3c",
+      "functions": [
+        {
+          "name": "_atomic_write_json",
+          "line": 24
+        },
+        {
+          "name": "run_quick_backtest",
+          "line": 35
+        },
+        {
+          "name": "_evaluate_mode",
+          "line": 105
+        },
+        {
+          "name": "_winner_key",
+          "line": 211
+        },
+        {
+          "name": "run_ablation_report",
+          "line": 220
+        },
+        {
+          "name": "run_backtest",
+          "line": 251
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\config.py",
+      "bytes": 8278,
+      "lines": 280,
+      "sha256": "32a09572746e12e723eb1dbeeccc7fc4ff2f514e7890cd96a20b4ec0adc6a920",
+      "functions": [
+        {
+          "name": "ensure_directories",
+          "line": 211
+        },
+        {
+          "name": "_deep_merge",
+          "line": 216
+        },
+        {
+          "name": "read_json",
+          "line": 228
+        },
+        {
+          "name": "write_json",
+          "line": 239
+        },
+        {
+          "name": "load_config",
+          "line": 247
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 251
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 255
+        },
+        {
+          "name": "load_last_prediction",
+          "line": 259
+        },
+        {
+          "name": "save_last_prediction",
+          "line": 263
+        },
+        {
+          "name": "load_metrics",
+          "line": 267
+        },
+        {
+          "name": "save_metrics",
+          "line": 271
+        },
+        {
+          "name": "load_feature_flags",
+          "line": 275
+        },
+        {
+          "name": "load_column_mapping",
+          "line": 279
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\csv_loader.py",
+      "bytes": 6756,
+      "lines": 201,
+      "sha256": "2333af512ebbd7a576cdd5456edec9a3162848aa1734de90baa7ae1889e21398",
+      "functions": [
+        {
+          "name": "_sort_key_from_ky",
+          "line": 23
+        },
+        {
+          "name": "_parse_csv_date",
+          "line": 28
+        },
+        {
+          "name": "_format_csv_date",
+          "line": 44
+        },
+        {
+          "name": "_parse_number_list",
+          "line": 48
+        },
+        {
+          "name": "normalize_game",
+          "line": 57
+        },
+        {
+          "name": "normalize_slot",
+          "line": 64
+        },
+        {
+          "name": "resolve_csv_path",
+          "line": 69
+        },
+        {
+          "name": "_resolve_header_map",
+          "line": 81
+        },
+        {
+          "name": "_read_row_value",
+          "line": 93
+        },
+        {
+          "name": "load_history",
+          "line": 100
+        },
+        {
+          "name": "latest_actual_draw",
+          "line": 133
+        },
+        {
+          "name": "find_draw_by_ky",
+          "line": 137
+        },
+        {
+          "name": "infer_next_target_draw",
+          "line": 145
+        },
+        {
+          "name": "build_sync_summary",
+          "line": 179
+        },
+        {
+          "name": "build_sync_summary_for_path",
+          "line": 183
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\deep_dataset.py",
+      "bytes": 9856,
+      "lines": 231,
+      "sha256": "6a204f1f3a44fc4a04b01e06d7334b1f4d2574b0607e4a5dea33534d4c1b57aa",
+      "functions": [
+        {
+          "name": "_multi_hot",
+          "line": 14
+        },
+        {
+          "name": "_one_hot",
+          "line": 22
+        },
+        {
+          "name": "_count_residues",
+          "line": 29
+        },
+        {
+          "name": "_find_previous_same_weekday",
+          "line": 38
+        },
+        {
+          "name": "_recent_number_frequency",
+          "line": 48
+        },
+        {
+          "name": "_recent_bonus_frequency",
+          "line": 58
+        },
+        {
+          "name": "_step_features",
+          "line": 64
+        },
+        {
+          "name": "_regime_target",
+          "line": 152
+        },
+        {
+          "name": "build_training_samples",
+          "line": 165
+        },
+        {
+          "name": "build_inference_sample",
+          "line": 207
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\deep_model.py",
+      "bytes": 18056,
+      "lines": 387,
+      "sha256": "f471eabc0d4c16f5038544e82884bbe4396dbd75bdbd30bab8c6a67f5e430e20",
+      "functions": [
+        {
+          "name": "_empty_main_scores",
+          "line": 24
+        },
+        {
+          "name": "_empty_bonus_scores",
+          "line": 28
+        },
+        {
+          "name": "_now_iso",
+          "line": 32
+        },
+        {
+          "name": "_normalize_draw_id",
+          "line": 36
+        },
+        {
+          "name": "_read_json",
+          "line": 43
+        },
+        {
+          "name": "_write_json",
+          "line": 50
+        },
+        {
+          "name": "_model_paths",
+          "line": 55
+        },
+        {
+          "name": "_deep_config",
+          "line": 63
+        },
+        {
+          "name": "_status_line",
+          "line": 91
+        },
+        {
+          "name": "_public_status_payload",
+          "line": 101
+        },
+        {
+          "name": "_inspect_artifacts",
+          "line": 114
+        },
+        {
+          "name": "get_deep_status",
+          "line": 204
+        },
+        {
+          "name": "train_from_csv",
+          "line": 208
+        },
+        {
+          "name": "score_candidates",
+          "line": 268
+        },
+        {
+          "name": "incremental_fine_tune",
+          "line": 358
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\feature_engineering.py",
+      "bytes": 9242,
+      "lines": 180,
+      "sha256": "798e0ed788f92ca41f3b48fb077c023379a15ba8a822b8448b03343c5d965ceb",
+      "functions": [
+        {
+          "name": "_normalize_score_map",
+          "line": 8
+        },
+        {
+          "name": "_window_frequency",
+          "line": 20
+        },
+        {
+          "name": "_build_position_profile",
+          "line": 30
+        },
+        {
+          "name": "_position_score",
+          "line": 45
+        },
+        {
+          "name": "_gap_scores",
+          "line": 52
+        },
+        {
+          "name": "_slot_draws",
+          "line": 66
+        },
+        {
+          "name": "_weekday_draws",
+          "line": 70
+        },
+        {
+          "name": "build_feature_snapshot",
+          "line": 74
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\heuristic_engine.py",
+      "bytes": 30206,
+      "lines": 506,
+      "sha256": "e244b7c73befe5b9c674dd1dbae1817495d83b477cfdda251966ed2a5e525ce7",
+      "functions": [
+        {
+          "name": "_normalize_map",
+          "line": 8
+        },
+        {
+          "name": "_rank_numbers",
+          "line": 19
+        },
+        {
+          "name": "_blend_scores",
+          "line": 23
+        },
+        {
+          "name": "_resolve_blend_profile",
+          "line": 40
+        },
+        {
+          "name": "_ticket_deep_payload",
+          "line": 53
+        },
+        {
+          "name": "_repair_ticket_numbers",
+          "line": 63
+        },
+        {
+          "name": "_build_candidate_templates",
+          "line": 98
+        },
+        {
+          "name": "_band_profile",
+          "line": 122
+        },
+        {
+          "name": "_build_disagreement_analysis",
+          "line": 139
+        },
+        {
+          "name": "_build_cluster_transition",
+          "line": 164
+        },
+        {
+          "name": "_cluster_number_score",
+          "line": 204
+        },
+        {
+          "name": "_candidate_ticket_context",
+          "line": 216
+        },
+        {
+          "name": "_mode_score_maps",
+          "line": 235
+        },
+        {
+          "name": "_selection_score",
+          "line": 284
+        },
+        {
+          "name": "_build_mode_reason",
+          "line": 311
+        },
+        {
+          "name": "_generate_mode_candidate_tickets",
+          "line": 323
+        },
+        {
+          "name": "build_prediction_snapshot",
+          "line": 366
+        },
+        {
+          "name": "select_vip_tickets",
+          "line": 433
+        },
+        {
+          "name": "_average_center",
+          "line": 170
+        },
+        {
+          "name": "_average_tail",
+          "line": 175
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\modulo_engine.py",
+      "bytes": 2871,
+      "lines": 74,
+      "sha256": "5fb6520d3decc9c00dfcfe645d7a87e4e6de33cf4f434761c0e51b2dad8795f2",
+      "functions": [
+        {
+          "name": "_collect_residue_counts",
+          "line": 9
+        },
+        {
+          "name": "build_modulo_context",
+          "line": 23
+        },
+        {
+          "name": "score_candidate",
+          "line": 42
+        },
+        {
+          "name": "evaluate_ticket_modulo",
+          "line": 56
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\online_learning.py",
+      "bytes": 2280,
+      "lines": 58,
+      "sha256": "d47e74e1e5a85a317f0b94c6735c6df22cb315f6a3d53e9d4a5b1bb3ceddd3b6",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "synchronize_with_latest_actual",
+          "line": 13
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\pair_engine.py",
+      "bytes": 3320,
+      "lines": 92,
+      "sha256": "a3ce31f71f433ec39f779df7b65643542626d9b26f907ff82293d4fc8282109a",
+      "functions": [
+        {
+          "name": "build_pair_context",
+          "line": 7
+        },
+        {
+          "name": "_pair_key",
+          "line": 28
+        },
+        {
+          "name": "pair_support",
+          "line": 34
+        },
+        {
+          "name": "anti_pair_penalty",
+          "line": 45
+        },
+        {
+          "name": "score_candidate_pairing",
+          "line": 59
+        },
+        {
+          "name": "score_candidate_anti_pair",
+          "line": 67
+        },
+        {
+          "name": "evaluate_ticket_pair_quality",
+          "line": 75
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\predictor_api.py",
+      "bytes": 18713,
+      "lines": 380,
+      "sha256": "2a0d006410358ce13809908207a6a1e462a8a13e7c17a3974357c64909ab6340",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "_build_result_notes",
+          "line": 13
+        },
+        {
+          "name": "_tracking_summary",
+          "line": 27
+        },
+        {
+          "name": "predict",
+          "line": 40
+        },
+        {
+          "name": "predict_next_vip",
+          "line": 262
+        },
+        {
+          "name": "predict_pure",
+          "line": 274
+        },
+        {
+          "name": "update_after_actual_vip",
+          "line": 288
+        },
+        {
+          "name": "get_tracking_state_vip",
+          "line": 311
+        },
+        {
+          "name": "get_blend_status",
+          "line": 315
+        },
+        {
+          "name": "audit_assembly",
+          "line": 328
+        },
+        {
+          "name": "evaluate_ticket_vip",
+          "line": 349
+        },
+        {
+          "name": "update_after_actual",
+          "line": 371
+        },
+        {
+          "name": "get_tracking_state",
+          "line": 375
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 379
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\regime_engine.py",
+      "bytes": 2882,
+      "lines": 59,
+      "sha256": "a8942be92fc0293bfce346a3742850d9e72860569ab4404721f9427a18006087",
+      "functions": [
+        {
+          "name": "classify_regime",
+          "line": 4
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\ticket_evaluator.py",
+      "bytes": 9183,
+      "lines": 180,
+      "sha256": "e7d25f173468b0f4576ce0519d7687b802d412d3efe12d747d281acd6449a3d4",
+      "functions": [
+        {
+          "name": "_clamp01",
+          "line": 6
+        },
+        {
+          "name": "_sum_balance",
+          "line": 10
+        },
+        {
+          "name": "_parity_balance",
+          "line": 19
+        },
+        {
+          "name": "_range_balance",
+          "line": 27
+        },
+        {
+          "name": "_position_plausibility",
+          "line": 36
+        },
+        {
+          "name": "_regime_fit",
+          "line": 48
+        },
+        {
+          "name": "_cluster_shift_fit",
+          "line": 55
+        },
+        {
+          "name": "_recent_alignment",
+          "line": 75
+        },
+        {
+          "name": "_source_confidence",
+          "line": 85
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 93
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\src\\tracking_engine.py",
+      "bytes": 9026,
+      "lines": 202,
+      "sha256": "f5498a8bd987073e3b9884cd2f856d100ece0e7a299b741dbda491051c107676",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "_ensure_memory_entry",
+          "line": 13
+        },
+        {
+          "name": "_apply_decay",
+          "line": 33
+        },
+        {
+          "name": "_rebuild_indexes",
+          "line": 45
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 96
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 100
+        },
+        {
+          "name": "get_tracking_score",
+          "line": 104
+        },
+        {
+          "name": "summarize_tracking_state",
+          "line": 116
+        },
+        {
+          "name": "update_after_actual",
+          "line": 122
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\tests\\test_features.py",
+      "bytes": 978,
+      "lines": 29,
+      "sha256": "d4f4dd59c7684cadce8b98845ccf89910aa7769b97b3bf8b24b966bd3bdb8ef3",
+      "functions": [
+        {
+          "name": "test_feature_snapshot_contains_main_and_bonus_scores",
+          "line": 14
+        }
+      ],
+      "classes": [
+        "FeatureSnapshotTest"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\tests\\test_loader.py",
+      "bytes": 688,
+      "lines": 23,
+      "sha256": "125a4053f32e84bc46cbdd1eb2626af9ca92bcc33dbacd11778a25cbfd76ca0a",
+      "functions": [
+        {
+          "name": "test_load_history_from_local_snapshot",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "LoaderTest"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\tests\\test_ticket_generation.py",
+      "bytes": 1144,
+      "lines": 31,
+      "sha256": "74b7403e607ffec15085b6109530f802541189fa3d5ab77f9d852080ed07742a",
+      "functions": [
+        {
+          "name": "test_predict_returns_new_standalone_engine",
+          "line": 13
+        },
+        {
+          "name": "test_predict_honors_vip_bundle_count_from_one_to_ten",
+          "line": 20
+        }
+      ],
+      "classes": [
+        "PredictorApiTest"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\tests\\test_tracking.py",
+      "bytes": 1080,
+      "lines": 35,
+      "sha256": "df9c67060494b8cd95381761c447dc601b143a3aa7b3183bb4a625a317239288",
+      "functions": [
+        {
+          "name": "test_update_after_actual_marks_hits_and_bonus",
+          "line": 14
+        }
+      ],
+      "classes": [
+        "TrackingTest"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\loto_5_35_predictor\\train_deep_model.py",
+      "bytes": 826,
+      "lines": 29,
+      "sha256": "2530089912b8c517ca35424e0634a517da3b0750561fd68dfb40aded55b3fa71",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 15
+        },
+        {
+          "name": "main",
+          "line": 21
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\config\\column_mapping.json",
+      "bytes": 521,
+      "lines": 40,
+      "sha256": "e0a498463dc0a57b9eb1423b4e7c85c08df3e056dcbaafe52d13403ece64efda"
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\config\\feature_flags.json",
+      "bytes": 144,
+      "lines": 7,
+      "sha256": "ee7871a0885fa3d916532ff562ba48cac75a98a8cf2e9296671fb2eee1fd6cea"
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\config\\predictor_config.json",
+      "bytes": 3214,
+      "lines": 149,
+      "sha256": "09c6e0f46405cce38a2106b6125e10d1f8aab98fc3cb173a25b12a81677ea613"
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\main.py",
+      "bytes": 4880,
+      "lines": 87,
+      "sha256": "c84fe64898e49ee530f3822f7e5333659120662510c3511520151ebb9647f18c",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 16
+        },
+        {
+          "name": "main",
+          "line": 53
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\README.md",
+      "bytes": 1037,
+      "lines": 24,
+      "sha256": "95fdb70e50efed8f2c14d7982b87c0779ea4acc79b5f8925d47b666b145cf49a"
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\requirements.txt",
+      "bytes": 102,
+      "lines": 3,
+      "sha256": "a0f791b4bb501c6376af17004ba9f7573d8079325fa3b4cc80deec1cb28796fd"
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\__init__.py",
+      "bytes": 77,
+      "lines": 3,
+      "sha256": "b73258f71ac7a7b4720acc454f23c39e7356c23f06ec79c77adf04f7ecfb7c3d",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\backtest.py",
+      "bytes": 9724,
+      "lines": 244,
+      "sha256": "4904c6e667272a87f818104ce1f5626549b6dde5524599f6922a9d3ac449b88d",
+      "functions": [
+        {
+          "name": "_atomic_write_json",
+          "line": 24
+        },
+        {
+          "name": "_evaluate_mode",
+          "line": 35
+        },
+        {
+          "name": "_winner_key",
+          "line": 145
+        },
+        {
+          "name": "run_ablation_report",
+          "line": 153
+        },
+        {
+          "name": "run_backtest",
+          "line": 200
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\data_loader.py",
+      "bytes": 8969,
+      "lines": 240,
+      "sha256": "899f8a6fd80ca1d3343410e79723ac6f556feb734c85ae8155bb9310e82f72d8",
+      "functions": [
+        {
+          "name": "resolve_project_path",
+          "line": 32
+        },
+        {
+          "name": "read_json",
+          "line": 42
+        },
+        {
+          "name": "normalize_header_label",
+          "line": 49
+        },
+        {
+          "name": "parse_csv_date",
+          "line": 56
+        },
+        {
+          "name": "format_csv_date",
+          "line": 68
+        },
+        {
+          "name": "parse_optional_time",
+          "line": 74
+        },
+        {
+          "name": "parse_optional_special",
+          "line": 79
+        },
+        {
+          "name": "parse_main_numbers",
+          "line": 87
+        },
+        {
+          "name": "parse_actual_numbers",
+          "line": 99
+        },
+        {
+          "name": "load_column_mapping",
+          "line": 103
+        },
+        {
+          "name": "resolve_header_mapping",
+          "line": 111
+        },
+        {
+          "name": "_validate_game_label",
+          "line": 127
+        },
+        {
+          "name": "load_draw_records",
+          "line": 133
+        },
+        {
+          "name": "build_dataset_summary",
+          "line": 185
+        },
+        {
+          "name": "find_draw_by_id",
+          "line": 201
+        },
+        {
+          "name": "infer_next_draw",
+          "line": 211
+        },
+        {
+          "name": "draw_to_dict",
+          "line": 229
+        }
+      ],
+      "classes": [
+        "DrawRecord"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\deep_dataset.py",
+      "bytes": 8127,
+      "lines": 195,
+      "sha256": "bcbc72a9d48a1bed462c19b53f1ae12e60e3ddf6ca6848764ea8cc289512c833",
+      "functions": [
+        {
+          "name": "_multi_hot",
+          "line": 15
+        },
+        {
+          "name": "_one_hot",
+          "line": 23
+        },
+        {
+          "name": "_count_residues",
+          "line": 30
+        },
+        {
+          "name": "_find_previous_same_weekday",
+          "line": 39
+        },
+        {
+          "name": "_recent_frequency",
+          "line": 49
+        },
+        {
+          "name": "_step_features",
+          "line": 55
+        },
+        {
+          "name": "_regime_target",
+          "line": 123
+        },
+        {
+          "name": "build_training_samples",
+          "line": 129
+        },
+        {
+          "name": "build_inference_sample",
+          "line": 169
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\deep_model.py",
+      "bytes": 18966,
+      "lines": 437,
+      "sha256": "87dc16bc884e05de51320c91167aa7c81b6bb08582bfbdb132189d9488f52333",
+      "functions": [
+        {
+          "name": "_empty_scores",
+          "line": 25
+        },
+        {
+          "name": "_read_json",
+          "line": 29
+        },
+        {
+          "name": "_write_json",
+          "line": 36
+        },
+        {
+          "name": "_now_iso",
+          "line": 41
+        },
+        {
+          "name": "_normalize_draw_id",
+          "line": 45
+        },
+        {
+          "name": "_model_paths",
+          "line": 52
+        },
+        {
+          "name": "_load_runtime_predictor_config",
+          "line": 61
+        },
+        {
+          "name": "_load_runtime_feature_flags",
+          "line": 65
+        },
+        {
+          "name": "_deep_config",
+          "line": 69
+        },
+        {
+          "name": "_status_line",
+          "line": 97
+        },
+        {
+          "name": "_public_status_payload",
+          "line": 107
+        },
+        {
+          "name": "_inspect_artifacts",
+          "line": 120
+        },
+        {
+          "name": "is_real_deep_model_available",
+          "line": 225
+        },
+        {
+          "name": "get_deep_status",
+          "line": 229
+        },
+        {
+          "name": "train_from_csv",
+          "line": 236
+        },
+        {
+          "name": "score_numbers",
+          "line": 317
+        },
+        {
+          "name": "fine_tune_after_actual",
+          "line": 393
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\feature_engineering.py",
+      "bytes": 7488,
+      "lines": 155,
+      "sha256": "6dcd49c725ba156df59d63743ebfc61b7856a42697b0a5956d921a3b5b676a64",
+      "functions": [
+        {
+          "name": "build_number_frequency",
+          "line": 10
+        },
+        {
+          "name": "_position_profile",
+          "line": 27
+        },
+        {
+          "name": "_average_overlap",
+          "line": 39
+        },
+        {
+          "name": "build_feature_rows",
+          "line": 48
+        },
+        {
+          "name": "build_prediction_context",
+          "line": 95
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\heuristic_engine.py",
+      "bytes": 14897,
+      "lines": 333,
+      "sha256": "79f0c1cc7c18cbf4d3686056c67826e48b934a1f6cb57c1d275b1cad65af5976",
+      "functions": [
+        {
+          "name": "_position_fit_score",
+          "line": 10
+        },
+        {
+          "name": "_true_hot_score",
+          "line": 27
+        },
+        {
+          "name": "_recent_score",
+          "line": 31
+        },
+        {
+          "name": "_weekday_score",
+          "line": 35
+        },
+        {
+          "name": "_build_anchor_numbers",
+          "line": 41
+        },
+        {
+          "name": "_rank_numbers",
+          "line": 55
+        },
+        {
+          "name": "_band_profile",
+          "line": 59
+        },
+        {
+          "name": "_build_disagreement_analysis",
+          "line": 76
+        },
+        {
+          "name": "_build_cluster_transition",
+          "line": 138
+        },
+        {
+          "name": "_resolve_blend_profile",
+          "line": 190
+        },
+        {
+          "name": "_ticket_deep_result",
+          "line": 205
+        },
+        {
+          "name": "build_scoring_context",
+          "line": 214
+        },
+        {
+          "name": "_average_center",
+          "line": 143
+        },
+        {
+          "name": "_average_tail",
+          "line": 148
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\modulo_engine.py",
+      "bytes": 7138,
+      "lines": 163,
+      "sha256": "a9e7e74641321cd76a7d0889950543bea9b33093d96c21fae5580a5f63aceeb5",
+      "functions": [
+        {
+          "name": "count_mod_residues",
+          "line": 8
+        },
+        {
+          "name": "describe_numbers",
+          "line": 15
+        },
+        {
+          "name": "build_recent_modulo_context",
+          "line": 37
+        },
+        {
+          "name": "score_number",
+          "line": 93
+        },
+        {
+          "name": "score_ticket_structure",
+          "line": 119
+        },
+        {
+          "name": "summarize_modulo_notes",
+          "line": 143
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\online_learning.py",
+      "bytes": 2993,
+      "lines": 76,
+      "sha256": "f046bf8bb702f810140642e66e7294ab1c11c8c7f05fcdc92875538b2e2ed7ad",
+      "functions": [
+        {
+          "name": "sync_pending_prediction",
+          "line": 10
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\pair_engine.py",
+      "bytes": 5095,
+      "lines": 124,
+      "sha256": "fcd7879ff3bf7d2fc0c0e31f5aef7c2640845e70354eecad112cdcde4fd5906b",
+      "functions": [
+        {
+          "name": "_normalize_pair",
+          "line": 8
+        },
+        {
+          "name": "build_pair_context",
+          "line": 12
+        },
+        {
+          "name": "score_number",
+          "line": 53
+        },
+        {
+          "name": "anti_pair_adjustment",
+          "line": 70
+        },
+        {
+          "name": "score_ticket",
+          "line": 89
+        },
+        {
+          "name": "summarize_pair_notes",
+          "line": 111
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\predictor_api.py",
+      "bytes": 21744,
+      "lines": 441,
+      "sha256": "d9599ef774fcb63636b2735389f034d35623cc6deb562ec48bbb690107bedda4",
+      "functions": [
+        {
+          "name": "_read_json",
+          "line": 20
+        },
+        {
+          "name": "_write_json",
+          "line": 27
+        },
+        {
+          "name": "load_runtime_configuration",
+          "line": 34
+        },
+        {
+          "name": "load_runtime_state",
+          "line": 43
+        },
+        {
+          "name": "save_runtime_state",
+          "line": 52
+        },
+        {
+          "name": "build_prediction_from_history",
+          "line": 64
+        },
+        {
+          "name": "_build_last_prediction_payload",
+          "line": 143
+        },
+        {
+          "name": "_public_prediction_payload",
+          "line": 158
+        },
+        {
+          "name": "get_blend_status",
+          "line": 163
+        },
+        {
+          "name": "audit_assembly",
+          "line": 178
+        },
+        {
+          "name": "predict",
+          "line": 198
+        },
+        {
+          "name": "predict_with_options",
+          "line": 202
+        },
+        {
+          "name": "predict_pure",
+          "line": 272
+        },
+        {
+          "name": "update_after_actual",
+          "line": 289
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 419
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\regime_engine.py",
+      "bytes": 3410,
+      "lines": 97,
+      "sha256": "694d9a286b7c4adadd4cfdab04fa928cb8a263415549c5ea86fd4935d90ebc93",
+      "functions": [
+        {
+          "name": "_average_overlap",
+          "line": 7
+        },
+        {
+          "name": "detect_regime",
+          "line": 18
+        },
+        {
+          "name": "score_number",
+          "line": 77
+        },
+        {
+          "name": "summarize_regime_notes",
+          "line": 96
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\ticket_evaluator.py",
+      "bytes": 7370,
+      "lines": 144,
+      "sha256": "fcd7d4eb0e44e0f8cee54a8158c5191132b1acb87fbb009c8bbd600e65647816",
+      "functions": [
+        {
+          "name": "_closeness",
+          "line": 8
+        },
+        {
+          "name": "_positional_fit",
+          "line": 14
+        },
+        {
+          "name": "_cluster_shift_fit",
+          "line": 26
+        },
+        {
+          "name": "_recent_alignment",
+          "line": 43
+        },
+        {
+          "name": "_source_confidence",
+          "line": 69
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 79
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\ticket_generator.py",
+      "bytes": 16233,
+      "lines": 336,
+      "sha256": "c0759ce4e77c8cb8c86d72fa32ef8d0739b7bab3e4e9f4f72b8eaacd21849de0",
+      "functions": [
+        {
+          "name": "_passes_basic_filters",
+          "line": 9
+        },
+        {
+          "name": "_rank_numbers",
+          "line": 28
+        },
+        {
+          "name": "_cluster_number_score",
+          "line": 32
+        },
+        {
+          "name": "_build_candidate_pool",
+          "line": 44
+        },
+        {
+          "name": "_mode_score_map",
+          "line": 60
+        },
+        {
+          "name": "_selection_score",
+          "line": 100
+        },
+        {
+          "name": "_build_mode_reason",
+          "line": 139
+        },
+        {
+          "name": "_evaluate_mode",
+          "line": 153
+        },
+        {
+          "name": "_build_selected_reasons",
+          "line": 226
+        },
+        {
+          "name": "generate_tickets",
+          "line": 245
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\src\\tracking_engine.py",
+      "bytes": 10014,
+      "lines": 248,
+      "sha256": "06e1d2dacf30d5951b9bd0253e1fdc96f0fee57dfe9b63fb86fd25536d562885",
+      "functions": [
+        {
+          "name": "now_iso",
+          "line": 32
+        },
+        {
+          "name": "clone_default_state",
+          "line": 36
+        },
+        {
+          "name": "read_json",
+          "line": 40
+        },
+        {
+          "name": "write_json",
+          "line": 47
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 54
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 65
+        },
+        {
+          "name": "ensure_entry",
+          "line": 69
+        },
+        {
+          "name": "read_entry",
+          "line": 79
+        },
+        {
+          "name": "apply_decay",
+          "line": 87
+        },
+        {
+          "name": "get_tracking_score",
+          "line": 96
+        },
+        {
+          "name": "get_tracking_snapshot",
+          "line": 107
+        },
+        {
+          "name": "rebuild_indexes",
+          "line": 119
+        },
+        {
+          "name": "update_after_actual",
+          "line": 165
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\tests\\test_features.py",
+      "bytes": 1496,
+      "lines": 38,
+      "sha256": "d4504c1a4c9c1b8150147c775856c0526cd6b872c8f7f11f5886e309ebcaa680",
+      "functions": [
+        {
+          "name": "test_feature_rows_and_context_exist",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "FeatureTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\tests\\test_loader.py",
+      "bytes": 854,
+      "lines": 27,
+      "sha256": "77519e49244abf8b8256f557d9a744eb5c176dda3a53ad2ef920179d8ad65444",
+      "functions": [
+        {
+          "name": "test_loader_parses_real_repo_csv",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "LoaderTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\tests\\test_ticket_generation.py",
+      "bytes": 1536,
+      "lines": 39,
+      "sha256": "e28dc6e63be38db2534d9816c7e03fb384ea223df8f953f00d5af5cf363d4cae",
+      "functions": [
+        {
+          "name": "test_ticket_generation_returns_sorted_unique_tickets",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "TicketGenerationTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\tests\\test_tracking.py",
+      "bytes": 1034,
+      "lines": 29,
+      "sha256": "94083d18dbe0848e990f25c9770a90188413f11f139aa426ff19b8664a4f6eba",
+      "functions": [
+        {
+          "name": "test_tracking_updates_hits_and_misses",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "TrackingTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\mega_6_45_predictor\\train_deep_model.py",
+      "bytes": 804,
+      "lines": 29,
+      "sha256": "129a54eb083dd4058adf7fc8f8625f2f8517423ae188236f9ffe7a2bf005fffa",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 15
+        },
+        {
+          "name": "main",
+          "line": 21
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\config\\column_mapping.json",
+      "bytes": 627,
+      "lines": 48,
+      "sha256": "982e0625860af412f51fc16abb8f59e31ab128463ad2533d5341e72fd08ee43c"
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\config\\feature_flags.json",
+      "bytes": 145,
+      "lines": 7,
+      "sha256": "11d2d67bef49b26b608b85443404dd7065536c7d32ea241e4ad27d814e029b2f"
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\config\\predictor_config.json",
+      "bytes": 4270,
+      "lines": 195,
+      "sha256": "b4a3d8573cd87f3a770c3c0e56fc468480f282a89206249cd7005eb2998161fe"
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\main.py",
+      "bytes": 5366,
+      "lines": 100,
+      "sha256": "b2dea03d71ecfd4636acc1260efab7d2e7515a5bc3406bd818d1686e867e3220",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 16
+        },
+        {
+          "name": "main",
+          "line": 55
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\README.md",
+      "bytes": 1239,
+      "lines": 27,
+      "sha256": "f9e36b27d6b15dea043240df9eae0154be6d283605b68e9b4763ed6b73e87f2f"
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\requirements.txt",
+      "bytes": 102,
+      "lines": 3,
+      "sha256": "a0f791b4bb501c6376af17004ba9f7573d8079325fa3b4cc80deec1cb28796fd"
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\__init__.py",
+      "bytes": 77,
+      "lines": 3,
+      "sha256": "b73258f71ac7a7b4720acc454f23c39e7356c23f06ec79c77adf04f7ecfb7c3d",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\backtest.py",
+      "bytes": 10892,
+      "lines": 264,
+      "sha256": "ebf820855571d24adf7bd270c25d2369b82688dfc26885615b3647ed813e3648",
+      "functions": [
+        {
+          "name": "_atomic_write_json",
+          "line": 24
+        },
+        {
+          "name": "_evaluate_mode",
+          "line": 35
+        },
+        {
+          "name": "_winner_key",
+          "line": 162
+        },
+        {
+          "name": "run_ablation_report",
+          "line": 171
+        },
+        {
+          "name": "run_backtest",
+          "line": 220
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\data_loader.py",
+      "bytes": 9738,
+      "lines": 265,
+      "sha256": "a618fb2ad276817b0b716af3c95185eca0691d10a03d84d3f60e909d40fab041",
+      "functions": [
+        {
+          "name": "resolve_project_path",
+          "line": 33
+        },
+        {
+          "name": "read_json",
+          "line": 43
+        },
+        {
+          "name": "normalize_header_label",
+          "line": 50
+        },
+        {
+          "name": "parse_csv_date",
+          "line": 57
+        },
+        {
+          "name": "format_csv_date",
+          "line": 69
+        },
+        {
+          "name": "parse_optional_time",
+          "line": 73
+        },
+        {
+          "name": "parse_main_numbers",
+          "line": 78
+        },
+        {
+          "name": "parse_special",
+          "line": 90
+        },
+        {
+          "name": "parse_actual_main_numbers",
+          "line": 100
+        },
+        {
+          "name": "parse_actual_special",
+          "line": 104
+        },
+        {
+          "name": "load_column_mapping",
+          "line": 108
+        },
+        {
+          "name": "resolve_header_mapping",
+          "line": 116
+        },
+        {
+          "name": "_validate_game_label",
+          "line": 132
+        },
+        {
+          "name": "_fallback_weekday_text",
+          "line": 138
+        },
+        {
+          "name": "load_draw_records",
+          "line": 151
+        },
+        {
+          "name": "build_dataset_summary",
+          "line": 205
+        },
+        {
+          "name": "find_draw_by_id",
+          "line": 221
+        },
+        {
+          "name": "infer_next_draw",
+          "line": 231
+        },
+        {
+          "name": "draw_to_dict",
+          "line": 253
+        }
+      ],
+      "classes": [
+        "DrawRecord"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\deep_dataset.py",
+      "bytes": 9650,
+      "lines": 222,
+      "sha256": "8b4eddf9e3a3c548ee0f2e0f51cc079645182df7f0e0736584293bc2126d7719",
+      "functions": [
+        {
+          "name": "_multi_hot",
+          "line": 15
+        },
+        {
+          "name": "_one_hot",
+          "line": 23
+        },
+        {
+          "name": "_count_residues",
+          "line": 30
+        },
+        {
+          "name": "_find_previous_same_weekday",
+          "line": 39
+        },
+        {
+          "name": "_recent_frequency",
+          "line": 49
+        },
+        {
+          "name": "_recent_special_frequency",
+          "line": 55
+        },
+        {
+          "name": "_step_features",
+          "line": 61
+        },
+        {
+          "name": "_regime_target",
+          "line": 148
+        },
+        {
+          "name": "build_training_samples",
+          "line": 154
+        },
+        {
+          "name": "build_inference_sample",
+          "line": 197
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\deep_model.py",
+      "bytes": 19683,
+      "lines": 438,
+      "sha256": "84364935877c5f5234f2175602b92c86cc0463d541129cf74b334622e83f72bc",
+      "functions": [
+        {
+          "name": "_empty_main_scores",
+          "line": 25
+        },
+        {
+          "name": "_empty_special_scores",
+          "line": 29
+        },
+        {
+          "name": "_read_json",
+          "line": 33
+        },
+        {
+          "name": "_write_json",
+          "line": 40
+        },
+        {
+          "name": "_now_iso",
+          "line": 45
+        },
+        {
+          "name": "_normalize_draw_id",
+          "line": 49
+        },
+        {
+          "name": "_model_paths",
+          "line": 56
+        },
+        {
+          "name": "_load_runtime_predictor_config",
+          "line": 65
+        },
+        {
+          "name": "_load_runtime_feature_flags",
+          "line": 69
+        },
+        {
+          "name": "_deep_config",
+          "line": 73
+        },
+        {
+          "name": "_status_line",
+          "line": 101
+        },
+        {
+          "name": "_public_status_payload",
+          "line": 111
+        },
+        {
+          "name": "_inspect_artifacts",
+          "line": 124
+        },
+        {
+          "name": "is_real_deep_model_available",
+          "line": 216
+        },
+        {
+          "name": "get_deep_status",
+          "line": 220
+        },
+        {
+          "name": "train_from_csv",
+          "line": 227
+        },
+        {
+          "name": "score_numbers",
+          "line": 311
+        },
+        {
+          "name": "fine_tune_after_actual",
+          "line": 394
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\feature_engineering.py",
+      "bytes": 11033,
+      "lines": 229,
+      "sha256": "1384795100d456760d81e37bc75b19e5d3c457bfa5237853e19d041b7a8115e7",
+      "functions": [
+        {
+          "name": "build_number_frequency",
+          "line": 10
+        },
+        {
+          "name": "build_special_frequency",
+          "line": 32
+        },
+        {
+          "name": "_position_profile",
+          "line": 53
+        },
+        {
+          "name": "_average_overlap",
+          "line": 68
+        },
+        {
+          "name": "_special_repeat_rate",
+          "line": 77
+        },
+        {
+          "name": "_special_reset_rate",
+          "line": 86
+        },
+        {
+          "name": "build_feature_rows",
+          "line": 96
+        },
+        {
+          "name": "build_prediction_context",
+          "line": 153
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\heuristic_engine.py",
+      "bytes": 20366,
+      "lines": 421,
+      "sha256": "0b6ec0c957aba96a04a61731bb0a0994ab993b20edb5cd134b71b3aa02ea3c14",
+      "functions": [
+        {
+          "name": "_position_fit_score",
+          "line": 10
+        },
+        {
+          "name": "_true_hot_score_main",
+          "line": 27
+        },
+        {
+          "name": "_recent_score_main",
+          "line": 31
+        },
+        {
+          "name": "_weekday_score",
+          "line": 35
+        },
+        {
+          "name": "_recent_score_special",
+          "line": 41
+        },
+        {
+          "name": "_weekday_score_special",
+          "line": 45
+        },
+        {
+          "name": "_special_repeat_reset_logic",
+          "line": 51
+        },
+        {
+          "name": "_build_anchor_numbers",
+          "line": 68
+        },
+        {
+          "name": "_rank_numbers",
+          "line": 82
+        },
+        {
+          "name": "_band_profile",
+          "line": 86
+        },
+        {
+          "name": "_build_disagreement_analysis",
+          "line": 103
+        },
+        {
+          "name": "_build_cluster_transition",
+          "line": 165
+        },
+        {
+          "name": "_resolve_blend_profile",
+          "line": 217
+        },
+        {
+          "name": "_ticket_deep_result",
+          "line": 232
+        },
+        {
+          "name": "build_scoring_context",
+          "line": 242
+        },
+        {
+          "name": "_average_center",
+          "line": 170
+        },
+        {
+          "name": "_average_tail",
+          "line": 175
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\modulo_engine.py",
+      "bytes": 11858,
+      "lines": 254,
+      "sha256": "c06859e222e94c9ef9bf54bce108bdaddf65b5bb23507629ccf67f01c36b2764",
+      "functions": [
+        {
+          "name": "count_mod_residues",
+          "line": 8
+        },
+        {
+          "name": "describe_main_numbers",
+          "line": 15
+        },
+        {
+          "name": "describe_special_number",
+          "line": 37
+        },
+        {
+          "name": "build_recent_modulo_context",
+          "line": 47
+        },
+        {
+          "name": "score_main_number",
+          "line": 140
+        },
+        {
+          "name": "score_special_number",
+          "line": 164
+        },
+        {
+          "name": "score_ticket_structure",
+          "line": 182
+        },
+        {
+          "name": "score_special_support",
+          "line": 206
+        },
+        {
+          "name": "summarize_modulo_notes",
+          "line": 225
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\online_learning.py",
+      "bytes": 3225,
+      "lines": 80,
+      "sha256": "357231fb53187c99de0ed8af16bd56396a47fb75ed27e4e91caeacccd1b9df82",
+      "functions": [
+        {
+          "name": "sync_pending_prediction",
+          "line": 10
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\pair_engine.py",
+      "bytes": 5064,
+      "lines": 120,
+      "sha256": "d31131b228a7a77c972cf94e3e5c7cdb8421ec49f579d3e124b1ef53514d3a4a",
+      "functions": [
+        {
+          "name": "_normalize_pair",
+          "line": 8
+        },
+        {
+          "name": "build_pair_context",
+          "line": 12
+        },
+        {
+          "name": "score_number",
+          "line": 49
+        },
+        {
+          "name": "anti_pair_adjustment",
+          "line": 66
+        },
+        {
+          "name": "score_ticket",
+          "line": 85
+        },
+        {
+          "name": "summarize_pair_notes",
+          "line": 107
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\predictor_api.py",
+      "bytes": 23890,
+      "lines": 492,
+      "sha256": "7e5ad1171aed764366cc7cceb7ef414149f1cd81565eaa4f7860c926cb117739",
+      "functions": [
+        {
+          "name": "_read_json",
+          "line": 12
+        },
+        {
+          "name": "_write_json",
+          "line": 19
+        },
+        {
+          "name": "load_runtime_configuration",
+          "line": 26
+        },
+        {
+          "name": "load_runtime_state",
+          "line": 35
+        },
+        {
+          "name": "save_runtime_state",
+          "line": 44
+        },
+        {
+          "name": "_build_special_notes",
+          "line": 56
+        },
+        {
+          "name": "build_prediction_from_history",
+          "line": 70
+        },
+        {
+          "name": "_build_last_prediction_payload",
+          "line": 162
+        },
+        {
+          "name": "_public_prediction_payload",
+          "line": 181
+        },
+        {
+          "name": "get_blend_status",
+          "line": 186
+        },
+        {
+          "name": "audit_assembly",
+          "line": 201
+        },
+        {
+          "name": "predict",
+          "line": 224
+        },
+        {
+          "name": "predict_with_options",
+          "line": 228
+        },
+        {
+          "name": "predict_pure",
+          "line": 303
+        },
+        {
+          "name": "_build_update_payload",
+          "line": 320
+        },
+        {
+          "name": "update_after_actual",
+          "line": 357
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\regime_engine.py",
+      "bytes": 5146,
+      "lines": 132,
+      "sha256": "51f7833ff9556d1bcabe889c668e17fa8614f03faa3ad7beb5f8c3ddf14365fd",
+      "functions": [
+        {
+          "name": "_average_overlap",
+          "line": 7
+        },
+        {
+          "name": "_special_reset_share",
+          "line": 18
+        },
+        {
+          "name": "detect_regime",
+          "line": 28
+        },
+        {
+          "name": "score_main_number",
+          "line": 95
+        },
+        {
+          "name": "score_special_number",
+          "line": 114
+        },
+        {
+          "name": "summarize_regime_notes",
+          "line": 131
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\ticket_evaluator.py",
+      "bytes": 8441,
+      "lines": 170,
+      "sha256": "99b1a2ad0caf7ca72c356b0ef56ab87116cb059839e238d73bc97813662c7db9",
+      "functions": [
+        {
+          "name": "_closeness",
+          "line": 8
+        },
+        {
+          "name": "_positional_fit",
+          "line": 14
+        },
+        {
+          "name": "_cluster_shift_fit",
+          "line": 26
+        },
+        {
+          "name": "_recent_alignment",
+          "line": 43
+        },
+        {
+          "name": "_source_confidence",
+          "line": 69
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 79
+        },
+        {
+          "name": "evaluate_main_ticket",
+          "line": 169
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\ticket_generator.py",
+      "bytes": 20539,
+      "lines": 402,
+      "sha256": "216e710d26bc614799ea31e526b690380c91cce95752128233c482a47f8ee405",
+      "functions": [
+        {
+          "name": "_passes_basic_filters",
+          "line": 9
+        },
+        {
+          "name": "_rank_numbers",
+          "line": 28
+        },
+        {
+          "name": "_cluster_number_score",
+          "line": 32
+        },
+        {
+          "name": "_build_candidate_pool",
+          "line": 44
+        },
+        {
+          "name": "_mode_score_maps",
+          "line": 60
+        },
+        {
+          "name": "_pick_best_special",
+          "line": 125
+        },
+        {
+          "name": "_selection_score",
+          "line": 138
+        },
+        {
+          "name": "_build_mode_reason",
+          "line": 181
+        },
+        {
+          "name": "_evaluate_mode",
+          "line": 195
+        },
+        {
+          "name": "_build_selected_reasons",
+          "line": 284
+        },
+        {
+          "name": "generate_tickets",
+          "line": 303
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\src\\tracking_engine.py",
+      "bytes": 14781,
+      "lines": 343,
+      "sha256": "375cf475342a0ea42e41160bcdacf69f325891a7eba8a10f21977f1de73307f9",
+      "functions": [
+        {
+          "name": "now_iso",
+          "line": 45
+        },
+        {
+          "name": "clone_default_state",
+          "line": 49
+        },
+        {
+          "name": "read_json",
+          "line": 53
+        },
+        {
+          "name": "write_json",
+          "line": 60
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 67
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 80
+        },
+        {
+          "name": "ensure_main_entry",
+          "line": 84
+        },
+        {
+          "name": "ensure_special_entry",
+          "line": 94
+        },
+        {
+          "name": "read_main_entry",
+          "line": 104
+        },
+        {
+          "name": "read_special_entry",
+          "line": 110
+        },
+        {
+          "name": "apply_decay",
+          "line": 116
+        },
+        {
+          "name": "get_tracking_score_main",
+          "line": 129
+        },
+        {
+          "name": "get_tracking_score_special",
+          "line": 140
+        },
+        {
+          "name": "get_tracking_snapshot_main",
+          "line": 150
+        },
+        {
+          "name": "get_tracking_snapshot_special",
+          "line": 162
+        },
+        {
+          "name": "rebuild_indexes",
+          "line": 173
+        },
+        {
+          "name": "update_after_actual",
+          "line": 236
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\tests\\test_features.py",
+      "bytes": 1615,
+      "lines": 40,
+      "sha256": "c907baca2cffd41f1c1d7324bad6793c9e3c2e6dbbd36365c8ca05e9232a2524",
+      "functions": [
+        {
+          "name": "test_feature_rows_and_context_exist",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "FeatureTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\tests\\test_loader.py",
+      "bytes": 903,
+      "lines": 28,
+      "sha256": "c7ce50a33002594c2118d2cc51974809335531356f35fd10996dd724f756a003",
+      "functions": [
+        {
+          "name": "test_loader_parses_real_repo_csv",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "LoaderTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\tests\\test_ticket_generation.py",
+      "bytes": 2271,
+      "lines": 55,
+      "sha256": "5b50595ed61e3b2daea25547ae773c545bb8d5a850db736b8110fc145c7e7706",
+      "functions": [
+        {
+          "name": "test_ticket_generation_returns_sorted_unique_tickets_and_special",
+          "line": 13
+        },
+        {
+          "name": "test_ticket_generation_supports_nine_vip_backups",
+          "line": 43
+        }
+      ],
+      "classes": [
+        "TicketGenerationTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\tests\\test_tracking.py",
+      "bytes": 1229,
+      "lines": 32,
+      "sha256": "fb618094fcf986681b400bdcdc8d6d2c2813bdb562705a7380bce8478b2036ff",
+      "functions": [
+        {
+          "name": "test_tracking_updates_hits_and_misses_for_main_and_special",
+          "line": 13
+        }
+      ],
+      "classes": [
+        "TrackingTests"
+      ]
+    },
+    {
+      "path": "ai\\standalone_predictors\\power_6_55_predictor\\train_deep_model.py",
+      "bytes": 807,
+      "lines": 29,
+      "sha256": "8dcc50125e283b8b99c183ce31b9ca0997ea8b6d1e6b9703ab5000d17532802c",
+      "functions": [
+        {
+          "name": "build_parser",
+          "line": 15
+        },
+        {
+          "name": "main",
+          "line": 21
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\__init__.py",
+      "bytes": 322,
+      "lines": 15,
+      "sha256": "4d42b267dbb4b8120a31a8a9ea5357d234877110579e85d9213e601177b25c21",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\backtest.py",
+      "bytes": 2599,
+      "lines": 61,
+      "sha256": "6236d6e7c182b6c5a622ec95a45450b69f054aae3db73e8d3ba713dc3b268215",
+      "functions": [
+        {
+          "name": "run_quick_backtest",
+          "line": 8
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\config.py",
+      "bytes": 4321,
+      "lines": 160,
+      "sha256": "a90d0d889faa43cedefd1fe02ad4a190f511a2fabd86506c745e8d393388b25c",
+      "functions": [
+        {
+          "name": "ensure_directories",
+          "line": 110
+        },
+        {
+          "name": "_deep_merge",
+          "line": 115
+        },
+        {
+          "name": "read_json",
+          "line": 127
+        },
+        {
+          "name": "write_json",
+          "line": 138
+        },
+        {
+          "name": "load_config",
+          "line": 143
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 147
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 151
+        },
+        {
+          "name": "load_last_prediction",
+          "line": 155
+        },
+        {
+          "name": "save_last_prediction",
+          "line": 159
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\csv_loader.py",
+      "bytes": 6522,
+      "lines": 194,
+      "sha256": "5bcde3b72d450d1703a99c152f7172580f8378209f80224ca9387836755afff5",
+      "functions": [
+        {
+          "name": "_sort_key_from_ky",
+          "line": 24
+        },
+        {
+          "name": "_parse_csv_date",
+          "line": 29
+        },
+        {
+          "name": "_format_csv_date",
+          "line": 45
+        },
+        {
+          "name": "_parse_number_list",
+          "line": 49
+        },
+        {
+          "name": "normalize_game",
+          "line": 58
+        },
+        {
+          "name": "normalize_slot",
+          "line": 65
+        },
+        {
+          "name": "canonical_csv_path",
+          "line": 70
+        },
+        {
+          "name": "_resolve_header_map",
+          "line": 74
+        },
+        {
+          "name": "_read_row_value",
+          "line": 86
+        },
+        {
+          "name": "load_history",
+          "line": 93
+        },
+        {
+          "name": "latest_actual_draw",
+          "line": 126
+        },
+        {
+          "name": "find_draw_by_ky",
+          "line": 130
+        },
+        {
+          "name": "infer_next_target_draw",
+          "line": 138
+        },
+        {
+          "name": "build_sync_summary",
+          "line": 172
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\deep_model.py",
+      "bytes": 2370,
+      "lines": 55,
+      "sha256": "136810fb8da8056fae9fd123f8a7f147601e01bf6de6030c9917f34373331e64",
+      "functions": [
+        {
+          "name": "score_candidates",
+          "line": 9
+        },
+        {
+          "name": "incremental_fine_tune",
+          "line": 43
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\feature_engineering.py",
+      "bytes": 9251,
+      "lines": 180,
+      "sha256": "049e71fcbe80857ed531b170b44b33b92271d2abd641e6cedcb94b14a688528a",
+      "functions": [
+        {
+          "name": "_normalize_score_map",
+          "line": 8
+        },
+        {
+          "name": "_window_frequency",
+          "line": 20
+        },
+        {
+          "name": "_build_position_profile",
+          "line": 30
+        },
+        {
+          "name": "_position_score",
+          "line": 45
+        },
+        {
+          "name": "_gap_scores",
+          "line": 52
+        },
+        {
+          "name": "_slot_draws",
+          "line": 66
+        },
+        {
+          "name": "_weekday_draws",
+          "line": 70
+        },
+        {
+          "name": "build_feature_snapshot",
+          "line": 74
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\heuristic_engine.py",
+      "bytes": 10442,
+      "lines": 238,
+      "sha256": "bea50ca96fa6f7ce1e50fc1ca918a5f5183a556eea8ee3de6bf7a97e316f76f4",
+      "functions": [
+        {
+          "name": "_normalize_map",
+          "line": 6
+        },
+        {
+          "name": "_blend_scores",
+          "line": 17
+        },
+        {
+          "name": "_repair_ticket_numbers",
+          "line": 34
+        },
+        {
+          "name": "_build_candidate_templates",
+          "line": 69
+        },
+        {
+          "name": "_candidate_ticket_context",
+          "line": 93
+        },
+        {
+          "name": "build_prediction_snapshot",
+          "line": 106
+        },
+        {
+          "name": "select_vip_tickets",
+          "line": 203
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\modulo_engine.py",
+      "bytes": 2871,
+      "lines": 74,
+      "sha256": "5fb6520d3decc9c00dfcfe645d7a87e4e6de33cf4f434761c0e51b2dad8795f2",
+      "functions": [
+        {
+          "name": "_collect_residue_counts",
+          "line": 9
+        },
+        {
+          "name": "build_modulo_context",
+          "line": 23
+        },
+        {
+          "name": "score_candidate",
+          "line": 42
+        },
+        {
+          "name": "evaluate_ticket_modulo",
+          "line": 56
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\online_learning.py",
+      "bytes": 2146,
+      "lines": 52,
+      "sha256": "bc25df1b1aa4e3ea0bf8ab9ac21201e6f65cf4a1284750badbb87eec5acac480",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "synchronize_with_latest_actual",
+          "line": 13
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\pair_engine.py",
+      "bytes": 3320,
+      "lines": 92,
+      "sha256": "a3ce31f71f433ec39f779df7b65643542626d9b26f907ff82293d4fc8282109a",
+      "functions": [
+        {
+          "name": "build_pair_context",
+          "line": 7
+        },
+        {
+          "name": "_pair_key",
+          "line": 28
+        },
+        {
+          "name": "pair_support",
+          "line": 34
+        },
+        {
+          "name": "anti_pair_penalty",
+          "line": 45
+        },
+        {
+          "name": "score_candidate_pairing",
+          "line": 59
+        },
+        {
+          "name": "score_candidate_anti_pair",
+          "line": 67
+        },
+        {
+          "name": "evaluate_ticket_pair_quality",
+          "line": 75
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\predictor_api.py",
+      "bytes": 11865,
+      "lines": 230,
+      "sha256": "7ca34903a070008268f23e307d200263cfd6ec71792f6414d952e7ca7f367b3f",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "_build_result_notes",
+          "line": 13
+        },
+        {
+          "name": "_tracking_summary",
+          "line": 28
+        },
+        {
+          "name": "predict_next_vip",
+          "line": 41
+        },
+        {
+          "name": "update_after_actual_vip",
+          "line": 188
+        },
+        {
+          "name": "get_tracking_state_vip",
+          "line": 211
+        },
+        {
+          "name": "evaluate_ticket_vip",
+          "line": 215
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\regime_engine.py",
+      "bytes": 2882,
+      "lines": 59,
+      "sha256": "a8942be92fc0293bfce346a3742850d9e72860569ab4404721f9427a18006087",
+      "functions": [
+        {
+          "name": "classify_regime",
+          "line": 4
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\ticket_evaluator.py",
+      "bytes": 5524,
+      "lines": 119,
+      "sha256": "ae46f9e4b46969bad04ac617d19ae4b11a2fe677fd77943ef36f748105620868",
+      "functions": [
+        {
+          "name": "_clamp01",
+          "line": 6
+        },
+        {
+          "name": "_sum_balance",
+          "line": 10
+        },
+        {
+          "name": "_parity_balance",
+          "line": 19
+        },
+        {
+          "name": "_range_balance",
+          "line": 27
+        },
+        {
+          "name": "_position_plausibility",
+          "line": 36
+        },
+        {
+          "name": "evaluate_ticket",
+          "line": 48
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\predictor_v2\\tracking_engine.py",
+      "bytes": 9035,
+      "lines": 202,
+      "sha256": "bc88b8f9bdfe64788537e2366ec4fd5962236d2ebf4097e64ce992af9f5353e9",
+      "functions": [
+        {
+          "name": "_now_iso",
+          "line": 9
+        },
+        {
+          "name": "_ensure_memory_entry",
+          "line": 13
+        },
+        {
+          "name": "_apply_decay",
+          "line": 33
+        },
+        {
+          "name": "_rebuild_indexes",
+          "line": 45
+        },
+        {
+          "name": "load_tracking_state",
+          "line": 96
+        },
+        {
+          "name": "save_tracking_state",
+          "line": 100
+        },
+        {
+          "name": "get_tracking_score",
+          "line": 104
+        },
+        {
+          "name": "summarize_tracking_state",
+          "line": 116
+        },
+        {
+          "name": "update_after_actual",
+          "line": 122
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\README.md",
+      "bytes": 340,
+      "lines": 10,
+      "sha256": "147eaf1684897450976a098ef41a130625bb1f844ddec93644066831326ae9f0"
+    },
+    {
+      "path": "ai\\standalone_predictors\\run_ablation_report.py",
+      "bytes": 1548,
+      "lines": 51,
+      "sha256": "88dfb05829947c77b0922ee1b85b73d15080e7ec981077bdf3be88da56ea33e5",
+      "functions": [
+        {
+          "name": "_run_backtest",
+          "line": 26
+        },
+        {
+          "name": "main",
+          "line": 36
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\shared_deep\\__init__.py",
+      "bytes": 456,
+      "lines": 23,
+      "sha256": "f319cd9813de8d473e60f84c7805892eaee5bf5125791efab5ebbdc92d27d36e",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\standalone_predictors\\shared_deep\\numpy_cnn_gru.py",
+      "bytes": 29686,
+      "lines": 666,
+      "sha256": "b0056a500c78959bc20e68d6f7a43bb081be9c44585944ab9b2f30f9d28e2741",
+      "functions": [
+        {
+          "name": "sigmoid",
+          "line": 15
+        },
+        {
+          "name": "softmax",
+          "line": 20
+        },
+        {
+          "name": "_topk_recall",
+          "line": 412
+        },
+        {
+          "name": "_exact_hit_mean",
+          "line": 427
+        },
+        {
+          "name": "evaluate_model",
+          "line": 438
+        },
+        {
+          "name": "_split_batch",
+          "line": 471
+        },
+        {
+          "name": "train_numpy_cnn_gru",
+          "line": 481
+        },
+        {
+          "name": "save_artifacts",
+          "line": 637
+        },
+        {
+          "name": "load_artifacts",
+          "line": 659
+        },
+        {
+          "name": "fit",
+          "line": 33
+        },
+        {
+          "name": "transform",
+          "line": 40
+        },
+        {
+          "name": "to_payload",
+          "line": 44
+        },
+        {
+          "name": "from_payload",
+          "line": 52
+        },
+        {
+          "name": "__init__",
+          "line": 60
+        },
+        {
+          "name": "step",
+          "line": 70
+        },
+        {
+          "name": "__init__",
+          "line": 87
+        },
+        {
+          "name": "parameter_dict",
+          "line": 141
+        },
+        {
+          "name": "architecture_payload",
+          "line": 167
+        },
+        {
+          "name": "load_state_dict",
+          "line": 179
+        },
+        {
+          "name": "state_dict",
+          "line": 184
+        },
+        {
+          "name": "from_artifact_payload",
+          "line": 188
+        },
+        {
+          "name": "_conv_windows",
+          "line": 194
+        },
+        {
+          "name": "forward",
+          "line": 208
+        },
+        {
+          "name": "compute_loss",
+          "line": 266
+        },
+        {
+          "name": "backward",
+          "line": 327
+        },
+        {
+          "name": "predict_proba",
+          "line": 407
+        }
+      ],
+      "classes": [
+        "SequenceStandardScaler",
+        "AdamOptimizer",
+        "NumpyCnnGruModel"
+      ]
+    },
+    {
+      "path": "ai\\stats\\__init__.py",
+      "bytes": 35,
+      "lines": 1,
+      "sha256": "4d0c0f48212043b4dd62da79799fa4a6714a2cf2b87e429fcd4c5a152a0ff495",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "ai\\stats\\stats_v2.py",
+      "bytes": 18043,
+      "lines": 532,
+      "sha256": "fc71c4bb5d9ed0820c64453e0383c311ac52f9c28d20440ec0a32b60e39d7fc9",
+      "functions": [
+        {
+          "name": "normalize_header",
+          "line": 118
+        },
+        {
+          "name": "normalize_type",
+          "line": 126
+        },
+        {
+          "name": "max_combo_size_for_type",
+          "line": 143
+        },
+        {
+          "name": "parse_date_value",
+          "line": 147
+        },
+        {
+          "name": "parse_time_minutes",
+          "line": 157
+        },
+        {
+          "name": "ky_sort_value",
+          "line": 168
+        },
+        {
+          "name": "parse_number_tokens",
+          "line": 173
+        },
+        {
+          "name": "format_token",
+          "line": 177
+        },
+        {
+          "name": "normalize_csv_row",
+          "line": 186
+        },
+        {
+          "name": "read_csv_rows",
+          "line": 195
+        },
+        {
+          "name": "row_to_draw",
+          "line": 201
+        },
+        {
+          "name": "load_draws",
+          "line": 237
+        },
+        {
+          "name": "filter_draws_by_period",
+          "line": 249
+        },
+        {
+          "name": "number_universe",
+          "line": 282
+        },
+        {
+          "name": "draw_tokens",
+          "line": 297
+        },
+        {
+          "name": "draw_combo_items",
+          "line": 308
+        },
+        {
+          "name": "candidate_items",
+          "line": 324
+        },
+        {
+          "name": "item_label",
+          "line": 336
+        },
+        {
+          "name": "compute_stats",
+          "line": 340
+        },
+        {
+          "name": "build_loto_535_summary",
+          "line": 400
+        },
+        {
+          "name": "build_stats_payload",
+          "line": 411
+        },
+        {
+          "name": "parse_args",
+          "line": 495
+        },
+        {
+          "name": "main",
+          "line": 511
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "backend\\__init__.py",
+      "bytes": 54,
+      "lines": 1,
+      "sha256": "b2f4e726fb1fa5ffeff6ba9965cad6b378f72029fd875675ca537991d597bdd3",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "path": "backend\\live_results.py",
+      "bytes": 146768,
+      "lines": 3879,
+      "sha256": "08a4b0ec5fd5937b4f415d4a4cc9c3bcdd012eea25c0c3dd8c7880a1b70eaa52",
+      "functions": [
+        {
+          "name": "valid_prize_hit",
+          "line": 86
+        },
+        {
+          "name": "get_csv_fields",
+          "line": 103
+        },
+        {
+          "name": "get_csv_header",
+          "line": 113
+        },
+        {
+          "name": "infer_csv_type_key",
+          "line": 122
+        },
+        {
+          "name": "numeric_csv_display",
+          "line": 130
+        },
+        {
+          "name": "expand_csv_record",
+          "line": 137
+        },
+        {
+          "name": "now_iso",
+          "line": 293
+        },
+        {
+          "name": "ensure_runtime_log_dir",
+          "line": 297
+        },
+        {
+          "name": "read_json_file",
+          "line": 301
+        },
+        {
+          "name": "atomic_replace_text",
+          "line": 308
+        },
+        {
+          "name": "write_json_file",
+          "line": 336
+        },
+        {
+          "name": "write_text_atomic",
+          "line": 345
+        },
+        {
+          "name": "pid_is_running",
+          "line": 349
+        },
+        {
+          "name": "default_live_results_progress_payload",
+          "line": 363
+        },
+        {
+          "name": "default_live_results_type_state",
+          "line": 385
+        },
+        {
+          "name": "is_within_keno_operating_window",
+          "line": 407
+        },
+        {
+          "name": "normalize_recent_lookback_days",
+          "line": 413
+        },
+        {
+          "name": "get_recent_window_start_date",
+          "line": 422
+        },
+        {
+          "name": "filter_dates_in_range",
+          "line": 427
+        },
+        {
+          "name": "filter_rows_by_date_range",
+          "line": 438
+        },
+        {
+          "name": "is_keno_outside_operating_window_error",
+          "line": 452
+        },
+        {
+          "name": "keno_errors_are_outside_operating_window",
+          "line": 456
+        },
+        {
+          "name": "build_type_result_fields",
+          "line": 465
+        },
+        {
+          "name": "resolve_type_progress_outcome",
+          "line": 496
+        },
+        {
+          "name": "build_keno_manual_timeout_message",
+          "line": 509
+        },
+        {
+          "name": "slug",
+          "line": 736
+        },
+        {
+          "name": "normalize_space",
+          "line": 742
+        },
+        {
+          "name": "create_session",
+          "line": 746
+        },
+        {
+          "name": "request_with_retry",
+          "line": 752
+        },
+        {
+          "name": "fetch_url_text",
+          "line": 781
+        },
+        {
+          "name": "parse_csv_date",
+          "line": 788
+        },
+        {
+          "name": "format_csv_date",
+          "line": 798
+        },
+        {
+          "name": "format_minhchinh_date",
+          "line": 802
+        },
+        {
+          "name": "format_csv_weekday",
+          "line": 806
+        },
+        {
+          "name": "get_canonical_output_paths",
+          "line": 813
+        },
+        {
+          "name": "get_canonical_meta_path",
+          "line": 821
+        },
+        {
+          "name": "read_canonical_meta",
+          "line": 825
+        },
+        {
+          "name": "write_canonical_meta",
+          "line": 852
+        },
+        {
+          "name": "build_prize_amount_meta",
+          "line": 864
+        },
+        {
+          "name": "retrain_gen_local_models",
+          "line": 879
+        },
+        {
+          "name": "refresh_scoring_csv_exports",
+          "line": 981
+        },
+        {
+          "name": "sort_key_from_ky",
+          "line": 1050
+        },
+        {
+          "name": "get_latest_and_earliest_rows",
+          "line": 1057
+        },
+        {
+          "name": "read_csv_text_safely",
+          "line": 1068
+        },
+        {
+          "name": "normalize_csv_row_dict",
+          "line": 1098
+        },
+        {
+          "name": "normalize_header_label",
+          "line": 1106
+        },
+        {
+          "name": "resolve_keno_csv_header_map",
+          "line": 1113
+        },
+        {
+          "name": "resolve_numeric_csv_header_map",
+          "line": 1122
+        },
+        {
+          "name": "normalize_keno_ln_value",
+          "line": 1131
+        },
+        {
+          "name": "normalize_keno_cl_value",
+          "line": 1136
+        },
+        {
+          "name": "serialize_keno_csv_value",
+          "line": 1141
+        },
+        {
+          "name": "normalize_meta_from_rows",
+          "line": 1149
+        },
+        {
+          "name": "load_csv_rows",
+          "line": 1195
+        },
+        {
+          "name": "load_canonical_rows",
+          "line": 1250
+        },
+        {
+          "name": "count_rows_for_date",
+          "line": 1282
+        },
+        {
+          "name": "result_to_csv_row",
+          "line": 1296
+        },
+        {
+          "name": "write_csv_rows",
+          "line": 1318
+        },
+        {
+          "name": "filter_rows_from_start_date",
+          "line": 1343
+        },
+        {
+          "name": "row_matches_type_key",
+          "line": 1355
+        },
+        {
+          "name": "filter_rows_for_type",
+          "line": 1385
+        },
+        {
+          "name": "sync_result_to_canonical_csv",
+          "line": 1396
+        },
+        {
+          "name": "csv_row_to_history_item",
+          "line": 1451
+        },
+        {
+          "name": "extract_three_digit_numbers_from_display_lines",
+          "line": 1488
+        },
+        {
+          "name": "normalize_live_history_count_key",
+          "line": 1516
+        },
+        {
+          "name": "normalize_history_count",
+          "line": 1535
+        },
+        {
+          "name": "parse_time_to_minutes",
+          "line": 1544
+        },
+        {
+          "name": "first_day_of_shifted_month",
+          "line": 1555
+        },
+        {
+          "name": "keno_history_window_start_date",
+          "line": 1564
+        },
+        {
+          "name": "load_history_items_for_type",
+          "line": 1582
+        },
+        {
+          "name": "history_item_to_live_result",
+          "line": 1597
+        },
+        {
+          "name": "load_latest_canonical_live_results",
+          "line": 1626
+        },
+        {
+          "name": "load_history_payload",
+          "line": 1639
+        },
+        {
+          "name": "repair_canonical_history_type",
+          "line": 1647
+        },
+        {
+          "name": "build_canonical_history_payload",
+          "line": 1671
+        },
+        {
+          "name": "calc_keno_ln",
+          "line": 1739
+        },
+        {
+          "name": "calc_keno_cl",
+          "line": 1749
+        },
+        {
+          "name": "get_keno_search_date",
+          "line": 1759
+        },
+        {
+          "name": "parse_keno_rows",
+          "line": 1766
+        },
+        {
+          "name": "fetch_latest_keno_page",
+          "line": 1825
+        },
+        {
+          "name": "fetch_keno_day_results",
+          "line": 1840
+        },
+        {
+          "name": "build_keno_history_items",
+          "line": 1912
+        },
+        {
+          "name": "filter_keno_history_items",
+          "line": 1934
+        },
+        {
+          "name": "load_keno_history_items",
+          "line": 1969
+        },
+        {
+          "name": "refresh_keno_history_for_requested_range",
+          "line": 1982
+        },
+        {
+          "name": "keno_result_to_csv_row",
+          "line": 2017
+        },
+        {
+          "name": "load_keno_csv_rows",
+          "line": 2031
+        },
+        {
+          "name": "write_keno_csv_rows",
+          "line": 2119
+        },
+        {
+          "name": "merge_result_rows",
+          "line": 2136
+        },
+        {
+          "name": "merge_keno_result_rows",
+          "line": 2159
+        },
+        {
+          "name": "prune_keno_rows_after_latest_fetched",
+          "line": 2174
+        },
+        {
+          "name": "iter_type_dates",
+          "line": 2196
+        },
+        {
+          "name": "rows_grouped_by_date",
+          "line": 2204
+        },
+        {
+          "name": "get_earliest_row_date",
+          "line": 2214
+        },
+        {
+          "name": "collect_seed_files",
+          "line": 2223
+        },
+        {
+          "name": "load_seed_rows",
+          "line": 2248
+        },
+        {
+          "name": "count_gap_intervals",
+          "line": 2266
+        },
+        {
+          "name": "count_gap_intervals_for_type",
+          "line": 2295
+        },
+        {
+          "name": "is_complete_keno_day",
+          "line": 2324
+        },
+        {
+          "name": "html_to_lines",
+          "line": 2332
+        },
+        {
+          "name": "find_first_index",
+          "line": 2340
+        },
+        {
+          "name": "parse_result_header",
+          "line": 2347
+        },
+        {
+          "name": "parse_result_header_window",
+          "line": 2363
+        },
+        {
+          "name": "parse_ky",
+          "line": 2370
+        },
+        {
+          "name": "parse_date_time",
+          "line": 2384
+        },
+        {
+          "name": "collect_numbers",
+          "line": 2404
+        },
+        {
+          "name": "collect_draw_balls",
+          "line": 2420
+        },
+        {
+          "name": "parse_numeric_prizes",
+          "line": 2443
+        },
+        {
+          "name": "parse_numeric_prize_hits",
+          "line": 2468
+        },
+        {
+          "name": "build_numeric_result",
+          "line": 2504
+        },
+        {
+          "name": "parse_numeric_block",
+          "line": 2524
+        },
+        {
+          "name": "collect_block_slice",
+          "line": 2563
+        },
+        {
+          "name": "collect_prize_tokens",
+          "line": 2573
+        },
+        {
+          "name": "find_next_prize_boundary",
+          "line": 2587
+        },
+        {
+          "name": "extract_draw_sections",
+          "line": 2595
+        },
+        {
+          "name": "section_matches_cfg",
+          "line": 2609
+        },
+        {
+          "name": "parse_numeric_section",
+          "line": 2620
+        },
+        {
+          "name": "parse_display_section",
+          "line": 2653
+        },
+        {
+          "name": "parse_display_block",
+          "line": 2714
+        },
+        {
+          "name": "parse_max3d_block",
+          "line": 2781
+        },
+        {
+          "name": "parse_max3dpro_block",
+          "line": 2791
+        },
+        {
+          "name": "parse_max3d_section",
+          "line": 2801
+        },
+        {
+          "name": "parse_max3dpro_section",
+          "line": 2811
+        },
+        {
+          "name": "parse_keno_from_minhchinh",
+          "line": 2821
+        },
+        {
+          "name": "fetch_vietlott_day_lines",
+          "line": 2853
+        },
+        {
+          "name": "fetch_minhchinh_history_lines",
+          "line": 2867
+        },
+        {
+          "name": "fetch_latest_vietlott_result",
+          "line": 2883
+        },
+        {
+          "name": "fetch_latest_minhchinh_result",
+          "line": 2902
+        },
+        {
+          "name": "fetch_live_result",
+          "line": 2917
+        },
+        {
+          "name": "parse_history_results",
+          "line": 2949
+        },
+        {
+          "name": "should_fetch_history_date",
+          "line": 2971
+        },
+        {
+          "name": "fetch_history_results_for_date",
+          "line": 2977
+        },
+        {
+          "name": "get_expected_numeric_day_slots",
+          "line": 2982
+        },
+        {
+          "name": "normalize_draw_time_slot",
+          "line": 2986
+        },
+        {
+          "name": "format_minutes_time",
+          "line": 2994
+        },
+        {
+          "name": "parse_time_minutes",
+          "line": 2999
+        },
+        {
+          "name": "expected_keno_time_for_index",
+          "line": 3010
+        },
+        {
+          "name": "normalize_keno_schedule_times",
+          "line": 3014
+        },
+        {
+          "name": "is_complete_numeric_day",
+          "line": 3054
+        },
+        {
+          "name": "is_complete_numeric_results_for_date",
+          "line": 3066
+        },
+        {
+          "name": "count_keno_partial_days",
+          "line": 3078
+        },
+        {
+          "name": "count_numeric_partial_days",
+          "line": 3089
+        },
+        {
+          "name": "collect_missing_dates_for_range",
+          "line": 3103
+        },
+        {
+          "name": "write_canonical_rows",
+          "line": 3111
+        },
+        {
+          "name": "bootstrap_numeric_full_history",
+          "line": 3123
+        },
+        {
+          "name": "bootstrap_keno_full_history",
+          "line": 3164
+        },
+        {
+          "name": "sync_all_numeric_type",
+          "line": 3202
+        },
+        {
+          "name": "sync_all_keno_type",
+          "line": 3358
+        },
+        {
+          "name": "sync_all_canonical_csvs",
+          "line": 3607
+        },
+        {
+          "name": "sync_requested_canonical_csvs",
+          "line": 3618
+        },
+        {
+          "name": "parse_cli_args",
+          "line": 3709
+        },
+        {
+          "name": "main",
+          "line": 3782
+        },
+        {
+          "name": "__init__",
+          "line": 514
+        },
+        {
+          "name": "_refresh_metrics",
+          "line": 530
+        },
+        {
+          "name": "write",
+          "line": 548
+        },
+        {
+          "name": "acquire_lock",
+          "line": 561
+        },
+        {
+          "name": "release_lock",
+          "line": 582
+        },
+        {
+          "name": "reserve_steps",
+          "line": 592
+        },
+        {
+          "name": "set_phase",
+          "line": 599
+        },
+        {
+          "name": "ensure_type_state",
+          "line": 606
+        },
+        {
+          "name": "update_type_state",
+          "line": 615
+        },
+        {
+          "name": "mark_type_running",
+          "line": 624
+        },
+        {
+          "name": "complete_type",
+          "line": 637
+        },
+        {
+          "name": "complete_step",
+          "line": 659
+        },
+        {
+          "name": "add_warning",
+          "line": 671
+        },
+        {
+          "name": "add_error",
+          "line": 681
+        },
+        {
+          "name": "finish",
+          "line": 691
+        },
+        {
+          "name": "fail",
+          "line": 705
+        },
+        {
+          "name": "mark_timeout",
+          "line": 1845
+        },
+        {
+          "name": "is_block_start",
+          "line": 2525
+        },
+        {
+          "name": "is_block_start",
+          "line": 2715
+        },
+        {
+          "name": "manual_timeout_reached",
+          "line": 3376
+        },
+        {
+          "name": "record_manual_timeout",
+          "line": 3379
+        },
+        {
+          "name": "handle_keno_page_progress",
+          "line": 3464
+        }
+      ],
+      "classes": [
+        "LiveType",
+        "LiveResultsProgressTracker"
+      ]
+    },
+    {
+      "path": "backend\\lotto_backfill.py",
+      "bytes": 14220,
+      "lines": 406,
+      "sha256": "76bb3096905d12eb520fd6530936be6d8fae61d2eb38817997ff30d3e6001c40",
+      "functions": [
+        {
+          "name": "now_iso",
+          "line": 36
+        },
+        {
+          "name": "ensure_runtime_paths",
+          "line": 40
+        },
+        {
+          "name": "append_log",
+          "line": 44
+        },
+        {
+          "name": "read_json",
+          "line": 50
+        },
+        {
+          "name": "write_status",
+          "line": 57
+        },
+        {
+          "name": "step_result_template",
+          "line": 64
+        },
+        {
+          "name": "build_type_result",
+          "line": 78
+        },
+        {
+          "name": "pid_is_running",
+          "line": 89
+        },
+        {
+          "name": "acquire_lock",
+          "line": 101
+        },
+        {
+          "name": "release_lock",
+          "line": 117
+        },
+        {
+          "name": "canonical_complete",
+          "line": 127
+        },
+        {
+          "name": "ai_complete",
+          "line": 131
+        },
+        {
+          "name": "summarize_type",
+          "line": 135
+        },
+        {
+          "name": "build_status",
+          "line": 167
+        },
+        {
+          "name": "run_json_command",
+          "line": 187
+        },
+        {
+          "name": "run_canonical_step",
+          "line": 213
+        },
+        {
+          "name": "run_ai_step",
+          "line": 254
+        },
+        {
+          "name": "record_step_result",
+          "line": 276
+        },
+        {
+          "name": "mark_skipped_result",
+          "line": 284
+        },
+        {
+          "name": "run",
+          "line": 297
+        },
+        {
+          "name": "status",
+          "line": 373
+        },
+        {
+          "name": "main",
+          "line": 393
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "backend\\LottoWebServer.java",
+      "bytes": 134062,
+      "lines": 3056,
+      "sha256": "a3541fddfe0026f50bac321977c87c79122fa86963b39b7949cc24deb82d619e"
+    },
+    {
+      "path": "frontend\\vietlott-web-chatbot.js",
+      "bytes": 20131,
+      "lines": 426,
+      "sha256": "59b908907e38d34bf11f35a723b461848db38623e5176c839a65be65da9599da"
+    },
+    {
+      "path": "frontend\\vietlott-web-core.js",
+      "bytes": 306997,
+      "lines": 6677,
+      "sha256": "45096a6ba35a18c11f51b15e008b241c25a539c11eaeb5b800c8b783ccf99980"
+    },
+    {
+      "path": "frontend\\vietlott-web-data.js",
+      "bytes": 378917,
+      "lines": 7616,
+      "sha256": "ce5ba96b39cb5caf7a9240b80f5f78c36e2bffe89dea878b18c7243992751f6b"
+    },
+    {
+      "path": "frontend\\vietlott-web-extra.css",
+      "bytes": 469613,
+      "lines": 18633,
+      "sha256": "eb37d53d830adbd72fabfa8c9a65040508f876fab5fbbdbb9d39e5e5a8c8f4d7"
+    },
+    {
+      "path": "frontend\\vietlott-web-stats.js",
+      "bytes": 324776,
+      "lines": 6507,
+      "sha256": "b2297c4c92b8203d6e28c5a2181f3d714dafc126e34285f58917bbbf01798bb4"
+    },
+    {
+      "path": "frontend\\vietlott-web.css",
+      "bytes": 176633,
+      "lines": 5998,
+      "sha256": "cc299df60436a6e5d907b503548682e2636e5bb60e64fa8f05229e7f399c859c"
+    },
+    {
+      "path": "frontend\\vietlott-web.html",
+      "bytes": 88840,
+      "lines": 1491,
+      "sha256": "df3e66135763743942d0a80dbf0605c4bf46ffa227b8fa5b61d6cb3cfe4feb5a"
+    },
+    {
+      "path": "frontend\\vietlott-web.js",
+      "bytes": 120,
+      "lines": 1,
+      "sha256": "cd024583d62741c2657f0ca4cca1c6801f2c23c17637c937db0731a4169b7b7c"
+    },
+    {
+      "path": "scripts\\chay_lotto_backfill.bat",
+      "bytes": 1998,
+      "lines": 53,
+      "sha256": "4b1536d35754eb60ffe4eec1be39b85eaa9333793ea30f7c3a4dab60a9630415"
+    },
+    {
+      "path": "scripts\\chay_lotto_web.bat",
+      "bytes": 4714,
+      "lines": 126,
+      "sha256": "f8bdc918edb9f7fb2f6af2b2c309a1f139acca989561d45007bfbf8c15753b2f"
+    },
+    {
+      "path": "scripts\\clean_canonical_data.py",
+      "bytes": 17714,
+      "lines": 317,
+      "sha256": "a9cc8974214970db901b2b1e8ce62dc87eaa1b2e62bcdc3e45e3f2e3807a15fd",
+      "functions": [
+        {
+          "name": "max_groups",
+          "line": 35
+        },
+        {
+          "name": "normalize_row",
+          "line": 48
+        },
+        {
+          "name": "fetch_max_page",
+          "line": 137
+        },
+        {
+          "name": "main",
+          "line": 160
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "scripts\\clean_related_csv.py",
+      "bytes": 12089,
+      "lines": 228,
+      "sha256": "ba3632fcf3f2819e56c5724e15ae36c40fc8eb5f6f7355afbbd1bc1b753f3253",
+      "functions": [
+        {
+          "name": "read_csv",
+          "line": 38
+        },
+        {
+          "name": "clean_snapshot",
+          "line": 56
+        },
+        {
+          "name": "clean_scoring",
+          "line": 117
+        },
+        {
+          "name": "main",
+          "line": 157
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "scripts\\update_minhchinh_history.py",
+      "bytes": 9277,
+      "lines": 199,
+      "sha256": "2e1047fa98e53002531e7e95471067f16670b39cab595c6ec4f1e2c620d486fc",
+      "functions": [
+        {
+          "name": "session",
+          "line": 22
+        },
+        {
+          "name": "audit",
+          "line": 28
+        },
+        {
+          "name": "keno_day",
+          "line": 38
+        },
+        {
+          "name": "main",
+          "line": 82
+        },
+        {
+          "name": "save_report",
+          "line": 99
+        },
+        {
+          "name": "checkpoint",
+          "line": 155
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "scripts\\update_prize_history.py",
+      "bytes": 8237,
+      "lines": 175,
+      "sha256": "69b53321c3afacbc3b1f051d1615a4ecb5c341f8a23f9d1829f972b5c0dfc90c",
+      "functions": [
+        {
+          "name": "fetch_page",
+          "line": 25
+        },
+        {
+          "name": "apply_prizes",
+          "line": 51
+        },
+        {
+          "name": "main",
+          "line": 68
+        },
+        {
+          "name": "pending",
+          "line": 106
+        },
+        {
+          "name": "checkpoint",
+          "line": 111
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "scripts\\update_prize_hits.py",
+      "bytes": 9730,
+      "lines": 188,
+      "sha256": "260920596a3b5404c38fc5e93c7391be1318dd270c250c021852b0c55f5a0b40",
+      "functions": [
+        {
+          "name": "parse_page",
+          "line": 20
+        },
+        {
+          "name": "fetch_page",
+          "line": 31
+        },
+        {
+          "name": "verify_result",
+          "line": 48
+        },
+        {
+          "name": "main",
+          "line": 68
+        },
+        {
+          "name": "absorb",
+          "line": 86
+        }
+      ],
+      "classes": []
+    },
+    {
+      "path": "tests\\chatbot_harness.html",
+      "bytes": 4710,
+      "lines": 77,
+      "sha256": "b62a181a3fa888d918bab33b0a55f450da2e4fa3338edbded35fd94f6828479e"
+    },
+    {
+      "path": "tests\\lucky_wheel_ui_harness.html",
+      "bytes": 7362,
+      "lines": 47,
+      "sha256": "d0f8d31799ae2dc1c5ac8341f8ddc281bed174448a632d17e96751cc9708893a"
+    },
+    {
+      "path": "tests\\test_adaptive_coverage.py",
+      "bytes": 12851,
+      "lines": 268,
+      "sha256": "eab4d53ba09629d4bdda88c64fae33951157cf03c103aaecdb396747674d5ff6",
+      "functions": [
+        {
+          "name": "build_payload",
+          "line": 17
+        },
+        {
+          "name": "test_candidate_pool_schedule",
+          "line": 39
+        },
+        {
+          "name": "test_all_supported_games_use_gumbel_portfolio",
+          "line": 47
+        },
+        {
+          "name": "test_result_is_deterministic_for_same_draw_and_payload",
+          "line": 62
+        },
+        {
+          "name": "test_power_special_number_is_not_reused_as_main_number",
+          "line": 72
+        },
+        {
+          "name": "test_keno_level_one_caps_at_unique_search_space",
+          "line": 79
+        },
+        {
+          "name": "test_random_baseline_gate_controls_exploration",
+          "line": 87
+        },
+        {
+          "name": "test_confidence_field_cannot_masquerade_as_backtest_edge",
+          "line": 95
+        },
+        {
+          "name": "test_predict_json_applies_profile_only_to_normal_mode",
+          "line": 104
+        },
+        {
+          "name": "test_both_engine_merge_deduplicates_and_combines_candidate_metadata",
+          "line": 117
+        },
+        {
+          "name": "test_prediction_bundle_limits_are_enforced_by_backend",
+          "line": 129
+        },
+        {
+          "name": "test_vip_profile_can_select_up_to_ten_tickets",
+          "line": 137
+        },
+        {
+          "name": "test_top_ranking_limits_are_normalized_per_game",
+          "line": 146
+        },
+        {
+          "name": "test_power_top_special_does_not_overlap_top_main",
+          "line": 173
+        },
+        {
+          "name": "test_frontend_uses_the_same_top_ranking_contract",
+          "line": 185
+        },
+        {
+          "name": "test_prediction_form_clamps_count_and_deduplicates_errors",
+          "line": 198
+        },
+        {
+          "name": "test_keno_target_skips_draw_slots_that_are_already_in_the_past",
+          "line": 216
+        },
+        {
+          "name": "test_keno_target_rolls_to_next_morning_after_last_draw",
+          "line": 236
+        },
+        {
+          "name": "test_prediction_history_uses_backend_target_time_and_waiting_state",
+          "line": 255
+        }
+      ],
+      "classes": [
+        "AdaptiveCoverageTests"
+      ]
+    },
+    {
+      "path": "tests\\test_analysis.py",
+      "bytes": 5176,
+      "lines": 143,
+      "sha256": "abed1d67cbf8f35da03b6e8324ed6f492995eab42030b8a5c8b9c8e08b89a5e5",
+      "functions": [
+        {
+          "name": "write_csv",
+          "line": 19
+        },
+        {
+          "name": "payload",
+          "line": 26
+        },
+        {
+          "name": "test_load_csv_sample_no_error",
+          "line": 35
+        },
+        {
+          "name": "test_parse_numbers",
+          "line": 41
+        },
+        {
+          "name": "test_overview_returns_total_draws",
+          "line": 47
+        },
+        {
+          "name": "test_general_sum_mean_std",
+          "line": 54
+        },
+        {
+          "name": "test_ratios_even_odd_low_high",
+          "line": 61
+        },
+        {
+          "name": "test_consecutive_detects_pairs",
+          "line": 68
+        },
+        {
+          "name": "test_overdue_current_skip_max_skip_avg_gap",
+          "line": 74
+        },
+        {
+          "name": "test_poisson_fallback_math",
+          "line": 82
+        },
+        {
+          "name": "test_knn_returns_top_k",
+          "line": 89
+        },
+        {
+          "name": "test_chain_lead_follow",
+          "line": 95
+        },
+        {
+          "name": "test_relationships_pair_co_occurrence",
+          "line": 101
+        },
+        {
+          "name": "test_modulo_distributions",
+          "line": 107
+        },
+        {
+          "name": "test_special_not_mixed_with_main",
+          "line": 113
+        },
+        {
+          "name": "test_weekday_group",
+          "line": 120
+        },
+        {
+          "name": "test_score_final_score_0_100",
+          "line": 126
+        },
+        {
+          "name": "test_json_payload_shape",
+          "line": 132
+        }
+      ],
+      "classes": [
+        "AnalysisTests"
+      ]
+    },
+    {
+      "path": "tests\\test_csv_schema.py",
+      "bytes": 4731,
+      "lines": 85,
+      "sha256": "966c40175a04a4cea050ec135278619947dcfd6d6a0ec45f95858afb60dea60f",
+      "functions": [
+        {
+          "name": "result_for",
+          "line": 23
+        },
+        {
+          "name": "test_all_games_roundtrip_without_reintroducing_removed_columns",
+          "line": 39
+        },
+        {
+          "name": "test_snapshots_and_empty_files_infer_game_from_filename",
+          "line": 62
+        },
+        {
+          "name": "test_legacy_headers_still_read_complete_history",
+          "line": 71
+        }
+      ],
+      "classes": [
+        "CompactCsvTests"
+      ]
+    },
+    {
+      "path": "tests\\test_data_cleaning.py",
+      "bytes": 8478,
+      "lines": 140,
+      "sha256": "d4474f81d96c3444a950c76b788e836808dc275ab417507f888ad6e2a0f89fa9",
+      "functions": [
+        {
+          "name": "max_row",
+          "line": 15
+        },
+        {
+          "name": "test_parser_ignores_winner_counts_before_and_after_balls",
+          "line": 25
+        },
+        {
+          "name": "test_parser_preserves_zeroes_and_repeated_winning_positions",
+          "line": 30
+        },
+        {
+          "name": "test_incomplete_prize_group_is_not_imported",
+          "line": 34
+        },
+        {
+          "name": "test_corrupted_result_requires_matching_source_evidence",
+          "line": 40
+        },
+        {
+          "name": "test_numeric_normalization_retains_prize_values",
+          "line": 58
+        },
+        {
+          "name": "test_legacy_max_labels_are_not_filtered_out",
+          "line": 72
+        },
+        {
+          "name": "test_unknown_time_conflict_blocks_writes_but_verified_source_is_flagged",
+          "line": 77
+        }
+      ],
+      "classes": [
+        "DataCleaningTests"
+      ]
+    },
+    {
+      "path": "tests\\test_evaluation_pipeline.py",
+      "bytes": 2704,
+      "lines": 71,
+      "sha256": "08748626d13369b3f24acf3f36dd170885e69c79f2544944ccf3f05871497af7",
+      "functions": [
+        {
+          "name": "test_hypergeometric_baseline_distribution",
+          "line": 10
+        },
+        {
+          "name": "test_brier_score",
+          "line": 18
+        },
+        {
+          "name": "test_log_loss_clips_probabilities",
+          "line": 24
+        },
+        {
+          "name": "test_lift",
+          "line": 30
+        },
+        {
+          "name": "test_capped_simplex_projection_bounds_and_sum",
+          "line": 33
+        },
+        {
+          "name": "test_scores_to_probabilities_sum_to_draw_size",
+          "line": 39
+        },
+        {
+          "name": "test_random_like_data_does_not_claim_fake_advantage",
+          "line": 46
+        }
+      ],
+      "classes": [
+        "EvaluationPipelineTests"
+      ]
+    },
+    {
+      "path": "tests\\test_keno_ml_pipeline.py",
+      "bytes": 1480,
+      "lines": 38,
+      "sha256": "ab1816be9e80906352cae75b745cde04eddbdded76c1b4ed04e8c0146123cd84",
+      "functions": [
+        {
+          "name": "test_keno_is_enabled_for_controlled_pipeline",
+          "line": 10
+        },
+        {
+          "name": "test_keno_random_baseline_for_default_level_10",
+          "line": 18
+        },
+        {
+          "name": "test_keno_pure_prediction_does_not_sync_or_lock_ledger",
+          "line": 24
+        }
+      ],
+      "classes": [
+        "KenoMlPipelineTests"
+      ]
+    },
+    {
+      "path": "tests\\test_live_results.py",
+      "bytes": 9026,
+      "lines": 196,
+      "sha256": "869aa55151e77409ce7ef12f6ae9e8b2a3d71a4c77d34794d9b5a9e0342345c1",
+      "functions": [
+        {
+          "name": "make_keno_results",
+          "line": 10
+        },
+        {
+          "name": "make_keno_rows",
+          "line": 32
+        },
+        {
+          "name": "test_access_check_is_retried_instead_of_being_parsed_as_empty_history",
+          "line": 41
+        },
+        {
+          "name": "test_history_layouts_and_live_table_return_same_draw",
+          "line": 51
+        },
+        {
+          "name": "test_incomplete_or_invalid_draws_are_rejected",
+          "line": 69
+        },
+        {
+          "name": "now",
+          "line": 78
+        },
+        {
+          "name": "test_parse_cli_args_defaults_repair_recent_days_to_15",
+          "line": 86
+        },
+        {
+          "name": "test_parse_cli_args_keeps_explicit_recent_days",
+          "line": 93
+        },
+        {
+          "name": "test_parse_cli_args_non_repair_keeps_recent_days_unset",
+          "line": 100
+        },
+        {
+          "name": "test_recent_repair_window_starts_on_10_apr_2026_and_excludes_09_apr",
+          "line": 106
+        },
+        {
+          "name": "test_keno_timeout_errors_are_not_classified_as_outside_hours",
+          "line": 119
+        },
+        {
+          "name": "test_sync_all_keno_type_prioritizes_recent_gaps_and_fills_target_range",
+          "line": 138
+        },
+        {
+          "name": "fake_fetch_keno_day_results",
+          "line": 156
+        },
+        {
+          "name": "fake_write_canonical_rows",
+          "line": 160
+        }
+      ],
+      "classes": [
+        "KenoHtmlParserTests",
+        "FixedDateTime",
+        "LiveResultsTests"
+      ]
+    },
+    {
+      "path": "tests\\test_prediction_ledger_pipeline.py",
+      "bytes": 10464,
+      "lines": 227,
+      "sha256": "99621da72c15bd2323772ad845138a8b6e514e4f39ef89f02d663ac608dfc6c6",
+      "functions": [
+        {
+          "name": "sample_prediction",
+          "line": 12
+        },
+        {
+          "name": "sample_keno_prediction",
+          "line": 26
+        },
+        {
+          "name": "setUp",
+          "line": 42
+        },
+        {
+          "name": "count_rows",
+          "line": 47
+        },
+        {
+          "name": "test_migration_creates_required_tables",
+          "line": 54
+        },
+        {
+          "name": "test_locked_prediction_payload_is_immutable",
+          "line": 67
+        },
+        {
+          "name": "test_multiple_predictions_same_draw_do_not_overwrite",
+          "line": 79
+        },
+        {
+          "name": "test_score_pending_is_idempotent",
+          "line": 85
+        },
+        {
+          "name": "test_prediction_listing_is_scoped_by_username_and_includes_score",
+          "line": 100
+        },
+        {
+          "name": "test_candidate_does_not_auto_replace_champion",
+          "line": 122
+        },
+        {
+          "name": "test_force_flag_cannot_bypass_promotion_gates",
+          "line": 128
+        },
+        {
+          "name": "test_promote_and_rollback_are_atomic_registry_operations",
+          "line": 146
+        },
+        {
+          "name": "test_legacy_prediction_payload_gets_probability_metadata",
+          "line": 157
+        },
+        {
+          "name": "test_keno_payload_uses_pick_size_for_random_baseline",
+          "line": 165
+        },
+        {
+          "name": "test_keno_scoring_uses_payload_pick_size",
+          "line": 173
+        },
+        {
+          "name": "test_ticket_generation_size_uniqueness_and_diversity",
+          "line": 187
+        },
+        {
+          "name": "test_backend_ml_admin_routes_are_admin_only",
+          "line": 195
+        },
+        {
+          "name": "test_backend_ml_type_keys_include_keno",
+          "line": 203
+        },
+        {
+          "name": "test_backend_ml_predictions_are_scoped_to_authenticated_user",
+          "line": 210
+        },
+        {
+          "name": "test_frontend_history_refreshes_ledger_status_and_scores",
+          "line": 217
+        },
+        {
+          "name": "actual_lookup",
+          "line": 88
+        }
+      ],
+      "classes": [
+        "PredictionLedgerPipelineTests"
+      ]
+    },
+    {
+      "path": "tests\\test_prize_history.py",
+      "bytes": 7091,
+      "lines": 125,
+      "sha256": "f3e89825a7c9380eeac0074e7ff851ccc45c46ed8820eabe8c424fc97fbeb8e5",
+      "functions": [
+        {
+          "name": "draw",
+          "line": 11
+        },
+        {
+          "name": "test_history_and_canonical_live_payloads_preserve_money",
+          "line": 23
+        },
+        {
+          "name": "test_pool_is_not_divided_per_winner",
+          "line": 37
+        },
+        {
+          "name": "test_two_loto_draws_keep_separate_prizes",
+          "line": 46
+        },
+        {
+          "name": "test_csv_roundtrip_and_fallback_preserve_prizes",
+          "line": 56
+        },
+        {
+          "name": "test_backfill_changes_only_money_and_rejects_wrong_draw",
+          "line": 77
+        },
+        {
+          "name": "test_live_enrichment_checks_draw_identity",
+          "line": 88
+        },
+        {
+          "name": "test_metadata_marks_new_draw_without_amount_incomplete",
+          "line": 99
+        },
+        {
+          "name": "test_corrected_draw_does_not_reuse_old_amounts",
+          "line": 110
+        },
+        {
+          "name": "test_live_results_remain_available_if_prize_source_is_offline",
+          "line": 117
+        }
+      ],
+      "classes": [
+        "PrizeHistoryTests"
+      ]
+    },
+    {
+      "path": "tests\\test_prize_hits.py",
+      "bytes": 4690,
+      "lines": 86,
+      "sha256": "cb7188a1fe9b2a739ab1d44c10c661a93ce110f8b0e0bc565282c58839b21151",
+      "functions": [
+        {
+          "name": "test_counts_distinguish_power_jackpots_and_both",
+          "line": 13
+        },
+        {
+          "name": "test_loto_and_mega_only_mark_positive_winner_counts",
+          "line": 23
+        },
+        {
+          "name": "test_incomplete_counts_and_advertised_pools_do_not_imply_a_hit",
+          "line": 30
+        },
+        {
+          "name": "test_fallback_preserves_hit_and_confirmed_zero_can_clear_it",
+          "line": 37
+        },
+        {
+          "name": "test_disk_api_and_source_verification_preserve_marker",
+          "line": 50
+        },
+        {
+          "name": "test_live_sync_does_not_erase_verified_hit_when_source_omits_counts",
+          "line": 66
+        },
+        {
+          "name": "test_backfill_rejects_markers_that_contradict_winner_counts",
+          "line": 77
+        }
+      ],
+      "classes": [
+        "PrizeHitTests"
+      ]
+    },
+    {
+      "path": "tests\\test_prize_web.py",
+      "bytes": 15277,
+      "lines": 215,
+      "sha256": "4f2efb8ac23234331b92e702b6805149eac5d8913077b943916a5060db59aff0",
+      "functions": [
+        {
+          "name": "js_function",
+          "line": 22
+        },
+        {
+          "name": "test_java_history_matches_python_with_large_and_missing_amounts",
+          "line": 30
+        },
+        {
+          "name": "test_browser_history_table_cards_refresh_and_excel",
+          "line": 77
+        }
+      ],
+      "classes": [
+        "PrizeWebTests"
+      ]
+    },
+    {
+      "path": "tests\\test_related_csv_cleaning.py",
+      "bytes": 2931,
+      "lines": 51,
+      "sha256": "4ebe00da600df4d652ad67e20b70cc66714df231d84f9cfd43f9e4211066de64",
+      "functions": [
+        {
+          "name": "test_snapshot_recovers_source_and_prize_only_for_matching_draw",
+          "line": 8
+        },
+        {
+          "name": "test_snapshot_does_not_overwrite_conflicting_prize",
+          "line": 26
+        },
+        {
+          "name": "test_scoring_checks_universe_ranks_and_nonfinite_values",
+          "line": 38
+        }
+      ],
+      "classes": [
+        "RelatedCsvCleaningTests"
+      ]
+    },
+    {
+      "path": "tests\\test_stats_v2.py",
+      "bytes": 5331,
+      "lines": 129,
+      "sha256": "b35159d2f75cb79835162729b7d5cc419ab5fb035c4b4c5c62701a9253333e2c",
+      "functions": [
+        {
+          "name": "write_csv",
+          "line": 24
+        },
+        {
+          "name": "payload",
+          "line": 31
+        },
+        {
+          "name": "find_item",
+          "line": 38
+        },
+        {
+          "name": "test_parse_csv",
+          "line": 41
+        },
+        {
+          "name": "test_filter_period",
+          "line": 49
+        },
+        {
+          "name": "test_count_1_number",
+          "line": 57
+        },
+        {
+          "name": "test_combo_2_numbers",
+          "line": 64
+        },
+        {
+          "name": "test_combo_3_numbers",
+          "line": 70
+        },
+        {
+          "name": "test_combo_5_numbers",
+          "line": 76
+        },
+        {
+          "name": "test_keno_combo_10_numbers",
+          "line": 82
+        },
+        {
+          "name": "test_current_gap",
+          "line": 98
+        },
+        {
+          "name": "test_avg_cycle",
+          "line": 105
+        },
+        {
+          "name": "test_lotto_535_main_and_special",
+          "line": 111
+        },
+        {
+          "name": "test_payload_json_has_no_error",
+          "line": 120
+        }
+      ],
+      "classes": [
+        "StatsV2Tests"
+      ]
+    },
+    {
+      "path": "tests\\test_walk_forward_leakage.py",
+      "bytes": 2955,
+      "lines": 78,
+      "sha256": "b8cf2fba684b6e8418fdd25a09a2be2d0a620840c613919bd6145129073d98df",
+      "functions": [
+        {
+          "name": "make_draw",
+          "line": 12
+        },
+        {
+          "name": "test_future_data_change_does_not_change_past_prediction",
+          "line": 17
+        },
+        {
+          "name": "test_future_deep_model_is_rejected_for_past_fold",
+          "line": 54
+        },
+        {
+          "name": "test_three_standalone_deep_models_have_future_artifact_guard",
+          "line": 59
+        },
+        {
+          "name": "test_scaler_fit_cutoff_must_be_before_target",
+          "line": 69
+        },
+        {
+          "name": "make_prediction",
+          "line": 22
+        }
+      ],
+      "classes": [
+        "WalkForwardLeakageTests"
+      ]
+    },
+    {
+      "path": "tests\\test_web_performance.py",
+      "bytes": 34253,
+      "lines": 605,
+      "sha256": "e8538f6980229f73f5dc4ca75c7741688b4f67392e6fe7995520cb94bda9e792",
+      "functions": [
+        {
+          "name": "test_static_assets_use_cache_validation_and_gzip",
+          "line": 9
+        },
+        {
+          "name": "test_frontend_scripts_are_deferred_without_remote_icon_dependency",
+          "line": 19
+        },
+        {
+          "name": "test_dvlf_brand_is_consistent_and_reloads_the_page",
+          "line": 32
+        },
+        {
+          "name": "test_header_tools_and_account_menu_are_compact_and_functional",
+          "line": 51
+        },
+        {
+          "name": "test_header_vip_membership_badge_tracks_expiry_and_renewal",
+          "line": 77
+        },
+        {
+          "name": "test_store_saves_are_coalesced_and_unchanged_snapshots_are_skipped",
+          "line": 120
+        },
+        {
+          "name": "test_enter_app_renders_before_background_refresh",
+          "line": 131
+        },
+        {
+          "name": "test_background_timers_pause_when_tab_is_hidden",
+          "line": 142
+        },
+        {
+          "name": "test_prediction_results_are_not_rebuilt_every_second",
+          "line": 150
+        },
+        {
+          "name": "test_manual_prediction_has_a_dedicated_navigation_mode",
+          "line": 160
+        },
+        {
+          "name": "test_manual_random_one_matches_required_vectors",
+          "line": 249
+        },
+        {
+          "name": "test_live_cards_refresh_only_the_selected_lottery_type",
+          "line": 287
+        },
+        {
+          "name": "test_heavy_keno_history_is_loaded_on_demand",
+          "line": 302
+        },
+        {
+          "name": "test_hidden_auxiliary_pages_are_not_rendered_on_login",
+          "line": 312
+        },
+        {
+          "name": "test_hidden_stats_tabs_are_initialized_on_demand",
+          "line": 322
+        },
+        {
+          "name": "test_dashboard_view_normalizers_use_declared_helper_names",
+          "line": 337
+        },
+        {
+          "name": "test_dashboard_render_helpers_are_declared",
+          "line": 347
+        },
+        {
+          "name": "test_dashboard_uses_compact_high_tech_theme",
+          "line": 375
+        },
+        {
+          "name": "test_dashboard_hero_only_shows_draw_identity_and_schedule",
+          "line": 413
+        },
+        {
+          "name": "test_dashboard_scope_filter_supports_day_draw_today_and_all",
+          "line": 426
+        },
+        {
+          "name": "test_dashboard_distribution_uses_clear_proportional_pie",
+          "line": 476
+        },
+        {
+          "name": "test_dashboard_temperature_groups_reveal_their_numbers",
+          "line": 496
+        },
+        {
+          "name": "test_live_history_has_java_csv_fast_path",
+          "line": 521
+        },
+        {
+          "name": "test_prediction_history_requests_only_needed_draw_ids",
+          "line": 528
+        },
+        {
+          "name": "test_prediction_history_manual_refresh_repairs_and_scores_before_reconcile",
+          "line": 539
+        },
+        {
+          "name": "test_heavy_analysis_endpoints_use_versioned_cache",
+          "line": 554
+        },
+        {
+          "name": "test_large_prediction_records_render_collapsed",
+          "line": 563
+        },
+        {
+          "name": "test_stats_prediction_cycle_is_persisted_and_scored",
+          "line": 570
+        },
+        {
+          "name": "test_live_update_log_keeps_only_latest_run",
+          "line": 587
+        },
+        {
+          "name": "test_windows_launcher_falls_back_to_installed_jdk",
+          "line": 593
+        },
+        {
+          "name": "reduce_to_range",
+          "line": 261
+        },
+        {
+          "name": "resolve_duplicate",
+          "line": 268
+        }
+      ],
+      "classes": [
+        "WebPerformanceContractTests"
+      ]
+    },
+    {
+      "path": "docs\\bao_cao_nut_chuc_nang\\bao_cao_nut_chuc_nang.txt",
+      "bytes": 19766,
+      "lines": 517,
+      "sha256": "e3bd24066e1576cbe65973033d65f817873aaae19eb11459d1a0d3822b5e8c82"
+    },
+    {
+      "path": "docs\\HuongDanCodex.md",
+      "bytes": 1682,
+      "lines": 34,
+      "sha256": "e8595e3b908874b5ad88c69655fa5562e68f14f0d8a61c53ba2fce03ef03a24c"
+    },
+    {
+      "path": "docs\\KienTrucDuAn.md",
+      "bytes": 1442,
+      "lines": 27,
+      "sha256": "c1f21046ba25d94638260e7c576131901b798f88f5115073990b8910e181bd17"
+    },
+    {
+      "path": "docs\\NhatKyThayDoi.md",
+      "bytes": 6476,
+      "lines": 24,
+      "sha256": "1efdaadd9cb468bbd3ba268003015379dc46321b2bae214d26bbd6b8174e0119"
+    },
+    {
+      "path": "docs\\QuyTac.md",
+      "bytes": 2794,
+      "lines": 35,
+      "sha256": "3ffce3bfb47fb0647a6abf4428888ebca17fdedad3cd756776b62d5f18909776"
+    }
+  ],
+  "file_count": 157,
+  "source_lines": 82757,
+  "syntax_errors": []
+}

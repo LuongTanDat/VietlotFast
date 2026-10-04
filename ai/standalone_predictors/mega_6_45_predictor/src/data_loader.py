@@ -117,7 +117,7 @@ def resolve_header_mapping(headers: list[str], column_mapping: dict[str, list[st
             if actual is not None:
                 resolved[logical_name] = actual
                 break
-    required = ("draw_id", "draw_date", "main_numbers_raw", "game_label")
+    required = ("draw_id", "draw_date", "main_numbers_raw")
     missing = [name for name in required if name not in resolved]
     if missing:
         raise ValueError(f"Missing required CSV columns: {', '.join(missing)}.")
@@ -151,7 +151,7 @@ def load_draw_records(csv_path: str | Path, column_mapping_path: str | Path | No
             main_numbers = parse_main_numbers(row.get(header_mapping["main_numbers_raw"]))
             special = parse_optional_special(row.get(header_mapping.get("special_raw", "")))
             display_lines = str(row.get(header_mapping.get("display_lines", ""), "")).strip()
-            game_label = str(row.get(header_mapping["game_label"], "")).strip()
+            game_label = str(row.get(header_mapping.get("game_label", ""), "")).strip() or "Mega_6/45"
             _validate_game_label(game_label)
             source_url = str(row.get(header_mapping.get("source_url", ""), "")).strip()
             source_date = parse_csv_date(row.get(header_mapping.get("source_date", "")))

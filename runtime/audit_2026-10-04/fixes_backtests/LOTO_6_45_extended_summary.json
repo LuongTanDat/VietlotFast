@@ -1,0 +1,42 @@
+{
+  "game": "LOTO_6_45",
+  "elapsed_seconds": 32.02,
+  "fixed_mode": "blended",
+  "fold_count": 79,
+  "metrics": {
+    "blend_mode": "blended",
+    "draws_tested": 79,
+    "fold_count": 79,
+    "average_hits": 0.7341772151898734,
+    "avgHits": 0.7341772151898734,
+    "avgHitRate": 0.12236286919831224,
+    "top_k_recall": 0.2573839662447257,
+    "ticket_quality_mean": 72.74750015928433,
+    "bonus_or_special_accuracy": null,
+    "brier_score": 0.1282911950934361,
+    "log_loss": 0.48166975900204556,
+    "calibration_error": 0.08121943439168712
+  },
+  "baseline_comparison": {
+    "same_folds": true,
+    "fold_count": 79,
+    "mean_hit": 0.7341772151898734,
+    "expected_random_hits": 0.8,
+    "lift": -0.08227848101265822,
+    "paired_bootstrap_ci": {
+      "mean": -0.06582278481012663,
+      "lower": -0.23037974683544307,
+      "upper": 0.09873417721518983,
+      "confidence": 0.95
+    },
+    "paired_permutation_test": {
+      "observed": -0.06582278481012663,
+      "p_value": 0.3972055888223553,
+      "iterations": 500.0
+    },
+    "warning": ""
+  },
+  "deep_status_counts": {
+    "trained_active": 79
+  }
+}

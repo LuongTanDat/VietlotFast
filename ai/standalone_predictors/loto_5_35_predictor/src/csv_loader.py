@@ -123,7 +123,7 @@ def load_history(game: str = SUPPORTED_GAME, csv_path: str | Path | None = None)
                     "weekday": date_obj.weekday(),
                     "main": main,
                     "special": int(special_text),
-                    "label": str(_read_row_value(row, header_map, "Label")).strip(),
+                    "label": str(_read_row_value(row, header_map, "Label")).strip() or "Loto_5/35",
                 }
             )
     draws.sort(key=lambda item: item["ky_int"])

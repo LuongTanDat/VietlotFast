@@ -4154,6 +4154,7 @@
         ["Từ ngày", payload?.filteredFrom || "--"],
         ["Đến ngày", payload?.filteredTo || "--"],
         ["Nguồn", payload?.sourceFile || "--"],
+        ["Phạm vi combo", payload?.comboMode === "keno_window" ? "Cửa sổ số liền nhau sau sắp xếp; không gồm mọi tổ hợp" : "Tổ hợp đầy đủ"],
       ];
       return `<div class="stats-v2-summary">${items.map(([label, value]) => `
         <div class="stats-v2-summary-item">

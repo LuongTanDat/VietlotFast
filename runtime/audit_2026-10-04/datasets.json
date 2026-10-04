@@ -1,0 +1,144 @@
+{
+  "LOTO_5_35": {
+    "rows": 925,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "ĐB",
+      "Link cập nhật",
+      "Ngày cập nhật",
+      "Giải Đặc biệt (VNĐ)",
+      "Nổ"
+    ],
+    "sha256": "b357423c52ceff6161945523cbac34fb17355756762b2d7fc571d18b8b5a8289",
+    "first_draw_id": 1,
+    "last_draw_id": 925,
+    "latest_draw_date": "04/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {
+      "ĐB": 42
+    }
+  },
+  "LOTO_6_45": {
+    "rows": 1569,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "Link cập nhật",
+      "Ngày cập nhật",
+      "Jackpot (VNĐ)",
+      "Nổ"
+    ],
+    "sha256": "023108ea6240c4d417f333d933cd938a35443b82d041a32b73c840ad29c39d74",
+    "first_draw_id": 2,
+    "last_draw_id": 1570,
+    "latest_draw_date": "02/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {
+      "Jackpot": 165
+    }
+  },
+  "LOTO_6_55": {
+    "rows": 1402,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "ĐB",
+      "Link cập nhật",
+      "Ngày cập nhật",
+      "Jackpot 1 (VNĐ)",
+      "Jackpot 2 (VNĐ)",
+      "Nổ"
+    ],
+    "sha256": "74e779a97b35328cb04052d0cb1afb0d6edd90e305091ed586a60c4c491ab6a4",
+    "first_draw_id": 5,
+    "last_draw_id": 1406,
+    "latest_draw_date": "03/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {
+      "Jackpot 2": 330,
+      "Jackpot 1, 2": 18,
+      "Jackpot 1": 40
+    }
+  },
+  "KENO": {
+    "rows": 24106,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "Lớn/-/Nhỏ",
+      "Chẵn/-/Lẻ",
+      "Link cập nhật"
+    ],
+    "sha256": "a049c3a927e8c6d23c117c43cb255d2ac97b1c278b6ede5e203c79f843b78ca2",
+    "first_draw_id": 273963,
+    "last_draw_id": 298068,
+    "latest_draw_date": "04/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {}
+  },
+  "MAX_3D": {
+    "rows": 1140,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Hiển thị",
+      "Link cập nhật",
+      "Ngày cập nhật"
+    ],
+    "sha256": "520acf47871d58fa9c187ab575d52456d8a9572e8180b1628a959a77feea6ce2",
+    "first_draw_id": 1,
+    "last_draw_id": 1140,
+    "latest_draw_date": "02/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {}
+  },
+  "MAX_3D_PRO": {
+    "rows": 787,
+    "header": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Hiển thị",
+      "Link cập nhật",
+      "Ngày cập nhật"
+    ],
+    "sha256": "d2e07ccc76fe46c31049987037048a61d61c2ce303d249ff5a0406f17e8ab44c",
+    "first_draw_id": 1,
+    "last_draw_id": 787,
+    "latest_draw_date": "03/10/2026",
+    "duplicate_ids": 0,
+    "missing_ids_between_endpoints": 0,
+    "schema_matches": true,
+    "first_validation_issues": [],
+    "hit_counts": {}
+  }
+}

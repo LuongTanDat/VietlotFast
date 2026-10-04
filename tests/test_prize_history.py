@@ -62,7 +62,7 @@ class PrizeHistoryTests(unittest.TestCase):
                     rows = {result["ky"]: lr.result_to_csv_row(result)}
                     lr.write_csv_rows(path, rows)
                     with path.open(encoding="utf-8", newline="") as stream:
-                        self.assertEqual(lr.CSV_HEADER + [lr.PRIZE_CSV_HEADERS[f] for f in fields],
+                        self.assertEqual(lr.get_csv_header(key),
                                          next(csv.reader(stream)))
                     restored, info = lr.load_csv_rows(path, return_info=True)
                     self.assertFalse(info["sanitized"])
@@ -72,7 +72,7 @@ class PrizeHistoryTests(unittest.TestCase):
             path = Path(temp) / "max_3d_all_day.csv"
             lr.write_csv_rows(path, {"1": {"Ky": "1", "Label": "Max 3D"}})
             with path.open(encoding="utf-8", newline="") as stream:
-                self.assertEqual(lr.CSV_HEADER, next(csv.reader(stream)))
+                self.assertEqual(lr.get_csv_header("MAX_3D"), next(csv.reader(stream)))
 
     def test_backfill_changes_only_money_and_rejects_wrong_draw(self):
         result = draw()

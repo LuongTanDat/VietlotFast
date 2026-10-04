@@ -1,0 +1,46 @@
+{
+  "missing_probability_metrics": {
+    "gate_accepts": true,
+    "reason": "promotion gates passed"
+  },
+  "nan_probability_metrics": {
+    "gate_accepts": true,
+    "reason": "promotion gates passed"
+  },
+  "baseline_equal": {
+    "gate_accepts": true,
+    "reason": "promotion gates passed"
+  },
+  "lock_target_before_cutoff": {
+    "accepted": true,
+    "cutoff": "101",
+    "target": "100"
+  },
+  "random_portfolio_ledger_bias": {
+    "1": {
+      "draws": 2000,
+      "mean_best_hit": 0.7975,
+      "mean_reported_lift": -0.003125
+    },
+    "10": {
+      "draws": 2000,
+      "mean_best_hit": 2.084,
+      "mean_reported_lift": 1.605
+    }
+  },
+  "score_normalization_without_calibration": {
+    "p_number_1": 1.0,
+    "sum": 6.000000000000001,
+    "uniform_p": 0.13333333333333333
+  },
+  "max_3d_game_definition_mismatch": {
+    "parsed_unique_numbers": 20,
+    "analysis_main_count": 18,
+    "adaptive_draw_size": 21
+  },
+  "keno_combo_window_scope": {
+    "returned_combo_count": 17,
+    "all_four_number_combinations": 4845,
+    "non_adjacent_combo_present": false
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+  "retrievedAt": "2026-10-04T15:25:48",
+  "htmlSha256": "541cccb885bbf8b27c7180e39881ec0f54ffe5922125a08bc62237b6e2addda3",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "575",
+      "date": "27/03/2020",
+      "time": "",
+      "main": [
+        1,
+        6,
+        10,
+        35,
+        36,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "01 06 10 35 36 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+      "jackpot": 13089171500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "574",
+      "date": "25/03/2020",
+      "time": "",
+      "main": [
+        26,
+        31,
+        33,
+        37,
+        38,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "26 31 33 37 38 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+      "jackpot": 15800249000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "573",
+      "date": "22/03/2020",
+      "time": "",
+      "main": [
+        2,
+        10,
+        19,
+        22,
+        24,
+        29
+      ],
+      "special": null,
+      "displayLines": [
+        "02 10 19 22 24 29"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+      "jackpot": 14394846500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "572",
+      "date": "20/03/2020",
+      "time": "",
+      "main": [
+        8,
+        23,
+        29,
+        37,
+        39,
+        44
+      ],
+      "special": null,
+      "displayLines": [
+        "08 23 29 37 39 44"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+      "jackpot": 13176623000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "571",
+      "date": "18/03/2020",
+      "time": "",
+      "main": [
+        6,
+        21,
+        30,
+        37,
+        38,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "06 21 30 37 38 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-03-2020.html",
+      "jackpot": 62684211000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    }
+  ]
+}

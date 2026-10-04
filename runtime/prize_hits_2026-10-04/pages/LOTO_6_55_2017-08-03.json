@@ -1,0 +1,65 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-03-08-2017.html",
+  "retrievedAt": "2026-10-04T15:26:48",
+  "htmlSha256": "f88b62f759e01c82c066a050fcb7427ece4553d4e1b5ea6f897a24b94b2ee344",
+  "results": [
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "6",
+      "date": "03/08/2017",
+      "time": "",
+      "main": [
+        4,
+        9,
+        24,
+        25,
+        27,
+        45
+      ],
+      "special": 40,
+      "displayLines": [
+        "04 09 24 25 27 45 | ĐB 40"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-03-08-2017.html",
+      "jackpot1": 31024813350,
+      "jackpot2": 3113868150,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0
+      }
+    },
+    {
+      "key": "LOTO_6_55",
+      "label": "Power_6/55",
+      "ky": "5",
+      "date": "01/08/2017",
+      "time": "",
+      "main": [
+        5,
+        10,
+        14,
+        23,
+        24,
+        38
+      ],
+      "special": 35,
+      "displayLines": [
+        "05 10 14 23 24 38 | ĐB 35"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-03-08-2017.html",
+      "jackpot1": 30528493950,
+      "jackpot2": 3058721550,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0
+      }
+    }
+  ]
+}

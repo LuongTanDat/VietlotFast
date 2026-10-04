@@ -2,25 +2,36 @@
   "type": "KENO",
   "bootstrapComplete": false,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-03T22:22:48",
+  "lastSyncAt": "2026-10-04T15:38:57",
   "lastBootstrapAt": "",
   "effectiveEarliestKy": "273963",
   "effectiveEarliestDate": "16/03/2026",
   "sourceLimited": true,
   "dataQuality": {
-    "inputRows": 24025,
-    "outputRows": 24025,
+    "inputRows": 24102,
+    "outputRows": 24102,
+    "removedColumns": [],
+    "outputColumns": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "Lớn/-/Nhỏ",
+      "Chẵn/-/Lẻ",
+      "Link cập nhật"
+    ],
     "duplicateRowsRemoved": 0,
     "changedCells": 0,
     "changesByColumn": {},
     "internalGaps": [],
     "missingDrawsInsideRange": 0,
     "earliestKy": "273963",
-    "latestKy": "297987",
+    "latestKy": "298064",
     "sourceVerifiedDraws": 116,
     "warnings": 1,
     "errors": 0,
-    "checkedAt": "2026-10-03T21:18:35",
+    "checkedAt": "2026-10-04T15:02:45",
     "valid": false,
     "structuralValid": true,
     "warningDetails": [
@@ -41,7 +52,7 @@
         "resolution": "Preserved source timestamps; no inferred correction"
       }
     ],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
     "scope": "Existing canonical draws; no history extrapolation"
   }
 }

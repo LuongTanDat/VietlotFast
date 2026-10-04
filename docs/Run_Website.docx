@@ -5,3 +5,10 @@ cd "c:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto"
 git add .
 git commit -m "update"
 git push
+
+
+Phân tích lỗi còn sót của bạn
+1. 5.35  csv nó lặp lại dữ liệu , Đã có bộ số mà còn Hiển thị
+2. 3D max và Maxpro ko có Giờ , BỘ SỐ, ĐB Thì xóa hẳn luôn cho gọn và sạch dữ liệu
+3. 6/45 và 6/55 đã có Bộ số mà còn có Hiển Thị  6.45 ko có ĐB mà vẫn có cột đó xóa luôn cho gọn 
+4. ở các bảng CSV đã có tên của loại đó rồi mà trong bảng vẫn có Loại gây rối mắt thêm

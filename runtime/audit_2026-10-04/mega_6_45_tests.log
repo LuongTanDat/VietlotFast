@@ -1,0 +1,9 @@
+test_feature_rows_and_context_exist (test_features.FeatureTests.test_feature_rows_and_context_exist) ... ok
+test_loader_parses_real_repo_csv (test_loader.LoaderTests.test_loader_parses_real_repo_csv) ... ok
+test_ticket_generation_returns_sorted_unique_tickets (test_ticket_generation.TicketGenerationTests.test_ticket_generation_returns_sorted_unique_tickets) ... ok
+test_tracking_updates_hits_and_misses (test_tracking.TrackingTests.test_tracking_updates_hits_and_misses) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.826s
+
+OK

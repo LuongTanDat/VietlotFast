@@ -1,0 +1,228 @@
+{
+  "startedAt": "2026-10-03T22:28:02",
+  "applied": false,
+  "files": {
+    "ai/standalone_predictors/loto_5_35_predictor/data/loto_5_35.csv": {
+      "kind": "snapshot",
+      "inputRows": 556,
+      "outputRows": 556,
+      "blankRowsRemoved": 0,
+      "changed": true,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 602,
+      "changesByColumn": {
+        "Giải Đặc biệt (VNĐ)": 556,
+        "Loại": 42,
+        "Link cập nhật": 2,
+        "Ngày cập nhật": 2
+      },
+      "prizeColumnsAdded": [
+        "Giải Đặc biệt (VNĐ)"
+      ],
+      "drawIdentityVerified": 556,
+      "completePrizeRows": 556
+    },
+    "ai/standalone_predictors/mega_6_45_predictor/data/mega_6_45.csv": {
+      "kind": "snapshot",
+      "inputRows": 1490,
+      "outputRows": 1490,
+      "blankRowsRemoved": 0,
+      "changed": true,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 1497,
+      "changesByColumn": {
+        "Jackpot (VNĐ)": 1490,
+        "Ngày cập nhật": 4,
+        "Link cập nhật": 3
+      },
+      "prizeColumnsAdded": [
+        "Jackpot (VNĐ)"
+      ],
+      "drawIdentityVerified": 1490,
+      "completePrizeRows": 1490
+    },
+    "data/exports/scoring/keno_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 80,
+      "outputRows": 80,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_5_35_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 35,
+      "outputRows": 35,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_5_35_special_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 12,
+      "outputRows": 12,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_6_45_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 45,
+      "outputRows": 45,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/loto_6_55_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 55,
+      "outputRows": 55,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/max_3d_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 1000,
+      "outputRows": 1000,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    },
+    "data/exports/scoring/max_3d_pro_number_scoring_full_latest.csv": {
+      "kind": "scoring",
+      "inputRows": 1000,
+      "outputRows": 1000,
+      "blankRowsRemoved": 0,
+      "changed": false,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {}
+    }
+  },
+  "errors": [
+    {
+      "file": "ai/standalone_predictors/power_6_55_predictor/data/power_6_55.csv",
+      "message": "Conflicting game label"
+    }
+  ],
+  "canonicalReport": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\222552_307413\\report.json",
+  "canonicalTypes": {
+    "LOTO_5_35": {
+      "inputRows": 924,
+      "outputRows": 924,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "924",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_45": {
+      "inputRows": 1569,
+      "outputRows": 1569,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "2",
+      "latestKy": "1570",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "LOTO_6_55": {
+      "inputRows": 1402,
+      "outputRows": 1402,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "5",
+      "latestKy": "1406",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "KENO": {
+      "inputRows": 24035,
+      "outputRows": 24035,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "273963",
+      "latestKy": "297997",
+      "sourceVerifiedDraws": 116,
+      "warnings": 1,
+      "errors": 0
+    },
+    "MAX_3D": {
+      "inputRows": 1140,
+      "outputRows": 1140,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "1140",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "MAX_3D_PRO": {
+      "inputRows": 787,
+      "outputRows": 787,
+      "duplicateRowsRemoved": 0,
+      "changedCells": 0,
+      "changesByColumn": {},
+      "internalGaps": [],
+      "missingDrawsInsideRange": 0,
+      "earliestKy": "1",
+      "latestKy": "787",
+      "sourceVerifiedDraws": 0,
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "warnings": [
+    {
+      "type": "KENO",
+      "draws": [
+        "276032",
+        "276033"
+      ],
+      "date": "02/04/2026",
+      "times": [
+        "12:40",
+        "12:24"
+      ],
+      "message": "Draw IDs contradict chronological order",
+      "sourceUrl": "https://www.minhchinh.com/xo-so-dien-toan-keno.html",
+      "sourceConfirmed": true,
+      "resolution": "Preserved source timestamps; no inferred correction"
+    }
+  ],
+  "backupDirectory": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\csv_cleaning_2026-10-03\\222802_707074\\before",
+  "finishedAt": "2026-10-03T22:28:03"
+}

@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+  "retrievedAt": "2026-10-04T15:26:26",
+  "htmlSha256": "8e7c63d8a43636c3d8900fb4d64a85db77168bb10eb3f8a2e0bbff0c044d3fb5",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "310",
+      "date": "15/07/2018",
+      "time": "",
+      "main": [
+        7,
+        15,
+        20,
+        29,
+        31,
+        38
+      ],
+      "special": null,
+      "displayLines": [
+        "07 15 20 29 31 38"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+      "jackpot": 13380902000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "309",
+      "date": "13/07/2018",
+      "time": "",
+      "main": [
+        3,
+        8,
+        9,
+        25,
+        27,
+        28
+      ],
+      "special": null,
+      "displayLines": [
+        "03 08 09 25 27 28"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+      "jackpot": 16334968000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "308",
+      "date": "11/07/2018",
+      "time": "",
+      "main": [
+        12,
+        26,
+        28,
+        29,
+        39,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "12 26 28 29 39 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+      "jackpot": 14804193500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "307",
+      "date": "08/07/2018",
+      "time": "",
+      "main": [
+        2,
+        7,
+        8,
+        10,
+        28,
+        44
+      ],
+      "special": null,
+      "displayLines": [
+        "02 07 08 10 28 44"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+      "jackpot": 13398681000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "306",
+      "date": "06/07/2018",
+      "time": "",
+      "main": [
+        22,
+        26,
+        33,
+        34,
+        38,
+        42
+      ],
+      "special": null,
+      "displayLines": [
+        "22 26 33 34 38 42"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-15-07-2018.html",
+      "jackpot": 19552700000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    }
+  ]
+}

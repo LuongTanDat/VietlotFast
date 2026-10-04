@@ -2,7 +2,7 @@
   "type": "LOTO_5_35",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-03T22:19:31",
+  "lastSyncAt": "2026-10-04T15:35:52",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "29/06/2025",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-03T22:19:31",
+    "updatedAt": "2026-10-04T15:35:52",
     "complete": true,
-    "totalRows": 924,
-    "completeRows": 924,
+    "totalRows": 925,
+    "completeRows": 925,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -22,25 +22,47 @@
     "amountMeaning": "Advertised draw prize pool, before division among winners"
   },
   "dataQuality": {
-    "inputRows": 923,
-    "outputRows": 923,
+    "inputRows": 925,
+    "outputRows": 925,
+    "removedColumns": [],
+    "outputColumns": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Giờ",
+      "Bộ Số",
+      "ĐB",
+      "Link cập nhật",
+      "Ngày cập nhật",
+      "Giải Đặc biệt (VNĐ)"
+    ],
     "duplicateRowsRemoved": 0,
-    "changedCells": 42,
-    "changesByColumn": {
-      "Loại": 42
-    },
+    "changedCells": 0,
+    "changesByColumn": {},
     "internalGaps": [],
     "missingDrawsInsideRange": 0,
     "earliestKy": "1",
-    "latestKy": "923",
+    "latestKy": "925",
     "sourceVerifiedDraws": 0,
     "warnings": 0,
     "errors": 0,
-    "checkedAt": "2026-10-03T21:18:35",
+    "checkedAt": "2026-10-04T15:02:45",
     "valid": true,
     "structuralValid": true,
     "warningDetails": [],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
     "scope": "Existing canonical draws; no history extrapolation"
+  },
+  "prizeHits": {
+    "rows": 925,
+    "verifiedRows": 925,
+    "missingDraws": [],
+    "hitCounts": {
+      "ĐB": 42
+    },
+    "checkedAt": "2026-10-04T15:28:24",
+    "complete": true,
+    "meaning": "At least one winning ticket in the top-prize table",
+    "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   }
 }

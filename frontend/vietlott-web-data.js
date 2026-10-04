@@ -512,6 +512,7 @@
         riskMode: normalizePredictRiskMode(entry.riskMode || "balanced"),
         riskModeLabel: String(entry.riskModeLabel || getPredictRiskModeMeta(entry.riskMode || "balanced").label),
         riskModeSummary: String(entry.riskModeSummary || getPredictRiskModeMeta(entry.riskMode || "balanced").summary),
+        modelId: String(entry.modelId || ""),
         modelVersion: String(entry.modelVersion || ""),
         championKey: String(entry.championKey || ""),
         championLabel: String(entry.championLabel || ""),
@@ -1250,6 +1251,7 @@
               brier_score: Number(row.score_brier_score || 0),
               log_loss: Number(row.score_log_loss || 0),
               lift: Number(row.score_lift || 0),
+              scoring_version: String(row.scoring_version || ""),
               actual_draw_id: String(row.actual_draw_id || ""),
               scored_at: String(row.scored_at || ""),
             }
@@ -1259,6 +1261,7 @@
           predictionStatus: String(row.status || entry.predictionStatus || ""),
           dataCutoffDrawId: String(row.data_cutoff_draw_id || entry.dataCutoffDrawId || ""),
           payloadChecksum: String(row.payload_checksum || entry.payloadChecksum || ""),
+          modelId: String(row.model_id || entry.modelId || ""),
           modelVersion: String(row.model_version || payload.modelVersion || entry.modelVersion || ""),
           probabilitySummary: payload.probabilitySummary || entry.probabilitySummary || null,
           calibratedProbability: Array.isArray(payload.calibratedProbability)
@@ -1645,7 +1648,7 @@
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Mô hình</span><strong class="predict-history-info-value">${escapeHtml(entry.modelVersion)}</strong></div>`
           : "",
         Number(entry.probabilitySummary?.mainProbabilitySum || 0) > 0
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Tổng xác suất</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Ước lượng chưa hiệu chỉnh</span><strong class="predict-history-info-value">${escapeHtml(`Σp=${Number(entry.probabilitySummary.mainProbabilitySum || 0).toFixed(2)}`)}</strong></div>`
           : "",
       ].filter(Boolean).join("");
       const metricInfoCards = [
@@ -1662,7 +1665,7 @@
           ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Log Loss</span><strong class="predict-history-info-value">${escapeHtml(Number(entry.scoreMetrics.log_loss).toFixed(5))}</strong></div>`
           : "",
         entry.scoreMetrics && Number.isFinite(Number(entry.scoreMetrics.lift))
-          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Lift</span><strong class="predict-history-info-value">${escapeHtml(`${(Number(entry.scoreMetrics.lift) * 100).toFixed(2)}%`)}</strong></div>`
+          ? `<div class="predict-history-info-chip"><span class="predict-history-info-label">Lift từng vé</span><strong class="predict-history-info-value">${entry.scoreMetrics.lift_basis ? escapeHtml(`${(Number(entry.scoreMetrics.lift) * 100).toFixed(2)}%`) : "Điểm cũ cần chấm lại"}</strong></div>`
           : "",
       ].filter(Boolean).join("");
       const topMainHtml = topMainRanking.length
@@ -2234,6 +2237,10 @@
       return fields;
     }
 
+    function getDrawPrizeHit(type, draw) {
+      return DRAW_PRIZE_COLUMNS[type]?.length ? String(draw?.prizeHit || "").trim() : "";
+    }
+
     function formatDrawPrizeAmount(draw, key) {
       const amount = getDrawPrizeAmount(draw, key);
       return amount === null ? "Chưa có dữ liệu" : `${amount.toLocaleString("vi-VN")} VNĐ`;
@@ -2413,6 +2420,7 @@
           sourceDate: String(row?.sourceDate || ""),
           label: String(row?.label || meta.label),
           ...getDrawPrizeFields(type, row),
+          prizeHit: getDrawPrizeHit(type, row),
         });
       });
       next.allCount = Math.max(next.allCount, next.order.length);
@@ -2847,35 +2855,50 @@
     }
 
     function getDataTableHeaders(type) {
-      const hasSpecialColumn = !!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit;
-      return ["Kỳ", "Thứ", "Ngày", "Giờ", "Số", ...(hasSpecialColumn ? ["ĐB"] : []),
-        ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ label }) => `${label} (VNĐ)`)];
+      const hasSpecialColumn = !!TYPES[type]?.hasSpecial && !TYPES[type]?.threeDigit;
+      return ["Kỳ", "Thứ", "Ngày", ...(!TYPES[type]?.threeDigit ? ["Giờ"] : []), TYPES[type]?.threeDigit ? "Nhóm giải" : "Bộ số", ...(hasSpecialColumn ? ["ĐB"] : []),
+        ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ label }) => `${label} (VNĐ)`),
+        ...(DRAW_PRIZE_COLUMNS[type]?.length ? ["Nổ"] : [])];
     }
 
-    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters()) {
+    function syncDataTableHitFilterControl(type = dataTableSelectedType) {
+      const supported = !!DRAW_PRIZE_COLUMNS[type]?.length;
+      if (!supported) dataTableHitOnly = false;
+      const button = document.getElementById("dataTableHitFilterBtn");
+      if (!button) return;
+      button.disabled = !supported;
+      button.setAttribute("aria-pressed", String(dataTableHitOnly));
+      button.title = supported
+        ? (dataTableHitOnly ? "Đang lọc kỳ nổ — bấm để xem tất cả" : "Chỉ hiển thị kỳ có giải nổ")
+        : "Lọc Nổ áp dụng cho 5/35, Mega 6/45 và Power 6/55";
+    }
+
+    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters(), type = dataTableSelectedType) {
       return [...(feed?.order || [])]
         .reverse()
-        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters));
+        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters)
+          && (!dataTableHitOnly || !DRAW_PRIZE_COLUMNS[type]?.length || !!getDrawPrizeHit(type, feed?.results?.[ky])));
     }
 
-    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
-      const keys = getDataTableMatchingKeys(feed, filters);
+    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters(), type = dataTableSelectedType) {
+      const keys = getDataTableMatchingKeys(feed, filters, type);
       if (limitValue === "all") return keys;
       return keys.slice(0, Math.max(1, Number(limitValue) || 500));
     }
 
     function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
-      return getDataTableSelectedKeys(feed, limitValue, filters).map(ky => {
+      return getDataTableSelectedKeys(feed, limitValue, filters, type).map(ky => {
         const draw = feed.results?.[ky] || {};
         const cells = formatDataTableNumbers(type, draw);
         return [
           formatLiveKy(ky),
           formatDataTableWeekday(draw.date),
           draw.date || "",
-          draw.time || "",
-          cells.numbers || "",
-          ...((!!TYPES[type]?.hasSpecial || !!TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
+          ...(!TYPES[type]?.threeDigit ? [draw.time || ""] : []),
+          TYPES[type]?.threeDigit ? (splitDataTableDisplayLines(draw).join(" | ") || cells.numbers || "") : (cells.numbers || ""),
+          ...((!!TYPES[type]?.hasSpecial && !TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
           ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ key }) => getDrawPrizeAmount(draw, key) ?? ""),
+          ...(DRAW_PRIZE_COLUMNS[type]?.length ? [getDrawPrizeHit(type, draw)] : []),
         ];
       });
     }
@@ -2895,6 +2918,7 @@
       if (select?.__syncCustomSelect) select.__syncCustomSelect();
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
       syncDataTableDateFilterControls();
+      syncDataTableHitFilterControl();
     }
 
     function renderDataTableStatus(message, tone = "muted") {
@@ -2913,13 +2937,17 @@
 
       const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">Chưa có dữ liệu để hiển thị.</td></tr>`;
+        const message = dataTableHitOnly && DRAW_PRIZE_COLUMNS[type]?.length
+          ? "Không có kỳ nổ phù hợp với bộ lọc." : "Chưa có dữ liệu để hiển thị.";
+        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">${message}</td></tr>`;
         return;
       }
 
       body.innerHTML = rows.map(rowCells => {
-        const prizeStart = headers.length - (DRAW_PRIZE_COLUMNS[type] || []).length;
-        return `<tr>${rowCells.map((value, index) => index >= prizeStart
+        const prizeCount = (DRAW_PRIZE_COLUMNS[type] || []).length;
+        const prizeEnd = headers.length - (prizeCount ? 1 : 0);
+        const prizeStart = prizeEnd - prizeCount;
+        return `<tr>${rowCells.map((value, index) => index >= prizeStart && index < prizeEnd
           ? `<td class="data-table-prize">${escapeHtml(value === "" ? "Chưa có dữ liệu" : Number(value).toLocaleString("vi-VN"))}</td>`
           : `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
       }).join("");
@@ -2931,6 +2959,7 @@
       const type = select?.value || dataTableSelectedType || "LOTO_5_35";
       if (!TYPES[type] || dataTableLoading) return;
       dataTableSelectedType = type;
+      syncDataTableHitFilterControl(type);
       dataTableSelectedLimit = getDataTableLimitValue();
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
       if (IS_LOCAL_MODE) {
@@ -2946,10 +2975,10 @@
         const filters = getDataTableDateFilters();
         renderDataTableRows(type, feed, filters);
         const total = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
-        const matching = getDataTableMatchingKeys(feed, filters).length;
+        const matching = getDataTableMatchingKeys(feed, filters, type).length;
         const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
         const source = feed.canonicalFile || feed.allFile || "all_day.csv";
-        const filterSummary = formatDataTableDateFilterSummary(filters);
+        const filterSummary = [formatDataTableDateFilterSummary(filters), dataTableHitOnly ? "Nổ" : ""].filter(Boolean).join(", ");
         if (filterSummary) {
           const tone = matching > 0 ? "ok" : "warn";
           renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(matching)} kỳ phù hợp • Tổng ${formatLiveSyncCount(total)} kỳ • Lọc: ${filterSummary} • Nguồn: ${source}`, tone);
@@ -2982,7 +3011,7 @@
       const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
-      const safeFilter = getDataTableFilterFileSuffix(filters);
+      const safeFilter = getDataTableFilterFileSuffix(filters) + (dataTableHitOnly ? "_no" : "");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;

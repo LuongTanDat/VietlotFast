@@ -4,6 +4,8 @@ import hashlib
 import json
 import sqlite3
 import uuid
+import random
+from functools import lru_cache
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -13,7 +15,7 @@ from ai.evaluation.metrics import brier_score, lift, log_loss
 from ai.evaluation.probability import scores_to_probabilities
 
 DEFAULT_DB_PATH = dp.RUNTIME_DIR / "lotto_web.db"
-SCORING_VERSION = "ledger_scoring_v1"
+SCORING_VERSION = "ledger_scoring_v2"
 
 
 def now_iso() -> str:
@@ -129,8 +131,7 @@ def migrate(connection: sqlite3.Connection | None = None, db_path: str | Path | 
             CREATE INDEX IF NOT EXISTS idx_training_runs_game_status
                 ON training_runs(game_type, status, started_at);
 
-            DROP TRIGGER IF EXISTS prediction_runs_locked_payload_immutable;
-            CREATE TRIGGER prediction_runs_locked_payload_immutable
+            CREATE TRIGGER IF NOT EXISTS prediction_runs_locked_payload_immutable
             BEFORE UPDATE ON prediction_runs
             WHEN OLD.status IN ('locked','scored') AND (
                 NEW.prediction_id <> OLD.prediction_id OR
@@ -214,6 +215,15 @@ def lock_prediction(
         or (payload.get("dataset") or {}).get("latest_draw_id")
         or ""
     ).strip().lstrip("#")
+    if not target_draw_id.isdecimal() or not data_cutoff_draw_id.isdecimal():
+        raise ValueError("target and data cutoff must be numeric draw IDs")
+    if int(target_draw_id) <= int(data_cutoff_draw_id):
+        raise ValueError("target draw must be after data cutoff")
+    deadline = payload.get("predictionDeadline") or payload.get("prediction_deadline")
+    if deadline:
+        parsed_deadline = datetime.fromisoformat(str(deadline).replace("Z", "+00:00"))
+        if parsed_deadline.tzinfo is None or datetime.now(timezone.utc) >= parsed_deadline:
+            raise ValueError("prediction deadline has passed or lacks timezone")
     tickets = list(payload.get("tickets") or [])
     probabilities = normalize_probability_payload(
         payload.get("probabilities")
@@ -223,7 +233,10 @@ def lock_prediction(
     )
     checksum = payload_checksum(payload)
     prediction_id = str(uuid.uuid4())
-    created_at = str(payload.get("createdAt") or payload.get("created_at") or now_iso())
+    created_at = now_iso()
+    model_id = str(model_id or payload.get("modelId") or payload.get("model_id") or "")
+    model_version = str(model_version or payload.get("modelVersion") or "")
+    config_hash = str(config_hash or payload.get("configHash") or "")
     connection = connect(db_path)
     try:
         with connection:
@@ -339,6 +352,22 @@ def _ticket_special(ticket: Any) -> int | None:
     return None
 
 
+@lru_cache(maxsize=256)
+def _portfolio_random_best(tickets: tuple[tuple[int, ...], ...], universe_size: int, draw_size: int) -> float:
+    """Uniform draws against the same tickets preserve budget and overlap."""
+    if not tickets:
+        return 0.0
+    if len(set(tickets)) == 1:
+        return len(set(tickets[0])) * draw_size / float(universe_size)
+    rng = random.Random(20261004)
+    ticket_sets = [set(ticket) for ticket in tickets]
+    total = 0
+    for _ in range(1024):
+        actual = set(rng.sample(range(1, universe_size + 1), draw_size))
+        total += max(len(ticket & actual) for ticket in ticket_sets)
+    return total / 1024.0
+
+
 def score_prediction_payload(
     prediction_payload: dict[str, Any],
     actual_draw: dict[str, Any],
@@ -356,12 +385,20 @@ def score_prediction_payload(
     actual_special = actual_draw.get("special")
     best_hit = 0
     special_hit = 0
+    per_ticket = []
     for ticket in tickets:
         main = _ticket_main(ticket)
-        best_hit = max(best_hit, len(set(main) & set(actual_main)))
+        hit = len(set(main) & set(actual_main))
+        best_hit = max(best_hit, hit)
         ticket_special = _ticket_special(ticket)
-        if ticket_special is not None and actual_special is not None and int(ticket_special) == int(actual_special):
+        matched_special = ticket_special is not None and actual_special is not None and int(ticket_special) == int(actual_special)
+        if matched_special:
             special_hit = 1
+        size = len(set(main))
+        expected = size * draw_size / float(universe_size)
+        per_ticket.append({"hit_count": hit, "special_hit": int(matched_special),
+                           "prediction_size": size, "expected_random_hits": expected,
+                           "lift": hit / expected - 1.0 if expected else 0.0})
     probabilities = normalize_probability_payload(
         prediction_payload.get("probabilities")
         or prediction_payload.get("calibratedProbability")
@@ -376,12 +413,24 @@ def score_prediction_payload(
         probabilities = scores_to_probabilities(ranked, draw_size, 1, universe_size)
     metric_brier = brier_score([probabilities], [actual_main], universe_size)
     metric_log_loss = log_loss([probabilities], [actual_main], universe_size)
+    mean_hits = sum(item["hit_count"] for item in per_ticket) / max(1, len(per_ticket))
+    expected_mean = sum(item["expected_random_hits"] for item in per_ticket) / max(1, len(per_ticket))
+    portfolio_baseline = _portfolio_random_best(tuple(tuple(sorted(set(_ticket_main(ticket)))) for ticket in tickets), universe_size, draw_size)
     return {
         "hit_count": best_hit,
         "special_hit": special_hit,
         "brier_score": metric_brier,
         "log_loss": metric_log_loss,
-        "lift": lift(best_hit, universe_size, draw_size, prediction_size),
+        "lift": mean_hits / expected_mean - 1.0 if expected_mean else 0.0,
+        "lift_basis": "mean_hits_per_ticket_same_budget",
+        "ticket_count": len(per_ticket),
+        "per_ticket": per_ticket,
+        "mean_hits_per_ticket": mean_hits,
+        "expected_random_hits_per_ticket": expected_mean,
+        "portfolio_best_hits": best_hit,
+        "portfolio_expected_random_best_hits": portfolio_baseline,
+        "portfolio_best_lift": best_hit / portfolio_baseline - 1.0 if portfolio_baseline else 0.0,
+        "portfolio_baseline_method": "1024 uniform draws, same tickets and overlap, fixed seed",
         "prediction_size": int(prediction_size),
         "actual_main": actual_main,
         "actual_special": actual_special,
@@ -516,11 +565,15 @@ def list_models(game_type: str | None = None, status: str | None = None, db_path
         connection.close()
 
 
-def promote_candidate(game_type: str, model_id: str, reason: str, db_path: str | Path | None = None) -> dict[str, Any]:
+def promote_candidate(game_type: str, model_id: str, reason: str, db_path: str | Path | None = None, expected_champion_id: str | None = None) -> dict[str, Any]:
     game_type = str(game_type or "").strip().upper()
     connection = connect(db_path)
     try:
+        connection.execute("BEGIN IMMEDIATE")
         with connection:
+            current = connection.execute("SELECT model_id FROM model_registry WHERE game_type=? AND status='champion'", (game_type,)).fetchone()
+            if expected_champion_id is not None and str(current[0] if current else "") != expected_champion_id:
+                raise ValueError("champion changed during evaluation; retry promotion")
             candidate = connection.execute(
                 "SELECT * FROM model_registry WHERE game_type = ? AND model_id = ? AND status = 'candidate'",
                 (game_type, str(model_id)),
@@ -554,17 +607,20 @@ def reject_candidate(game_type: str, model_id: str, reason: str, db_path: str | 
         connection.close()
 
 
-def rollback_champion(game_type: str, reason: str = "manual rollback", db_path: str | Path | None = None) -> dict[str, Any]:
+def rollback_champion(game_type: str, reason: str = "manual rollback", db_path: str | Path | None = None, expected_previous_id: str | None = None) -> dict[str, Any]:
     game_type = str(game_type or "").strip().upper()
     connection = connect(db_path)
     try:
+        connection.execute("BEGIN IMMEDIATE")
         with connection:
             previous = connection.execute(
-                "SELECT model_id FROM model_registry WHERE game_type = ? AND status = 'archived' ORDER BY updated_at DESC LIMIT 1",
+                "SELECT model_id FROM model_registry WHERE game_type = ? AND status = 'archived' AND model_id NOT LIKE 'execution_%' ORDER BY updated_at DESC LIMIT 1",
                 (game_type,),
             ).fetchone()
             if previous is None:
                 raise ValueError("no archived model is available for rollback")
+            if expected_previous_id is not None and previous["model_id"] != expected_previous_id:
+                raise ValueError("rollback target changed; retry rollback")
             timestamp = now_iso()
             connection.execute(
                 "UPDATE model_registry SET status = 'archived', updated_at = ? WHERE game_type = ? AND status = 'champion'",

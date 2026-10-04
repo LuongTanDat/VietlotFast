@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+  "retrievedAt": "2026-10-04T15:26:56",
+  "htmlSha256": "34ee3bb63ceb6234931f25008308fc053204dbc39d5eda1e0637ed328ebef6e1",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "55",
+      "date": "20/11/2016",
+      "time": "",
+      "main": [
+        9,
+        23,
+        33,
+        38,
+        41,
+        42
+      ],
+      "special": null,
+      "displayLines": [
+        "09 23 33 38 41 42"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+      "jackpot": 56100126000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "54",
+      "date": "18/11/2016",
+      "time": "",
+      "main": [
+        11,
+        12,
+        16,
+        24,
+        26,
+        31
+      ],
+      "special": null,
+      "displayLines": [
+        "11 12 16 24 26 31"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+      "jackpot": 38611602000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "53",
+      "date": "16/11/2016",
+      "time": "",
+      "main": [
+        1,
+        9,
+        17,
+        28,
+        43,
+        44
+      ],
+      "special": null,
+      "displayLines": [
+        "01 09 17 28 43 44"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+      "jackpot": 23092467000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "52",
+      "date": "13/11/2016",
+      "time": "",
+      "main": [
+        11,
+        23,
+        25,
+        34,
+        36,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "11 23 25 34 36 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+      "jackpot": 71066641000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 1
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "51",
+      "date": "11/11/2016",
+      "time": "",
+      "main": [
+        10,
+        17,
+        22,
+        23,
+        30,
+        36
+      ],
+      "special": null,
+      "displayLines": [
+        "10 17 22 23 30 36"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2016.html",
+      "jackpot": 54743403000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

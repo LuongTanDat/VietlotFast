@@ -1,0 +1,115 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+  "retrievedAt": "2026-10-04T15:26:57",
+  "htmlSha256": "dfb20b8f1ffaa35272d86a6af538674b300339cc8ead3bac22d000f6f8654cb4",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "5",
+      "date": "27/07/2016",
+      "time": "",
+      "main": [
+        14,
+        17,
+        21,
+        25,
+        31,
+        37
+      ],
+      "special": null,
+      "displayLines": [
+        "14 17 21 25 31 37"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 13942033000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "4",
+      "date": "24/07/2016",
+      "time": "",
+      "main": [
+        1,
+        10,
+        16,
+        18,
+        23,
+        38
+      ],
+      "special": null,
+      "displayLines": [
+        "01 10 16 18 23 38"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 13271044500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "3",
+      "date": "22/07/2016",
+      "time": "",
+      "main": [
+        3,
+        4,
+        14,
+        20,
+        25,
+        35
+      ],
+      "special": null,
+      "displayLines": [
+        "03 04 14 20 25 35"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 12858704500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "2",
+      "date": "20/07/2016",
+      "time": "",
+      "main": [
+        2,
+        17,
+        33,
+        37,
+        38,
+        45
+      ],
+      "special": null,
+      "displayLines": [
+        "02 17 33 37 38 45"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-27-07-2016.html",
+      "jackpot": 12000000000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

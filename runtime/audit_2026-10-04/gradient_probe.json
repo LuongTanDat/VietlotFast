@@ -1,0 +1,553 @@
+{
+  "sampled_gradient_cells": 57,
+  "max_absolute_error": 5.835461336278769e-05,
+  "within_absolute_tolerance_0_002": true,
+  "details": [
+    {
+      "parameter": "W_conv",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 0.00015806958253961056,
+      "numerical": 0.00016093254096016807,
+      "absolute_error": 2.8629584205575043e-06
+    },
+    {
+      "parameter": "W_conv",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 0.00021327415015548468,
+      "numerical": 0.00022351741790771484,
+      "absolute_error": 1.0243267752230167e-05
+    },
+    {
+      "parameter": "W_conv",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": 0.0002059384569292888,
+      "numerical": 0.0002145767211692018,
+      "absolute_error": 8.638264239912985e-06
+    },
+    {
+      "parameter": "b_conv",
+      "index": [
+        0
+      ],
+      "analytical": -0.0006409400375559926,
+      "numerical": -0.0006318092345969362,
+      "absolute_error": 9.130802959056439e-06
+    },
+    {
+      "parameter": "b_conv",
+      "index": [
+        1
+      ],
+      "analytical": -0.0008376529440283775,
+      "numerical": -0.0008404254913108034,
+      "absolute_error": 2.772547282425819e-06
+    },
+    {
+      "parameter": "b_conv",
+      "index": [
+        2
+      ],
+      "analytical": -0.0008523236028850079,
+      "numerical": -0.0008195638656616211,
+      "absolute_error": 3.2759737223386765e-05
+    },
+    {
+      "parameter": "W_z",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 4.401385211849629e-08,
+      "numerical": 0.0,
+      "absolute_error": 4.401385211849629e-08
+    },
+    {
+      "parameter": "W_z",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 7.83737846177246e-07,
+      "numerical": 0.0,
+      "absolute_error": 7.83737846177246e-07
+    },
+    {
+      "parameter": "W_z",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -1.8082962469634367e-06,
+      "numerical": 0.0,
+      "absolute_error": 1.8082962469634367e-06
+    },
+    {
+      "parameter": "U_z",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": -2.65717758907158e-08,
+      "numerical": 0.0,
+      "absolute_error": 2.65717758907158e-08
+    },
+    {
+      "parameter": "U_z",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 9.539195389152155e-08,
+      "numerical": 0.0,
+      "absolute_error": 9.539195389152155e-08
+    },
+    {
+      "parameter": "U_z",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -1.0359570978835109e-08,
+      "numerical": 0.0,
+      "absolute_error": 1.0359570978835109e-08
+    },
+    {
+      "parameter": "b_z",
+      "index": [
+        0
+      ],
+      "analytical": 5.503786724148085e-07,
+      "numerical": 0.0,
+      "absolute_error": 5.503786724148085e-07
+    },
+    {
+      "parameter": "b_z",
+      "index": [
+        1
+      ],
+      "analytical": -7.044161066005472e-06,
+      "numerical": 0.0,
+      "absolute_error": 7.044161066005472e-06
+    },
+    {
+      "parameter": "b_z",
+      "index": [
+        2
+      ],
+      "analytical": -1.0817630027304403e-05,
+      "numerical": 0.0,
+      "absolute_error": 1.0817630027304403e-05
+    },
+    {
+      "parameter": "W_r",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 7.384725364545375e-08,
+      "numerical": 0.0,
+      "absolute_error": 7.384725364545375e-08
+    },
+    {
+      "parameter": "W_r",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": -1.2519231518126617e-07,
+      "numerical": 0.0,
+      "absolute_error": 1.2519231518126617e-07
+    },
+    {
+      "parameter": "W_r",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -2.4849660462678003e-07,
+      "numerical": 0.0,
+      "absolute_error": 2.4849660462678003e-07
+    },
+    {
+      "parameter": "U_r",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": -1.4833021921845102e-08,
+      "numerical": 0.0,
+      "absolute_error": 1.4833021921845102e-08
+    },
+    {
+      "parameter": "U_r",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 2.4925238761852597e-08,
+      "numerical": 0.0,
+      "absolute_error": 2.4925238761852597e-08
+    },
+    {
+      "parameter": "U_r",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": 5.567810745787938e-08,
+      "numerical": 0.0,
+      "absolute_error": 5.567810745787938e-08
+    },
+    {
+      "parameter": "b_r",
+      "index": [
+        0
+      ],
+      "analytical": 7.089384439495916e-07,
+      "numerical": 0.0,
+      "absolute_error": 7.089384439495916e-07
+    },
+    {
+      "parameter": "b_r",
+      "index": [
+        1
+      ],
+      "analytical": -1.0914518497884274e-06,
+      "numerical": 0.0,
+      "absolute_error": 1.0914518497884274e-06
+    },
+    {
+      "parameter": "b_r",
+      "index": [
+        2
+      ],
+      "analytical": -2.7878493256139336e-06,
+      "numerical": 0.0,
+      "absolute_error": 2.7878493256139336e-06
+    },
+    {
+      "parameter": "W_h",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 0.0002364722458878532,
+      "numerical": 0.0002562999724675663,
+      "absolute_error": 1.98277265797131e-05
+    },
+    {
+      "parameter": "W_h",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": -0.00025137513875961304,
+      "numerical": -0.0002920627593105962,
+      "absolute_error": 4.0687620550983183e-05
+    },
+    {
+      "parameter": "W_h",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": 0.0006430977955460548,
+      "numerical": 0.000619888305686267,
+      "absolute_error": 2.320948985978788e-05
+    },
+    {
+      "parameter": "U_h",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": -1.3450418919092044e-05,
+      "numerical": 0.0,
+      "absolute_error": 1.3450418919092044e-05
+    },
+    {
+      "parameter": "U_h",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 2.5572058802936226e-05,
+      "numerical": -3.278255455985146e-05,
+      "absolute_error": 5.835461336278769e-05
+    },
+    {
+      "parameter": "U_h",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -5.671459075529128e-05,
+      "numerical": -6.556510934174753e-05,
+      "absolute_error": 8.850518586456246e-06
+    },
+    {
+      "parameter": "b_h",
+      "index": [
+        0
+      ],
+      "analytical": 0.0008823190582916141,
+      "numerical": 0.0008523464203324949,
+      "absolute_error": 2.9972637959119197e-05
+    },
+    {
+      "parameter": "b_h",
+      "index": [
+        1
+      ],
+      "analytical": -0.0028659594245254993,
+      "numerical": -0.0029087066650834714,
+      "absolute_error": 4.274724055797208e-05
+    },
+    {
+      "parameter": "b_h",
+      "index": [
+        2
+      ],
+      "analytical": 0.0058248997665941715,
+      "numerical": 0.005850195884726794,
+      "absolute_error": 2.529611813262278e-05
+    },
+    {
+      "parameter": "W_shared",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": -0.0005436302744783461,
+      "numerical": -0.0005364418029785156,
+      "absolute_error": 7.188471499830484e-06
+    },
+    {
+      "parameter": "W_shared",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": -0.0002846752176992595,
+      "numerical": -0.000295042991704797,
+      "absolute_error": 1.0367774005537456e-05
+    },
+    {
+      "parameter": "W_shared",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": 0.00032924735569395125,
+      "numerical": 0.00031590461724295693,
+      "absolute_error": 1.3342738450994318e-05
+    },
+    {
+      "parameter": "b_shared",
+      "index": [
+        0
+      ],
+      "analytical": 0.02827933244407177,
+      "numerical": 0.02823472023005813,
+      "absolute_error": 4.461221401363957e-05
+    },
+    {
+      "parameter": "b_shared",
+      "index": [
+        1
+      ],
+      "analytical": 0.010329877026379108,
+      "numerical": 0.010365247726462634,
+      "absolute_error": 3.537070008352572e-05
+    },
+    {
+      "parameter": "b_shared",
+      "index": [
+        2
+      ],
+      "analytical": -0.015478367917239666,
+      "numerical": -0.015470385551497046,
+      "absolute_error": 7.982365742620345e-06
+    },
+    {
+      "parameter": "W_main",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 0.0001344705087831244,
+      "numerical": 0.00014901161193847656,
+      "absolute_error": 1.4541103155352175e-05
+    },
+    {
+      "parameter": "W_main",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": -0.00010999215010087937,
+      "numerical": -0.00011920928955078125,
+      "absolute_error": 9.217139449901879e-06
+    },
+    {
+      "parameter": "W_main",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -9.868179040495306e-05,
+      "numerical": -5.9604644775390625e-05,
+      "absolute_error": 3.907714562956244e-05
+    },
+    {
+      "parameter": "b_main",
+      "index": [
+        0
+      ],
+      "analytical": 0.001336611807346344,
+      "numerical": 0.0013113021850585938,
+      "absolute_error": 2.5309622287750244e-05
+    },
+    {
+      "parameter": "b_main",
+      "index": [
+        1
+      ],
+      "analytical": -0.001081462949514389,
+      "numerical": -0.0010728836059570312,
+      "absolute_error": 8.579343557357788e-06
+    },
+    {
+      "parameter": "b_main",
+      "index": [
+        2
+      ],
+      "analytical": -0.0010936334729194641,
+      "numerical": -0.0011026859283447266,
+      "absolute_error": 9.052455425262451e-06
+    },
+    {
+      "parameter": "W_extra",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": 0.0145534323528409,
+      "numerical": 0.014564394950844495,
+      "absolute_error": 1.0962598003594337e-05
+    },
+    {
+      "parameter": "W_extra",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": -0.007261202670633793,
+      "numerical": -0.007295608520530017,
+      "absolute_error": 3.440584989622408e-05
+    },
+    {
+      "parameter": "W_extra",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -0.007292230613529682,
+      "numerical": -0.007295608520530017,
+      "absolute_error": 3.377907000334801e-06
+    },
+    {
+      "parameter": "b_extra",
+      "index": [
+        0
+      ],
+      "analytical": 0.15169641375541687,
+      "numerical": 0.1517057418822798,
+      "absolute_error": 9.328126862939712e-06
+    },
+    {
+      "parameter": "b_extra",
+      "index": [
+        1
+      ],
+      "analytical": -0.07580354809761047,
+      "numerical": -0.07579922676081985,
+      "absolute_error": 4.321336790624741e-06
+    },
+    {
+      "parameter": "b_extra",
+      "index": [
+        2
+      ],
+      "analytical": -0.0758928582072258,
+      "numerical": -0.07587969303135544,
+      "absolute_error": 1.3165175870355483e-05
+    },
+    {
+      "parameter": "W_regime",
+      "index": [
+        0,
+        0
+      ],
+      "analytical": -0.0031105922535061836,
+      "numerical": -0.0030994415283203125,
+      "absolute_error": 1.1150725185871124e-05
+    },
+    {
+      "parameter": "W_regime",
+      "index": [
+        0,
+        1
+      ],
+      "analytical": 0.006337640341371298,
+      "numerical": 0.006341934204123767,
+      "absolute_error": 4.293862752469124e-06
+    },
+    {
+      "parameter": "W_regime",
+      "index": [
+        0,
+        2
+      ],
+      "analytical": -0.0032270485535264015,
+      "numerical": -0.003230571746781763,
+      "absolute_error": 3.5231932553614342e-06
+    },
+    {
+      "parameter": "b_regime",
+      "index": [
+        0
+      ],
+      "analytical": -0.032475005835294724,
+      "numerical": -0.03247261047367722,
+      "absolute_error": 2.3953616175020898e-06
+    },
+    {
+      "parameter": "b_regime",
+      "index": [
+        1
+      ],
+      "analytical": 0.06605982780456543,
+      "numerical": 0.06606578826906517,
+      "absolute_error": 5.960464499743523e-06
+    },
+    {
+      "parameter": "b_regime",
+      "index": [
+        2
+      ],
+      "analytical": -0.0335848294198513,
+      "numerical": -0.03359317779538795,
+      "absolute_error": 8.348375536648689e-06
+    }
+  ]
+}

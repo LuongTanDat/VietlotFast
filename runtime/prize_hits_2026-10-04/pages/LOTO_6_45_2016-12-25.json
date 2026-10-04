@@ -1,0 +1,142 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+  "retrievedAt": "2026-10-04T15:26:55",
+  "htmlSha256": "309796732fb4b34ee325daa06c6a7c94f940abdf59bfc34e5b6fc744ad3b8e17",
+  "results": [
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "70",
+      "date": "25/12/2016",
+      "time": "",
+      "main": [
+        5,
+        12,
+        20,
+        29,
+        34,
+        36
+      ],
+      "special": null,
+      "displayLines": [
+        "05 12 20 29 34 36"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+      "jackpot": 159232985000,
+      "prizeHit": "Jackpot",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 2
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "69",
+      "date": "23/12/2016",
+      "time": "",
+      "main": [
+        1,
+        17,
+        24,
+        25,
+        37,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "01 17 24 25 37 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+      "jackpot": 126099475000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "68",
+      "date": "21/12/2016",
+      "time": "",
+      "main": [
+        3,
+        6,
+        12,
+        14,
+        18,
+        40
+      ],
+      "special": null,
+      "displayLines": [
+        "03 06 12 14 18 40"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+      "jackpot": 98384793500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "67",
+      "date": "18/12/2016",
+      "time": "",
+      "main": [
+        3,
+        7,
+        30,
+        32,
+        41,
+        43
+      ],
+      "special": null,
+      "displayLines": [
+        "03 07 30 32 41 43"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+      "jackpot": 73843316500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    },
+    {
+      "key": "LOTO_6_45",
+      "label": "Mega_6/45",
+      "ky": "66",
+      "date": "16/12/2016",
+      "time": "",
+      "main": [
+        5,
+        8,
+        33,
+        34,
+        39,
+        44
+      ],
+      "special": null,
+      "displayLines": [
+        "05 08 33 34 39 44"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-12-2016.html",
+      "jackpot": 57376762500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot": 0
+      }
+    }
+  ]
+}

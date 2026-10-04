@@ -1,0 +1,65 @@
+[
+  {
+    "path": "ai\\standalone_predictors\\power_6_55_predictor\\models\\model_meta.json",
+    "game": "power_6_55",
+    "model_type": "cnn_gru_numpy",
+    "version": "power_6_55_deep_v1",
+    "trained_at": "2026-04-03T11:22:37",
+    "trained_on_latest_draw_id": 1327,
+    "train_samples": 1077,
+    "val_samples": 236,
+    "metrics": {
+      "main_loss": 0.34595441818237305,
+      "val_main_loss": 0.350994348526001,
+      "special_loss": 2.915571689605713,
+      "val_special_loss": 4.550790786743164,
+      "regime_loss": 0.15324661135673523,
+      "val_regime_loss": 0.36590540409088135,
+      "exact_hit_mean": 0.6949152542372882,
+      "topk_recall": 0.3029661016949153,
+      "special_accuracy": 0.012711864406779662,
+      "regime_accuracy": 0.8940677966101694
+    }
+  },
+  {
+    "path": "ai\\standalone_predictors\\mega_6_45_predictor\\models\\model_meta.json",
+    "game": "mega_6_45",
+    "model_type": "cnn_gru_numpy",
+    "version": "mega_6_45_deep_v1",
+    "trained_at": "2026-04-03T11:22:21",
+    "trained_on_latest_draw_id": 1491,
+    "train_samples": 1214,
+    "val_samples": 266,
+    "metrics": {
+      "main_loss": 0.39241209626197815,
+      "val_main_loss": 0.3947273790836334,
+      "regime_loss": 0.17154081165790558,
+      "val_regime_loss": 0.6071280837059021,
+      "exact_hit_mean": 0.7857142857142857,
+      "topk_recall": 0.3157894736842105,
+      "regime_accuracy": 0.7857142857142857
+    }
+  },
+  {
+    "path": "ai\\standalone_predictors\\loto_5_35_predictor\\models\\model_meta.json",
+    "game": "loto_5_35",
+    "model_type": "cnn_gru_numpy",
+    "version": "loto_5_35_deep_v1",
+    "trained_at": "2026-04-05T22:27:25",
+    "trained_on_latest_draw_id": "562",
+    "train_samples": 453,
+    "val_samples": 99,
+    "metrics": {
+      "main_loss": 0.4116741418838501,
+      "val_main_loss": 0.4202709197998047,
+      "bonus_loss": 2.2154994010925293,
+      "val_bonus_loss": 2.5370025634765625,
+      "regime_loss": 0.607205867767334,
+      "val_regime_loss": 0.6490752696990967,
+      "exact_hit_mean": 0.6161616161616161,
+      "topk_recall": 0.3676767676767677,
+      "bonus_accuracy": 0.10101010101010101,
+      "regime_accuracy": 0.7373737373737373
+    }
+  }
+]

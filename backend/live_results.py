@@ -20,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import requests
 from bs4 import BeautifulSoup
 import ai.configs.data_paths as dp
+from backend.file_guard import versioned_loader, guarded_writer, retain_version
 
 
 # ----- Cau hinh crawl va dong bo -----
@@ -74,7 +75,80 @@ PRIZE_RESULT_KEYS = {
     "SpecialPrize": "specialPrize", "Jackpot": "jackpot",
     "Jackpot1": "jackpot1", "Jackpot2": "jackpot2",
 }
+PRIZE_HIT_FIELD = "PrizeHit"
+PRIZE_HIT_HEADER = "Nổ"
+PRIZE_HIT_LABELS = {
+    "LOTO_5_35": ("ĐB",),
+    "LOTO_6_45": ("Jackpot",),
+    "LOTO_6_55": ("Jackpot 1", "Jackpot 2"),
+}
+
+
+def valid_prize_hit(type_key, value):
+    labels = PRIZE_HIT_LABELS.get(type_key, ())
+    allowed = {"", *labels}
+    if len(labels) == 2:
+        allowed.add("Jackpot 1, 2")
+    return value in allowed
+
+
+CSV_REMOVED_FIELDS_BY_TYPE = {
+    "LOTO_5_35": {"DisplayLines", "Label"},
+    "LOTO_6_45": {"DisplayLines", "Label", "Special"},
+    "LOTO_6_55": {"DisplayLines", "Label"},
+    "MAX_3D": {"Time", "Main", "Special", "Label"},
+    "MAX_3D_PRO": {"Time", "Main", "Special", "Label"},
+}
+
+
+def get_csv_fields(type_key):
+    if type_key == "KENO":
+        return list(KENO_CSV_FIELDS)
+    removed = CSV_REMOVED_FIELDS_BY_TYPE.get(type_key, set())
+    fields = [field for field in CSV_FIELDS if field not in removed] + list(PRIZE_FIELDS_BY_TYPE.get(type_key, ()))
+    if type_key in PRIZE_FIELDS_BY_TYPE:
+        fields.append(PRIZE_HIT_FIELD)
+    return fields
+
+
+def get_csv_header(type_key):
+    if type_key == "KENO":
+        return list(KENO_CSV_HEADER)
+    names = dict(zip(CSV_FIELDS, CSV_HEADER))
+    names.update(PRIZE_CSV_HEADERS)
+    names[PRIZE_HIT_FIELD] = PRIZE_HIT_HEADER
+    return [names[field] for field in get_csv_fields(type_key)]
+
+
+def infer_csv_type_key(csv_path):
+    stem = Path(csv_path).stem.lower()
+    for key, canonical_stem in sorted(CANONICAL_OUTPUT_STEMS.items(), key=lambda item: len(item[1]), reverse=True):
+        if stem in (key.lower(), canonical_stem) or stem.startswith(canonical_stem + "_"):
+            return key
+    return {"mega_6_45": "LOTO_6_45", "power_6_55": "LOTO_6_55"}.get(stem)
+
+
+def numeric_csv_display(row):
+    text = " ".join(f"{int(token.strip()):02d}" for token in str(row.get("Main", "")).split(",")
+                    if token.strip().isdigit())
+    special = str(row.get("Special", "")).strip()
+    return text + (f" | ĐB {int(special):02d}" if special.isdigit() else "")
+
+
+def expand_csv_record(type_key, record):
+    """Expand compact disk columns only in memory for validation and API use."""
+    expanded = {header: record.get(header, "") for header in CSV_HEADER}
+    expanded.update(record)
+    if "Loại" not in record:
+        expanded["Loại"] = LIVE_TYPES[type_key].label
+    if "Hiển thị" not in record and type_key in PRIZE_FIELDS_BY_TYPE:
+        expanded["Hiển thị"] = numeric_csv_display({"Main": expanded["Bộ Số"], "Special": expanded["ĐB"]})
+    if type_key in PRIZE_FIELDS_BY_TYPE:
+        expanded.setdefault(PRIZE_HIT_HEADER, "")
+    return expanded
 CSV_HEADER_ALIASES = {
+    "no": PRIZE_HIT_FIELD,
+    "prizehit": PRIZE_HIT_FIELD,
     "ky": "Ky",
     "thu": "Thu",
     "ngay": "Ngay",
@@ -1119,7 +1193,9 @@ def normalize_meta_from_rows(type_key, meta, rows_by_ky):
 
 # ----- Lam sach va nap canonical CSV -----
 # Doc file canonical theo huong an toan, salvage dong hop le va tu sua meta neu can.
-def load_csv_rows(csv_path, return_info=False):
+@versioned_loader
+def load_csv_rows(csv_path, return_info=False, type_key=None):
+    type_key = type_key or infer_csv_type_key(csv_path)
     rows_by_ky = {}
     info = {"sanitized": False, "issues": []}
     if not csv_path.exists():
@@ -1149,7 +1225,7 @@ def load_csv_rows(csv_path, return_info=False):
             info["sanitized"] = True
             if "extra_fields" not in info["issues"]:
                 info["issues"].append("extra_fields")
-        normalized = normalize_csv_row_dict(header_map, row, CSV_FIELDS + list(PRIZE_CSV_HEADERS))
+        normalized = normalize_csv_row_dict(header_map, row, CSV_FIELDS + list(PRIZE_CSV_HEADERS) + [PRIZE_HIT_FIELD])
         ky = re.sub(r"\D", "", str(normalized.get("Ky", "")).strip())
         row_date = parse_csv_date(normalized.get("Ngay"))
         if not ky or row_date is None:
@@ -1165,6 +1241,10 @@ def load_csv_rows(csv_path, return_info=False):
         normalized["Ky"] = ky
         normalized["Ngay"] = format_csv_date(row_date)
         normalized["Thu"] = normalized.get("Thu") or format_csv_weekday(row_date)
+        if type_key in LIVE_TYPES and "Label" not in header_map:
+            normalized["Label"] = LIVE_TYPES[type_key].label
+        if type_key in PRIZE_FIELDS_BY_TYPE and "DisplayLines" not in header_map:
+            normalized["DisplayLines"] = numeric_csv_display(normalized)
         rows_by_ky[ky] = normalized
     return (rows_by_ky, info) if return_info else rows_by_ky
 
@@ -1174,13 +1254,16 @@ def load_canonical_rows(type_key, rewrite_if_needed=True):
     write_path = get_canonical_output_paths(type_key)["all"]
     loader = load_keno_csv_rows if type_key == "KENO" else load_csv_rows
     writer = write_keno_csv_rows if type_key == "KENO" else write_csv_rows
-    rows_by_ky, info = loader(read_path, return_info=True)
+    if type_key == "KENO":
+        rows_by_ky, info = loader(read_path, return_info=True)
+    else:
+        rows_by_ky, info = loader(read_path, return_info=True, type_key=type_key)
 
     removed_rows = 0
     if type_key != "KENO":
         filtered_rows, removed_rows = filter_rows_for_type(type_key, rows_by_ky)
         if removed_rows:
-            rows_by_ky = filtered_rows
+            rows_by_ky = retain_version(rows_by_ky, filtered_rows)
             info["sanitized"] = True
             info["issues"].append(f"type_filter_removed:{removed_rows}")
 
@@ -1188,7 +1271,10 @@ def load_canonical_rows(type_key, rewrite_if_needed=True):
     normalized_meta, meta_changed = normalize_meta_from_rows(type_key, meta, rows_by_ky)
 
     if rewrite_if_needed and info.get("sanitized"):
-        writer(write_path, rows_by_ky)
+        if type_key == "KENO":
+            writer(write_path, rows_by_ky)
+        else:
+            writer(write_path, rows_by_ky, type_key=type_key)
     if rewrite_if_needed and (info.get("sanitized") or meta_changed):
         write_canonical_meta(type_key, normalized_meta)
 
@@ -1227,9 +1313,11 @@ def result_to_csv_row(result):
         "SourceUrl": str(result.get("sourceUrl", "")).strip(),
         "SourceDate": str(result.get("sourceDate", "")).strip(),
         **{field: str(result.get(key) or "") for field, key in PRIZE_RESULT_KEYS.items()},
+        PRIZE_HIT_FIELD: str(result.get("prizeHit") or ""),
     }
 
 
+@guarded_writer
 def write_csv_rows(csv_path, rows_by_ky, type_key=None):
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     sorted_rows = sorted(
@@ -1238,17 +1326,18 @@ def write_csv_rows(csv_path, rows_by_ky, type_key=None):
         reverse=True,
     )
     if type_key is None:
+        type_key = infer_csv_type_key(csv_path)
+    if type_key is None:
         type_key = next((key for key, cfg in LIVE_TYPES.items()
                          if any(row.get("Label") == cfg.label for row in sorted_rows)), None)
         if type_key is None:
             type_key = next((key for key, stem in CANONICAL_OUTPUT_STEMS.items()
                              if csv_path.name.startswith(stem + "_")), None)
-    prize_fields = PRIZE_FIELDS_BY_TYPE.get(type_key, ())
-    fields = CSV_FIELDS + list(prize_fields)
-    temp_path = csv_path.with_name(f"{csv_path.name}.tmp")
+    fields = get_csv_fields(type_key)
+    temp_path = csv_path.with_name(f"{csv_path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     with temp_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(CSV_HEADER + [PRIZE_CSV_HEADERS[field] for field in prize_fields])
+        writer.writerow(get_csv_header(type_key))
         for row in sorted_rows:
             writer.writerow([str(row.get(field, "") or "").strip() for field in fields])
     os.replace(str(temp_path), str(csv_path))
@@ -1263,7 +1352,7 @@ def filter_rows_from_start_date(rows_by_ky, start_date):
             removed_rows += 1
             continue
         filtered_rows[ky] = row
-    return filtered_rows, removed_rows
+    return retain_version(rows_by_ky, filtered_rows), removed_rows
 
 
 def row_matches_type_key(type_key, row):
@@ -1304,7 +1393,7 @@ def filter_rows_for_type(type_key, rows_by_ky):
             removed_rows += 1
             continue
         filtered_rows[ky] = row
-    return filtered_rows, removed_rows
+    return retain_version(rows_by_ky, filtered_rows), removed_rows
 
 
 def sync_result_to_canonical_csv(result):
@@ -1322,6 +1411,9 @@ def sync_result_to_canonical_csv(result):
 
     ky = row["Ky"]
     previous = rows_by_ky.get(ky)
+    if (type_key in PRIZE_FIELDS_BY_TYPE and previous and not result.get("prizeHitKnown")
+            and all(previous.get(field, "") == row.get(field, "") for field in ("Ngay", "Time", "Main", "Special"))):
+        row[PRIZE_HIT_FIELD] = previous.get(PRIZE_HIT_FIELD, "")
     rows_by_ky[ky] = row
     canonical_paths, today_count, all_count = write_canonical_rows(type_key, rows_by_ky, today)
     latest_row, earliest_row = get_latest_and_earliest_rows(rows_by_ky)
@@ -1369,6 +1461,8 @@ def csv_row_to_history_item(row):
         part.strip() for part in str(row.get("DisplayLines", "")).split("||")
         if part.strip()
     ]
+    if not display_lines and main:
+        display_lines = [numeric_csv_display(row)]
     label = str(row.get("Label", "")).strip()
     label_upper = label.upper()
     source_url = str(row.get("SourceUrl", "")).strip()
@@ -1388,6 +1482,7 @@ def csv_row_to_history_item(row):
         "label": label,
         "sourceUrl": source_url,
         "sourceDate": str(row.get("SourceDate", "")).strip(),
+        "prizeHit": str(row.get(PRIZE_HIT_FIELD, "")).strip(),
         **{key: int(str(row[field]).strip()) for field, key in PRIZE_RESULT_KEYS.items()
            if str(row.get(field, "")).strip().isdigit() and int(str(row[field]).strip()) > 0},
     }
@@ -1527,6 +1622,7 @@ def history_item_to_live_result(type_key, item):
         **{PRIZE_RESULT_KEYS[field]: item[PRIZE_RESULT_KEYS[field]]
            for field in PRIZE_FIELDS_BY_TYPE.get(type_key, ())
            if item.get(PRIZE_RESULT_KEYS[field])},
+        "prizeHit": str(item.get("prizeHit") or ""),
     }
 
 
@@ -1935,6 +2031,7 @@ def keno_result_to_csv_row(result):
     }
 
 
+@versioned_loader
 def load_keno_csv_rows(csv_path, return_info=False):
     rows_by_ky = {}
     info = {"sanitized": False, "issues": []}
@@ -2023,6 +2120,7 @@ def load_keno_csv_rows(csv_path, return_info=False):
     return (rows_by_ky, info) if return_info else rows_by_ky
 
 
+@guarded_writer
 def write_keno_csv_rows(csv_path, rows_by_ky):
     normalize_keno_schedule_times(rows_by_ky)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2031,7 +2129,7 @@ def write_keno_csv_rows(csv_path, rows_by_ky):
         key=lambda item: sort_key_from_ky(item.get("Ky", "")),
         reverse=True,
     )
-    temp_path = csv_path.with_name(f"{csv_path.name}.tmp")
+    temp_path = csv_path.with_name(f"{csv_path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     with temp_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(KENO_CSV_HEADER)
@@ -2050,6 +2148,8 @@ def merge_result_rows(rows_by_ky, results):
         # A fallback source may omit amounts; retain previously verified prizes.
         if previous and all(previous.get(field, "") == row.get(field, "")
                             for field in ("Ngay", "Time", "Main", "Special")):
+            if not result.get("prizeHitKnown"):
+                row[PRIZE_HIT_FIELD] = previous.get(PRIZE_HIT_FIELD, "")
             for field in PRIZE_CSV_HEADERS:
                 if not row.get(field):
                     row[field] = previous.get(field, "")
@@ -2370,6 +2470,42 @@ def parse_numeric_prizes(cfg, lines):
     return prizes
 
 
+def parse_numeric_prize_hits(cfg, lines):
+    """Read winner counts from the prize table; missing counts stay unknown."""
+    fields = PRIZE_FIELDS_BY_TYPE.get(cfg.key, ())
+    if not fields:
+        return {}
+    normalized = [normalize_header_label(line).strip(" :") for line in lines]
+    table_start = next((index + 4 for index in range(len(lines) - 3)
+                        if normalized[index:index + 4] == ["giai", "trung khop", "so luong", "gia tri"]), None)
+    if table_start is None:
+        return {}
+    row_labels = {
+        "doc dac": "SpecialPrize", "dac biet": "SpecialPrize",
+        "jackpot": "Jackpot", "jackpot 1": "Jackpot1", "jackpot 2": "Jackpot2",
+    }
+    counts = {}
+    for index in range(table_start, len(lines) - 2):
+        field = row_labels.get(normalized[index])
+        if field not in fields:
+            continue
+        count, amount = lines[index + 1].strip(), lines[index + 2].strip()
+        if not re.fullmatch(r"\d+|\d{1,3}(?:[.,]\d{3})+", count):
+            continue
+        if not re.fullmatch(r"\d{7,}|\d{1,3}(?:[.,]\d{3})+", amount):
+            continue
+        value = int(re.sub(r"\D", "", count))
+        if field in counts and counts[field] != value:
+            return {}
+        counts[field] = value
+    if set(counts) != set(fields):
+        return {}
+    hits = [label for field, label in zip(fields, PRIZE_HIT_LABELS[cfg.key]) if counts[field] > 0]
+    marker = "Jackpot 1, 2" if len(hits) == 2 else (hits[0] if hits else "")
+    return {"prizeHit": marker, "prizeHitKnown": True,
+            "prizeWinnerCounts": {PRIZE_RESULT_KEYS[field]: counts[field] for field in fields}}
+
+
 def build_numeric_result(cfg, ky, date_value, time_value, balls, source_url):
     main = balls[:cfg.main_count]
     special = balls[cfg.main_count] if cfg.has_special else None
@@ -2515,6 +2651,7 @@ def parse_numeric_section(cfg, section_lines, source_url):
         source_url,
     )
     result.update(parse_numeric_prizes(cfg, section_lines))
+    result.update(parse_numeric_prize_hits(cfg, section_lines))
     return result
 
 
@@ -2790,7 +2927,8 @@ def fetch_live_result(session, cache, type_key):
         return fetch_latest_minhchinh_result(session, cache, cfg)
     result = fetch_latest_vietlott_result(session, cache, cfg)
     prize_fields = PRIZE_FIELDS_BY_TYPE.get(type_key, ())
-    if any(not result.get(PRIZE_RESULT_KEYS[field]) for field in prize_fields):
+    if (any(not result.get(PRIZE_RESULT_KEYS[field]) for field in prize_fields)
+            or (prize_fields and not result.get("prizeHitKnown"))):
         # The live source may only publish draw balls. Enrich that same draw
         # from the canonical history source without substituting another draw.
         try:
@@ -2803,6 +2941,9 @@ def fetch_live_result(session, cache, type_key):
                     for field in prize_fields:
                         key = PRIZE_RESULT_KEYS[field]
                         if match.get(key):
+                            result[key] = match[key]
+                    if match.get("prizeHitKnown"):
+                        for key in ("prizeHit", "prizeHitKnown", "prizeWinnerCounts"):
                             result[key] = match[key]
                     break
         except requests.RequestException:

@@ -2,7 +2,7 @@
   "type": "MAX_3D_PRO",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-03T22:22:54",
+  "lastSyncAt": "2026-10-04T15:39:03",
   "lastBootstrapAt": "2026-03-16T00:07:05",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "14/09/2021",
@@ -10,11 +10,18 @@
   "dataQuality": {
     "inputRows": 787,
     "outputRows": 787,
+    "removedColumns": [],
+    "outputColumns": [
+      "Kỳ",
+      "Thứ",
+      "Ngày",
+      "Hiển thị",
+      "Link cập nhật",
+      "Ngày cập nhật"
+    ],
     "duplicateRowsRemoved": 0,
-    "changedCells": 684,
-    "changesByColumn": {
-      "Loại": 684
-    },
+    "changedCells": 0,
+    "changesByColumn": {},
     "internalGaps": [],
     "missingDrawsInsideRange": 0,
     "earliestKy": "1",
@@ -22,11 +29,11 @@
     "sourceVerifiedDraws": 0,
     "warnings": 0,
     "errors": 0,
-    "checkedAt": "2026-10-03T21:18:35",
+    "checkedAt": "2026-10-04T15:02:45",
     "valid": true,
     "structuralValid": true,
     "warningDetails": [],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\211832_665348\\report.json",
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
     "scope": "Existing canonical draws; no history extrapolation"
   }
 }

@@ -102,7 +102,7 @@
             </div>
             <label class="check-row">
               <input id="rememberCreds" type="checkbox" />
-              <span>Ghi nhớ tài khoản và mật khẩu trên máy này</span>
+              <span>Ghi nhớ tên tài khoản trên máy này</span>
             </label>
             <button id="loginBtn">Đăng nhập</button>
             <button id="recoverAdminBtn" type="button" class="secondary" style="margin-top:8px;">Quên mật khẩu admin (khôi phục cục bộ)</button>
@@ -128,7 +128,7 @@
             </div>
             <label class="check-row">
               <input id="regRemember" type="checkbox" />
-              <span>Lưu tài khoản và mật khẩu này để đăng nhập nhanh lần sau</span>
+              <span>Ghi nhớ tên tài khoản cho lần đăng nhập sau</span>
             </label>
             <button id="registerBtn">Tạo tài khoản</button>
           </div>
@@ -274,7 +274,7 @@
         <div>
           <p class="data-table-eyebrow">CANONICAL ALL_DAY.CSV</p>
           <h2>Bảng Dữ Liệu</h2>
-          <p class="data-table-subtitle">Chọn loại xổ số để xem dữ liệu dạng bảng như Excel.</p>
+          <p class="data-table-subtitle">Xem và tải dữ liệu theo bộ lọc.</p>
         </div>
         <div class="data-table-actions">
           <div>
@@ -292,10 +292,10 @@
             </select>
           </div>
           <button id="dataTableRefreshBtn" type="button">Hiển thị</button>
-          <button id="dataTableDownloadBtn" type="button">Tải Xuống</button>
+          <button id="dataTableDownloadBtn" type="button">Tải Excel</button>
         </div>
       </div>
-      <div class="data-table-date-filters" aria-label="Bộ lọc thời gian">
+      <div class="data-table-date-filters" aria-label="Bộ lọc dữ liệu">
         <div>
           <label for="dataTableWeekday">Thứ</label>
           <select id="dataTableWeekday">
@@ -370,6 +370,7 @@
             <option value="all">Tất Cả</option>
           </select>
         </div>
+        <button id="dataTableHitFilterBtn" class="secondary data-table-hit-filter" type="button" aria-pressed="false" title="Chỉ hiển thị kỳ có giải nổ">Nổ</button>
         <button id="dataTableClearFilterBtn" class="secondary" type="button">Xóa lọc</button>
       </div>
       <div id="dataTableStatus" class="data-table-status muted">Chọn loại rồi bấm Hiển thị để xem dữ liệu.</div>

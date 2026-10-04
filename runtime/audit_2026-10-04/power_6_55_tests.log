@@ -1,0 +1,10 @@
+test_feature_rows_and_context_exist (test_features.FeatureTests.test_feature_rows_and_context_exist) ... ok
+test_loader_parses_real_repo_csv (test_loader.LoaderTests.test_loader_parses_real_repo_csv) ... ok
+test_ticket_generation_returns_sorted_unique_tickets_and_special (test_ticket_generation.TicketGenerationTests.test_ticket_generation_returns_sorted_unique_tickets_and_special) ... ok
+test_ticket_generation_supports_nine_vip_backups (test_ticket_generation.TicketGenerationTests.test_ticket_generation_supports_nine_vip_backups) ... ok
+test_tracking_updates_hits_and_misses_for_main_and_special (test_tracking.TrackingTests.test_tracking_updates_hits_and_misses_for_main_and_special) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.871s
+
+OK

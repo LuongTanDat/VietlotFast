@@ -1,0 +1,42 @@
+{
+  "startedAt": "2026-10-04T15:28:21",
+  "applied": true,
+  "types": {
+    "LOTO_5_35": {
+      "rows": 925,
+      "verifiedRows": 925,
+      "missingDraws": [],
+      "hitCounts": {
+        "ĐB": 42
+      }
+    },
+    "LOTO_6_45": {
+      "rows": 1569,
+      "verifiedRows": 1569,
+      "missingDraws": [],
+      "hitCounts": {
+        "Jackpot": 165
+      }
+    },
+    "LOTO_6_55": {
+      "rows": 1402,
+      "verifiedRows": 1402,
+      "missingDraws": [],
+      "hitCounts": {
+        "Jackpot 2": 330,
+        "Jackpot 1": 40,
+        "Jackpot 1, 2": 18
+      }
+    }
+  },
+  "errors": [],
+  "sourceMismatches": [],
+  "supplementalSources": [
+    {
+      "type": "LOTO_6_45",
+      "ky": "506",
+      "sourceUrl": "https://www.ketquadientoan.com/ket-qua-xo-so-dien-toan-mega-6-45/16-10-2019.html"
+    }
+  ],
+  "finishedAt": "2026-10-04T15:28:24"
+}

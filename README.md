@@ -81,9 +81,16 @@ Script sao lưu CSV/meta trước khi áp dụng; bản ghi không hợp lệ ho
 việc ghi dữ liệu. Các bộ ba số lặp hợp lệ và số 0 đầu được giữ nguyên. Báo cáo nằm
 trong `runtime/data_cleaning_<ngày>/runs/`, metadata có mục `dataQuality`.
 
+Sau khi báo cáo canonical không còn lỗi, chạy
+`py -3 scripts/clean_related_csv.py --apply --canonical-report <đường-dẫn-report.json>`
+để làm sạch 3 CSV trong `ai/standalone_predictors/*/data/` và kiểm tra 7 CSV điểm số.
+Script bổ sung tiền thưởng, khôi phục thông tin nguồn bị cắt sau khi đối chiếu kỳ/ngày/giờ/bộ số,
+giữ phạm vi lịch sử của các CSV bộ dự đoán và sao lưu vào `runtime/csv_cleaning_<ngày>/`.
+
 - `Hiển thị`: tải và hiển thị dữ liệu theo loại vé, số dòng và bộ lọc thời gian.
-- `Tải Xuống`: xuất bảng hiện tại thành file tải về.
-- `Xóa lọc`: reset bộ lọc thứ/ngày/tháng/năm.
+- `Tải Excel`: xuất đúng các dòng đang lọc, gồm cột Nổ sau tiền thưởng.
+- `Nổ`: chỉ hiện kỳ có giải nổ đã xác minh; kết hợp bộ lọc thời gian.
+- `Xóa lọc`: bỏ cả thời gian và Nổ.
 - Các select `Loại`, `Số lượng`, `Thứ`, `Ngày`, `Tháng`, `Năm`: điều khiển tập dữ liệu đang xem.
 
 ### Nạp Tiền PayPal Nội Bộ
@@ -216,6 +223,24 @@ python ai/predictors/ai_predict.py ml_rollback LOTO_6_45
 
 Backtest chạy walk-forward theo thứ tự kỳ quay. Mỗi fold chỉ dùng lịch sử trước kỳ target, từ chối artifact deep nếu `trained_on_latest_draw_id` không đúng cutoff, mô phỏng tracking tuần tự và ghi audit JSON vào `runtime/backtests/`.
 
+Backtest ablation chọn winner trên tập đánh giá là chẩn đoán; `evaluated_mode` cho biết metrics thuộc chế độ nào. Artifact Deep cố định không retrain từng fold. Xác suất từ ranking được ghi `uncalibrated`, không phải xác suất trúng cả vé.
+
+`ml_train_candidate` hiện huấn luyện baseline Bayesian với prior cố định vào `runtime/model_registry/`, tách train/validation/test theo thời gian. Candidate có model JSON/hash/cutoff thật, không tự thay model đang dùng. Promote kiểm tra metric hữu hạn, manifest/hash/CI và so champion trên cùng kỳ. Khi được duyệt, inference dùng artifact champion; rollback chọn artifact đã lưu. Engine legacy chưa có champion vẫn hoạt động và prediction mới ghi execution snapshot chưa duyệt.
+
+## Quản trị và bảo mật
+
+Server mặc định dùng `127.0.0.1:8080`. Ghi nhớ đăng nhập chỉ lưu tên tài khoản; phiên server hết hạn sau 12 giờ. Quyền VIP do admin cấp/thu hồi ở **Quản lý tài khoản → Cấp / thu hồi VIP**. Vòng quay, đổi lượt và số dư PP/KC dùng giao dịch backend có mã chống lặp; đây là điểm nội bộ, chưa kết nối thanh toán PayPal. Hạn VIP chỉ nằm trong store cũ cần admin xác minh/cấp lại qua bảng quyền mới; tài khoản admin có quyền quản trị.
+
+Khôi phục admin cần terminal tương tác, mật khẩu tối thiểu 8 ký tự, nhập kín:
+
+```powershell
+java -Dfile.encoding=UTF-8 -cp "backend/bin;backend/lib/sqlite-jdbc-3.51.2.0.jar" LottoWebServer --recover-admin
+```
+
+HTTP `/api/recover-admin` luôn từ chối. Muốn dùng cổng khác, cấu hình `-Dlotto.port=PORT`; muốn mở mạng, cấu hình rõ `-Dlotto.bind=ADDRESS` và `-Dlotto.allowedOrigins=http://HOST:PORT`. API giới hạn body 8 MiB, số phiên và lượt đăng nhập. Các thay đổi VIP/tài sản được ghi ở `account_audit`; giao dịch vòng quay ở `wallet_events`.
+
+Điểm ledger v2 dùng lift trung bình từng vé; kết quả vé tốt nhất có đối chứng danh mục riêng. Điểm lịch sử v1 được giữ nguyên và giao diện ghi cần chấm lại. Xem chi tiết bản sửa tại `runtime/audit_2026-10-04/KhacPhucRaSoat.md`.
+
 ## Dữ Liệu Và Lưu Trữ
 
 - Canonical CSV: `data/canonical/*_all_day.csv`.
@@ -230,11 +255,12 @@ Backtest chạy walk-forward theo thứ tự kỳ quay. Mỗi fold chỉ dùng l
 Chạy test Python:
 
 ```bash
-python -m pytest
+python -m unittest discover -s tests -v
 ```
 
-Nếu chưa cài `pytest`, cài thêm trong môi trường Python đang dùng:
+Ba predictor standalone chạy unittest từ thư mục riêng để tránh trùng package `src`:
 
 ```bash
-python -m pip install pytest
+cd ai/standalone_predictors/mega_6_45_predictor
+python -m unittest discover -s tests -v
 ```

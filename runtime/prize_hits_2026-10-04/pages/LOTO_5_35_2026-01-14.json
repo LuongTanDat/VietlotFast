@@ -1,0 +1,163 @@
+{
+  "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+  "retrievedAt": "2026-10-04T15:23:01",
+  "htmlSha256": "928bffa5214da2d2d6c2529c80fd1d05adb64c56fdb6fe130d7871c7c1ff86f0",
+  "results": [
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "400",
+      "date": "14/01/2026",
+      "time": "21:00",
+      "main": [
+        2,
+        6,
+        8,
+        19,
+        29
+      ],
+      "special": 9,
+      "displayLines": [
+        "02 06 08 19 29 | ĐB 09"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6678602500,
+      "prizeHit": "ĐB",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 1
+      }
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "399",
+      "date": "14/01/2026",
+      "time": "13:00",
+      "main": [
+        3,
+        4,
+        5,
+        19,
+        35
+      ],
+      "special": 8,
+      "displayLines": [
+        "03 04 05 19 35 | ĐB 08"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6597107500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 0
+      }
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "398",
+      "date": "13/01/2026",
+      "time": "21:00",
+      "main": [
+        3,
+        4,
+        6,
+        10,
+        27
+      ],
+      "special": 4,
+      "displayLines": [
+        "03 04 06 10 27 | ĐB 04"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6536245000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 0
+      }
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "397",
+      "date": "13/01/2026",
+      "time": "13:00",
+      "main": [
+        10,
+        15,
+        16,
+        18,
+        26
+      ],
+      "special": 9,
+      "displayLines": [
+        "10 15 16 18 26 | ĐB 09"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6392632500,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 0
+      }
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "396",
+      "date": "12/01/2026",
+      "time": "21:00",
+      "main": [
+        4,
+        21,
+        25,
+        28,
+        33
+      ],
+      "special": 11,
+      "displayLines": [
+        "04 21 25 28 33 | ĐB 11"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6334585000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 0
+      }
+    },
+    {
+      "key": "LOTO_5_35",
+      "label": "Loto_5/35",
+      "ky": "395",
+      "date": "12/01/2026",
+      "time": "13:00",
+      "main": [
+        4,
+        14,
+        19,
+        22,
+        26
+      ],
+      "special": 7,
+      "displayLines": [
+        "04 14 19 22 26 | ĐB 07"
+      ],
+      "importable": true,
+      "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-14-01-2026.html",
+      "specialPrize": 6216830000,
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "specialPrize": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "live_http": {
+    "/bang-du-lieu": {
+      "status": 200,
+      "elapsed_ms": 222.2,
+      "transfer_bytes": 16654,
+      "gzip": true,
+      "decoded_bytes": 88840,
+      "conditional_status": 304
+    },
+    "/vietlott-web-core.js": {
+      "status": 200,
+      "elapsed_ms": 4.6,
+      "transfer_bytes": 58971,
+      "gzip": true,
+      "decoded_bytes": 306997,
+      "conditional_status": 304
+    },
+    "/vietlott-web-data.js": {
+      "status": 200,
+      "elapsed_ms": 4.2,
+      "transfer_bytes": 74797,
+      "gzip": true,
+      "decoded_bytes": 378917,
+      "conditional_status": 304
+    },
+    "/vietlott-web-stats.js": {
+      "status": 200,
+      "elapsed_ms": 3.4,
+      "transfer_bytes": 61288,
+      "gzip": true,
+      "decoded_bytes": 324776,
+      "conditional_status": 304
+    },
+    "/vietlott-web-extra.css": {
+      "status": 200,
+      "elapsed_ms": 3.5,
+      "transfer_bytes": 69353,
+      "gzip": true,
+      "decoded_bytes": 469613,
+      "conditional_status": 304
+    },
+    "/api/time": {
+      "status": 200,
+      "elapsed_ms": 3.8,
+      "transfer_bytes": 105,
+      "gzip": false
+    },
+    "/api/live-history?type=LOTO_6_45&limit=100": {
+      "status": 401
+    },
+    "/api/admin/users": {
+      "status": 401
+    }
+  },
+  "chatbot": {
+    "check-test": "pass",
+    "suggest-test": "pass",
+    "apply-test": "pass",
+    "login-visible-test": "pass",
+    "default-size-test": "pass",
+    "size-test": "pass",
+    "logout-hidden-test": "pass"
+  },
+  "analysis": {
+    "LOTO_5_35": {
+      "ok": true,
+      "elapsed_seconds": 0.13,
+      "message": "",
+      "warnings": []
+    },
+    "LOTO_6_45": {
+      "ok": true,
+      "elapsed_seconds": 0.18,
+      "message": "",
+      "warnings": []
+    },
+    "LOTO_6_55": {
+      "ok": true,
+      "elapsed_seconds": 0.185,
+      "message": "",
+      "warnings": []
+    },
+    "KENO": {
+      "ok": true,
+      "elapsed_seconds": 11.702,
+      "message": "",
+      "warnings": []
+    },
+    "MAX_3D": {
+      "ok": true,
+      "elapsed_seconds": 0.23,
+      "message": "",
+      "warnings": [
+        "MAX 3D dùng dữ liệu parse từ cột Hiển thị; một số phân tích nâng cao chỉ mang tính cơ bản."
+      ]
+    },
+    "MAX_3D_PRO": {
+      "ok": true,
+      "elapsed_seconds": 0.172,
+      "message": "",
+      "warnings": [
+        "MAX 3D dùng dữ liệu parse từ cột Hiển thị; một số phân tích nâng cao chỉ mang tính cơ bản."
+      ]
+    }
+  },
+  "stats": {
+    "LOTO_5_35": {
+      "ok": true,
+      "elapsed_seconds": 0.111,
+      "comboMode": "exact",
+      "message": ""
+    },
+    "LOTO_6_45": {
+      "ok": true,
+      "elapsed_seconds": 0.232,
+      "comboMode": "exact",
+      "message": ""
+    },
+    "LOTO_6_55": {
+      "ok": true,
+      "elapsed_seconds": 0.173,
+      "comboMode": "exact",
+      "message": ""
+    },
+    "KENO": {
+      "ok": true,
+      "elapsed_seconds": 4.335,
+      "comboMode": "exact",
+      "message": ""
+    },
+    "MAX_3D": {
+      "ok": true,
+      "elapsed_seconds": 0.138,
+      "comboMode": "exact",
+      "message": ""
+    },
+    "MAX_3D_PRO": {
+      "ok": true,
+      "elapsed_seconds": 0.101,
+      "comboMode": "exact",
+      "message": ""
+    }
+  }
+}

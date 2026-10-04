@@ -60,7 +60,7 @@ GAME_SPECS: dict[str, dict[str, Any]] = {
     "MAX_3D": {
         "universeMin": 0,
         "universeMax": 999,
-        "drawSize": 21,
+        "drawSize": 20,
         "defaultPickSize": 2,
         "specialMin": 0,
         "specialMax": 0,

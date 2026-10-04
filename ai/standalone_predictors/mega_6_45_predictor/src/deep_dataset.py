@@ -179,7 +179,7 @@ def build_inference_sample(
 
     feature_cache = []
     feature_names: list[str] | None = None
-    for index in range(len(draws)):
+    for index in range(max(0, len(draws) - sequence_length), len(draws)):
         feature_values, current_feature_names = _step_features(draws, index, time_slot_enabled=time_slot_enabled)
         if feature_names is None:
             feature_names = list(current_feature_names)

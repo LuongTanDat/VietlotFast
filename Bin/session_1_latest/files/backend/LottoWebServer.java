@@ -20,8 +20,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -45,8 +48,11 @@ public class LottoWebServer {
     private static final long KENO_PREDICT_TIMEOUT_SECONDS = 180;
     private static final long AI_PREDICT_TIMEOUT_SECONDS = 240;
     private static final long AI_SCORE_TIMEOUT_SECONDS = 420;
+    private static final long AI_ML_TIMEOUT_SECONDS = 900;
     private static final long STATS_V2_TIMEOUT_SECONDS = 180;
     private static final long ANALYSIS_TIMEOUT_SECONDS = 180;
+    private static final long HEAVY_API_CACHE_TTL_MS = 5 * 60 * 1000L;
+    private static final int HEAVY_API_CACHE_MAX_ENTRIES = 128;
     private static final int KENO_MIN_ORDER = 1;
     private static final int KENO_MAX_ORDER = 10;
     private static final Set<String> LIVE_TYPE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
@@ -60,6 +66,9 @@ public class LottoWebServer {
     )));
     private static final Set<String> AI_PREDICT_RISK_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "stable", "balanced", "aggressive"
+    )));
+    private static final Set<String> ML_TYPE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
+            "KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55"
     )));
     private static final Set<String> ANALYSIS_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "overview", "general", "distribution", "ratios", "latest_draw", "consecutive",
@@ -75,10 +84,13 @@ public class LottoWebServer {
     private final Path coreJsFile;
     private final Path statsJsFile;
     private final Path dataJsFile;
+    private final Path chatbotJsFile;
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
+    private final Map<Path, StaticAsset> staticAssetCache = new ConcurrentHashMap<>();
+    private final Map<String, TimedJsonPayload> heavyApiCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
 
     // ----- Helper lồng bên trong -----
@@ -94,6 +106,47 @@ public class LottoWebServer {
             this.exitCode = exitCode;
             this.stdout = stdout;
             this.stderr = stderr;
+        }
+    }
+
+    private static final class StaticAsset {
+        final long lastModified;
+        final long size;
+        final byte[] raw;
+        final byte[] gzip;
+        final String etag;
+
+        StaticAsset(long lastModified, long size, byte[] raw, byte[] gzip, String etag) {
+            this.lastModified = lastModified;
+            this.size = size;
+            this.raw = raw;
+            this.gzip = gzip;
+            this.etag = etag;
+        }
+    }
+
+    private static final class CanonicalHistoryRow {
+        String ky = "";
+        String date = "";
+        String time = "";
+        List<Integer> main = new ArrayList<>();
+        Integer special = null;
+        List<String> displayLines = new ArrayList<>();
+        String label = "";
+        String sourceUrl = "";
+        String sourceDate = "";
+        String prizeHit = "";
+        Map<String, Long> prizes = new LinkedHashMap<>();
+        LocalDate parsedDate = null;
+    }
+
+    private static final class TimedJsonPayload {
+        final String payload;
+        final long expiresAtMs;
+
+        TimedJsonPayload(String payload, long expiresAtMs) {
+            this.payload = payload;
+            this.expiresAtMs = expiresAtMs;
         }
     }
 
@@ -279,6 +332,7 @@ public class LottoWebServer {
         this.coreJsFile = rootDir.resolve("frontend").resolve("vietlott-web-core.js");
         this.statsJsFile = rootDir.resolve("frontend").resolve("vietlott-web-stats.js");
         this.dataJsFile = rootDir.resolve("frontend").resolve("vietlott-web-data.js");
+        this.chatbotJsFile = rootDir.resolve("frontend").resolve("vietlott-web-chatbot.js");
         this.faviconFile = rootDir.resolve("frontend").resolve("favicon.svg");
         this.dbFile = rootDir.resolve(DB_FILE);
         this.repo = new DatabaseRepo(dbFile);
@@ -297,6 +351,7 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-core.js", ex -> serveStaticTextFile(ex, coreJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-stats.js", ex -> serveStaticTextFile(ex, statsJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-chatbot.js", ex -> serveStaticTextFile(ex, chatbotJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);
@@ -310,6 +365,13 @@ public class LottoWebServer {
         server.createContext("/api/keno-predict", this::handleKenoPredict);
         server.createContext("/api/ai-predict", this::handleAiPredict);
         server.createContext("/api/ai-score", this::handleAiScore);
+        server.createContext("/api/ml/status", this::handleMlStatus);
+        server.createContext("/api/ml/predictions", this::handleMlPredictions);
+        server.createContext("/api/ml/backtest", this::handleMlBacktest);
+        server.createContext("/api/ml/score-pending", this::handleMlScorePending);
+        server.createContext("/api/ml/train-candidate", this::handleMlTrainCandidate);
+        server.createContext("/api/ml/promote", this::handleMlPromote);
+        server.createContext("/api/ml/rollback", this::handleMlRollback);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
         server.createContext("/api/live-results-progress", this::handleLiveResultsProgress);
@@ -332,7 +394,7 @@ public class LottoWebServer {
     // ----- Tài nguyên tĩnh -----
     // Phục vụ file HTML chính, favicon và phản hồi 404 cơ bản.
     private void serveIndex(HttpExchange ex) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -348,20 +410,11 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(htmlFile);
-        Headers h = ex.getResponseHeaders();
-        h.set("Content-Type", "text/html; charset=UTF-8");
-        h.set("Cache-Control", "no-store, no-cache, must-revalidate");
-        h.set("Pragma", "no-cache");
-        h.set("Expires", "0");
-        ex.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = ex.getResponseBody()) {
-            os.write(bytes);
-        }
+        serveCachedAsset(ex, htmlFile, "text/html; charset=UTF-8", "no-cache, must-revalidate");
     }
 
     private void serveFavicon(HttpExchange ex) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -369,17 +422,11 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(faviconFile);
-        Headers h = ex.getResponseHeaders();
-        h.set("Content-Type", "image/svg+xml");
-        ex.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = ex.getResponseBody()) {
-            os.write(bytes);
-        }
+        serveCachedAsset(ex, faviconFile, "image/svg+xml", "private, max-age=86400");
     }
 
     private void serveStaticTextFile(HttpExchange ex, Path file, String contentType) throws IOException {
-        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+        if (!isGetOrHead(ex)) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
             return;
         }
@@ -387,12 +434,51 @@ public class LottoWebServer {
             sendNotFound(ex);
             return;
         }
-        byte[] bytes = Files.readAllBytes(file);
+        serveCachedAsset(ex, file, contentType, "private, max-age=300, must-revalidate");
+    }
+
+    private boolean isGetOrHead(HttpExchange ex) {
+        String method = ex.getRequestMethod();
+        return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
+    }
+
+    private StaticAsset loadStaticAsset(Path file) throws IOException {
+        Path key = file.toAbsolutePath().normalize();
+        long lastModified = Files.getLastModifiedTime(key).toMillis();
+        long size = Files.size(key);
+        StaticAsset cached = staticAssetCache.get(key);
+        if (cached != null && cached.lastModified == lastModified && cached.size == size) {
+            return cached;
+        }
+        byte[] raw = Files.readAllBytes(key);
+        byte[] gzip = raw.length >= 1024 ? gzip(raw) : raw;
+        String etag = "\"" + Long.toHexString(lastModified) + "-" + Long.toHexString(size) + "\"";
+        StaticAsset next = new StaticAsset(lastModified, size, raw, gzip, etag);
+        staticAssetCache.put(key, next);
+        return next;
+    }
+
+    private void serveCachedAsset(HttpExchange ex, Path file, String contentType, String cacheControl) throws IOException {
+        StaticAsset asset = loadStaticAsset(file);
         Headers h = ex.getResponseHeaders();
         h.set("Content-Type", contentType);
-        h.set("Cache-Control", "no-store, no-cache, must-revalidate");
-        h.set("Pragma", "no-cache");
-        h.set("Expires", "0");
+        h.set("Cache-Control", cacheControl);
+        h.set("ETag", asset.etag);
+        h.add("Vary", "Accept-Encoding");
+        if (asset.etag.equals(ex.getRequestHeaders().getFirst("If-None-Match"))) {
+            ex.sendResponseHeaders(304, -1);
+            ex.close();
+            return;
+        }
+        boolean useGzip = acceptsGzip(ex) && asset.gzip.length < asset.raw.length;
+        byte[] bytes = useGzip ? asset.gzip : asset.raw;
+        if (useGzip) h.set("Content-Encoding", "gzip");
+        if ("HEAD".equalsIgnoreCase(ex.getRequestMethod())) {
+            h.set("Content-Length", String.valueOf(bytes.length));
+            ex.sendResponseHeaders(200, -1);
+            ex.close();
+            return;
+        }
         ex.sendResponseHeaders(200, bytes.length);
         try (OutputStream os = ex.getResponseBody()) {
             os.write(bytes);
@@ -534,6 +620,46 @@ public class LottoWebServer {
         sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
     }
 
+    private String getHeavyApiCachedPayload(String key) {
+        TimedJsonPayload cached = heavyApiCache.get(key);
+        if (cached == null) return null;
+        if (cached.expiresAtMs <= System.currentTimeMillis()) {
+            heavyApiCache.remove(key, cached);
+            return null;
+        }
+        return cached.payload;
+    }
+
+    private void putHeavyApiCachedPayload(String key, String payload) {
+        if (isBlank(key) || isBlank(payload)) return;
+        if (heavyApiCache.size() >= HEAVY_API_CACHE_MAX_ENTRIES) heavyApiCache.clear();
+        heavyApiCache.put(key, new TimedJsonPayload(payload, System.currentTimeMillis() + HEAVY_API_CACHE_TTL_MS));
+    }
+
+    private String canonicalDataVersion(String type) {
+        String defaultCsv = canonicalDefaultCsv(type);
+        if (defaultCsv.isEmpty()) return "missing";
+        Path csvFile = resolveRegistryDataPath("canonical." + type + ".csv", defaultCsv, null);
+        try {
+            return Files.getLastModifiedTime(csvFile).toMillis() + ":" + Files.size(csvFile);
+        } catch (IOException ignored) {
+            return "missing";
+        }
+    }
+
+    private String heavyApiCacheKey(String namespace, HttpExchange ex, String type) {
+        String rawQuery = ex.getRequestURI() == null ? "" : nvl(ex.getRequestURI().getRawQuery());
+        return namespace + "|" + rawQuery + "|" + canonicalDataVersion(type);
+    }
+
+    private boolean sendHeavyApiCacheHit(HttpExchange ex, String cacheKey) throws IOException {
+        String cachedPayload = getHeavyApiCachedPayload(cacheKey);
+        if (cachedPayload == null) return false;
+        ex.getResponseHeaders().set("X-Lotto-Cache", "HIT");
+        sendJson(ex, 200, cachedPayload);
+        return true;
+    }
+
     private void handleStatsV2(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAuth(ex, true);
@@ -603,6 +729,9 @@ public class LottoWebServer {
             return;
         }
 
+        String cacheKey = heavyApiCacheKey("stats-v2", ex, type);
+        if (sendHeavyApiCacheHit(ex, cacheKey)) return;
+
         List<String> command = buildPythonCommand(scriptFile);
         command.add("stats_json");
         command.add("--type");
@@ -637,6 +766,8 @@ public class LottoWebServer {
                 null
         );
         if (payload == null) return;
+        putHeavyApiCachedPayload(cacheKey, payload);
+        ex.getResponseHeaders().set("X-Lotto-Cache", "MISS");
         sendJson(ex, 200, payload);
     }
 
@@ -733,6 +864,9 @@ public class LottoWebServer {
             }
         }
 
+        String cacheKey = heavyApiCacheKey("analysis", ex, type);
+        if (sendHeavyApiCacheHit(ex, cacheKey)) return;
+
         List<String> command = buildPythonCommand(scriptFile);
         command.add("analysis_json");
         command.add("--type");
@@ -781,6 +915,8 @@ public class LottoWebServer {
                 null
         );
         if (payload == null) return;
+        putHeavyApiCachedPayload(cacheKey, payload);
+        ex.getResponseHeaders().set("X-Lotto-Cache", "MISS");
         sendJson(ex, 200, payload);
     }
 
@@ -911,6 +1047,315 @@ public class LottoWebServer {
         sendJson(ex, 200, readLiveResultsProgressJson());
     }
 
+    private List<String> parseCanonicalCsvLine(String line) {
+        List<String> cells = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        String value = nvl(line);
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (ch == '"') {
+                if (quoted && index + 1 < value.length() && value.charAt(index + 1) == '"') {
+                    current.append('"');
+                    index++;
+                } else {
+                    quoted = !quoted;
+                }
+                continue;
+            }
+            if (ch == ',' && !quoted) {
+                cells.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        cells.add(current.toString());
+        return cells;
+    }
+
+    private int canonicalColumnIndex(Map<String, Integer> columns, String name) {
+        Integer index = columns.get(name);
+        return index == null ? -1 : index;
+    }
+
+    private String canonicalCell(List<String> cells, Map<String, Integer> columns, String name) {
+        int index = canonicalColumnIndex(columns, name);
+        if (index < 0 || index >= cells.size()) return "";
+        return nvl(cells.get(index)).trim();
+    }
+
+    private LocalDate parseCanonicalDate(String value) {
+        try {
+            return LocalDate.parse(nvl(value).trim(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private List<Integer> parseCanonicalNumbers(String value) {
+        List<Integer> numbers = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\d+").matcher(nvl(value));
+        while (matcher.find()) {
+            try {
+                numbers.add(Integer.parseInt(matcher.group()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return numbers;
+    }
+
+    private List<String> parseCanonicalDisplayLines(String value) {
+        List<String> lines = new ArrayList<>();
+        for (String part : nvl(value).split("\\s*\\|\\|\\s*")) {
+            String line = part.trim();
+            if (!line.isEmpty()) lines.add(line);
+        }
+        return lines;
+    }
+
+    private String canonicalTypeLabel(String type) {
+        switch (nvl(type)) {
+            case "LOTO_5_35": return "Loto_5/35";
+            case "LOTO_6_45": return "Mega_6/45";
+            case "LOTO_6_55": return "Power_6/55";
+            case "KENO": return "Keno";
+            case "MAX_3D": return "Max 3D";
+            case "MAX_3D_PRO": return "Max 3D Pro";
+            default: return nvl(type);
+        }
+    }
+
+    private String canonicalDefaultCsv(String type) {
+        switch (nvl(type)) {
+            case "LOTO_5_35": return "data/canonical/loto_5_35_all_day.csv";
+            case "LOTO_6_45": return "data/canonical/mega_6_45_all_day.csv";
+            case "LOTO_6_55": return "data/canonical/power_6_55_all_day.csv";
+            case "KENO": return "data/canonical/keno_all_day.csv";
+            case "MAX_3D": return "data/canonical/max_3d_all_day.csv";
+            case "MAX_3D_PRO": return "data/canonical/max_3d_pro_all_day.csv";
+            default: return "";
+        }
+    }
+
+    private String jsonIntegerArray(List<Integer> values) {
+        StringBuilder out = new StringBuilder("[");
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) out.append(',');
+            out.append(values.get(index));
+        }
+        return out.append(']').toString();
+    }
+
+    private String jsonStringArray(List<String> values) {
+        StringBuilder out = new StringBuilder("[");
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) out.append(',');
+            out.append('"').append(esc(values.get(index))).append('"');
+        }
+        return out.append(']').toString();
+    }
+
+    private String canonicalHistoryRowJson(CanonicalHistoryRow row) {
+        StringBuilder prizesJson = new StringBuilder();
+        for (Map.Entry<String, Long> prize : row.prizes.entrySet()) {
+            prizesJson.append(",\"").append(prize.getKey()).append("\":").append(prize.getValue());
+        }
+        return "{"
+                + "\"ky\":\"" + esc(row.ky) + "\","
+                + "\"date\":\"" + esc(row.date) + "\","
+                + "\"time\":\"" + esc(row.time) + "\","
+                + "\"main\":" + jsonIntegerArray(row.main) + ","
+                + "\"special\":" + (row.special == null ? "null" : row.special) + ","
+                + "\"displayLines\":" + jsonStringArray(row.displayLines) + ","
+                + "\"label\":\"" + esc(row.label) + "\","
+                + "\"sourceUrl\":\"" + esc(row.sourceUrl) + "\","
+                + "\"sourceDate\":\"" + esc(row.sourceDate) + "\""
+                + ",\"prizeHit\":\"" + esc(row.prizeHit) + "\""
+                + prizesJson
+                + "}";
+    }
+
+    private void readCanonicalPrize(CanonicalHistoryRow row, List<String> cells,
+                                    Map<String, Integer> columns, String header, String key) {
+        String raw = canonicalCell(cells, columns, header);
+        if (!raw.matches("[0-9]+")) return;
+        try {
+            long amount = Long.parseLong(raw);
+            if (amount > 0) row.prizes.put(key, amount);
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    private String canonicalHistoryRangeLabel(String type, String count) {
+        if (!"KENO".equals(type)) return "";
+        switch (nvl(count)) {
+            case "today": return "Hôm Nay";
+            case "3d": return "3 Ngày";
+            case "1w": return "1 Tuần";
+            case "1m": return "1 Tháng";
+            case "3m": return "3 Tháng";
+            case "6m": return "6 Tháng";
+            case "1y": return "1 Năm";
+            case "all": return "Tất cả Kỳ";
+            default: return "";
+        }
+    }
+
+    private LocalDate canonicalHistoryStartDate(String count, LocalDate today) {
+        switch (nvl(count)) {
+            case "today": return today;
+            case "3d": return today.minusDays(2);
+            case "1w": return today.minusDays(6);
+            case "1m": return today.withDayOfMonth(1);
+            case "3m": return today.minusMonths(2).withDayOfMonth(1);
+            case "6m": return today.minusMonths(5).withDayOfMonth(1);
+            case "1y": return today.withDayOfYear(1);
+            default: return null;
+        }
+    }
+
+    private Set<String> parseCanonicalDrawIds(String value) {
+        Set<String> drawIds = new LinkedHashSet<>();
+        for (String part : nvl(value).split(",")) {
+            String normalized = part.replaceAll("\\D", "");
+            if (!normalized.isEmpty()) drawIds.add(normalized);
+            if (drawIds.size() >= 240) break;
+        }
+        return drawIds;
+    }
+
+    private String buildCanonicalHistoryPayload(String type, String count, Set<String> selectedDrawIds) throws IOException {
+        String defaultCsv = canonicalDefaultCsv(type);
+        if (defaultCsv.isEmpty()) return null;
+        Path csvFile = resolveRegistryDataPath("canonical." + type + ".csv", defaultCsv, null);
+        if (!Files.exists(csvFile)) return null;
+
+        List<CanonicalHistoryRow> allRows = new ArrayList<>();
+        try (BufferedReader reader = Files.newBufferedReader(csvFile, StandardCharsets.UTF_8)) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) return null;
+            List<String> headers = parseCanonicalCsvLine(headerLine.replace("\uFEFF", ""));
+            Map<String, Integer> columns = new LinkedHashMap<>();
+            for (int index = 0; index < headers.size(); index++) {
+                columns.put(nvl(headers.get(index)).trim(), index);
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                List<String> cells = parseCanonicalCsvLine(line);
+                CanonicalHistoryRow row = new CanonicalHistoryRow();
+                row.ky = canonicalCell(cells, columns, "Kỳ");
+                row.date = canonicalCell(cells, columns, "Ngày");
+                row.time = canonicalCell(cells, columns, "Giờ");
+                row.main = parseCanonicalNumbers(canonicalCell(cells, columns, "Bộ Số"));
+                String specialRaw = canonicalCell(cells, columns, "ĐB");
+                if (!specialRaw.isEmpty()) {
+                    try {
+                        row.special = Integer.parseInt(specialRaw.replaceAll("\\D", ""));
+                    } catch (NumberFormatException ignored) {
+                        row.special = null;
+                    }
+                }
+                row.displayLines = parseCanonicalDisplayLines(canonicalCell(cells, columns, "Hiển thị"));
+                if (row.displayLines.isEmpty() && !row.main.isEmpty()) {
+                    StringBuilder display = new StringBuilder();
+                    for (Integer number : row.main) {
+                        if (display.length() > 0) display.append(' ');
+                        display.append(String.format(Locale.ROOT, "%02d", number));
+                    }
+                    if (row.special != null) display.append(String.format(Locale.ROOT, " | ĐB %02d", row.special));
+                    row.displayLines.add(display.toString());
+                }
+                if (row.main.isEmpty() && ("MAX_3D".equals(type) || "MAX_3D_PRO".equals(type))) {
+                    Set<Integer> unique = new TreeSet<>();
+                    for (String displayLine : row.displayLines) {
+                        Matcher matcher = Pattern.compile("(?<!\\d)\\d{3}(?!\\d)").matcher(displayLine);
+                        while (matcher.find()) unique.add(Integer.parseInt(matcher.group()));
+                    }
+                    row.main = new ArrayList<>(unique);
+                }
+                row.label = canonicalCell(cells, columns, "Loại");
+                if (row.label.isEmpty()) row.label = canonicalTypeLabel(type);
+                row.sourceUrl = canonicalCell(cells, columns, "Link cập nhật");
+                row.sourceDate = canonicalCell(cells, columns, "Ngày cập nhật");
+                row.prizeHit = canonicalCell(cells, columns, "Nổ");
+                if (row.sourceDate.isEmpty()) row.sourceDate = row.date;
+                if ("LOTO_5_35".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Giải Đặc biệt (VNĐ)", "specialPrize");
+                } else if ("LOTO_6_45".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Jackpot (VNĐ)", "jackpot");
+                } else if ("LOTO_6_55".equals(type)) {
+                    readCanonicalPrize(row, cells, columns, "Jackpot 1 (VNĐ)", "jackpot1");
+                    readCanonicalPrize(row, cells, columns, "Jackpot 2 (VNĐ)", "jackpot2");
+                }
+                row.parsedDate = parseCanonicalDate(row.date);
+                if (!row.ky.isEmpty()) allRows.add(row);
+            }
+        }
+
+        if (allRows.isEmpty()) return null;
+        LocalDate today = LocalDate.now();
+        long todayCount = allRows.stream().filter(row -> today.equals(row.parsedDate)).count();
+        List<CanonicalHistoryRow> selectedRows = new ArrayList<>();
+        LocalDate startDate = "KENO".equals(type) ? canonicalHistoryStartDate(count, today) : null;
+        if (selectedDrawIds != null && !selectedDrawIds.isEmpty()) {
+            for (CanonicalHistoryRow row : allRows) {
+                if (selectedDrawIds.contains(row.ky.replaceAll("\\D", ""))) selectedRows.add(row);
+            }
+        } else if (startDate != null) {
+            for (CanonicalHistoryRow row : allRows) {
+                if (row.parsedDate == null || row.parsedDate.isBefore(startDate) || row.parsedDate.isAfter(today)) continue;
+                selectedRows.add(row);
+            }
+        } else if ("all".equals(count)) {
+            selectedRows.addAll(allRows);
+        } else {
+            int limit;
+            try {
+                limit = Math.max(1, Integer.parseInt(count));
+            } catch (NumberFormatException ignored) {
+                limit = 20;
+            }
+            selectedRows.addAll(allRows.subList(0, Math.min(limit, allRows.size())));
+        }
+
+        CanonicalHistoryRow latest = allRows.get(0);
+        CanonicalHistoryRow earliest = allRows.get(allRows.size() - 1);
+        StringBuilder historyJson = new StringBuilder("[");
+        for (int index = 0; index < selectedRows.size(); index++) {
+            if (index > 0) historyJson.append(',');
+            historyJson.append(canonicalHistoryRowJson(selectedRows.get(index)));
+        }
+        historyJson.append(']');
+        String fileName = csvFile.getFileName().toString();
+        String responseCount = selectedDrawIds != null && !selectedDrawIds.isEmpty() ? "selected" : count;
+        return "{"
+                + "\"ok\":true,\"mode\":\"canonical_history_fast\","
+                + "\"type\":\"" + esc(type) + "\","
+                + "\"label\":\"" + esc(canonicalTypeLabel(type)) + "\","
+                + "\"count\":\"" + esc(responseCount) + "\","
+                + "\"returnedCount\":" + selectedRows.size() + ","
+                + "\"canonicalCount\":" + allRows.size() + ","
+                + "\"canonicalFile\":\"" + esc(fileName) + "\","
+                + "\"allCount\":" + allRows.size() + ","
+                + "\"todayCount\":" + todayCount + ","
+                + "\"allFile\":\"" + esc(fileName) + "\","
+                + "\"todayFile\":\"" + esc(fileName) + "\","
+                + "\"latestKy\":\"" + esc(latest.ky) + "\","
+                + "\"latestDate\":\"" + esc(latest.date) + "\","
+                + "\"latestTime\":\"" + esc(latest.time) + "\","
+                + "\"effectiveEarliestKy\":\"" + esc(earliest.ky) + "\","
+                + "\"effectiveEarliestDate\":\"" + esc(earliest.date) + "\","
+                + "\"rangeLabel\":\"" + esc(selectedDrawIds != null && !selectedDrawIds.isEmpty() ? "" : canonicalHistoryRangeLabel(type, count)) + "\","
+                + "\"historyNote\":\"\",\"repairAttempted\":false,"
+                + "\"repairNewRows\":0,\"repairRepairedDates\":0,\"repairRepairedKyGaps\":0,\"repairErrors\":[],"
+                + "\"fetchedAt\":\"" + esc(LocalDateTime.now().withNano(0).toString()) + "\","
+                + "\"history\":" + historyJson
+                + "}";
+    }
+
     private void handleLiveHistory(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAuth(ex, true);
@@ -929,6 +1374,7 @@ public class LottoWebServer {
         Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
         String type = normalizeLiveType(query.get("type"));
         String count = nvl(query.get("count")).trim().toLowerCase(Locale.ROOT);
+        Set<String> selectedDrawIds = parseCanonicalDrawIds(query.get("drawIds"));
         if (isBlank(type)) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu loại lịch sử\"}");
             return;
@@ -956,6 +1402,19 @@ public class LottoWebServer {
             } catch (NumberFormatException exNumber) {
                 sendJson(ex, 400, "{\"ok\":false,\"message\":\"recentDays không hợp lệ\"}");
                 return;
+            }
+        }
+
+        if (!repairCanonical && recentDays == null) {
+            try {
+                String fastPayload = buildCanonicalHistoryPayload(type, count, selectedDrawIds);
+                if (fastPayload != null) {
+                    ex.getResponseHeaders().set("X-Lotto-History-Source", "java-csv");
+                    sendJson(ex, 200, fastPayload);
+                    return;
+                }
+            } catch (RuntimeException | IOException fastReadError) {
+                System.err.println("Fast canonical history fallback for " + type + ": " + rootCauseMsg(fastReadError));
             }
         }
 
@@ -1151,6 +1610,7 @@ public class LottoWebServer {
         command.add("--engine=" + engine);
         command.add("--risk-mode=" + riskMode);
         command.add("--prediction-mode=" + predictionMode);
+        command.add("--username=" + su.username);
 
         String payload = runPythonJsonCommand(
                 ex,
@@ -1271,6 +1731,229 @@ public class LottoWebServer {
                 "Không chạy được number scoring: ",
                 null
         );
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private Path aiPredictScriptFile() {
+        return rootDir.resolve("ai").resolve("predictors").resolve("ai_predict.py");
+    }
+
+    private boolean validateMlType(HttpExchange ex, String type) throws IOException {
+        if (!ML_TYPE_KEYS.contains(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Loại ML không hợp lệ\"}");
+            return false;
+        }
+        return true;
+    }
+
+    private String runAiMlCommand(HttpExchange ex, List<String> command, String timeoutMessage) throws IOException {
+        return runPythonJsonCommand(
+                ex,
+                rootDir,
+                command,
+                AI_ML_TIMEOUT_SECONDS,
+                timeoutMessage,
+                "ML pipeline không trả dữ liệu",
+                "ML pipeline exited with error",
+                "Tiến trình ML bị gián đoạn",
+                "Không chạy được ML pipeline: ",
+                null
+        );
+    }
+
+    private boolean appendOptionalPositiveArg(HttpExchange ex, List<String> command, String flagName, String value, String errorMessage) throws IOException {
+        String raw = nvl(value).trim();
+        if (isBlank(raw)) return true;
+        int parsed = parseStrictPositiveInt(raw);
+        if (parsed <= 0) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"" + esc(errorMessage) + "\"}");
+            return false;
+        }
+        command.add(flagName + "=" + parsed);
+        return true;
+    }
+
+    private void handleMlStatus(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!isBlank(type) && !validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_status");
+        if (!isBlank(type)) command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML status quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlPredictions(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI() == null ? null : ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!isBlank(type) && !validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_predictions");
+        if (!isBlank(type)) command.add(type);
+        command.add("--username=" + su.username);
+        String payload = runAiMlCommand(ex, command, "ML predictions quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlBacktest(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String mode = "full".equalsIgnoreCase(nvl(f.get("mode")).trim()) ? "full" : "fast";
+        String window = "rolling".equalsIgnoreCase(nvl(f.get("window")).trim()) ? "rolling" : "expanding";
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_backtest");
+        command.add(type);
+        command.add("--mode=" + mode);
+        command.add("--window=" + window);
+        if (!appendOptionalPositiveArg(ex, command, "--rolling-window", f.get("rollingWindow"), "rollingWindow không hợp lệ")) return;
+        if (!appendOptionalPositiveArg(ex, command, "--min-history", f.get("minHistory"), "minHistory không hợp lệ")) return;
+        if (!appendOptionalPositiveArg(ex, command, "--retrain-interval", f.get("retrainInterval"), "retrainInterval không hợp lệ")) return;
+        String payload = runAiMlCommand(ex, command, "ML backtest quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlScorePending(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_score_pending");
+        command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML score pending quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlTrainCandidate(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String mode = "full".equalsIgnoreCase(nvl(f.get("mode")).trim()) ? "full" : "fast";
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_train_candidate");
+        command.add(type);
+        command.add("--mode=" + mode);
+        String payload = runAiMlCommand(ex, command, "ML train candidate quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlPromote(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        String modelId = nvl(f.get("modelId")).trim();
+        if (isBlank(modelId)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu modelId\"}");
+            return;
+        }
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_promote");
+        command.add(type);
+        command.add("--model-id=" + modelId);
+        String payload = runAiMlCommand(ex, command, "ML promote quá thời gian chờ");
+        if (payload == null) return;
+        sendJson(ex, 200, payload);
+    }
+
+    private void handleMlRollback(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+            return;
+        }
+        Path scriptFile = aiPredictScriptFile();
+        if (!Files.exists(scriptFile)) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
+            return;
+        }
+        Map<String, String> f = parseForm(ex);
+        String type = normalizeLiveType(f.get("type"));
+        if (!validateMlType(ex, type)) return;
+        List<String> command = buildPythonCommand(scriptFile);
+        command.add("ml_rollback");
+        command.add(type);
+        String payload = runAiMlCommand(ex, command, "ML rollback quá thời gian chờ");
         if (payload == null) return;
         sendJson(ex, 200, payload);
     }
@@ -1618,7 +2301,8 @@ public class LottoWebServer {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(rootDir.toFile());
         pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
+        // Chỉ giữ log của lần cập nhật gần nhất để tránh file lớn làm OneDrive đồng bộ liên tục.
+        pb.redirectOutput(ProcessBuilder.Redirect.to(logFile));
         pb.start();
     }
 
@@ -1655,10 +2339,16 @@ public class LottoWebServer {
     // ----- Tiện ích HTTP và parse dữ liệu -----
     // Gom các hàm gửi JSON, parse query/form, CORS, validate chuỗi và xử lý session.
     private void sendJson(HttpExchange ex, int status, String json) throws IOException {
-        byte[] out = json.getBytes(StandardCharsets.UTF_8);
+        byte[] raw = json.getBytes(StandardCharsets.UTF_8);
+        byte[] compressed = raw.length >= 1024 ? gzip(raw) : raw;
+        boolean useGzip = acceptsGzip(ex) && compressed.length < raw.length;
+        byte[] out = useGzip ? compressed : raw;
         Headers h = ex.getResponseHeaders();
         addCors(ex);
         h.set("Content-Type", "application/json; charset=UTF-8");
+        h.set("Cache-Control", "no-store");
+        h.add("Vary", "Accept-Encoding");
+        if (useGzip) h.set("Content-Encoding", "gzip");
         long nowMs = System.currentTimeMillis();
         h.set("X-Server-Time-Ms", String.valueOf(nowMs));
         h.set("X-Server-Time-Iso", Instant.ofEpochMilli(nowMs).toString());
@@ -1667,6 +2357,19 @@ public class LottoWebServer {
         try (OutputStream os = ex.getResponseBody()) {
             os.write(out);
         }
+    }
+
+    private boolean acceptsGzip(HttpExchange ex) {
+        String value = ex.getRequestHeaders().getFirst("Accept-Encoding");
+        return value != null && value.toLowerCase(Locale.ROOT).contains("gzip");
+    }
+
+    private static byte[] gzip(byte[] input) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(256, input.length / 3));
+        try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
+            gzip.write(input);
+        }
+        return out.toByteArray();
     }
 
     private boolean handleOptions(HttpExchange ex) throws IOException {

@@ -77,7 +77,7 @@ GAME_CONFIGS = {
         "kind": "three_digit",
         "main_min": 0,
         "main_max": 999,
-        "main_count": 18,
+        "main_count": 20,
         "width": 3,
         "has_special": False,
     },

@@ -198,6 +198,7 @@ def build_prediction_context(
         "feature_rows": feature_rows,
         "recent_primary": recent_primary,
         "recent_secondary": recent_secondary,
+        "draws": list(draws),
         "same_weekday_draws": same_weekday_draws,
         "recent_frequency": recent_frequency,
         "secondary_frequency": secondary_frequency,

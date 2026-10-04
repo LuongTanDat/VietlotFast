@@ -1,0 +1,44 @@
+{
+  "type": "LOTO_5_35",
+  "bootstrapComplete": true,
+  "requestedStartMode": "full_history",
+  "lastSyncAt": "2026-10-04T14:57:40",
+  "lastBootstrapAt": "2026-03-16T23:59:00",
+  "effectiveEarliestKy": "1",
+  "effectiveEarliestDate": "29/06/2025",
+  "sourceLimited": false,
+  "prizeAmounts": {
+    "unit": "VND",
+    "source": "https://www.minhchinh.com/",
+    "updatedAt": "2026-10-04T14:57:40",
+    "complete": true,
+    "totalRows": 925,
+    "completeRows": 925,
+    "missingRows": 0,
+    "missingDraws": [],
+    "columns": [
+      "Giải Đặc biệt (VNĐ)"
+    ],
+    "amountMeaning": "Advertised draw prize pool, before division among winners"
+  },
+  "dataQuality": {
+    "inputRows": 924,
+    "outputRows": 924,
+    "duplicateRowsRemoved": 0,
+    "changedCells": 0,
+    "changesByColumn": {},
+    "internalGaps": [],
+    "missingDrawsInsideRange": 0,
+    "earliestKy": "1",
+    "latestKy": "924",
+    "sourceVerifiedDraws": 0,
+    "warnings": 0,
+    "errors": 0,
+    "checkedAt": "2026-10-03T22:28:41",
+    "valid": true,
+    "structuralValid": true,
+    "warningDetails": [],
+    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-03\\runs\\222839_608114\\report.json",
+    "scope": "Existing canonical draws; no history extrapolation"
+  }
+}

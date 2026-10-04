@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-04",
+  "testsPassed": 81,
+  "files": [
+    {
+      "file": "data/canonical/loto_5_35_all_day.csv",
+      "rows": 925,
+      "removedColumns": [],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Giải Đặc biệt (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "data/canonical/mega_6_45_all_day.csv",
+      "rows": 1569,
+      "removedColumns": [],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "data/canonical/power_6_55_all_day.csv",
+      "rows": 1402,
+      "removedColumns": [],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot 1 (VNĐ)",
+        "Jackpot 2 (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "data/canonical/keno_all_day.csv",
+      "rows": 24102,
+      "removedColumns": [],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "Lớn/-/Nhỏ",
+        "Chẵn/-/Lẻ",
+        "Link cập nhật"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "data/canonical/max_3d_all_day.csv",
+      "rows": 1140,
+      "removedColumns": [
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Loại"
+      ],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Hiển thị",
+        "Link cập nhật",
+        "Ngày cập nhật"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "data/canonical/max_3d_pro_all_day.csv",
+      "rows": 787,
+      "removedColumns": [
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Loại"
+      ],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Hiển thị",
+        "Link cập nhật",
+        "Ngày cập nhật"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "ai/standalone_predictors/loto_5_35_predictor/data/loto_5_35.csv",
+      "rows": 556,
+      "removedColumns": [
+        "Hiển thị",
+        "Loại"
+      ],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Giải Đặc biệt (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "ai/standalone_predictors/mega_6_45_predictor/data/mega_6_45.csv",
+      "rows": 1490,
+      "removedColumns": [
+        "ĐB",
+        "Hiển thị",
+        "Loại"
+      ],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    },
+    {
+      "file": "ai/standalone_predictors/power_6_55_predictor/data/power_6_55.csv",
+      "rows": 1323,
+      "removedColumns": [
+        "Hiển thị",
+        "Loại"
+      ],
+      "headers": [
+        "Kỳ",
+        "Thứ",
+        "Ngày",
+        "Giờ",
+        "Bộ Số",
+        "ĐB",
+        "Link cập nhật",
+        "Ngày cập nhật",
+        "Jackpot 1 (VNĐ)",
+        "Jackpot 2 (VNĐ)"
+      ],
+      "retainedValuesUnchanged": true
+    }
+  ]
+}

@@ -571,6 +571,7 @@
     let liveHistoryRecentRefreshBusy = false;
     let dataTableSelectedType = "LOTO_5_35";
     let dataTableSelectedLimit = "500";
+    let dataTableHitOnly = false;
     let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
     let dataTableLoading = false;
     let liveResultsFetchedAt = "";
@@ -732,11 +733,7 @@
     let luckyWheelSelectedTopupSpins = 0;
     let luckyWheelTopupHoldTimeout = null;
     let luckyWheelTopupHoldInterval = null;
-    const IS_LOCAL_MODE = !(
-      location.protocol.startsWith("http") &&
-      /^(localhost|127\.0\.0\.1)$/i.test(location.hostname || "") &&
-      String(location.port || "") === "8080"
-    );
+    const IS_LOCAL_MODE = !location.protocol.startsWith("http");
     const SERVER_TIME_SYNC_MS = 5 * 60 * 1000;
     let serverTimeOffsetMs = 0;
     let serverTimeSyncedAtMs = 0;
@@ -1824,16 +1821,16 @@
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== "object") return null;
         const user = normalizeUser(parsed.user || "");
-        const pass = String(parsed.pass || "");
-        if (!user || !pass) return null;
-        return { user, pass };
+        if (!user) { localStorage.removeItem(REMEMBER_KEY); return null; }
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({ user }));
+        return { user };
       } catch {
         return null;
       }
     }
 
-    function saveRememberedCreds(user, pass) {
-      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ user, pass }));
+    function saveRememberedCreds(user) {
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ user: normalizeUser(user) }));
     }
 
     function clearRememberedCreds() {
@@ -1886,6 +1883,7 @@
         String(item.jackpot ?? ""),
         String(item.jackpot1 ?? ""),
         String(item.jackpot2 ?? ""),
+        String(item.prizeHit || ""),
         String(item.updatedAt || "")
       ].join("|");
     }
@@ -2163,7 +2161,8 @@
           reason: request.reason,
         });
         try {
-          await api("/api/store", "POST", { store: request.snapshotText });
+          const saved = await api("/api/store", "POST", { store: request.snapshotText });
+          if (request.username === currentUser && request.generation === storeSaveGeneration) applyServerWallet(saved.store);
           if (request.username !== currentUser || request.generation !== storeSaveGeneration) continue;
           lastSavedStoreSnapshotText = request.snapshotText;
           updateStoreSaveState({
@@ -2239,8 +2238,8 @@
     function getVipMembershipState(nowMs = getSyncedNowMs()) {
       const expiresAt = String(store?.vipExpiresAt || "").trim();
       const expiresAtMs = Date.parse(expiresAt);
-      const active = !!currentUser && Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
-      const remainingMs = active ? Math.max(0, expiresAtMs - nowMs) : 0;
+      const active = !!currentUser && (currentUserRole === "admin" || (Number.isFinite(expiresAtMs) && expiresAtMs > nowMs));
+      const remainingMs = active && Number.isFinite(expiresAtMs) ? Math.max(0, expiresAtMs - nowMs) : 0;
       const expiryText = Number.isFinite(expiresAtMs)
         ? new Date(expiresAtMs).toLocaleString("vi-VN", {
             day: "2-digit",
@@ -2256,7 +2255,7 @@
         expiresAtMs,
         expiryText,
         remainingMs,
-        remainingText: active ? formatVipMembershipRemaining(remainingMs) : "Đã hết hạn",
+        remainingText: currentUserRole === "admin" ? "Quyền quản trị" : active ? formatVipMembershipRemaining(remainingMs) : "Đã hết hạn",
       };
     }
 
@@ -2334,16 +2333,6 @@
       }
     }
 
-    async function setVipMembershipExpiry(expiresAt, { startedAt = getSyncedIsoString() } = {}) {
-      if (!currentUser) throw new Error("Cần đăng nhập để cập nhật thời hạn VIP.");
-      const expiryMs = Date.parse(String(expiresAt || "").trim());
-      if (!Number.isFinite(expiryMs)) throw new Error("Thời hạn VIP không hợp lệ.");
-      store.vipStartedAt = String(startedAt || getSyncedIsoString());
-      store.vipExpiresAt = new Date(expiryMs).toISOString();
-      renderVipMembership();
-      return saveStore({ reason: "vip_membership_update" });
-    }
-
     function startVipMembershipTimer() {
       if (vipMembershipTimer) window.clearInterval(vipMembershipTimer);
       renderVipMembership();
@@ -2354,7 +2343,7 @@
     }
 
     window.hasActiveVipMembership = hasActiveVipMembership;
-    window.setVipMembershipExpiry = setVipMembershipExpiry;
+    // VIP expiry is issued and verified by the server.
 
     function renderCurrencyBar() {
       const d = document.getElementById("diamondBalance");
@@ -2984,53 +2973,19 @@
       updateLuckyWheelTopupDialogState();
     }
 
-    function confirmLuckyWheelTopupExchange() {
+    async function confirmLuckyWheelTopupExchange() {
+      if (luckyWheelSpinning) return;
       const state = getLuckyWheelTopupState(luckyWheelSelectedTopupSpins);
-      if (state.spins <= 0) {
-        return;
-      }
-      if (state.remainingDaily <= 0) {
-        setLuckyWheelResult(`Bạn đã dùng hết giới hạn đổi <b>${formatLuckyWheelAmount(LUCKY_WHEEL_TOPUP_MAX_PER_DAY)} lượt</b> trong hôm nay.`, "warn");
-        return;
-      }
-      if (!state.hasBalance) {
-        setLuckyWheelResult(`Không đủ PayPal để đổi. Bạn cần <b>${formatLuckyWheelAmount(state.paypalCost)} PayPal</b>.`, "warn");
-        return;
-      }
-      if (!state.hasSlot) {
-        setLuckyWheelResult("Kho lượt đã đầy, chưa thể đổi thêm lượt.", "warn");
-        return;
-      }
-
-      store.paypalBalance = Math.max(0, state.paypalBalance - state.paypalCost);
-      store.luckyWheelStoredSpins = Math.min(LUCKY_WHEEL_MAX_SPINS, state.available + state.spins);
-      store.luckyWheelExchangeDayKey = getLuckyWheelTodayKey();
-      store.luckyWheelDailyExchangeSpins = Math.max(0, Number(store.luckyWheelDailyExchangeSpins || 0)) + state.spins;
-      if (!Array.isArray(store.luckyWheelTopupHistory)) store.luckyWheelTopupHistory = [];
-      const topupAt = getSyncedNowDate();
-      store.luckyWheelTopupHistory.unshift({
-        at: topupAt.toISOString(),
-        spins: state.spins,
-        paypalCost: state.paypalCost,
-        afterStoredSpins: store.luckyWheelStoredSpins,
-        timeText: topupAt.toLocaleString("vi-VN")
-      });
-      while (store.luckyWheelTopupHistory.length > MAX_LUCKY_WHEEL_TOPUP_HISTORY) {
-        store.luckyWheelTopupHistory.pop();
-      }
-      if (store.luckyWheelStoredSpins >= LUCKY_WHEEL_MAX_SPINS) {
-        store.luckyWheelLastRegenAt = getSyncedIsoString();
-      }
-
-      saveStore();
-      renderCurrencyBar();
-      renderPaypalDepositSection();
-      renderLuckyWheelPanel();
-      closeLuckyWheelTopup();
-      setLuckyWheelResult(
-        `Đã đổi thành công <b>${formatLuckyWheelAmount(state.paypalCost)} PayPal</b> lấy <b>${formatLuckyWheelAmount(state.spins)} lượt quay</b>.`,
-        "ok"
-      );
+      if (!state.canExchange) return;
+      luckyWheelSpinning = true;
+      try {
+        await saveStore();
+        const response = await requestServerWheel("exchange", state.spins);
+        applyServerWallet(response.store);
+        renderCurrencyBar(); renderLuckyWheelPanel(); closeLuckyWheelTopup();
+        setLuckyWheelResult(`Đã đổi <b>${formatLuckyWheelAmount(state.paypalCost)} điểm PP</b> lấy <b>${state.spins} lượt</b>.`, "ok");
+      } catch (error) { setLuckyWheelResult(escapeHtml(error.message || String(error)), "warn"); }
+      finally { luckyWheelSpinning = false; }
     }
 
     function getLuckyWheelTodayKey() {
@@ -3668,84 +3623,66 @@
       maybeTriggerLuckyWheelAutoSpin();
     }
 
-    function applyLuckyWheelReward(segment, spinSource, multiplier = 1) {
-      const snapshot = syncLuckyWheelSpins();
-      const safeMultiplier = Math.max(1, Math.floor(Number(multiplier || 1)));
-      const displaySegment = buildLuckyWheelDisplaySegment(segment, safeMultiplier);
-      const reward = displaySegment.reward || {};
-      const diamond = Math.max(0, Number(reward.diamond || 0));
-      const paypal = Math.max(0, Number(reward.paypal || 0));
-      const bonusSpins = Math.max(0, Number(reward.bonusSpins || 0));
-      store.diamondBalance = Math.max(0, Number(store.diamondBalance || 0)) + diamond;
-      store.paypalBalance = Math.max(0, Number(store.paypalBalance || 0)) + paypal;
-      if (bonusSpins > 0) {
-        store.luckyWheelStoredSpins = Math.min(LUCKY_WHEEL_MAX_SPINS, snapshot.available + bonusSpins);
-        if (store.luckyWheelStoredSpins >= LUCKY_WHEEL_MAX_SPINS) {
-          store.luckyWheelLastRegenAt = getSyncedIsoString();
-        }
+    let pendingWheelRequest = null;
+    function applyServerWallet(serverStore) {
+      if (!serverStore || typeof serverStore !== "object") return;
+      if (Number(serverStore.walletVersion || 0) < Number(store.walletVersion || 0)) return;
+      for (const [key, value] of Object.entries(serverStore)) {
+        if (key === "diamondBalance" || key === "paypalBalance" || key.startsWith("vip") || key.startsWith("luckyWheel") || key === "walletVersion") store[key] = value;
       }
-      store.luckyWheelSpinCount = Math.max(0, Number(store.luckyWheelSpinCount || 0)) + safeMultiplier;
-      store.luckyWheelMilestoneDayKey = getLuckyWheelTodayKey();
-      store.luckyWheelDailySpinCount = Math.max(0, Number(store.luckyWheelDailySpinCount || 0)) + safeMultiplier;
-      const now = getSyncedNowDate();
-      const historyEntry = {
-        at: now.toISOString(),
-        label: displaySegment.label,
-        reward: { diamond, paypal, bonusSpins },
-        rewardText: buildLuckyWheelRewardText({ diamond, paypal, bonusSpins }),
-        source: spinSource,
-        multiplier: safeMultiplier,
-        timeText: now.toLocaleString("vi-VN"),
-      };
-      store.luckyWheelLastResult = historyEntry;
-      store.luckyWheelHistory.unshift(historyEntry);
-      while (store.luckyWheelHistory.length > MAX_LUCKY_WHEEL_HISTORY) {
-        store.luckyWheelHistory.pop();
-      }
-      renderCurrencyBar();
-      renderLuckyWheelPanel();
-      saveStore();
-      setLuckyWheelResult(
-        `<b>Chúc mừng!</b><br>Bạn nhận được <b>${escapeHtml(historyEntry.rewardText)}</b>.<br><span style="opacity:.78">${escapeHtml(historyEntry.timeText)}</span>`,
-        "ok"
-      );
-      maybeTriggerLuckyWheelAutoSpin();
+      renderCurrencyBar(); renderVipMembership();
     }
 
-    function spinLuckyWheel() {
+    async function requestServerWheel(action, count) {
+      if (IS_LOCAL_MODE) throw new Error("Mở qua http://localhost:8080 để dùng vòng quay.");
+      if (pendingWheelRequest && pendingWheelRequest.username !== currentUser) pendingWheelRequest = null;
+      if (pendingWheelRequest && (pendingWheelRequest.action !== action || pendingWheelRequest.count !== count))
+        throw new Error("Cần thử lại giao dịch trước để xác định kết quả.");
+      if (!pendingWheelRequest) pendingWheelRequest = { action, count, username: currentUser, requestId: crypto.randomUUID() };
+      const username = currentUser;
+      try {
+        const response = await api("/api/wheel", "POST", pendingWheelRequest);
+        pendingWheelRequest = null;
+        if (currentUser !== username) throw new Error("Tài khoản đã thay đổi; kết quả đã lưu cho tài khoản trước.");
+        return response;
+      } catch (error) {
+        if (Number(error.status) >= 400 && Number(error.status) < 500) pendingWheelRequest = null;
+        throw error;
+      }
+    }
+
+    async function spinLuckyWheel() {
       if (luckyWheelSpinning) return;
       const multiplier = getLuckyWheelSpinMultiplier();
-      const consume = consumeLuckyWheelSpin(multiplier);
-      if (!consume.ok) {
-        if (luckyWheelAutoMode) {
-          stopLuckyWheelAutoMode(`Không đủ lượt cho chế độ <b>x${multiplier}</b>. Còn <b>${formatLuckyWheelCountdown(consume.nextRegenMs)}</b> để hồi thêm lượt.`, "warn");
-        } else {
-          renderLuckyWheelMeta();
-          setLuckyWheelResult(`Không đủ lượt cho chế độ <b>x${multiplier}</b>. Còn <b>${formatLuckyWheelCountdown(consume.nextRegenMs)}</b> để hồi thêm lượt.`, "warn");
-        }
-        return;
-      }
-      saveStore();
-
       const disc = document.getElementById("luckyWheelDisc");
       if (!disc) return;
-      const picked = pickLuckyWheelSegment();
-      const displaySegment = buildLuckyWheelDisplaySegment(picked.segment, multiplier);
-      const segmentAngle = 360 / LUCKY_WHEEL_SEGMENTS.length;
-      const segmentCenter = (picked.index * segmentAngle) + (segmentAngle / 2);
-      const normalizedCurrent = ((luckyWheelRotation % 360) + 360) % 360;
-      const targetNormalized = (360 - segmentCenter) % 360;
-      const delta = (targetNormalized - normalizedCurrent + 360) % 360;
-      luckyWheelRotation += ((6 + Math.floor(Math.random() * 2)) * 360) + delta;
       luckyWheelSpinning = true;
-      renderLuckyWheelMeta();
-      setLuckyWheelResult(`Đang quay <b>x${multiplier}</b>... mục tiêu hiện tại là <b>${escapeHtml(displaySegment.label)}</b>.`, "muted");
-      disc.style.transform = `rotate(${luckyWheelRotation}deg)`;
-
-      window.setTimeout(() => {
+      try {
+        await saveStore();
+        const response = await requestServerWheel("spin", multiplier);
+        applyServerWallet(response.store);
+        const picked = { index: response.segmentIndex, segment: LUCKY_WHEEL_SEGMENTS[response.segmentIndex] };
+        if (!picked.segment) throw new Error("Kết quả vòng quay không hợp lệ.");
+        const displaySegment = buildLuckyWheelDisplaySegment(picked.segment, multiplier);
+        const segmentAngle = 360 / LUCKY_WHEEL_SEGMENTS.length;
+        const segmentCenter = picked.index * segmentAngle + segmentAngle / 2;
+        const normalizedCurrent = ((luckyWheelRotation % 360) + 360) % 360;
+        const targetNormalized = (360 - segmentCenter) % 360;
+        luckyWheelRotation += 6 * 360 + (targetNormalized - normalizedCurrent + 360) % 360;
+        renderLuckyWheelMeta();
+        setLuckyWheelResult(`Đang quay <b>x${multiplier}</b>...`, "muted");
+        disc.style.transform = `rotate(${luckyWheelRotation}deg)`;
+        window.setTimeout(() => {
+          luckyWheelSpinning = false;
+          renderCurrencyBar(); renderLuckyWheelPanel();
+          setLuckyWheelResult(`Bạn nhận được <b>${escapeHtml(buildLuckyWheelRewardText(displaySegment.reward))}</b>.`, "ok");
+          maybeTriggerLuckyWheelAutoSpin();
+        }, 5300);
+      } catch (error) {
         luckyWheelSpinning = false;
-        applyLuckyWheelReward(picked.segment, consume.source, multiplier);
-      }, 5300);
+        stopLuckyWheelAutoMode(escapeHtml(error.message || String(error)), "warn");
+        setLuckyWheelResult(escapeHtml(error.message || String(error)), "warn");
+      }
     }
 
     function startLuckyWheelUiTimer() {
@@ -3771,12 +3708,11 @@
       }, 1000);
     }
 
-    function resetLuckyWheelHistory() {
-      ensureLuckyWheelState();
-      store.luckyWheelHistory = [];
-      store.luckyWheelLastResult = null;
-      renderLuckyWheelPanel();
-      saveStore();
+    async function resetLuckyWheelHistory() {
+      try {
+        const response = await requestServerWheel("clear", 1);
+        applyServerWallet(response.store); renderLuckyWheelPanel();
+      } catch (error) { setLuckyWheelResult(escapeHtml(error.message || String(error)), "warn"); }
     }
 
     function setSideMenuActiveButton(buttonId) {
@@ -4384,7 +4320,7 @@
       const riskModeBox = document.getElementById("vipPdRiskModeBox");
       const controls = document.querySelector("#predictRootVip .predict-vip-controls");
       if (!riskModeBox) return;
-      const shouldShow = !!isAiPredict && String(vipPredictEngineValue || "both").trim().toLowerCase() === "both";
+      const shouldShow = !!isAiPredict && document.getElementById("vipPdType")?.value !== "LOTO_6_45" && String(vipPredictEngineValue || "both").trim().toLowerCase() === "both";
       riskModeBox.hidden = !shouldShow;
       riskModeBox.style.display = shouldShow ? "grid" : "none";
       if (controls) controls.classList.toggle("has-risk-mode", shouldShow);
@@ -4416,6 +4352,7 @@
     }
 
     function enforceVipPredictEngineVisibility(isKenoPredict, isAiPredict) {
+      if (document.getElementById("vipPdType")?.value === "LOTO_6_45") isAiPredict = false;
       const vipPdEngineBox = document.getElementById("vipPdEngineBox");
       const vipPdEngineSelect = document.getElementById("vipPdEngine");
       const vipPdEngineChoice = document.getElementById("vipPdEngineChoice");
@@ -5995,6 +5932,7 @@
       if (dataTableType) {
         dataTableType.addEventListener("change", async () => {
           dataTableSelectedType = dataTableType.value || "LOTO_5_35";
+          syncDataTableHitFilterControl();
           await loadDataTableRows();
         });
       }
@@ -6017,9 +5955,22 @@
       });
     });
     {
+      const dataTableHitFilterBtn = document.getElementById("dataTableHitFilterBtn");
+      if (dataTableHitFilterBtn) {
+        dataTableHitFilterBtn.addEventListener("click", async () => {
+          if (dataTableHitFilterBtn.disabled) return;
+          dataTableHitOnly = !dataTableHitOnly;
+          syncDataTableHitFilterControl();
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
       const dataTableClearFilterBtn = document.getElementById("dataTableClearFilterBtn");
       if (dataTableClearFilterBtn) {
         dataTableClearFilterBtn.addEventListener("click", async () => {
+          dataTableHitOnly = false;
+          syncDataTableHitFilterControl();
           resetDataTableDateFilters();
           await loadDataTableRows();
         });
@@ -6086,24 +6037,8 @@
       }
     };
 
-    document.getElementById("recoverAdminBtn").onclick = async () => {
-      const nextPass = prompt("Đặt mật khẩu mới cho admin:") || "";
-      if (nextPass.length < 4) return setAuthMsg("Mật khẩu mới tối thiểu 4 ký tự.", "warn");
-      const nextPass2 = prompt("Nhập lại mật khẩu mới:") || "";
-      if (nextPass !== nextPass2) return setAuthMsg("Mật khẩu nhập lại chưa khớp.", "warn");
-      showPageLoader();
-      try {
-        const res = await api("/api/recover-admin", "POST", { password: nextPass });
-        document.getElementById("loginUser").value = res.username;
-        document.getElementById("loginPass").value = nextPass;
-        document.getElementById("rememberCreds").checked = true;
-        saveRememberedCreds(res.username, nextPass);
-        setAuthMsg(`Đã khôi phục tài khoản ${res.username}. Bạn có thể đăng nhập ngay.`, "ok");
-      } catch (e) {
-        setAuthMsg(e.message, "warn");
-      } finally {
-        hidePageLoader(220);
-      }
+    document.getElementById("recoverAdminBtn").onclick = () => {
+      setAuthMsg("Khôi phục admin bằng lệnh cục bộ --recover-admin trong terminal. Xem hướng dẫn chạy website.", "warn");
     };
 
     document.getElementById("logoutBtn").onclick = () => {
@@ -6144,9 +6079,9 @@
           <option value="off" ${!info.enabled ? "selected" : ""}>Khóa</option>
         `;
         return `
-          <tr data-user="${u}" data-role="${info.role}" data-enabled="${info.enabled ? "1" : "0"}" data-diamond="${Number(info.diamondBalance || 0)}" data-paypal="${Number(info.paypalBalance || 0)}">
+          <tr data-user="${escapeHtml(u)}" data-role="${escapeHtml(info.role)}" data-enabled="${info.enabled ? "1" : "0"}" data-diamond="${Number(info.diamondBalance || 0)}" data-paypal="${Number(info.paypalBalance || 0)}">
             <td>
-              <input class="acc-username" value="${u}" ${editable ? "" : "disabled"} />
+              <input class="acc-username" value="${escapeHtml(u)}" ${editable ? "" : "disabled"} />
               ${u === currentUser ? "<div class='muted'>(đang đăng nhập - không đổi tên tại đây)</div>" : ""}
             </td>
             <td><select class="acc-role" ${editable ? "" : "disabled"}>${roleOptions}</select></td>
@@ -6157,6 +6092,7 @@
             <td>
               <div class="account-actions">
                 <button class="btn-ghost btn-reset">Đổi mật khẩu</button>
+                <button class="btn-ghost btn-vip">Cấp / thu hồi VIP</button>
                 <button class="btn-danger-sm btn-delete">Xóa</button>
               </div>
             </td>
@@ -6271,6 +6207,19 @@
       if (!tr) return;
       const user = tr.dataset.user;
 
+      if (btn.classList.contains("btn-vip")) {
+        const raw = prompt(`Cấp VIP cho ${user} bao nhiêu ngày? Nhập 0 để thu hồi.`, "30");
+        if (raw == null) return;
+        const days = Number(raw);
+        if (!Number.isInteger(days) || days < 0 || days > 3660) return updateAccountMsg("Số ngày cần từ 0 đến 3660.", "warn");
+        try {
+          const expiresAt = new Date(getSyncedNowMs() + days * 86400000).toISOString();
+          await api("/api/admin/vip", "POST", { username: user, expiresAt });
+          if (user === currentUser) applyServerWallet((await api("/api/store")).store);
+          return updateAccountMsg(days ? `Đã cấp VIP ${days} ngày cho ${user}.` : `Đã thu hồi VIP của ${user}.`, "ok");
+        } catch (error) { return updateAccountMsg(error.message, "warn"); }
+      }
+
       if (btn.classList.contains("btn-reset")) {
         if (user === currentUser) return updateAccountMsg("Không đổi mật khẩu cho tài khoản đang đăng nhập tại đây.", "warn");
         const nextPass = prompt(`Nhập mật khẩu mới cho ${user}:`) || "";
@@ -6314,7 +6263,7 @@
       const rememberedCreds = loadRememberedCreds();
       if (rememberedCreds) {
         document.getElementById("loginUser").value = rememberedCreds.user;
-        document.getElementById("loginPass").value = rememberedCreds.pass;
+        document.getElementById("loginPass").value = "";
         document.getElementById("rememberCreds").checked = true;
       }
       try {

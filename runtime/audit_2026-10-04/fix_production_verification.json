@@ -1,0 +1,19 @@
+{
+  "/api/time": 200,
+  "/api/store": 401,
+  "/api/admin/users": 401,
+  "/api/recover-admin": 403,
+  "/api/admin/vip": 401,
+  "untrusted_origin_status": 403,
+  "served_source_matches": true,
+  "conditional_status": 304,
+  "sqlite_quick_check": "ok",
+  "tables": [
+    "account_entitlements",
+    "wallet_events",
+    "account_audit"
+  ],
+  "users": 1,
+  "stores": 1,
+  "user_and_store_counts_preserved": true
+}

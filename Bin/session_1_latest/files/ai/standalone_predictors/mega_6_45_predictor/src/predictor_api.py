@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,9 @@ def _read_json(path: Path, default: Any) -> Any:
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp_path, path)
 
 
 def load_runtime_configuration(project_root: Path | None = None) -> dict[str, Any]:
@@ -193,6 +196,17 @@ def audit_assembly(csv_path: str | Path, project_root: Path | None = None, backu
 
 
 def predict(csv_path: str | Path, project_root: Path | None = None, backup_count: int | None = None, blend_mode: str | None = None) -> dict[str, Any]:
+    return predict_with_options(csv_path, project_root=project_root, backup_count=backup_count, blend_mode=blend_mode, pure=False)
+
+
+def predict_with_options(
+    csv_path: str | Path,
+    project_root: Path | None = None,
+    backup_count: int | None = None,
+    blend_mode: str | None = None,
+    pure: bool = False,
+    tracking_state_override: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     project_root = project_root or PROJECT_ROOT
     runtime_config = load_runtime_configuration(project_root)
     runtime_state = load_runtime_state(project_root)
@@ -201,15 +215,23 @@ def predict(csv_path: str | Path, project_root: Path | None = None, backup_count
     bundle = data_loader.load_draw_records(csv_path, column_mapping_path=project_root / "config" / "column_mapping.json")
     draws = list(bundle["records"])
 
-    sync_result = online_learning.sync_pending_prediction(
-        draws=draws,
-        tracking_state=runtime_state["tracking_state"],
-        last_prediction=runtime_state["last_prediction"],
-        predictor_config=predictor_config,
-        feature_flags=feature_flags,
-        project_root=project_root,
-        csv_path=csv_path,
-    )
+    if pure:
+        sync_result = {
+            "updated": False,
+            "message": "Pure prediction mode: no tracking, metric, or last_prediction writes.",
+            "tracking_state": deepcopy(tracking_state_override) if tracking_state_override is not None else deepcopy(runtime_state["tracking_state"]),
+            "last_prediction": deepcopy(runtime_state["last_prediction"]),
+        }
+    else:
+        sync_result = online_learning.sync_pending_prediction(
+            draws=draws,
+            tracking_state=runtime_state["tracking_state"],
+            last_prediction=runtime_state["last_prediction"],
+            predictor_config=predictor_config,
+            feature_flags=feature_flags,
+            project_root=project_root,
+            csv_path=csv_path,
+        )
     tracking_state = sync_result["tracking_state"]
     last_prediction_state = sync_result["last_prediction"]
 
@@ -231,18 +253,37 @@ def predict(csv_path: str | Path, project_root: Path | None = None, backup_count
         "message": str(sync_result.get("message", "")),
     }
 
-    last_prediction_state = _build_last_prediction_payload(prediction_result)
-    metrics = dict(runtime_state["metrics"])
-    metrics["last_prediction_run"] = {
-        "run_at": tracking_engine.now_iso(),
-        "target_draw_id": prediction_result["target_draw_id"],
-        "target_date_estimate": prediction_result["target_date_estimate"],
+    prediction_result["pure"] = bool(pure)
+    if not pure:
+        last_prediction_state = _build_last_prediction_payload(prediction_result)
+        metrics = dict(runtime_state["metrics"])
+        metrics["last_prediction_run"] = {
+            "run_at": tracking_engine.now_iso(),
+            "target_draw_id": prediction_result["target_draw_id"],
+            "target_date_estimate": prediction_result["target_date_estimate"],
             "quality_score": prediction_result["quality_score"],
             "main_ticket": prediction_result["main_ticket"],
             "blend_mode_used": prediction_result.get("blend_mode_used"),
         }
-    save_runtime_state(tracking_state, last_prediction_state, metrics, project_root)
+        save_runtime_state(tracking_state, last_prediction_state, metrics, project_root)
     return _public_prediction_payload(prediction_result)
+
+
+def predict_pure(
+    csv_path: str | Path,
+    project_root: Path | None = None,
+    backup_count: int | None = None,
+    blend_mode: str | None = None,
+    tracking_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return predict_with_options(
+        csv_path,
+        project_root=project_root,
+        backup_count=backup_count,
+        blend_mode=blend_mode,
+        pure=True,
+        tracking_state_override=tracking_state,
+    )
 
 
 def update_after_actual(

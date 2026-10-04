@@ -46,6 +46,8 @@ def max_groups(value):
 
 
 def normalize_row(key, original, evidence=None):
+    if key != "KENO":
+        original = lr.expand_csv_record(key, original)
     row = {k: v.strip() for k, v in original.items()}
     if not re.fullmatch(r"#?\d+", row["Kỳ"]) or int(row["Kỳ"].lstrip("#")) <= 0:
         raise ValueError("Invalid draw ID")
@@ -102,6 +104,8 @@ def normalize_row(key, original, evidence=None):
             if row["ĐB"]:
                 row["Hiển thị"] += f" | ĐB {int(row['ĐB']):02d}"
     else:
+        if any(row[field] for field in ("Giờ", "Bộ Số", "ĐB")):
+            raise ValueError("Unexpected Max 3D data in unused columns")
         old_groups = max_groups(row["Hiển thị"])
         if evidence:
             if evidence["ky"] != row["Kỳ"] or evidence["date"] != row["Ngày"]:
@@ -125,6 +129,8 @@ def normalize_row(key, original, evidence=None):
         if not text.isdigit() or int(text) <= 0:
             raise ValueError("Missing or invalid prize amount")
         row[header] = str(int(text))
+    if key in lr.PRIZE_FIELDS_BY_TYPE and not lr.valid_prize_hit(key, row[lr.PRIZE_HIT_HEADER]):
+        raise ValueError("Invalid top prize hit marker")
     return row
 
 
@@ -171,9 +177,10 @@ def main():
         hashes[key] = hashlib.sha256(raw).hexdigest()
         reader = csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
         headers[key] = reader.fieldnames
-        expected = lr.KENO_CSV_HEADER if key == "KENO" else lr.CSV_HEADER + [
+        expected = lr.get_csv_header(key)
+        legacy = lr.KENO_CSV_HEADER if key == "KENO" else lr.CSV_HEADER + [
             lr.PRIZE_CSV_HEADERS[f] for f in lr.PRIZE_FIELDS_BY_TYPE.get(key, ())]
-        if headers[key] != expected:
+        if headers[key] not in (expected, [h for h in expected if h != lr.PRIZE_HIT_HEADER], legacy):
             raise ValueError(f"Unexpected schema: {path}")
         inputs[key] = list(reader)
         for source in (path, lr.get_canonical_meta_path(key)):
@@ -217,7 +224,7 @@ def main():
                     duplicates += 1
                     continue
                 cleaned[ky] = row
-                for field in row:
+                for field in headers[key]:
                     if row[field] != original[field]:
                         changes[field] += 1
                         item = {"type": key, "ky": ky, "field": field,
@@ -253,6 +260,8 @@ def main():
         if any(day > stamp.date() for day, _ in timeline):
             report["errors"].append({"type": key, "message": "Future draw date"})
         report["types"][key] = {"inputRows": len(rows), "outputRows": len(cleaned),
+            "removedColumns": [field for field in headers[key] if field not in lr.get_csv_header(key)],
+            "outputColumns": lr.get_csv_header(key),
             "duplicateRowsRemoved": duplicates, "changedCells": sum(changes.values()),
             "changesByColumn": dict(changes), "internalGaps": gaps,
             "missingDrawsInsideRange": sum(b - a + 1 for a, b in gaps),
@@ -269,11 +278,13 @@ def main():
                 raise RuntimeError(f"Input changed during audit: {path}")
         for key, rows in outputs.items():
             path = lr.get_canonical_output_paths(key)["all"]
-            if rows != inputs[key]:
+            output_headers = lr.get_csv_header(key)
+            projected = [{field: row[field] for field in output_headers} for row in rows]
+            if headers[key] != output_headers or projected != inputs[key]:
                 buffer = io.StringIO(newline="")
-                writer = csv.DictWriter(buffer, fieldnames=headers[key])
+                writer = csv.DictWriter(buffer, fieldnames=output_headers)
                 writer.writeheader()
-                writer.writerows(rows)
+                writer.writerows(projected)
                 lr.atomic_replace_text(path, buffer.getvalue())
             meta = lr.read_canonical_meta(key)
             meta["dataQuality"] = {**report["types"][key], "checkedAt": lr.now_iso(),

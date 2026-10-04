@@ -1,12 +1,15 @@
 {
-  "time": "2026-05-11T00:22:26",
   "action": "replace",
-  "reason": "Thêm tab Phân Tích và API /api/analysis",
-  "files": [
-    "backend/LottoWebServer.java",
+  "affected_files": [
     "frontend/vietlott-web.html",
     "frontend/vietlott-web.css",
-    "frontend/vietlott-web.js",
+    "frontend/vietlott-web-extra.css",
+    "frontend/vietlott-web-core.js",
+    "frontend/vietlott-web-data.js",
+    "tests/test_prize_web.py",
+    "docs/QuyTac.md",
     "docs/NhatKyThayDoi.md"
-  ]
+  ],
+  "created_at": "2026-10-04T15:47:28.6701226+07:00",
+  "reason": "Compact data table controls and add verified prize hit toggle shared by table and Excel export"
 }

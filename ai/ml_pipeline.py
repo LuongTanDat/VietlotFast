@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -429,24 +430,12 @@ def train_candidate(game_type: str, mode: str = "fast") -> dict[str, Any]:
     cutoff = latest_actual_draw_id(game_type)
     training_run = create_training_run(game_type, cutoff)
     try:
-        backtest = run_backtest(game_type, mode=mode, window="expanding")
-        metrics = dict(backtest.get("metrics") or backtest.get("winner_summary") or {})
-        if "brier_score" not in metrics and isinstance(backtest.get("ablation_report"), dict):
-            metrics.update(dict((backtest["ablation_report"].get("winner_summary") or {})))
-        if "brier_score" not in metrics:
-            metrics.update(dict((backtest.get("summary") or {}).get("metrics") or {}))
-        metrics = _compact_metrics(metrics)
-        model = register_model(
-            game_type=game_type,
-            version=f"{cfg['predictor_version']}_candidate",
-            trained_data_cutoff=cutoff,
-            status="candidate",
-            artifact_paths={"note": "candidate evaluation only; production artifacts are not overwritten"},
-            validation_metrics=metrics,
-            outer_backtest_metrics=_compact_metrics(dict(backtest.get("metrics") or metrics)),
-            feature_version="controlled_pipeline_v1",
-            promotion_reason="candidate created; promotion requires explicit admin action",
-        )
+        from ai.controlled_models import train_registered_candidate
+        draws = sorted(load_actual_draws(game_type).values(), key=lambda row: int(row["ky"]))
+        model = train_registered_candidate(game_type, cfg, draws, mode)
+        metrics = model["outer_backtest_metrics"]
+        backtest = {"evaluated_mode": model["version"], "metrics": metrics,
+                    "validation_metrics": model["validation_metrics"], "selection_on_evaluation": False}
         finish_training_run(
             training_run["training_run_id"],
             "finished",
@@ -468,19 +457,64 @@ def _random_brier_baseline(universe_size: int, draw_size: int) -> float:
 def _candidate_passes(candidate: dict[str, Any], champion: dict[str, Any] | None, cfg: dict[str, Any]) -> tuple[bool, str]:
     metrics = dict(candidate.get("validation_metrics") or {})
     outer = dict(candidate.get("outer_backtest_metrics") or {})
-    combined = {**outer, **metrics}
+    combined = outer if outer else metrics
     folds = _fold_count(combined)
     min_folds = int(cfg.get("min_folds") or 12)
     if folds < min_folds:
         return False, f"not enough folds ({folds}/{min_folds})"
     candidate_brier = combined.get("brier_score")
     candidate_log_loss = combined.get("log_loss")
-    if candidate_brier is not None and float(candidate_brier) > _random_brier_baseline(cfg["universe_size"], cfg["draw_size"]):
+    for key in ("brier_score", "log_loss"):
+        try:
+            value = float(combined[key])
+        except (KeyError, TypeError, ValueError):
+            return False, f"missing or invalid {key}"
+        if not math.isfinite(value) or value < 0:
+            return False, f"non-finite or negative {key}"
+    if float(candidate_brier) >= _random_brier_baseline(cfg["universe_size"], cfg["draw_size"]):
         return False, "candidate Brier score is worse than random baseline"
+    p = cfg["draw_size"] / float(cfg["universe_size"])
+    random_log_loss = -p * math.log(p) - (1 - p) * math.log(1 - p)
+    if float(candidate_log_loss) >= random_log_loss:
+        return False, "candidate Log Loss is not better than random baseline"
+    try:
+        calibration = float(combined["calibration_error"])
+        if not math.isfinite(calibration) or not 0 <= calibration <= 1:
+            raise ValueError()
+    except (KeyError, TypeError, ValueError):
+        return False, "missing or invalid calibration_error"
+    if combined.get("selection_on_evaluation") is not False:
+        return False, "mode selected on evaluation data; independent holdout required"
+    evaluation = combined.get("evaluation_manifest") or {}
+    targets = evaluation.get("target_draw_ids") or []
+    if not evaluation.get("data_hash") or not evaluation.get("pipeline") or len(targets) != folds or len(set(targets)) != folds:
+        return False, "missing or inconsistent evaluation manifest"
+    try:
+        if any(int(target) <= int(candidate.get("trained_data_cutoff") or 0) for target in targets):
+            return False, "evaluation overlaps training cutoff"
+        interval = combined["brier_difference_ci"]
+        lower, upper = float(interval["lower"]), float(interval["upper"])
+        if not all(math.isfinite(float(interval[key])) for key in ("lower", "upper", "mean", "confidence")) or lower > upper or float(interval["confidence"]) < .95 or upper >= 0:
+            return False, "Brier improvement is not supported by holdout confidence interval"
+    except (KeyError, TypeError, ValueError):
+        return False, "missing or invalid holdout uncertainty"
+    from ai.controlled_models import verify_artifact
+    try:
+        artifact = verify_artifact(candidate)
+        if artifact["universe_size"] != cfg["universe_size"] or artifact["draw_size"] != cfg["draw_size"]:
+            return False, "artifact game dimensions do not match evaluation"
+        if evaluation.get("pipeline") != candidate["artifact_paths"].get("pipeline") or evaluation.get("prediction_size") != cfg["prediction_size"] or evaluation.get("ticket_count") != 1:
+            return False, "evaluation pipeline or ticket budget does not match artifact inference"
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return False, f"invalid candidate artifact: {exc}"
     if champion:
-        champion_metrics = {**dict(champion.get("outer_backtest_metrics") or {}), **dict(champion.get("validation_metrics") or {})}
+        champion_metrics = {**dict(champion.get("validation_metrics") or {}), **dict(champion.get("outer_backtest_metrics") or {})}
         champion_brier = champion_metrics.get("brier_score")
         champion_log_loss = champion_metrics.get("log_loss")
+        if champion_metrics.get("evaluation_manifest") != evaluation:
+            return False, "candidate and champion must be evaluated on identical targets and pipeline"
+        if champion_brier is None or champion_log_loss is None or not math.isfinite(float(champion_brier)) or not math.isfinite(float(champion_log_loss)):
+            return False, "champion metrics are incomplete"
         if champion_brier is not None and candidate_brier is not None and float(candidate_brier) >= float(champion_brier):
             return False, "candidate Brier score is not better than champion on comparable folds"
         if champion_log_loss is not None and candidate_log_loss is not None and float(candidate_log_loss) > float(champion_log_loss) * 1.02:
@@ -496,15 +530,46 @@ def promote_candidate(game_type: str, model_id: str, force: bool = False) -> dic
         raise ValueError("candidate model not found")
     champion = (list_models(game_type, "champion") or [None])[0]
     candidate = candidates[0]
+    # Re-evaluate champion on exactly the candidate's immutable test manifest.
+    if champion:
+        from ai.controlled_models import evaluate_artifact, verify_artifact, digest
+        try:
+            manifest = (candidate.get("outer_backtest_metrics") or {}).get("evaluation_manifest") or {}
+            actual = load_actual_draws(game_type)
+            draws = [actual[str(target)] for target in manifest["target_draw_ids"]]
+            if digest(draws) != manifest["data_hash"]:
+                raise ValueError("canonical evaluation data changed; run a new evaluation")
+            champion_artifact = verify_artifact(champion)
+            if any(int(row["ky"]) <= int(champion_artifact["trained_data_cutoff"]) for row in draws):
+                raise ValueError("champion training overlaps evaluation targets")
+            comparable = evaluate_artifact(champion_artifact, draws, cfg["prediction_size"])
+            champion = {**champion, "validation_metrics": {}, "outer_backtest_metrics": comparable}
+        except (KeyError, ValueError, OSError) as exc:
+            return {"ok": False, "promoted": False, "reason": str(exc), "model_id": model_id}
     passed, reason = _candidate_passes(candidate, champion, cfg)
     if not passed:
         reject_candidate(game_type, model_id, reason)
         return {"ok": False, "promoted": False, "rejected": True, "reason": reason, "model_id": model_id}
-    result = ledger_promote_candidate(game_type, model_id, reason)
+    from ai.controlled_models import digest
+    manifest = candidate["outer_backtest_metrics"]["evaluation_manifest"]
+    actual = load_actual_draws(game_type)
+    try:
+        draws = [actual[str(target)] for target in manifest["target_draw_ids"]]
+    except KeyError:
+        return {"ok": False, "promoted": False, "reason": "evaluation targets missing from canonical history", "model_id": model_id}
+    if digest(draws) != manifest["data_hash"]:
+        return {"ok": False, "promoted": False, "reason": "canonical evaluation data changed", "model_id": model_id}
+    result = ledger_promote_candidate(game_type, model_id, reason, expected_champion_id=str(champion["model_id"]) if champion else "")
     result["promoted"] = True
     result["reason"] = reason
     return result
 
 
 def rollback(game_type: str) -> dict[str, Any]:
-    return rollback_champion(normalize_game_type(game_type))
+    game_type = normalize_game_type(game_type)
+    from ai.controlled_models import verify_artifact
+    previous = next((model for model in list_models(game_type, "archived") if not str(model["model_id"]).startswith("execution_")), None)
+    if previous is None:
+        raise ValueError("no approved archived artifact is available for rollback")
+    verify_artifact(previous)
+    return rollback_champion(game_type, expected_previous_id=previous["model_id"])
