@@ -270,6 +270,7 @@
     const PREDICTION_MODE_CHARTS = "charts";
     const PREDICTION_MODE_DASHBOARD = "dashboard";
     const PREDICTION_MODE_ANALYSIS = "analysis";
+    const PREDICTION_MODE_EFFECTIVENESS = "effectiveness";
     const STATS_V2_PERIOD_OPTIONS = [
       { value: "7d", label: "7 ngày" },
       { value: "30d", label: "30 ngày" },
@@ -928,6 +929,7 @@
       if (normalized === PREDICTION_MODE_CHARTS) return PREDICTION_MODE_CHARTS;
       if (normalized === PREDICTION_MODE_DASHBOARD) return PREDICTION_MODE_DASHBOARD;
       if (normalized === PREDICTION_MODE_ANALYSIS) return PREDICTION_MODE_ANALYSIS;
+      if (normalized === PREDICTION_MODE_EFFECTIVENESS) return PREDICTION_MODE_EFFECTIVENESS;
       return PREDICTION_MODE_NORMAL;
     }
 

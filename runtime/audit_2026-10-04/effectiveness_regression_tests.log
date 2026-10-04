@@ -1,0 +1,40 @@
+test_full_frontend_tab_empty_state_and_admin_controls (tests.test_effectiveness_web.EffectivenessWebTests.test_full_frontend_tab_empty_state_and_admin_controls) ... ok
+test_real_report_is_empty_read_only_and_settings_persist (tests.test_effectiveness_web.EffectivenessWebTests.test_real_report_is_empty_read_only_and_settings_persist) ... ok
+test_request_validation_and_empty_source_cannot_lock (tests.test_effectiveness_web.EffectivenessWebTests.test_request_validation_and_empty_source_cannot_lock) ... ok
+test_routes_require_login_and_admin_for_mutations (tests.test_effectiveness_web.EffectivenessWebTests.test_routes_require_login_and_admin_for_mutations) ... ok
+test_actual_web_pipeline_reads_pinned_history_without_canonical_rewrite (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_actual_web_pipeline_reads_pinned_history_without_canonical_rewrite) ... ok
+test_bad_web_budget_cutoff_or_probabilities_never_locks_partial_baselines (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_bad_web_budget_cutoff_or_probabilities_never_locks_partial_baselines) ... ok
+test_changed_canonical_cancels_all_four_predictions (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_changed_canonical_cancels_all_four_predictions) ... ok
+test_cli_stdout_is_json_and_error_contains_message (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_cli_stdout_is_json_and_error_contains_message) ... ok
+test_complete_paired_cycle_required_and_v1_scores_excluded (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_complete_paired_cycle_required_and_v1_scores_excluded) ... ok
+test_config_changes_visible_but_previous_locked_budget_preserved (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_config_changes_visible_but_previous_locked_budget_preserved) ... ok
+test_configure_validates_settings_and_audits_actor (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_configure_validates_settings_and_audits_actor) ... ok
+test_deadline_is_rechecked_after_expensive_generation (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_deadline_is_rechecked_after_expensive_generation) ... ok
+test_deadline_rechecked_after_database_transaction_lock (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_deadline_rechecked_after_database_transaction_lock) ... ok
+test_disabled_defaults_report_never_generates_or_fabricates_history (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_disabled_defaults_report_never_generates_or_fabricates_history) ... ok
+test_disabled_tick_still_scores_pending_predictions (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_disabled_tick_still_scores_pending_predictions) ... ok
+test_failure_on_third_prediction_rolls_back_entire_cycle (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_failure_on_third_prediction_rolls_back_entire_cycle) ... ok
+test_fixed_baselines_are_seeded_history_only_and_equal_budget (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_fixed_baselines_are_seeded_history_only_and_equal_budget) ... ok
+test_four_predictions_lock_atomically_and_cannot_reroll_same_target (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_four_predictions_lock_atomically_and_cannot_reroll_same_target) ... ok
+test_malformed_actual_or_wrong_slot_does_not_permanently_score_predictions (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_malformed_actual_or_wrong_slot_does_not_permanently_score_predictions) ... ok
+test_paired_confidence_interval_uses_draw_means_and_conservative_decision (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_paired_confidence_interval_uses_draw_means_and_conservative_decision) ... ok
+test_past_target_rejected_without_skipping_or_generating (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_past_target_rejected_without_skipping_or_generating) ... ok
+test_scores_only_owned_cycles_and_keeps_personal_history_untouched (tests.test_prediction_effectiveness.PredictionEffectivenessTests.test_scores_only_owned_cycles_and_keeps_personal_history_untouched) ... ok
+test_empty_scored_pending_admin_and_account_change (tests.test_effectiveness_frontend.EffectivenessFrontendTests.test_empty_scored_pending_admin_and_account_change) ... FAIL
+
+======================================================================
+FAIL: test_empty_scored_pending_admin_and_account_change (tests.test_effectiveness_frontend.EffectivenessFrontendTests.test_empty_scored_pending_admin_and_account_change)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto\tests\test_effectiveness_frontend.py", line 91, in test_empty_scored_pending_admin_and_account_change
+    wait("!!document.querySelector('.effectiveness-empty')")
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto\tests\test_effectiveness_frontend.py", line 86, in wait
+    self.fail("Browser condition timed out: " + expression)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Browser condition timed out: !!document.querySelector('.effectiveness-empty')
+
+----------------------------------------------------------------------
+Ran 23 tests in 21.188s
+
+FAILED (failures=1)

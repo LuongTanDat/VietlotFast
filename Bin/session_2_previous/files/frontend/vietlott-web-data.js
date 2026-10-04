@@ -2858,20 +2858,33 @@
         ...(DRAW_PRIZE_COLUMNS[type]?.length ? ["Nổ"] : [])];
     }
 
-    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters()) {
-      return [...(feed?.order || [])]
-        .reverse()
-        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters));
+    function syncDataTableHitFilterControl(type = dataTableSelectedType) {
+      const supported = !!DRAW_PRIZE_COLUMNS[type]?.length;
+      if (!supported) dataTableHitOnly = false;
+      const button = document.getElementById("dataTableHitFilterBtn");
+      if (!button) return;
+      button.disabled = !supported;
+      button.setAttribute("aria-pressed", String(dataTableHitOnly));
+      button.title = supported
+        ? (dataTableHitOnly ? "Đang lọc kỳ nổ — bấm để xem tất cả" : "Chỉ hiển thị kỳ có giải nổ")
+        : "Lọc Nổ áp dụng cho 5/35, Mega 6/45 và Power 6/55";
     }
 
-    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
-      const keys = getDataTableMatchingKeys(feed, filters);
+    function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters(), type = dataTableSelectedType) {
+      return [...(feed?.order || [])]
+        .reverse()
+        .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters)
+          && (!dataTableHitOnly || !DRAW_PRIZE_COLUMNS[type]?.length || !!getDrawPrizeHit(type, feed?.results?.[ky])));
+    }
+
+    function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters(), type = dataTableSelectedType) {
+      const keys = getDataTableMatchingKeys(feed, filters, type);
       if (limitValue === "all") return keys;
       return keys.slice(0, Math.max(1, Number(limitValue) || 500));
     }
 
     function buildDataTableRows(type, feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters()) {
-      return getDataTableSelectedKeys(feed, limitValue, filters).map(ky => {
+      return getDataTableSelectedKeys(feed, limitValue, filters, type).map(ky => {
         const draw = feed.results?.[ky] || {};
         const cells = formatDataTableNumbers(type, draw);
         return [
@@ -2902,6 +2915,7 @@
       if (select?.__syncCustomSelect) select.__syncCustomSelect();
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
       syncDataTableDateFilterControls();
+      syncDataTableHitFilterControl();
     }
 
     function renderDataTableStatus(message, tone = "muted") {
@@ -2920,7 +2934,9 @@
 
       const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">Chưa có dữ liệu để hiển thị.</td></tr>`;
+        const message = dataTableHitOnly && DRAW_PRIZE_COLUMNS[type]?.length
+          ? "Không có kỳ nổ phù hợp với bộ lọc." : "Chưa có dữ liệu để hiển thị.";
+        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">${message}</td></tr>`;
         return;
       }
 
@@ -2940,6 +2956,7 @@
       const type = select?.value || dataTableSelectedType || "LOTO_5_35";
       if (!TYPES[type] || dataTableLoading) return;
       dataTableSelectedType = type;
+      syncDataTableHitFilterControl(type);
       dataTableSelectedLimit = getDataTableLimitValue();
       if (limitSelect?.__syncCustomSelect) limitSelect.__syncCustomSelect();
       if (IS_LOCAL_MODE) {
@@ -2955,10 +2972,10 @@
         const filters = getDataTableDateFilters();
         renderDataTableRows(type, feed, filters);
         const total = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
-        const matching = getDataTableMatchingKeys(feed, filters).length;
+        const matching = getDataTableMatchingKeys(feed, filters, type).length;
         const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
         const source = feed.canonicalFile || feed.allFile || "all_day.csv";
-        const filterSummary = formatDataTableDateFilterSummary(filters);
+        const filterSummary = [formatDataTableDateFilterSummary(filters), dataTableHitOnly ? "Nổ" : ""].filter(Boolean).join(", ");
         if (filterSummary) {
           const tone = matching > 0 ? "ok" : "warn";
           renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(matching)} kỳ phù hợp • Tổng ${formatLiveSyncCount(total)} kỳ • Lọc: ${filterSummary} • Nguồn: ${source}`, tone);
@@ -2991,7 +3008,7 @@
       const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
-      const safeFilter = getDataTableFilterFileSuffix(filters);
+      const safeFilter = getDataTableFilterFileSuffix(filters) + (dataTableHitOnly ? "_no" : "");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;

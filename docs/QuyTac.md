@@ -55,3 +55,12 @@ Tài liệu quy tắc vận hành và nghiệp vụ dự án VietlotFast.
 - Writer CSV dùng khóa chung theo file, file tạm riêng cho mỗi lần ghi và kiểm tra version đối với dữ liệu đã load. Khi nguồn đổi giữa đọc và ghi phải tải lại/thử lại, không ghi đè snapshot cũ.
 - Max 3D/Pro có 20 vị trí giải; không suy ra số kỳ có mặt từ số lần lặp vị trí. Bảng/Excel bỏ Giờ và ĐB, gom nhóm giải vào một cột.
 - Thống kê Keno combo lớn dùng cửa sổ sau sắp xếp phải ghi rõ phạm vi; không gọi đó là toàn bộ tổ hợp.
+
+## Theo dõi hiệu quả trên kỳ tương lai
+
+- Dashboard hiệu quả chỉ dùng chu kỳ hệ thống có đủ bốn phương pháp web/ngẫu nhiên/Bayesian/EWMA đã khóa trước giờ quay. Không tạo ngược dự đoán lịch sử hoặc gộp prediction cá nhân vào báo cáo chung.
+- Một game/kỳ chỉ khóa một lần; bốn prediction và mapping được ghi trong cùng giao dịch. Tất cả dùng cùng cutoff/snapshot, số vé và cỡ vé; kiểm tra lại canonical, config, manifest và deadline ngay trước khi ghi. Đổi cấu hình chỉ tác động kỳ mới.
+- Tự động theo dõi do admin bật theo game, mặc định tắt; chấm chu kỳ pending vẫn tiếp tục khi tắt tạo dự đoán. Worker chạy khi server sống và khi có kết quả canonical. Không bỏ qua kết quả chưa cập nhật để dự đoán cho kỳ xa hơn hoặc bù các kỳ đã quay.
+- Báo cáo v1 này chấm số chính; không gọi dự đoán số phụ Power là Jackpot 2. Xác suất biên chưa hiệu chỉnh phải ghi đúng trạng thái. Không dùng Nổ/tiền thưởng của kỳ mục tiêu làm feature.
+- Thống kê dùng mọi chu kỳ hoàn chỉnh đã chấm với trọng số bằng nhau theo kỳ; giới hạn nhật ký chỉ giới hạn chi tiết hiển thị. CI dùng cặp chênh lệch theo kỳ, so cùng ngân sách. Dưới 30 kỳ ghi chưa đủ bằng chứng; CI dương chỉ là dấu hiệu trong mẫu, không tự promote hoặc cam kết lợi thế.
+- Lưu cấu hình/budget thực của từng chu kỳ, model/engine/seed/hash đã dùng; báo rõ khi gộp nhiều cấu hình. Không đổi payload đã khóa hoặc tự ghi đè model sản xuất để làm đối chứng.

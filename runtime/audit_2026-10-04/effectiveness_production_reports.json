@@ -1,0 +1,1087 @@
+{
+  "LOTO_5_35": {
+    "ok": true,
+    "type": "LOTO_5_35",
+    "label": "Loto 5/35",
+    "settings": {
+      "enabled": true,
+      "ticketCount": 3,
+      "engine": "classic",
+      "riskMode": "balanced",
+      "predictionMode": "normal",
+      "bayesianPrior": 100.0,
+      "ewmaHalfLife": 60.0,
+      "updatedAt": "2026-10-04T19:38:01+00:00",
+      "updatedBy": "local_setup"
+    },
+    "counts": {
+      "locked": 1,
+      "scored": 0,
+      "total": 1
+    },
+    "methods": [
+      {
+        "key": "web",
+        "label": "Luồng dự đoán web",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "random",
+        "label": "Ngẫu nhiên",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        },
+        "decision": "baseline"
+      },
+      {
+        "key": "bayesian",
+        "label": "Bayesian",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "ewma",
+        "label": "EWMA",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0
+        },
+        "decision": "insufficient_evidence"
+      }
+    ],
+    "cycles": [
+      {
+        "cycleId": "cd1d0272-f19b-4655-825c-74e8ab7542f2",
+        "targetDrawId": "927",
+        "cutoffDrawId": "926",
+        "createdAt": "2026-10-04T19:38:03+00:00",
+        "deadline": "2026-10-05T13:00:00+07:00",
+        "dataHash": "294c7b2cf76675341b3b0d9ab6b24ec480f585979e2b4ecbd2c83f3d54431273",
+        "status": "locked",
+        "actualMain": [],
+        "methods": {
+          "bayesian": {
+            "predictionId": "9f1c1b89-784f-416b-ae2a-d5fe7c90a647",
+            "tickets": [
+              {
+                "main": [
+                  10,
+                  11,
+                  22,
+                  28,
+                  34
+                ],
+                "special": 11
+              },
+              {
+                "main": [
+                  1,
+                  3,
+                  18,
+                  33,
+                  34
+                ],
+                "special": 6
+              },
+              {
+                "main": [
+                  3,
+                  6,
+                  20,
+                  26,
+                  33
+                ],
+                "special": 2
+              }
+            ],
+            "engine": "bayesian",
+            "modelId": "bayesian_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 1953695373,
+            "calibrationStatus": "uncalibrated"
+          },
+          "ewma": {
+            "predictionId": "c3746cae-a4b9-4cb7-90b9-962eba01eb87",
+            "tickets": [
+              {
+                "main": [
+                  7,
+                  10,
+                  11,
+                  30,
+                  34
+                ],
+                "special": 2
+              },
+              {
+                "main": [
+                  6,
+                  15,
+                  27,
+                  30,
+                  32
+                ],
+                "special": 5
+              },
+              {
+                "main": [
+                  8,
+                  10,
+                  21,
+                  23,
+                  27
+                ],
+                "special": 7
+              }
+            ],
+            "engine": "ewma",
+            "modelId": "ewma_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 862530900,
+            "calibrationStatus": "uncalibrated"
+          },
+          "random": {
+            "predictionId": "e7faf79f-897b-446b-902d-0d84cf49c1f1",
+            "tickets": [
+              {
+                "main": [
+                  4,
+                  12,
+                  14,
+                  29,
+                  34
+                ],
+                "special": 8
+              },
+              {
+                "main": [
+                  5,
+                  22,
+                  23,
+                  25,
+                  30
+                ],
+                "special": 4
+              },
+              {
+                "main": [
+                  12,
+                  25,
+                  27,
+                  30,
+                  34
+                ],
+                "special": 3
+              }
+            ],
+            "engine": "random",
+            "modelId": "random_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 475845365,
+            "calibrationStatus": "uncalibrated"
+          },
+          "web": {
+            "predictionId": "0330fea1-b3f1-46e9-b499-09b7f04383e1",
+            "tickets": [
+              {
+                "adaptiveScore": 0.84594,
+                "coverageGain": 1.0165,
+                "main": [
+                  10,
+                  15,
+                  28,
+                  33,
+                  34
+                ],
+                "maxOverlap": 0.0,
+                "qualityScore": 1.0,
+                "special": 1
+              },
+              {
+                "adaptiveScore": 0.712017,
+                "coverageGain": 0.809391,
+                "main": [
+                  7,
+                  11,
+                  22,
+                  33,
+                  35
+                ],
+                "maxOverlap": 0.2,
+                "qualityScore": 0.942993,
+                "special": 1
+              },
+              {
+                "adaptiveScore": 0.592521,
+                "coverageGain": 0.546184,
+                "main": [
+                  11,
+                  13,
+                  22,
+                  28,
+                  34
+                ],
+                "maxOverlap": 0.4,
+                "qualityScore": 0.958114,
+                "special": 1
+              }
+            ],
+            "engine": "classic",
+            "modelId": "execution_effectiveness_8ee16b52420cf2f3615e",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 1917201460,
+            "calibrationStatus": "uncalibrated"
+          }
+        },
+        "config": {
+          "actualWebEngine": "classic",
+          "actualWebModelId": null,
+          "bayesianPrior": 100.0,
+          "enabled": true,
+          "engine": "classic",
+          "ewmaHalfLife": 60.0,
+          "pipeline": "prospective_equal_budget_v1",
+          "predictionMode": "normal",
+          "riskMode": "balanced",
+          "scope": "main_numbers_only",
+          "sourceManifest": {
+            "ai\\adaptive_coverage.py": "a32dccad91e583d698fa6411f8c831229330bd0ccaa1df56148c5f7c15f85cf9",
+            "ai\\models\\LOTO_5_35\\gen_model.json": "d4ab6f4b9e83e220ede950a585e3a65f5d64883eea3faf77fe80b646459ca6f5",
+            "ai\\models\\LOTO_5_35\\meta_model.json": "c4f39a582745ed994ac6f190332f3ab86a755a163026e10b95792e156c918b49",
+            "ai\\prediction_effectiveness.py": "e6e0fe968bf4cdcaa7f2c254934e498358ce6622e44e0c437537295ffab32641",
+            "ai\\predictors\\ai_predict.py": "633d6c81c271dedd7e43e88e093e7799b7bbfbc9cdd06dcd024989a295371878"
+          },
+          "specialBaseline": "uniform_seeded",
+          "ticketCount": 3,
+          "updatedAt": "2026-10-04T19:38:01+00:00",
+          "updatedBy": "local_setup"
+        }
+      }
+    ],
+    "scope": "main_numbers_only",
+    "metricWeighting": "equal_weight_per_draw",
+    "configurationCount": 1,
+    "mixedConfigurations": false,
+    "automation": {
+      "lastError": "",
+      "lastTick": "2026-10-04T19:38:03+00:00",
+      "nextTargetDrawId": "927"
+    },
+    "notes": [
+      "Chỉ đánh giá kỳ đã khóa trước giờ quay; không dựng lại dự đoán lịch sử.",
+      "So bốn phương pháp cùng kỳ và cùng số vé. Chỉ chấm số chính; số đặc biệt đối chứng được lấy ngẫu nhiên.",
+      "Brier/log loss dùng xác suất biên chưa hiệu chỉnh. CI bootstrap ghép cặp theo kỳ, chưa điều chỉnh thử nhiều phương pháp.",
+      "Dưới 30 kỳ hoặc CI chứa 0: chưa đủ bằng chứng lợi thế. Kết quả quá khứ không bảo đảm kỳ sau."
+    ]
+  },
+  "LOTO_6_45": {
+    "ok": true,
+    "type": "LOTO_6_45",
+    "label": "Mega 6/45",
+    "settings": {
+      "enabled": true,
+      "ticketCount": 3,
+      "engine": "classic",
+      "riskMode": "balanced",
+      "predictionMode": "normal",
+      "bayesianPrior": 100.0,
+      "ewmaHalfLife": 60.0,
+      "updatedAt": "2026-10-04T19:38:01+00:00",
+      "updatedBy": "local_setup"
+    },
+    "counts": {
+      "locked": 1,
+      "scored": 0,
+      "total": 1
+    },
+    "methods": [
+      {
+        "key": "web",
+        "label": "Luồng dự đoán web",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "random",
+        "label": "Ngẫu nhiên",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "baseline"
+      },
+      {
+        "key": "bayesian",
+        "label": "Bayesian",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "ewma",
+        "label": "EWMA",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      }
+    ],
+    "cycles": [
+      {
+        "cycleId": "7d20507d-972f-43a9-a169-a0897b9b5a42",
+        "targetDrawId": "1572",
+        "cutoffDrawId": "1571",
+        "createdAt": "2026-10-04T19:38:03+00:00",
+        "deadline": "2026-10-07T18:00:00+07:00",
+        "dataHash": "a38898f16a2e867dbc329165efe164975df824bd7c3e17d7db3bcec9ff7cb1f9",
+        "status": "locked",
+        "actualMain": [],
+        "methods": {
+          "bayesian": {
+            "predictionId": "c9e3b9c7-17a5-40d0-82c5-09742524958f",
+            "tickets": [
+              {
+                "main": [
+                  7,
+                  10,
+                  19,
+                  24,
+                  37,
+                  44
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  9,
+                  11,
+                  15,
+                  29,
+                  40,
+                  45
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  3,
+                  14,
+                  24,
+                  35,
+                  41,
+                  44
+                ],
+                "special": null
+              }
+            ],
+            "engine": "bayesian",
+            "modelId": "bayesian_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 893195031,
+            "calibrationStatus": "uncalibrated"
+          },
+          "ewma": {
+            "predictionId": "cfac9c03-76ac-4aa7-ad85-481e9dd00f05",
+            "tickets": [
+              {
+                "main": [
+                  6,
+                  15,
+                  16,
+                  31,
+                  36,
+                  45
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  3,
+                  5,
+                  21,
+                  35,
+                  43,
+                  44
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  8,
+                  22,
+                  26,
+                  34,
+                  35,
+                  40
+                ],
+                "special": null
+              }
+            ],
+            "engine": "ewma",
+            "modelId": "ewma_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 815392105,
+            "calibrationStatus": "uncalibrated"
+          },
+          "random": {
+            "predictionId": "e8ad25d9-e52d-44e7-a182-db832cf169ea",
+            "tickets": [
+              {
+                "main": [
+                  4,
+                  13,
+                  18,
+                  35,
+                  37,
+                  41
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  9,
+                  11,
+                  26,
+                  28,
+                  29,
+                  34
+                ],
+                "special": null
+              },
+              {
+                "main": [
+                  12,
+                  14,
+                  17,
+                  22,
+                  32,
+                  42
+                ],
+                "special": null
+              }
+            ],
+            "engine": "random",
+            "modelId": "random_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 415082984,
+            "calibrationStatus": "uncalibrated"
+          },
+          "web": {
+            "predictionId": "a56e8ceb-bf07-48d7-885c-faa6bf7f6b23",
+            "tickets": [
+              {
+                "adaptiveScore": 0.84,
+                "coverageGain": 1.0,
+                "main": [
+                  6,
+                  15,
+                  18,
+                  20,
+                  27,
+                  31
+                ],
+                "maxOverlap": 0.0,
+                "qualityScore": 1.0,
+                "special": null
+              },
+              {
+                "adaptiveScore": 0.627164,
+                "coverageGain": 0.680771,
+                "main": [
+                  4,
+                  20,
+                  25,
+                  27,
+                  33,
+                  37
+                ],
+                "maxOverlap": 0.333333,
+                "qualityScore": 0.907124,
+                "special": null
+              },
+              {
+                "adaptiveScore": 0.55371,
+                "coverageGain": 0.491638,
+                "main": [
+                  4,
+                  6,
+                  24,
+                  27,
+                  31,
+                  37
+                ],
+                "maxOverlap": 0.5,
+                "qualityScore": 0.9515,
+                "special": null
+              }
+            ],
+            "engine": "classic",
+            "modelId": "execution_effectiveness_b06e411d9d0ef41efa3c",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 1457909861,
+            "calibrationStatus": "uncalibrated"
+          }
+        },
+        "config": {
+          "actualWebEngine": "classic",
+          "actualWebModelId": null,
+          "bayesianPrior": 100.0,
+          "enabled": true,
+          "engine": "classic",
+          "ewmaHalfLife": 60.0,
+          "pipeline": "prospective_equal_budget_v1",
+          "predictionMode": "normal",
+          "riskMode": "balanced",
+          "scope": "main_numbers_only",
+          "sourceManifest": {
+            "ai\\adaptive_coverage.py": "a32dccad91e583d698fa6411f8c831229330bd0ccaa1df56148c5f7c15f85cf9",
+            "ai\\models\\LOTO_6_45\\gen_model.json": "defae0cca5e01b6cd58b806e265f1bc42d8883f6bd813e04670b5d8bb606abaf",
+            "ai\\models\\LOTO_6_45\\meta_model.json": "219794c7ad0a8c1fe46ef4c5ca6ba8f2e4b66b0e121e09153d9fcac63dbeb821",
+            "ai\\prediction_effectiveness.py": "e6e0fe968bf4cdcaa7f2c254934e498358ce6622e44e0c437537295ffab32641",
+            "ai\\predictors\\ai_predict.py": "633d6c81c271dedd7e43e88e093e7799b7bbfbc9cdd06dcd024989a295371878"
+          },
+          "specialBaseline": "uniform_seeded",
+          "ticketCount": 3,
+          "updatedAt": "2026-10-04T19:38:01+00:00",
+          "updatedBy": "local_setup"
+        }
+      }
+    ],
+    "scope": "main_numbers_only",
+    "metricWeighting": "equal_weight_per_draw",
+    "configurationCount": 1,
+    "mixedConfigurations": false,
+    "automation": {
+      "lastError": "",
+      "lastTick": "2026-10-04T19:38:03+00:00",
+      "nextTargetDrawId": "1572"
+    },
+    "notes": [
+      "Chỉ đánh giá kỳ đã khóa trước giờ quay; không dựng lại dự đoán lịch sử.",
+      "So bốn phương pháp cùng kỳ và cùng số vé. Chỉ chấm số chính; số đặc biệt đối chứng được lấy ngẫu nhiên.",
+      "Brier/log loss dùng xác suất biên chưa hiệu chỉnh. CI bootstrap ghép cặp theo kỳ, chưa điều chỉnh thử nhiều phương pháp.",
+      "Dưới 30 kỳ hoặc CI chứa 0: chưa đủ bằng chứng lợi thế. Kết quả quá khứ không bảo đảm kỳ sau."
+    ]
+  },
+  "LOTO_6_55": {
+    "ok": true,
+    "type": "LOTO_6_55",
+    "label": "Power 6/55",
+    "settings": {
+      "enabled": true,
+      "ticketCount": 3,
+      "engine": "classic",
+      "riskMode": "balanced",
+      "predictionMode": "normal",
+      "bayesianPrior": 100.0,
+      "ewmaHalfLife": 60.0,
+      "updatedAt": "2026-10-04T19:38:01+00:00",
+      "updatedBy": "local_setup"
+    },
+    "counts": {
+      "locked": 1,
+      "scored": 0,
+      "total": 1
+    },
+    "methods": [
+      {
+        "key": "web",
+        "label": "Luồng dự đoán web",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "random",
+        "label": "Ngẫu nhiên",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "baseline"
+      },
+      {
+        "key": "bayesian",
+        "label": "Bayesian",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      },
+      {
+        "key": "ewma",
+        "label": "EWMA",
+        "sampleCount": 0,
+        "meanHits": null,
+        "brierScore": null,
+        "logLoss": null,
+        "rate3": null,
+        "rate4": null,
+        "lift": null,
+        "deltaVsRandom": null,
+        "ci95": null,
+        "hitHistogram": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "decision": "insufficient_evidence"
+      }
+    ],
+    "cycles": [
+      {
+        "cycleId": "8dc74d64-0437-475e-8343-58931cce76f4",
+        "targetDrawId": "1407",
+        "cutoffDrawId": "1406",
+        "createdAt": "2026-10-04T19:38:04+00:00",
+        "deadline": "2026-10-06T18:00:00+07:00",
+        "dataHash": "72161b2b417211f670a2a39fd33b064c7e1008471e4f92ebeace435cdcdc47b0",
+        "status": "locked",
+        "actualMain": [],
+        "methods": {
+          "bayesian": {
+            "predictionId": "34e5ec38-2993-403e-8646-df61f474828d",
+            "tickets": [
+              {
+                "main": [
+                  8,
+                  22,
+                  29,
+                  34,
+                  41,
+                  51
+                ],
+                "special": 42
+              },
+              {
+                "main": [
+                  3,
+                  10,
+                  21,
+                  40,
+                  54,
+                  55
+                ],
+                "special": 43
+              },
+              {
+                "main": [
+                  2,
+                  5,
+                  14,
+                  33,
+                  52,
+                  54
+                ],
+                "special": 23
+              }
+            ],
+            "engine": "bayesian",
+            "modelId": "bayesian_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 801011098,
+            "calibrationStatus": "uncalibrated"
+          },
+          "ewma": {
+            "predictionId": "2a0ab19e-6cbd-47ab-9c39-19951f32c1f1",
+            "tickets": [
+              {
+                "main": [
+                  5,
+                  8,
+                  11,
+                  13,
+                  16,
+                  22
+                ],
+                "special": 43
+              },
+              {
+                "main": [
+                  7,
+                  26,
+                  32,
+                  33,
+                  41,
+                  47
+                ],
+                "special": 15
+              },
+              {
+                "main": [
+                  3,
+                  20,
+                  21,
+                  33,
+                  39,
+                  53
+                ],
+                "special": 9
+              }
+            ],
+            "engine": "ewma",
+            "modelId": "ewma_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 1831581833,
+            "calibrationStatus": "uncalibrated"
+          },
+          "random": {
+            "predictionId": "6088dedb-2c62-47ee-a85e-5c9a3e079b41",
+            "tickets": [
+              {
+                "main": [
+                  2,
+                  22,
+                  31,
+                  42,
+                  48,
+                  50
+                ],
+                "special": 34
+              },
+              {
+                "main": [
+                  16,
+                  27,
+                  39,
+                  41,
+                  43,
+                  46
+                ],
+                "special": 55
+              },
+              {
+                "main": [
+                  10,
+                  16,
+                  18,
+                  29,
+                  31,
+                  43
+                ],
+                "special": 46
+              }
+            ],
+            "engine": "random",
+            "modelId": "random_prospective_equal_budget_v1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 1675038271,
+            "calibrationStatus": "uncalibrated"
+          },
+          "web": {
+            "predictionId": "a280bdbc-e24d-423d-a66b-6d289f019a86",
+            "tickets": [
+              {
+                "adaptiveScore": 0.834924,
+                "coverageGain": 0.985901,
+                "main": [
+                  1,
+                  12,
+                  25,
+                  32,
+                  38,
+                  47
+                ],
+                "maxOverlap": 0.0,
+                "qualityScore": 1.0,
+                "special": 34
+              },
+              {
+                "adaptiveScore": 0.657201,
+                "coverageGain": 0.724908,
+                "main": [
+                  1,
+                  9,
+                  12,
+                  22,
+                  24,
+                  29
+                ],
+                "maxOverlap": 0.333333,
+                "qualityScore": 0.936598,
+                "special": 18
+              },
+              {
+                "adaptiveScore": 0.56133,
+                "coverageGain": 0.529461,
+                "main": [
+                  22,
+                  25,
+                  29,
+                  31,
+                  43,
+                  47
+                ],
+                "maxOverlap": 0.333333,
+                "qualityScore": 0.883454,
+                "special": 46
+              }
+            ],
+            "engine": "classic",
+            "modelId": "execution_effectiveness_e00eacc6be7fcb0968f1",
+            "status": "locked",
+            "meanHits": null,
+            "bestHits": null,
+            "brierScore": null,
+            "logLoss": null,
+            "seed": 599128392,
+            "calibrationStatus": "uncalibrated"
+          }
+        },
+        "config": {
+          "actualWebEngine": "classic",
+          "actualWebModelId": null,
+          "bayesianPrior": 100.0,
+          "enabled": true,
+          "engine": "classic",
+          "ewmaHalfLife": 60.0,
+          "pipeline": "prospective_equal_budget_v1",
+          "predictionMode": "normal",
+          "riskMode": "balanced",
+          "scope": "main_numbers_only",
+          "sourceManifest": {
+            "ai\\adaptive_coverage.py": "a32dccad91e583d698fa6411f8c831229330bd0ccaa1df56148c5f7c15f85cf9",
+            "ai\\models\\LOTO_6_55\\gen_model.json": "78e572f5109436b5ed00c7ffee83dd3e8fa6a1bbf91698f0b1f67817c8ca2d3e",
+            "ai\\models\\LOTO_6_55\\meta_model.json": "e27404ffccef7bf9b40b7f2ca889cad152ff7cd5445874b9e7057cf993d4bb1c",
+            "ai\\prediction_effectiveness.py": "e6e0fe968bf4cdcaa7f2c254934e498358ce6622e44e0c437537295ffab32641",
+            "ai\\predictors\\ai_predict.py": "633d6c81c271dedd7e43e88e093e7799b7bbfbc9cdd06dcd024989a295371878"
+          },
+          "specialBaseline": "uniform_seeded",
+          "ticketCount": 3,
+          "updatedAt": "2026-10-04T19:38:01+00:00",
+          "updatedBy": "local_setup"
+        }
+      }
+    ],
+    "scope": "main_numbers_only",
+    "metricWeighting": "equal_weight_per_draw",
+    "configurationCount": 1,
+    "mixedConfigurations": false,
+    "automation": {
+      "lastError": "",
+      "lastTick": "2026-10-04T19:38:04+00:00",
+      "nextTargetDrawId": "1407"
+    },
+    "notes": [
+      "Chỉ đánh giá kỳ đã khóa trước giờ quay; không dựng lại dự đoán lịch sử.",
+      "So bốn phương pháp cùng kỳ và cùng số vé. Chỉ chấm số chính; số đặc biệt đối chứng được lấy ngẫu nhiên.",
+      "Brier/log loss dùng xác suất biên chưa hiệu chỉnh. CI bootstrap ghép cặp theo kỳ, chưa điều chỉnh thử nhiều phương pháp.",
+      "Dưới 30 kỳ hoặc CI chứa 0: chưa đủ bằng chứng lợi thế. Kết quả quá khứ không bảo đảm kỳ sau."
+    ]
+  }
+}

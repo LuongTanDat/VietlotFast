@@ -1,0 +1,61 @@
+test_full_frontend_tab_empty_state_and_admin_controls (tests.test_effectiveness_web.EffectivenessWebTests.test_full_frontend_tab_empty_state_and_admin_controls) ... ok
+test_real_report_is_empty_read_only_and_settings_persist (tests.test_effectiveness_web.EffectivenessWebTests.test_real_report_is_empty_read_only_and_settings_persist) ... ok
+test_request_validation_and_empty_source_cannot_lock (tests.test_effectiveness_web.EffectivenessWebTests.test_request_validation_and_empty_source_cannot_lock) ... C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\urllib\response.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x0000020A5048D210>
+  def __enter__(self):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_routes_require_login_and_admin_for_mutations (tests.test_effectiveness_web.EffectivenessWebTests.test_routes_require_login_and_admin_for_mutations) ... ok
+tearDownClass (tests.test_effectiveness_web.EffectivenessWebTests) ... ERROR
+test_empty_scored_pending_admin_and_account_change (tests.test_effectiveness_frontend.EffectivenessFrontendTests.test_empty_scored_pending_admin_and_account_change) ... ok
+test_backend_ml_admin_routes_are_admin_only (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_backend_ml_admin_routes_are_admin_only) ... ok
+test_backend_ml_predictions_are_scoped_to_authenticated_user (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_backend_ml_predictions_are_scoped_to_authenticated_user) ... ok
+test_backend_ml_type_keys_include_keno (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_backend_ml_type_keys_include_keno) ... ok
+test_candidate_does_not_auto_replace_champion (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_candidate_does_not_auto_replace_champion) ... ok
+test_force_flag_cannot_bypass_promotion_gates (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_force_flag_cannot_bypass_promotion_gates) ... ok
+test_frontend_history_refreshes_ledger_status_and_scores (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_frontend_history_refreshes_ledger_status_and_scores) ... ok
+test_keno_payload_uses_pick_size_for_random_baseline (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_keno_payload_uses_pick_size_for_random_baseline) ... ok
+test_keno_scoring_uses_payload_pick_size (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_keno_scoring_uses_payload_pick_size) ... ok
+test_legacy_prediction_payload_gets_probability_metadata (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_legacy_prediction_payload_gets_probability_metadata) ... ok
+test_locked_prediction_payload_is_immutable (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_locked_prediction_payload_is_immutable) ... ok
+test_migration_creates_required_tables (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_migration_creates_required_tables) ... ok
+test_multiple_predictions_same_draw_do_not_overwrite (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_multiple_predictions_same_draw_do_not_overwrite) ... ok
+test_prediction_listing_is_scoped_by_username_and_includes_score (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_prediction_listing_is_scoped_by_username_and_includes_score) ... ok
+test_promote_and_rollback_are_atomic_registry_operations (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_promote_and_rollback_are_atomic_registry_operations) ... ok
+test_score_pending_is_idempotent (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_score_pending_is_idempotent) ... ok
+test_ticket_generation_size_uniqueness_and_diversity (tests.test_prediction_ledger_pipeline.PredictionLedgerPipelineTests.test_ticket_generation_size_uniqueness_and_diversity) ... ok
+
+======================================================================
+ERROR: tearDownClass (tests.test_effectiveness_web.EffectivenessWebTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\shutil.py", line 625, in _rmtree_unsafe
+    os.unlink(fullname)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\effectiveness-http-8mp9un99\\runtime\\lotto_web.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto\tests\test_effectiveness_web.py", line 73, in tearDownClass
+    cls.temp.cleanup()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\shutil.py", line 790, in rmtree
+    return _rmtree_unsafe(path, onexc)
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\shutil.py", line 629, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Luong Tan Dat\AppData\Local\Programs\Python\Python313\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+    ~~~~~~~~~~^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\effectiveness-http-8mp9un99\\runtime\\lotto_web.db'
+
+----------------------------------------------------------------------
+Ran 21 tests in 16.257s
+
+FAILED (errors=1)

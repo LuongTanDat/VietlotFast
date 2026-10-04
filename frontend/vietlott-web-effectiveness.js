@@ -1,0 +1,267 @@
+(function () {
+  "use strict";
+
+  const root = document.getElementById("predictRootEffectiveness");
+  if (!root) return;
+  const byId = id => document.getElementById(id);
+  const methods = [
+    { key: "web", label: "Pipeline web", color: "#a78bfa" },
+    { key: "random", label: "Ngẫu nhiên", color: "#94a3b8" },
+    { key: "bayesian", label: "Bayesian", color: "#38bdf8" },
+    { key: "ewma", label: "EWMA", color: "#34d399" },
+  ];
+  const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, timer: null, lines: new Set(methods.map(item => item.key)) };
+  const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+  const number = (value, digits = 3) => finite(value) ? Number(value).toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
+  const percent = value => finite(value) ? `${number(Number(value) * 100, 1)}%` : "—";
+  const signed = value => finite(value) ? `${Number(value) > 0 ? "+" : ""}${number(value)}` : "—";
+  const dateTime = value => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false }) : "—";
+  };
+  const interval = value => value && finite(value.lower) && finite(value.upper) ? `[${signed(value.lower)}; ${signed(value.upper)}]` : "—";
+  const methodLabel = key => methods.find(item => item.key === key)?.label || key;
+
+  function showStatus(message, kind = "") {
+    const el = byId("effectivenessStatus");
+    el.textContent = message;
+    el.dataset.kind = kind;
+  }
+
+  function setControls() {
+    const canManage = !!state.report?.canManage && state.authenticated;
+    byId("effectivenessAdmin").hidden = !canManage;
+    byId("effectivenessRefresh").disabled = !state.authenticated || state.loading || state.busy;
+    ["effectivenessType", "effectivenessLimit"].forEach(id => { byId(id).disabled = state.busy; });
+    ["effectivenessEnabled", "effectivenessTicketCount", "effectivenessSave", "effectivenessLock"].forEach(id => { byId(id).disabled = !canManage || state.busy || state.loading; });
+    root.setAttribute("aria-busy", state.loading || state.busy ? "true" : "false");
+  }
+
+  async function request(path, { method = "GET", form = null, signal } = {}) {
+    const options = { method, credentials: "same-origin", cache: "no-store", signal, headers: { Accept: "application/json" } };
+    if (form) {
+      options.body = new URLSearchParams(form);
+      options.headers["Content-Type"] = "application/x-www-form-urlencoded;charset=UTF-8";
+    }
+    const response = await fetch(path, options);
+    let payload;
+    try { payload = await response.json(); } catch { throw new Error("Server chưa trả báo cáo hợp lệ. Hãy kiểm tra server rồi làm mới."); }
+    if (!response.ok || payload.ok === false) {
+      const error = new Error(response.status === 401 ? "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." : String(payload.error || payload.message || "Không thể hoàn tất thao tác."));
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+
+  function decisionText(row) {
+    const decision = String(row.decision || "").toLowerCase();
+    if (row.key === "random") return "Đối chứng cùng số vé";
+    if (!Number(row.sampleCount)) return "Chưa có kỳ đã chấm";
+    if (["insufficient", "insufficient_evidence", "insufficient_samples"].includes(decision)) return "Chưa đủ bằng chứng";
+    if (["better", "positive", "better_than_random"].includes(decision)) return "Cao hơn ngẫu nhiên trong mẫu này";
+    if (decision === "possible_improvement") return "Có dấu hiệu tốt hơn; cần xác nhận thêm";
+    if (["worse", "negative", "worse_than_random"].includes(decision)) return "Thấp hơn ngẫu nhiên trong mẫu này";
+    if (["inconclusive", "no_evidence", "not_significant", "uncertain", "no_clear_advantage"].includes(decision)) return "Chưa thấy lợi thế rõ ràng";
+    return "Cần thêm kỳ để kết luận";
+  }
+
+  function renderSummary(report) {
+    const counts = report.counts || {};
+    const settings = report.settings || {};
+    const cards = [
+      ["Đã chấm", number(counts.scored, 0), "Kỳ đã có kết quả thực tế"],
+      ["Chờ kết quả", number(counts.locked, 0), "Bộ số đã khóa, chưa chấm"],
+      ["Ngân sách hiện tại", finite(settings.ticketCount) ? `${number(settings.ticketCount, 0)} vé` : "—", "Cho mỗi phương pháp / kỳ mới"],
+      ["Theo dõi tự động", settings.enabled ? "Đang bật" : "Đang tắt", "Chạy trong khi server hoạt động"],
+    ];
+    byId("effectivenessSummary").innerHTML = cards.map(([label, value, note]) => `<div class="effectiveness-metric"><span>${escape(label)}</span><strong>${escape(value)}</strong><small>${escape(note)}</small></div>`).join("");
+    byId("effectivenessEnabled").checked = settings.enabled === true;
+    byId("effectivenessTicketCount").value = finite(settings.ticketCount) ? String(settings.ticketCount) : "1";
+  }
+
+  function renderComparison(report) {
+    const rows = methods.map(method => (Array.isArray(report.methods) ? report.methods : []).find(item => item.key === method.key) || { key: method.key, label: method.label });
+    byId("effectivenessComparison").innerHTML = `<div class="effectiveness-table-wrap" tabindex="0" role="region" aria-label="Bảng so sánh bốn phương pháp, cuộn ngang để xem hết">
+      <table class="effectiveness-table"><caption>So sánh trên tất cả các kỳ đã chấm, cùng số vé trong từng kỳ</caption>
+      <thead><tr><th scope="col">Phương pháp</th><th scope="col">Số kỳ</th><th scope="col">Trùng / vé</th><th scope="col">Vé trùng ≥3</th><th scope="col">Vé trùng ≥4</th><th scope="col">Chênh lệch với ngẫu nhiên</th><th scope="col">Khoảng 95%</th><th scope="col">Nhận định</th></tr></thead>
+      <tbody>${rows.map(row => `<tr><th scope="row"><span class="effectiveness-method-dot" style="background:${methods.find(method => method.key === row.key).color}"></span>${escape(row.label || methodLabel(row.key))}</th><td>${number(row.sampleCount, 0)}</td><td>${number(row.meanHits)}</td><td>${percent(row.rate3)}</td><td>${percent(row.rate4)}</td><td>${signed(row.deltaVsRandom)}</td><td class="effectiveness-ci">${interval(row.ci95)}</td><td class="effectiveness-decision">${escape(decisionText(row))}</td></tr>`).join("")}</tbody></table></div>
+      <details class="effectiveness-probabilities"><summary>Chỉ số xác suất số chính</summary><p>Brier và log-loss dùng xác suất biên chưa hiệu chỉnh; thấp hơn là tốt hơn. Dấu — nghĩa là phương pháp chưa cung cấp xác suất hợp lệ để chấm. Các chỉ số này không phải xác suất trúng toàn bộ vé.</p><div class="effectiveness-table-wrap"><table class="effectiveness-table"><thead><tr><th scope="col">Phương pháp</th><th scope="col">Brier</th><th scope="col">Log-loss</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}</th><td>${number(row.brierScore, 5)}</td><td>${number(row.logLoss, 5)}</td></tr>`).join("")}</tbody></table></div></details>`;
+  }
+
+  function renderNotes(report) {
+    const notes = Array.isArray(report.notes) ? report.notes.filter(note => typeof note === "string" && note.trim()) : [];
+    const count = finite(report.configurationCount) ? number(report.configurationCount, 0) : "nhiều";
+    byId("effectivenessReportNotes").innerHTML = `${report.mixedConfigurations === true ? `<p class="effectiveness-mixed-configurations"><strong>Gộp ${escape(count)} cấu hình / ngân sách.</strong> Xem chi tiết từng kỳ để đối chiếu số vé, engine và model đã dùng.</p>` : ""}${notes.length ? `<ul>${notes.map(note => `<li>${escape(note)}</li>`).join("")}</ul>` : ""}`;
+  }
+
+  function renderTimeline(report) {
+    const host = byId("effectivenessTimeline");
+    const cycles = (Array.isArray(report.cycles) ? report.cycles : []).filter(cycle => cycle.status === "scored" || cycle.status === "complete" || Array.isArray(cycle.actualMain) && cycle.actualMain.length).slice(0, 30).sort((left, right) => Number(left.targetDrawId) - Number(right.targetDrawId));
+    if (cycles.length < 2) { host.hidden = true; host.innerHTML = ""; return; }
+    host.hidden = false;
+    const width = 1000, height = 240, pad = { left: 42, top: 22, bottom: 42, right: 14 };
+    const maxHits = report.type === "LOTO_5_35" ? 5 : 6;
+    const x = index => pad.left + index * (width - pad.left - pad.right) / (cycles.length - 1);
+    const y = value => height - pad.bottom - value * (height - pad.top - pad.bottom) / maxHits;
+    const grid = Array.from({ length: maxHits + 1 }, (_, hit) => `<line x1="${pad.left}" x2="${width - pad.right}" y1="${y(hit)}" y2="${y(hit)}" class="effectiveness-chart-grid"/><text x="${pad.left - 12}" y="${y(hit) + 4}" text-anchor="end">${hit}</text>`).join("");
+    const lines = methods.filter(method => state.lines.has(method.key)).map(method => {
+      const points = cycles.map((cycle, index) => finite(cycle.methods?.[method.key]?.meanHits) ? [index, Number(cycle.methods[method.key].meanHits)] : null);
+      let path = "", contiguous = false;
+      points.forEach(point => { if (!point) { contiguous = false; return; } path += `${contiguous ? " L" : " M"}${x(point[0])},${y(point[1])}`; contiguous = true; });
+      return `<path d="${path}" fill="none" stroke="${method.color}" stroke-width="2.5"/>${points.filter(Boolean).map(([index, value]) => `<circle cx="${x(index)}" cy="${y(value)}" r="3" fill="${method.color}"><title>${escape(`${method.label} · kỳ ${cycles[index].targetDrawId} · ${number(value)} số trùng / vé`)}</title></circle>`).join("")}`;
+    }).join("");
+    host.innerHTML = `<div class="effectiveness-chart-head"><h3>Số trùng theo kỳ</h3><span class="muted">${cycles.length} kỳ đã chấm gần nhất · trung bình trên vé</span></div><div class="effectiveness-chart-legend">${methods.map(method => `<button type="button" class="secondary" data-effectiveness-line="${method.key}" aria-pressed="${state.lines.has(method.key)}"><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</button>`).join("")}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="effectivenessChartTitle effectivenessChartDescription"><title id="effectivenessChartTitle">Số trùng trung bình từng kỳ của bốn phương pháp</title><desc id="effectivenessChartDescription">Trục ngang là kỳ quay theo thời gian. Trục dọc là số chính trùng trung bình trên mỗi vé. Số liệu từng kỳ có trong nhật ký bên dưới.</desc>${grid}${lines}<text x="${pad.left}" y="${height - 12}">Kỳ ${escape(cycles[0].targetDrawId)}</text><text x="${width - pad.right}" y="${height - 12}" text-anchor="end">Kỳ ${escape(cycles[cycles.length - 1].targetDrawId)}</text></svg>`;
+  }
+
+  function ticketHtml(ticket, actual) {
+    const values = Array.isArray(ticket.main) ? ticket.main : [];
+    return `<span class="effectiveness-ticket">${values.map(value => `<span class="effectiveness-ball${actual.has(Number(value)) ? " is-hit" : ""}">${escape(String(value).padStart(2, "0"))}${actual.has(Number(value)) ? '<span class="sr-only"> trùng</span>' : ""}</span>`).join("")}${ticket.special !== null && ticket.special !== undefined && ticket.special !== "" ? `<span class="effectiveness-special">ĐB ${escape(String(ticket.special).padStart(2, "0"))}</span>` : ""}</span>`;
+  }
+
+  function renderCycles(report) {
+    const cycles = Array.isArray(report.cycles) ? report.cycles : [];
+    if (!cycles.length) {
+      byId("effectivenessCycles").innerHTML = `<div class="effectiveness-empty"><strong>Chưa có lượt theo dõi thực tế.</strong><p>${report.canManage ? "Bật theo dõi tự động hoặc khóa kỳ tiếp theo để bắt đầu." : "Quản trị viên có thể bật theo dõi cho các kỳ sắp tới."} Các kỳ trong dữ liệu cũ không được thêm vào như dự đoán đã khóa.</p></div>`;
+      return;
+    }
+    byId("effectivenessCycles").innerHTML = cycles.map(cycle => {
+      const actualList = Array.isArray(cycle.actualMain) ? cycle.actualMain : [];
+      const actual = new Set(actualList.map(Number));
+      const scored = cycle.status === "scored" || cycle.status === "complete" || actual.size > 0;
+      const scoredText = scored ? "Đã chấm" : "Đã khóa · chờ kết quả";
+      return `<details class="effectiveness-cycle"><summary><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><span class="effectiveness-cycle-date">Hạn khóa: ${escape(dateTime(cycle.deadline))}</span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-meta"><span>Dữ liệu đến kỳ <strong>${escape(cycle.cutoffDrawId)}</strong></span><span>Đã khóa lúc ${escape(dateTime(cycle.createdAt))} (giờ Việt Nam)</span></div><div class="effectiveness-actual"><strong>Số chính thực tế:</strong>${actualList.length ? ticketHtml({ main: actualList }, new Set()) : '<span class="muted">Chưa có kết quả</span>'}</div><div class="effectiveness-cycle-methods">${methods.map(method => {
+        const entry = cycle.methods?.[method.key] || {};
+        const tickets = Array.isArray(entry.tickets) ? entry.tickets : [];
+        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${scored ? `${number(entry.meanHits)} trùng / vé · tốt nhất ${number(entry.bestHits, 0)}` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map(ticket => ticketHtml(ticket, actual)).join("") : '<span class="muted">Không có bộ số để hiển thị</span>'}</div>${entry.engine || entry.modelId ? `<div class="effectiveness-cycle-provenance">${entry.engine ? `Engine: ${escape(entry.engine)}` : ""}${entry.engine && entry.modelId ? " · " : ""}${entry.modelId ? `Model: ${escape(entry.modelId)}` : ""}</div>` : ""}</div>`;
+      }).join("")}</div><p class="effectiveness-cycle-note">Số màu xanh là số chính trùng. Số ĐB được lưu cùng vé và chưa tính vào các chỉ số so sánh trên trang này.</p></div></details>`;
+    }).join("");
+  }
+
+  function render(report) {
+    renderSummary(report);
+    renderNotes(report);
+    renderComparison(report);
+    renderTimeline(report);
+    renderCycles(report);
+    setControls();
+  }
+
+  function clearReport() {
+    state.report = null;
+    ["effectivenessSummary", "effectivenessReportNotes", "effectivenessComparison", "effectivenessTimeline", "effectivenessCycles"].forEach(id => { byId(id).innerHTML = ""; });
+    byId("effectivenessTimeline").hidden = true;
+    byId("effectivenessUpdated").textContent = "";
+    setControls();
+  }
+
+  async function refresh({ statusAfter = "" } = {}) {
+    if (!state.authenticated || !state.active || state.busy) return;
+    state.controller?.abort();
+    const controller = new AbortController();
+    state.controller = controller;
+    const generation = state.generation;
+    const type = byId("effectivenessType").value;
+    const limit = byId("effectivenessLimit").value;
+    state.loading = true;
+    setControls();
+    showStatus("Đang tải báo cáo…");
+    try {
+      const report = await request(`/api/ml/effectiveness?type=${encodeURIComponent(type)}&limit=${encodeURIComponent(limit)}`, { signal: controller.signal });
+      if (generation !== state.generation || state.controller !== controller || byId("effectivenessType").value !== type) return;
+      state.report = report;
+      render(report);
+      byId("effectivenessUpdated").textContent = `Cập nhật ${dateTime(new Date().toISOString())}`;
+      showStatus(statusAfter || (Number(report.counts?.scored) ? "Đã tải báo cáo. Làm mới chỉ đọc kết quả; không tạo lượt dự đoán mới." : "Chưa có kỳ đã chấm. Số liệu sẽ xuất hiện khi kỳ đã khóa có kết quả thực tế."));
+    } catch (error) {
+      if (error.name === "AbortError" || generation !== state.generation || state.controller !== controller) return;
+      if (error.status === 401) clearReport();
+      showStatus(error.message, "error");
+    } finally {
+      if (state.controller === controller) {
+        state.loading = false;
+        state.controller = null;
+        setControls();
+      }
+    }
+  }
+
+  async function mutate(action) {
+    if (!state.report?.canManage || state.busy || state.loading || !state.authenticated) return;
+    const generation = state.generation;
+    const type = byId("effectivenessType").value;
+    const form = { type };
+    if (action === "settings") {
+      const ticketCount = Number(byId("effectivenessTicketCount").value);
+      if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > 10) { showStatus("Số vé phải là số nguyên từ 1 đến 10.", "error"); return; }
+      form.enabled = String(byId("effectivenessEnabled").checked);
+      form.ticketCount = String(ticketCount);
+    }
+    state.busy = true;
+    setControls();
+    showStatus(action === "settings" ? "Đang lưu cấu hình…" : "Đang tạo và khóa bộ số của bốn phương pháp…");
+    let message = "", failed = false;
+    try {
+      const response = await request(`/api/ml/effectiveness-${action === "settings" ? "settings" : "cycle"}`, { method: "POST", form });
+      if (generation !== state.generation) return;
+      message = action === "settings" ? "Đã lưu cấu hình. Kỳ đã khóa giữ nguyên bộ số và số vé." : String(response.message || "Đã xử lý khóa kỳ tiếp theo. Mở nhật ký để xem bộ số.");
+    } catch (error) {
+      if (generation !== state.generation) return;
+      failed = true;
+      message = error.message;
+    } finally {
+      if (generation === state.generation) {
+        state.busy = false;
+        setControls();
+      }
+    }
+    if (generation !== state.generation) return;
+    if (failed) showStatus(message, "error");
+    else await refresh({ statusAfter: message });
+  }
+
+  function syncTimer() {
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    if (state.active && state.authenticated) {
+      state.timer = setInterval(() => { if (!document.hidden && !state.loading && !state.busy) void refresh(); }, 120000);
+    }
+  }
+
+  window.VietlottEffectiveness = Object.freeze({
+    activate(active) {
+      const changed = state.active !== !!active;
+      state.active = !!active;
+      syncTimer();
+      if (state.active && state.authenticated && (changed || !state.report)) void refresh();
+      if (!state.active) { state.controller?.abort(); state.loading = false; setControls(); }
+    },
+  });
+  window.addEventListener("dvlf:auth-changed", event => {
+    state.generation += 1;
+    state.authenticated = event.detail?.authenticated === true;
+    state.controller?.abort();
+    state.controller = null;
+    state.busy = false;
+    state.loading = false;
+    clearReport();
+    showStatus(state.authenticated ? "Mở tab Hiệu quả dự đoán để tải báo cáo." : "Đăng nhập để xem báo cáo.");
+    syncTimer();
+    if (state.active && state.authenticated) void refresh();
+  });
+  ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => { clearReport(); void refresh(); }));
+  byId("effectivenessRefresh").addEventListener("click", () => void refresh());
+  byId("effectivenessSave").addEventListener("click", () => void mutate("settings"));
+  byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
+  byId("effectivenessTimeline").addEventListener("click", event => {
+    const button = event.target.closest("[data-effectiveness-line]");
+    if (!button || !state.report) return;
+    const key = button.dataset.effectivenessLine;
+    if (state.lines.has(key)) state.lines.delete(key); else state.lines.add(key);
+    renderTimeline(state.report);
+    byId("effectivenessTimeline").querySelector(`[data-effectiveness-line="${key}"]`)?.focus();
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.active && state.authenticated && !state.loading && !state.busy) void refresh(); });
+  setControls();
+})();

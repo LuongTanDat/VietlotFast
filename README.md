@@ -227,6 +227,23 @@ Backtest ablation chọn winner trên tập đánh giá là chẩn đoán; `eval
 
 `ml_train_candidate` hiện huấn luyện baseline Bayesian với prior cố định vào `runtime/model_registry/`, tách train/validation/test theo thời gian. Candidate có model JSON/hash/cutoff thật, không tự thay model đang dùng. Promote kiểm tra metric hữu hạn, manifest/hash/CI và so champion trên cùng kỳ. Khi được duyệt, inference dùng artifact champion; rollback chọn artifact đã lưu. Engine legacy chưa có champion vẫn hoạt động và prediction mới ghi execution snapshot chưa duyệt.
 
+## Hiệu quả dự đoán thực tế
+
+Tab **Hiệu quả dự đoán** theo dõi 5/35, Mega và Power. Mỗi chu kỳ khóa đồng thời pipeline web thường (classic/balanced, gồm fallback và Adaptive Coverage hoặc champion thực đang chạy) và ba đối chứng: vé ngẫu nhiên, Bayesian co về prior cố định 100 kỳ và EWMA với bán rã 60 kỳ. Bốn phương pháp có cùng số vé và cùng snapshot canonical. Báo cáo chỉ tính số chính; số phụ Power không được diễn giải thành Jackpot 2.
+
+Đăng nhập để xem bảng so sánh, biểu đồ theo kỳ và bộ số đã khóa/kết quả thực tế. Admin chọn **Tự động theo dõi**, số vé 1–10 và **Lưu cấu hình** cho từng game; mặc định tắt. **Khóa kỳ tiếp theo** chạy một chu kỳ ngay dù tự động đang tắt. Mỗi game/kỳ chỉ được khóa một lần, đổi cấu hình áp dụng cho kỳ mới. Server kiểm tra mỗi 60 giây: chấm các chu kỳ đã có kết quả canonical, rồi tạo chu kỳ mới cho game bật tự động. Tác vụ chạy khi server còn hoạt động; cần cập nhật kết quả canonical như luồng hiện có, không dựng dự đoán cho các kỳ bị bỏ lỡ.
+
+Các thống kê dùng tất cả kỳ đã chấm đủ bốn phương pháp; lựa chọn 30/100/300 chỉ giới hạn nhật ký hiển thị. CI lấy kỳ làm đơn vị so sánh, không lấy từng vé tương quan làm mẫu độc lập. Chỉ số trùng trung bình, tỷ lệ vé trùng ≥3/≥4, Brier/log loss và khoảng chênh lệch giúp kiểm chứng, không bảo đảm dự đoán trúng. Nhận định dưới 30 kỳ ghi chưa đủ bằng chứng; tín hiệu tốt hơn trong mẫu vẫn cần xác nhận, đặc biệt khi đổi cấu hình hoặc thử nhiều phương pháp.
+
+API đọc `/api/ml/effectiveness` và `/api/ml/effectiveness-settings` yêu cầu đăng nhập; POST settings/cycle yêu cầu admin. Các dự đoán hệ thống lưu trong ledger với mapping riêng, không đưa lịch sử cá nhân vào báo cáo chung. Có thể tắt worker bằng `-Dlotto.effectivenessWorker=false` khi chạy fixture/kiểm tra. CLI tương ứng:
+
+```powershell
+python ai/prediction_effectiveness.py report LOTO_6_45
+python ai/prediction_effectiveness.py configure LOTO_6_45 --enabled=true --ticket-count=3 --actor=local_admin
+python ai/prediction_effectiveness.py cycle LOTO_6_45
+python ai/prediction_effectiveness.py tick
+```
+
 ## Quản trị và bảo mật
 
 Server mặc định dùng `127.0.0.1:8080`. Ghi nhớ đăng nhập chỉ lưu tên tài khoản; phiên server hết hạn sau 12 giờ. Quyền VIP do admin cấp/thu hồi ở **Quản lý tài khoản → Cấp / thu hồi VIP**. Vòng quay, đổi lượt và số dư PP/KC dùng giao dịch backend có mã chống lặp; đây là điểm nội bộ, chưa kết nối thanh toán PayPal. Hạn VIP chỉ nằm trong store cũ cần admin xác minh/cấp lại qua bảng quyền mới; tài khoản admin có quyền quản trị.

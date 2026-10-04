@@ -16,6 +16,7 @@ from ai.evaluation.probability import scores_to_probabilities
 
 DEFAULT_DB_PATH = dp.RUNTIME_DIR / "lotto_web.db"
 SCORING_VERSION = "ledger_scoring_v2"
+EFFECTIVENESS_SYSTEM_ACTOR = "__effectiveness_system__"
 
 
 def now_iso() -> str:
@@ -202,6 +203,7 @@ def lock_prediction(
     config_hash: str = "",
     random_seed: int = 20260403,
     status: str = "locked",
+    connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     game_type = str(payload.get("type") or payload.get("game_type") or "").strip().upper()
     if not game_type:
@@ -237,10 +239,12 @@ def lock_prediction(
     model_id = str(model_id or payload.get("modelId") or payload.get("model_id") or "")
     model_version = str(model_version or payload.get("modelVersion") or "")
     config_hash = str(config_hash or payload.get("configHash") or "")
-    connection = connect(db_path)
+    own_connection = connection is None
+    connection = connection or connect(db_path)
     try:
-        with connection:
-            connection.execute(
+        # A caller-owned connection can atomically lock a complete comparison
+        # cycle.  Do not migrate, commit, or close that caller's transaction.
+        connection.execute(
                 """
                 INSERT INTO prediction_runs (
                     prediction_id, username, game_type, target_draw_id, created_at,
@@ -279,7 +283,8 @@ def lock_prediction(
             "target_draw_id": target_draw_id,
         }
     finally:
-        connection.close()
+        if own_connection:
+            connection.close()
 
 
 def list_predictions(
@@ -451,8 +456,8 @@ def score_pending_predictions(
     skipped = []
     try:
         rows = connection.execute(
-            "SELECT * FROM prediction_runs WHERE game_type = ? AND status = 'locked' ORDER BY created_at",
-            (game_type,),
+            "SELECT * FROM prediction_runs WHERE game_type = ? AND status = 'locked' AND username <> ? ORDER BY created_at",
+            (game_type, EFFECTIVENESS_SYSTEM_ACTOR),
         ).fetchall()
         with connection:
             for row in rows:

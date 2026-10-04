@@ -1,0 +1,119 @@
+{
+  "tick": {
+    "ok": true,
+    "results": [
+      {
+        "ok": true,
+        "type": "LOTO_5_35",
+        "scoring": {
+          "ok": true,
+          "type": "LOTO_5_35",
+          "scored": [],
+          "errors": []
+        },
+        "cycle": {
+          "ok": true,
+          "type": "LOTO_5_35",
+          "status": "locked",
+          "cycleId": "cd1d0272-f19b-4655-825c-74e8ab7542f2",
+          "targetDrawId": "927",
+          "cutoffDrawId": "926",
+          "ticketCount": 3
+        }
+      },
+      {
+        "ok": true,
+        "type": "LOTO_6_45",
+        "scoring": {
+          "ok": true,
+          "type": "LOTO_6_45",
+          "scored": [],
+          "errors": []
+        },
+        "cycle": {
+          "ok": true,
+          "type": "LOTO_6_45",
+          "status": "locked",
+          "cycleId": "7d20507d-972f-43a9-a169-a0897b9b5a42",
+          "targetDrawId": "1572",
+          "cutoffDrawId": "1571",
+          "ticketCount": 3
+        }
+      },
+      {
+        "ok": true,
+        "type": "LOTO_6_55",
+        "scoring": {
+          "ok": true,
+          "type": "LOTO_6_55",
+          "scored": [],
+          "errors": []
+        },
+        "cycle": {
+          "ok": true,
+          "type": "LOTO_6_55",
+          "status": "locked",
+          "cycleId": "8dc74d64-0437-475e-8343-58931cce76f4",
+          "targetDrawId": "1407",
+          "cutoffDrawId": "1406",
+          "ticketCount": 3
+        }
+      }
+    ]
+  },
+  "games": [
+    {
+      "type": "LOTO_5_35",
+      "enabled": true,
+      "ticketCount": 3,
+      "counts": {
+        "locked": 1,
+        "scored": 0,
+        "total": 1
+      },
+      "targets": [
+        "927"
+      ],
+      "deadlines": [
+        "2026-10-05T13:00:00+07:00"
+      ]
+    },
+    {
+      "type": "LOTO_6_45",
+      "enabled": true,
+      "ticketCount": 3,
+      "counts": {
+        "locked": 1,
+        "scored": 0,
+        "total": 1
+      },
+      "targets": [
+        "1572"
+      ],
+      "deadlines": [
+        "2026-10-07T18:00:00+07:00"
+      ]
+    },
+    {
+      "type": "LOTO_6_55",
+      "enabled": true,
+      "ticketCount": 3,
+      "counts": {
+        "locked": 1,
+        "scored": 0,
+        "total": 1
+      },
+      "targets": [
+        "1407"
+      ],
+      "deadlines": [
+        "2026-10-06T18:00:00+07:00"
+      ]
+    }
+  ],
+  "database": {
+    "users": 1,
+    "stores": 1,
+    "quickCheck": "ok"
+  }
+}

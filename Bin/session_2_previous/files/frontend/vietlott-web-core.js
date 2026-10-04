@@ -571,6 +571,7 @@
     let liveHistoryRecentRefreshBusy = false;
     let dataTableSelectedType = "LOTO_5_35";
     let dataTableSelectedLimit = "500";
+    let dataTableHitOnly = false;
     let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
     let dataTableLoading = false;
     let liveResultsFetchedAt = "";
@@ -5996,6 +5997,7 @@
       if (dataTableType) {
         dataTableType.addEventListener("change", async () => {
           dataTableSelectedType = dataTableType.value || "LOTO_5_35";
+          syncDataTableHitFilterControl();
           await loadDataTableRows();
         });
       }
@@ -6018,9 +6020,22 @@
       });
     });
     {
+      const dataTableHitFilterBtn = document.getElementById("dataTableHitFilterBtn");
+      if (dataTableHitFilterBtn) {
+        dataTableHitFilterBtn.addEventListener("click", async () => {
+          if (dataTableHitFilterBtn.disabled) return;
+          dataTableHitOnly = !dataTableHitOnly;
+          syncDataTableHitFilterControl();
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
       const dataTableClearFilterBtn = document.getElementById("dataTableClearFilterBtn");
       if (dataTableClearFilterBtn) {
         dataTableClearFilterBtn.addEventListener("click", async () => {
+          dataTableHitOnly = false;
+          syncDataTableHitFilterControl();
           resetDataTableDateFilters();
           await loadDataTableRows();
         });

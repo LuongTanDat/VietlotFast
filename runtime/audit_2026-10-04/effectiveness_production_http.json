@@ -1,0 +1,8 @@
+{
+  "/api/time": 200,
+  "/api/ml/effectiveness?type=LOTO_6_45": 401,
+  "/api/ml/effectiveness-settings?type=LOTO_6_45": 401,
+  "/api/ml/effectiveness-cycle": 401,
+  "servedSourceMatches": true,
+  "conditionalStatus": 304
+}

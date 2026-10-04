@@ -509,6 +509,7 @@
       const chartsRoot = document.getElementById("predictRootCharts");
       const dashboardRoot = document.getElementById("predictRootDashboard");
       const analysisRoot = document.getElementById("predictRootAnalysis");
+      const effectivenessRoot = document.getElementById("predictRootEffectiveness");
       if (normalRoot) normalRoot.hidden = predictPageModeValue !== PREDICTION_MODE_NORMAL;
       if (manualRoot) manualRoot.hidden = predictPageModeValue !== PREDICTION_MODE_MANUAL;
       if (vipRoot) vipRoot.hidden = predictPageModeValue !== PREDICTION_MODE_VIP;
@@ -517,6 +518,8 @@
       if (chartsRoot) chartsRoot.hidden = predictPageModeValue !== PREDICTION_MODE_CHARTS;
       if (dashboardRoot) dashboardRoot.hidden = predictPageModeValue !== PREDICTION_MODE_DASHBOARD;
       if (analysisRoot) analysisRoot.hidden = predictPageModeValue !== PREDICTION_MODE_ANALYSIS;
+      if (effectivenessRoot) effectivenessRoot.hidden = predictPageModeValue !== PREDICTION_MODE_EFFECTIVENESS;
+      window.VietlottEffectiveness?.activate(predictPageModeValue === PREDICTION_MODE_EFFECTIVENESS);
       syncStatsPanelAutoRefreshTimer();
       syncStatsV2AutoRefreshTimer();
       if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) startAnalysisAutoRefresh();

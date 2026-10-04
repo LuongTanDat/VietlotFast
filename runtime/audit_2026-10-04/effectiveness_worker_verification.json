@@ -1,0 +1,30 @@
+{
+  "settings": [
+    {
+      "type": "LOTO_5_35",
+      "enabled": true,
+      "ticketCount": 3,
+      "lastTick": "2026-10-04T19:39:52+00:00",
+      "lastError": ""
+    },
+    {
+      "type": "LOTO_6_45",
+      "enabled": true,
+      "ticketCount": 3,
+      "lastTick": "2026-10-04T19:39:52+00:00",
+      "lastError": ""
+    },
+    {
+      "type": "LOTO_6_55",
+      "enabled": true,
+      "ticketCount": 3,
+      "lastTick": "2026-10-04T19:39:52+00:00",
+      "lastError": ""
+    }
+  ],
+  "workerProgressed": true,
+  "cycleCount": 3,
+  "predictionCount": 12,
+  "scoredCount": 0,
+  "servedSourceMatches": true
+}

@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
@@ -44,6 +45,7 @@ public class LottoWebServer {
     private static final int PORT = Integer.getInteger("lotto.port", 8080);
     private static final String COOKIE_NAME = "LOTTO_AUTH";
     private static final String DB_FILE = "runtime/lotto_web.db";
+    private static final String EFFECTIVENESS_SYSTEM_USER = "__effectiveness_system__";
     private static final long LIVE_RESULTS_TIMEOUT_SECONDS = 600;
     private static final long LIVE_RESULTS_PROGRESS_STALE_SECONDS = 120;
     private static final long KENO_SYNC_TIMEOUT_SECONDS = 150;
@@ -87,6 +89,7 @@ public class LottoWebServer {
     private final Path statsJsFile;
     private final Path dataJsFile;
     private final Path chatbotJsFile;
+    private final Path effectivenessJsFile;
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
@@ -99,6 +102,7 @@ public class LottoWebServer {
     private final Map<Path, StaticAsset> staticAssetCache = new ConcurrentHashMap<>();
     private final Map<String, TimedJsonPayload> heavyApiCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
+    private final AtomicBoolean effectivenessJobRunning = new AtomicBoolean();
 
     // ----- Helper lồng bên trong -----
     // Các lớp nhỏ phục vụ đọc JSON tay và gom stdout/stderr của tiến trình con.
@@ -358,6 +362,7 @@ public class LottoWebServer {
         this.statsJsFile = rootDir.resolve("frontend").resolve("vietlott-web-stats.js");
         this.dataJsFile = rootDir.resolve("frontend").resolve("vietlott-web-data.js");
         this.chatbotJsFile = rootDir.resolve("frontend").resolve("vietlott-web-chatbot.js");
+        this.effectivenessJsFile = rootDir.resolve("frontend").resolve("vietlott-web-effectiveness.js");
         this.faviconFile = rootDir.resolve("frontend").resolve("favicon.svg");
         this.dbFile = rootDir.resolve(DB_FILE);
         this.repo = new DatabaseRepo(dbFile);
@@ -377,6 +382,7 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-stats.js", ex -> serveStaticTextFile(ex, statsJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-chatbot.js", ex -> serveStaticTextFile(ex, chatbotJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-effectiveness.js", ex -> serveStaticTextFile(ex, effectivenessJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);
@@ -399,6 +405,9 @@ public class LottoWebServer {
         server.createContext("/api/ml/train-candidate", this::handleMlTrainCandidate);
         server.createContext("/api/ml/promote", this::handleMlPromote);
         server.createContext("/api/ml/rollback", this::handleMlRollback);
+        server.createContext("/api/ml/effectiveness", this::handleMlEffectiveness);
+        server.createContext("/api/ml/effectiveness-settings", this::handleMlEffectivenessSettings);
+        server.createContext("/api/ml/effectiveness-cycle", this::handleMlEffectivenessCycle);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
         server.createContext("/api/live-results-progress", this::handleLiveResultsProgress);
@@ -413,6 +422,7 @@ public class LottoWebServer {
         server.setExecutor(new ThreadPoolExecutor(8, 24, 60, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<Runnable>(64), new ThreadPoolExecutor.CallerRunsPolicy()));
         server.start();
+        startEffectivenessWorker();
 
         System.out.println("Lotto Web Server chạy tại http://localhost:" + PORT + "/");
         System.out.println("DB file: " + dbFile.toAbsolutePath());
@@ -564,6 +574,9 @@ public class LottoWebServer {
         Map<String, String> f = parseForm(ex);
         String user = normalizeUser(f.get("username"));
         String pass = nvl(f.get("password")).trim();
+        if (EFFECTIVENESS_SYSTEM_USER.equals(user)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Tên này dành riêng cho tác vụ hệ thống.\"}"); return;
+        }
         if (user.length() < 3) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Tên đăng nhập tối thiểu 3 ký tự\"}");
             return;
@@ -591,6 +604,9 @@ public class LottoWebServer {
         Map<String, String> f = parseForm(ex);
         String user = normalizeUser(f.get("username"));
         String pass = nvl(f.get("password")).trim();
+        if (EFFECTIVENESS_SYSTEM_USER.equals(user)) {
+            sendJson(ex, 403, "{\"ok\":false,\"message\":\"Tài khoản hệ thống không dùng để đăng nhập.\"}"); return;
+        }
         try {
             String attemptKey = ex.getRemoteAddress().getAddress().getHostAddress() + "|" + user;
             if (loginAttempts.size() > 4096) loginAttempts.entrySet().removeIf(entry -> entry.getValue()[0] < System.currentTimeMillis() - 900000);
@@ -1811,6 +1827,136 @@ public class LottoWebServer {
         return true;
     }
 
+    private List<String> effectivenessCommand(String action, String type) {
+        List<String> command = buildPythonCommand(rootDir.resolve("ai").resolve("prediction_effectiveness.py"));
+        command.add(action);
+        if (!isBlank(type)) command.add(type);
+        return command;
+    }
+
+    private boolean validateEffectivenessType(HttpExchange ex, String type) throws IOException {
+        if (!Arrays.asList("LOTO_5_35", "LOTO_6_45", "LOTO_6_55").contains(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Hiệu quả dự đoán hỗ trợ 5/35, Mega và Power.\"}");
+            return false;
+        }
+        return true;
+    }
+
+    private void sendEffectivenessResult(HttpExchange ex, List<String> command, boolean canManage) throws IOException {
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
+            ProcessOutput output = waitForProcessOutput(process, AI_PREDICT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!output.finished) {
+                sendJson(ex, 504, "{\"ok\":false,\"message\":\"Đánh giá dự đoán quá thời gian chờ.\"}"); return;
+            }
+            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
+            // Domain errors still carry valid JSON and a nonzero CLI exit code.
+            Map<String, String> fields = jsonFields(payload);
+            fields.put("canManage", canManage ? "true" : "false");
+            sendJson(ex, "false".equals(fields.get("ok")) ? 400 : output.exitCode == 0 ? 200 : 500, fieldsJson(fields));
+        } catch (IllegalArgumentException invalid) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Dữ liệu đánh giá không hợp lệ.\"}");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Đánh giá bị gián đoạn.\"}");
+        } catch (IOException failure) {
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không chạy được đánh giá dự đoán.\"}");
+        } finally {
+            if (process != null) process.destroy();
+        }
+    }
+
+    private void handleMlEffectiveness(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        int limit = isBlank(query.get("limit")) ? 100 : parseStrictPositiveInt(query.get("limit"));
+        if (limit < 1 || limit > 300) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Số kỳ phải từ 1 đến 300.\"}"); return;
+        }
+        List<String> command = effectivenessCommand("report", type);
+        command.add("--limit=" + limit);
+        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+    }
+
+    private void handleMlEffectivenessSettings(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        boolean read = "GET".equalsIgnoreCase(ex.getRequestMethod());
+        SessionUser su = read ? requireAuth(ex, true) : requireAdmin(ex);
+        if (su == null) return;
+        if (!read && !"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> values = read ? parseQuery(ex.getRequestURI().getRawQuery()) : parseForm(ex);
+        String type = normalizeLiveType(values.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        List<String> command = effectivenessCommand(read ? "settings" : "configure", type);
+        if (!read) {
+            String enabled = nvl(values.get("enabled"));
+            int count = parseStrictPositiveInt(values.get("ticketCount"));
+            if (!("true".equals(enabled) || "false".equals(enabled)) || count < 1 || count > 10) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn trạng thái tự động và từ 1 đến 10 vé.\"}"); return;
+            }
+            command.add("--enabled=" + enabled);
+            command.add("--ticket-count=" + count);
+            command.add("--actor=" + su.username);
+        }
+        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+    }
+
+    private void handleMlEffectivenessCycle(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> values = parseForm(ex);
+        String type = normalizeLiveType(values.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        if (!effectivenessJobRunning.compareAndSet(false, true)) {
+            sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang xử lý đánh giá. Vui lòng tải lại sau.\"}"); return;
+        }
+        try {
+            sendEffectivenessResult(ex, effectivenessCommand("cycle", type), true);
+        } finally {
+            effectivenessJobRunning.set(false);
+        }
+    }
+
+    private void startEffectivenessWorker() {
+        if (!Boolean.parseBoolean(System.getProperty("lotto.effectivenessWorker", "true"))) return;
+        Executors.newSingleThreadScheduledExecutor(task -> {
+            Thread thread = new Thread(task, "prediction-effectiveness");
+            thread.setDaemon(true);
+            return thread;
+        }).scheduleWithFixedDelay(() -> {
+            if (!Files.exists(rootDir.resolve("ai").resolve("prediction_effectiveness.py"))
+                    || !effectivenessJobRunning.compareAndSet(false, true)) return;
+            Process process = null;
+            try {
+                process = new ProcessBuilder(effectivenessCommand("tick", null)).directory(rootDir.toFile()).start();
+                ProcessOutput output = waitForProcessOutput(process, AI_ML_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                if (!output.finished || output.exitCode != 0) {
+                    System.err.println("Effectiveness worker failed: " + new String(output.stderr, StandardCharsets.UTF_8));
+                }
+            } catch (Exception failure) {
+                if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
+                System.err.println("Effectiveness worker: " + rootCauseMsg(failure));
+            } finally {
+                if (process != null) process.destroy();
+                effectivenessJobRunning.set(false);
+            }
+        }, 15, 60, TimeUnit.SECONDS);
+    }
+
     private void handleMlStatus(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAuth(ex, true);
@@ -2130,7 +2276,7 @@ public class LottoWebServer {
             return null;
         }
         String user = sessions.get(token);
-        if (user == null || sessionExpiry.getOrDefault(token, 0L) <= System.currentTimeMillis()) {
+        if (user == null || EFFECTIVENESS_SYSTEM_USER.equals(user) || sessionExpiry.getOrDefault(token, 0L) <= System.currentTimeMillis()) {
             sessions.remove(token);
             sessionExpiry.remove(token);
             sessionPasswordHash.remove(token);
@@ -2938,6 +3084,7 @@ public class LottoWebServer {
         }
 
         synchronized void register(String user, String password) {
+            if (EFFECTIVENESS_SYSTEM_USER.equals(user)) throw new IllegalStateException("Tên này dành riêng cho tác vụ hệ thống.");
             if (getUser(user) != null) throw new IllegalStateException("Tên đăng nhập đã tồn tại");
             byte[] salt = new byte[16];
             random.nextBytes(salt);
@@ -3256,6 +3403,7 @@ public class LottoWebServer {
         }
 
         synchronized void renameUser(String user, String newUser) {
+            if (EFFECTIVENESS_SYSTEM_USER.equals(newUser)) throw new IllegalStateException("Tên này dành riêng cho tác vụ hệ thống.");
             if (newUser.length() < 3) throw new IllegalStateException("Tên mới tối thiểu 3 ký tự");
             if (getUser(user) == null) throw new IllegalStateException("Không tìm thấy tài khoản");
             if (getUser(newUser) != null) throw new IllegalStateException("Tên tài khoản mới đã tồn tại");
