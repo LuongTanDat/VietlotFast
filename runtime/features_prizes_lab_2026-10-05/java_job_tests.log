@@ -1,0 +1,17 @@
+test_algorithm_lab_auth_validation_and_empty_report (tests.test_effectiveness_web.EffectivenessWebTests.test_algorithm_lab_auth_validation_and_empty_report) ... ok
+test_algorithm_lab_async_owner_isolation_and_single_job (tests.test_effectiveness_web.EffectivenessWebTests.test_algorithm_lab_async_owner_isolation_and_single_job) ... ERROR
+test_algorithm_lab_domain_error_and_cancel (tests.test_effectiveness_web.EffectivenessWebTests.test_algorithm_lab_domain_error_and_cancel) ... ok
+
+======================================================================
+ERROR: test_algorithm_lab_async_owner_isolation_and_single_job (tests.test_effectiveness_web.EffectivenessWebTests.test_algorithm_lab_async_owner_isolation_and_single_job)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto\tests\test_effectiveness_web.py", line 215, in test_algorithm_lab_async_owner_isolation_and_single_job
+    self.assertEqual(0, connection.execute('SELECT COUNT(*) FROM prediction_runs').fetchone()[0])
+                        ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: prediction_runs
+
+----------------------------------------------------------------------
+Ran 3 tests in 11.338s
+
+FAILED (errors=1)

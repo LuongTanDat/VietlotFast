@@ -26,6 +26,7 @@ if __package__ in (None, ""):
 from ai import ml_pipeline, prediction_ledger as ledger
 from ai.configs import data_paths as dp
 from ai.evaluation.statistical_tests import paired_bootstrap_ci
+from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_tickets, prize_counts, prize_statistics
 from backend.file_guard import resource_lock, version
 
 GAMES = ("LOTO_5_35", "LOTO_6_45", "LOTO_6_55")
@@ -433,6 +434,7 @@ def _summary(method: str, samples: list[dict], random_samples: list[dict], cfg: 
                  for n in range(cfg["draw_size"] + 1)}
     decision = "baseline" if method == "random" else ("insufficient_evidence" if count < 30 else (
         "possible_improvement" if ci["lower"] > 0 else "no_clear_advantage"))
+    results = [result for sample in samples for result in sample.get("ticketResults", [])]
     return {"key": method, "label": METHODS[method], "sampleCount": count,
             "meanHits": mean(hits) if count else None, "brierScore": mean(s["brierScore"] for s in samples) if count else None,
             "logLoss": mean(s["logLoss"] for s in samples) if count else None,
@@ -441,7 +443,8 @@ def _summary(method: str, samples: list[dict], random_samples: list[dict], cfg: 
             "lift": mean(hits) / expected - 1 if count else None,
             "deltaVsRandom": ci["mean"] if ci else None,
             "ci95": {"lower": ci["lower"], "upper": ci["upper"]} if ci else None,
-            "hitHistogram": histogram, "decision": decision}
+            "hitHistogram": histogram, "decision": decision,
+            "prizeCounts": prize_counts(results), "prizeStatistics": prize_statistics(results)}
 
 
 def report(game: str, limit: int = 100, db_path=None) -> dict:
@@ -461,9 +464,17 @@ def report(game: str, limit: int = 100, db_path=None) -> dict:
             if len(predictions) != 4 or {p["method"] for p in predictions} != set(METHODS):
                 continue
             complete = all(p["status"] == "scored" and p["metrics_json"] for p in predictions)
+            recorded = [json.loads(p["metrics_json"]) for p in predictions] if complete else []
+            same_main = bool(recorded) and all(m.get("actual_main") == recorded[0].get("actual_main") for m in recorded)
+            same_special = bool(recorded) and all(m.get("actual_special") == recorded[0].get("actual_special") for m in recorded)
+            actual_main = recorded[0].get("actual_main", []) if same_main else []
+            actual_special = recorded[0].get("actual_special") if same_special else None
             item = {"cycleId": row["cycle_id"], "targetDrawId": row["target_draw_id"], "cutoffDrawId": row["cutoff_draw_id"],
                     "createdAt": row["created_at"], "deadline": row["deadline"], "dataHash": row["data_hash"],
-                    "status": "scored" if complete else "locked", "actualMain": [], "methods": {},
+                    "status": "scored" if complete else "locked", "actualMain": actual_main,
+                    "actualSpecial": actual_special, "actualSpecialStatus": "not_applicable" if game == "LOTO_6_45" else (
+                        "recorded" if complete and same_special and type(actual_special) is int else "missing" if complete else "pending"),
+                    "actualSource": "recorded_ledger_score" if complete else "pending", "methods": {},
                     "config": json.loads(row["config_json"])}
             for prediction in predictions:
                 method = prediction["method"]
@@ -475,13 +486,18 @@ def report(game: str, limit: int = 100, db_path=None) -> dict:
                               "brierScore": prediction["brier_score"] if complete else None,
                               "logLoss": prediction["log_loss"] if complete else None,
                               "seed": prediction["random_seed"], "calibrationStatus": payload.get("probabilityCalibrationStatus", "uncalibrated")}
+                # Classification uses only the immutable score's recorded result;
+                # never fill an old missing special ball from today's CSV.
+                recorded_actual = {"main": actual_main, "special": actual_special} if complete else None
+                ticket_results = classify_tickets(game, method_row["tickets"], recorded_actual)
+                method_row.update({"ticketResults": ticket_results, "prizeCounts": prize_counts(ticket_results),
+                                   "prizeStatistics": prize_statistics(ticket_results), "prizeSource": item["actualSource"]})
                 if complete:
                     ticket_hits = [ticket["hit_count"] for ticket in metrics["per_ticket"]]
                     method_row.update({"rate3": sum(hit >= 3 for hit in ticket_hits) / len(ticket_hits),
                                        "rate4": sum(hit >= 4 for hit in ticket_hits) / len(ticket_hits),
                                        "hitHistogram": {str(n): ticket_hits.count(n) for n in range(ml_pipeline.game_config(game)["draw_size"] + 1)}})
                     samples[method].append(method_row)
-                    item["actualMain"] = metrics["actual_main"]
                 item["methods"][method] = method_row
             cycles.append(item)
         scored = len(samples["web"])
@@ -492,11 +508,14 @@ def report(game: str, limit: int = 100, db_path=None) -> dict:
                 "counts": {"locked": len(cycles) - scored, "scored": scored, "total": len(cycles)},
                 "methods": [_summary(method, samples[method], samples["random"], ml_pipeline.game_config(game)) for method in METHODS],
                 "cycles": cycles[:limit], "scope": "main_numbers_only", "metricWeighting": "equal_weight_per_draw",
+                "prizeScope": PRIZE_SCOPE, "prizeRuleVersion": PRIZE_RULE_VERSION,
                 "configurationCount": len(configurations), "mixedConfigurations": len(configurations) > 1,
                 "automation": {"lastError": settings_row["last_error"], "lastTick": settings_row["last_tick"],
                                "nextTargetDrawId": settings_row["next_target"]},
                 "notes": ["Chỉ đánh giá kỳ đã khóa trước giờ quay; không dựng lại dự đoán lịch sử.",
-                          "So bốn phương pháp cùng kỳ và cùng số vé. Chỉ chấm số chính; số đặc biệt đối chứng được lấy ngẫu nhiên.",
+                          "So bốn phương pháp cùng kỳ và cùng số vé. Số trùng/Brier/CI vẫn chấm số chính; nhãn giải chấm riêng theo thể lệ vé chuẩn.",
+                          "Giải dựa trên kết quả đã lưu lúc chấm; thiếu ĐB cũ ghi chưa xác định, không bổ sung từ CSV hiện tại. Số đặc biệt đối chứng lấy ngẫu nhiên.",
+                          "Jackpot 2 Power cần trùng 5 số chính và số thứ bảy thực tế nằm trong 6 số của vé; số phụ dự đoán không quyết định giải.",
                           "Brier/log loss dùng xác suất biên chưa hiệu chỉnh. CI bootstrap ghép cặp theo kỳ, chưa điều chỉnh thử nhiều phương pháp.",
                           "Dưới 30 kỳ hoặc CI chứa 0: chưa đủ bằng chứng lợi thế. Kết quả quá khứ không bảo đảm kỳ sau."]}
 

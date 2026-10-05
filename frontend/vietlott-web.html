@@ -769,6 +769,21 @@
         </details>
         <div id="effectivenessComparison"></div>
         <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
+        <details id="effectivenessLab" class="effectiveness-lab">
+          <summary><strong>Phòng thử thuật toán</strong><span>Lịch sử ngoài mẫu</span></summary>
+          <div class="effectiveness-lab-body">
+            <p class="effectiveness-lab-intro">Chọn cấu hình trên tập validation, rồi kiểm tra trên các kỳ test phía sau. Kết quả lịch sử được tách khỏi dự đoán đã khóa trước quay.</p>
+            <div id="effectivenessLabAdmin" class="effectiveness-lab-controls" hidden>
+              <label>Vé / phương pháp <input id="effectivenessLabTickets" type="number" min="1" max="10" step="1" value="3" /></label>
+              <label>Kỳ validation <input id="effectivenessLabValidation" type="number" min="5" max="50" step="1" value="10" /></label>
+              <label>Kỳ test <input id="effectivenessLabTest" type="number" min="5" max="50" step="1" value="20" /></label>
+              <button id="effectivenessLabRun" type="button" class="secondary">Chạy thử</button>
+              <button id="effectivenessLabCancel" type="button" class="secondary" hidden>Hủy lượt thử</button>
+            </div>
+            <div id="effectivenessLabStatus" class="effectiveness-lab-status" role="status" aria-live="polite">Mở phòng thử để tải kết quả gần nhất của tài khoản.</div>
+            <div id="effectivenessLabResult"></div>
+          </div>
+        </details>
         <div class="effectiveness-history-head"><h3>Đối chiếu từng kỳ</h3><span class="muted">Số xanh là số chính trùng.</span></div>
         <div id="effectivenessCycles" class="effectiveness-cycles"></div>
       </section>

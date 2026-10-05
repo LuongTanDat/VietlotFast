@@ -720,9 +720,9 @@
           <div>
             <span class="effectiveness-eyebrow">ĐỐI CHIẾU TỪNG KỲ THỰC TẾ</span>
             <h2 id="effectivenessTitle">Hiệu quả dự đoán</h2>
-            <p class="effectiveness-intro">Bộ số được khóa trước giờ quay; kết quả được chấm khi dữ liệu kỳ quay cập nhật. Bốn phương pháp dùng cùng số vé.</p>
+            <p class="effectiveness-intro">So sánh số chính trên cùng ngân sách.</p>
           </div>
-          <button id="effectivenessRefresh" type="button" class="secondary">↻ Làm mới báo cáo</button>
+          <span class="effectiveness-scope">Khóa trước quay · Chấm kết quả thật</span>
         </div>
         <div class="effectiveness-toolbar">
           <label>Loại xổ số
@@ -732,33 +732,43 @@
               <option value="LOTO_6_55">Power 6/55</option>
             </select>
           </label>
-          <label>Nhật ký hiển thị
+          <label>Nhật ký
             <select id="effectivenessLimit">
               <option value="30">30 kỳ gần nhất</option>
               <option value="100" selected>100 kỳ gần nhất</option>
               <option value="300">300 kỳ gần nhất</option>
             </select>
           </label>
+          <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
           <span id="effectivenessUpdated" class="muted"></span>
         </div>
         <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
-        <div id="effectivenessAdmin" class="effectiveness-admin" hidden>
-          <div class="effectiveness-admin-copy"><strong>Theo dõi tự động</strong><span>Lưu một lượt cho kỳ kế tiếp khi server đang chạy. Thay đổi số vé chỉ áp dụng cho kỳ chưa khóa.</span></div>
-          <label class="effectiveness-enable"><input id="effectivenessEnabled" type="checkbox" /> Bật cho loại xổ số này</label>
-          <label>Số vé / phương pháp <input id="effectivenessTicketCount" type="number" min="1" max="10" step="1" value="1" /></label>
-          <div class="effectiveness-admin-actions">
-            <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
-            <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
-          </div>
-        </div>
         <div id="effectivenessSummary" class="effectiveness-summary"></div>
-        <div class="effectiveness-explainer">
-          <strong>Đọc kết quả:</strong> chỉ xét số chính; mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký bên dưới. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.
-        </div>
-        <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
+        <details id="effectivenessAdmin" class="effectiveness-admin" hidden>
+          <summary><strong>Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>
+          <div class="effectiveness-admin-body">
+            <p class="effectiveness-admin-copy">Tự khóa kỳ tiếp theo khi server đang chạy. Thay đổi chỉ áp dụng cho kỳ chưa khóa.</p>
+            <div class="effectiveness-admin-controls">
+              <label class="effectiveness-enable"><input id="effectivenessEnabled" type="checkbox" /> Theo dõi tự động</label>
+              <label>Số vé / phương pháp <input id="effectivenessTicketCount" type="number" min="1" max="10" step="1" value="1" /></label>
+              <div class="effectiveness-admin-actions">
+                <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
+                <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
+              </div>
+            </div>
+          </div>
+        </details>
+        <div id="effectivenessMixedWarning"></div>
+        <details class="effectiveness-help">
+          <summary><span>Cách đọc kết quả</span><span>Số chính · Khoảng bất định · Phạm vi so sánh</span></summary>
+          <div class="effectiveness-help-body">
+            <p class="effectiveness-explainer">Mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký. Số trùng và tỷ lệ ≥3 / ≥4 xét từng vé, chỉ tính số chính. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.</p>
+            <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
+          </div>
+        </details>
         <div id="effectivenessComparison"></div>
         <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
-        <div class="effectiveness-history-head"><h3>Nhật ký từng kỳ</h3><span class="muted">Mở một kỳ để xem bộ số đã khóa và số trùng.</span></div>
+        <div class="effectiveness-history-head"><h3>Đối chiếu từng kỳ</h3><span class="muted">Số xanh là số chính trùng.</span></div>
         <div id="effectivenessCycles" class="effectiveness-cycles"></div>
       </section>
       <section id="predictRootManual" class="card predict-card predict-root predict-root-manual" hidden>

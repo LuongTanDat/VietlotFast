@@ -716,33 +716,34 @@
         </div>
       </section>
       <section id="predictRootEffectiveness" class="card predict-card predict-root effectiveness-board" aria-labelledby="effectivenessTitle" hidden>
-        <div class="effectiveness-head">
-          <div>
+        <div class="effectiveness-overview">
+          <div class="effectiveness-head">
             <span class="effectiveness-eyebrow">ĐỐI CHIẾU TỪNG KỲ THỰC TẾ</span>
             <h2 id="effectivenessTitle">Hiệu quả dự đoán</h2>
-            <p class="effectiveness-intro">So sánh số chính trên cùng ngân sách.</p>
+            <p class="effectiveness-intro">Khóa trước quay · So sánh số chính cùng ngân sách.</p>
           </div>
-          <span class="effectiveness-scope">Khóa trước quay · Chấm kết quả thật</span>
+          <div class="effectiveness-toolbar">
+            <label>Loại xổ số
+              <select id="effectivenessType">
+                <option value="LOTO_5_35">Loto 5/35</option>
+                <option value="LOTO_6_45">Mega 6/45</option>
+                <option value="LOTO_6_55">Power 6/55</option>
+              </select>
+            </label>
+            <label>Nhật ký
+              <select id="effectivenessLimit">
+                <option value="30">30 kỳ gần nhất</option>
+                <option value="100" selected>100 kỳ gần nhất</option>
+                <option value="300">300 kỳ gần nhất</option>
+              </select>
+            </label>
+            <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
+          </div>
+          <div class="effectiveness-feedback">
+            <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
+            <span id="effectivenessUpdated" class="muted"></span>
+          </div>
         </div>
-        <div class="effectiveness-toolbar">
-          <label>Loại xổ số
-            <select id="effectivenessType">
-              <option value="LOTO_5_35">Loto 5/35</option>
-              <option value="LOTO_6_45">Mega 6/45</option>
-              <option value="LOTO_6_55">Power 6/55</option>
-            </select>
-          </label>
-          <label>Nhật ký
-            <select id="effectivenessLimit">
-              <option value="30">30 kỳ gần nhất</option>
-              <option value="100" selected>100 kỳ gần nhất</option>
-              <option value="300">300 kỳ gần nhất</option>
-            </select>
-          </label>
-          <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
-          <span id="effectivenessUpdated" class="muted"></span>
-        </div>
-        <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
         <div id="effectivenessSummary" class="effectiveness-summary"></div>
         <details id="effectivenessAdmin" class="effectiveness-admin" hidden>
           <summary><strong>Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>

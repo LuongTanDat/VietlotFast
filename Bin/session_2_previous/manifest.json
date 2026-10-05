@@ -1,31 +1,21 @@
 {
-  "created_at": "2026-10-05T14:52:51.737201+00:00",
-  "reason": "Redesign prediction effectiveness section and per-draw comparison for compact desktop/mobile presentation",
+  "created_at": "2026-10-05T15:08:54.383129+00:00",
+  "reason": "Refine only effectiveness overview header, controls, feedback and equal compact metrics after screenshot feedback",
   "files": [
     {
       "path": "frontend/vietlott-web.html",
       "action": "replace",
-      "sha256": "eaa44afd454ee9baa7216b7dc0cdcf69ba968d2e3e5d0354e14a884738c3b281"
-    },
-    {
-      "path": "frontend/vietlott-web-effectiveness.js",
-      "action": "replace",
-      "sha256": "9db903cd82e05556fc14645f5c60e76c928628bb5db162e15634458c1f9f0528"
+      "sha256": "c9db88e903fecada5dd774ac57c935733324a5ea53c7abbbe58738d5d627061e"
     },
     {
       "path": "frontend/vietlott-web-extra.css",
       "action": "replace",
-      "sha256": "0393195c6933626652b8a320597924ae61b43f6841b45a7accebdf721291a27e"
-    },
-    {
-      "path": "tests/test_effectiveness_frontend.py",
-      "action": "replace",
-      "sha256": "f49c0139e16a0db14522b63fb83e8398a7606b38ae4c4ca2711590337ae95157"
+      "sha256": "f6b2474e417d48705eab0be66e29be7b4ad22629b73febcf2be6290bc1f82793"
     },
     {
       "path": "docs/NhatKyThayDoi.md",
       "action": "replace",
-      "sha256": "1eca34046336379dd1889ec0d771b90058c82ac4c7b09a53f4c11976f2240cd5"
+      "sha256": "045d01fd09166c4a0154b2d282360b32823d7428232a240b2b288104e54eea23"
     }
   ]
 }

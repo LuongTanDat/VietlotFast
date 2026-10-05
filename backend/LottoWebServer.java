@@ -103,6 +103,31 @@ public class LottoWebServer {
     private final Map<String, TimedJsonPayload> heavyApiCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
     private final AtomicBoolean effectivenessJobRunning = new AtomicBoolean();
+    private final AtomicBoolean algorithmLabRunning = new AtomicBoolean();
+    private final Map<String, AlgorithmLabJob> algorithmLabJobs = new ConcurrentHashMap<>();
+
+    private static final class AlgorithmLabJob {
+        final String id = UUID.randomUUID().toString();
+        final String owner, type;
+        final int ticketCount, validationCount, testCount;
+        final Instant createdAt = Instant.now();
+        String state = "running", finishedAt = "", report = "null", error = "";
+        boolean cancelled;
+        Process process;
+
+        AlgorithmLabJob(String owner, String type, int ticketCount, int validationCount, int testCount) {
+            this.owner = owner; this.type = type; this.ticketCount = ticketCount;
+            this.validationCount = validationCount; this.testCount = testCount;
+        }
+
+        synchronized String json() {
+            return "{\"id\":" + quoteJson(id) + ",\"type\":" + quoteJson(type)
+                    + ",\"state\":" + quoteJson(state) + ",\"createdAt\":" + quoteJson(createdAt.toString())
+                    + ",\"finishedAt\":" + quoteJson(finishedAt) + ",\"ticketCount\":" + ticketCount
+                    + ",\"validationCount\":" + validationCount + ",\"testCount\":" + testCount
+                    + ",\"report\":" + report + ",\"error\":" + quoteJson(error) + "}";
+        }
+    }
 
     // ----- Helper lồng bên trong -----
     // Các lớp nhỏ phục vụ đọc JSON tay và gom stdout/stderr của tiến trình con.
@@ -408,6 +433,7 @@ public class LottoWebServer {
         server.createContext("/api/ml/effectiveness", this::handleMlEffectiveness);
         server.createContext("/api/ml/effectiveness-settings", this::handleMlEffectivenessSettings);
         server.createContext("/api/ml/effectiveness-cycle", this::handleMlEffectivenessCycle);
+        server.createContext("/api/ml/algorithm-lab", this::handleAlgorithmLab);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
         server.createContext("/api/live-results-progress", this::handleLiveResultsProgress);
@@ -1955,6 +1981,138 @@ public class LottoWebServer {
                 effectivenessJobRunning.set(false);
             }
         }, 15, 60, TimeUnit.SECONDS);
+    }
+
+    private void pruneAlgorithmLabJobs() {
+        Instant oldestAllowed = Instant.now().minus(Duration.ofDays(1));
+        algorithmLabJobs.entrySet().removeIf(entry -> {
+            AlgorithmLabJob job = entry.getValue();
+            synchronized (job) { return !"running".equals(job.state) && job.createdAt.isBefore(oldestAllowed); }
+        });
+        while (algorithmLabJobs.size() >= 8) {
+            AlgorithmLabJob oldest = null;
+            for (AlgorithmLabJob job : algorithmLabJobs.values()) {
+                synchronized (job) {
+                    if (!"running".equals(job.state) && (oldest == null || job.createdAt.isBefore(oldest.createdAt))) oldest = job;
+                }
+            }
+            if (oldest == null) break;
+            algorithmLabJobs.remove(oldest.id, oldest);
+        }
+    }
+
+    private void sendAlgorithmLabJob(HttpExchange ex, int status, AlgorithmLabJob job, boolean canManage) throws IOException {
+        sendJson(ex, status, "{\"ok\":true,\"canManage\":" + canManage + ",\"job\":" + (job == null ? "null" : job.json()) + "}");
+    }
+
+    private void handleAlgorithmLab(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        String method = ex.getRequestMethod();
+        SessionUser su = "GET".equalsIgnoreCase(method) ? requireAuth(ex, true) : requireAdmin(ex);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> values = "GET".equalsIgnoreCase(method) ? parseQuery(ex.getRequestURI().getRawQuery()) : parseForm(ex);
+        String type = normalizeLiveType(values.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        pruneAlgorithmLabJobs();
+        String jobId = nvl(values.get("jobId")).trim();
+        AlgorithmLabJob selected = null;
+        if (!isBlank(jobId)) {
+            selected = algorithmLabJobs.get(jobId);
+            if (selected == null || !selected.owner.equals(su.username) || !selected.type.equals(type)) {
+                sendJson(ex, 404, "{\"ok\":false,\"message\":\"Không tìm thấy lượt thử của tài khoản này.\"}"); return;
+            }
+        }
+        if ("GET".equalsIgnoreCase(method)) {
+            if (isBlank(jobId)) {
+                for (AlgorithmLabJob job : algorithmLabJobs.values()) {
+                    if (job.owner.equals(su.username) && job.type.equals(type)
+                            && (selected == null || job.createdAt.isAfter(selected.createdAt))) selected = job;
+                }
+            }
+            sendAlgorithmLabJob(ex, 200, selected, "admin".equals(su.account.role)); return;
+        }
+        String action = nvl(values.get("action")).trim();
+        if ("cancel".equals(action)) {
+            if (selected == null) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu mã lượt thử cần hủy.\"}"); return;
+            }
+            synchronized (selected) {
+                if ("running".equals(selected.state)) {
+                    selected.cancelled = true; selected.state = "cancelled";
+                    selected.finishedAt = Instant.now().toString();
+                    if (selected.process != null) selected.process.destroyForcibly();
+                }
+            }
+            sendAlgorithmLabJob(ex, 200, selected, true); return;
+        }
+        if ((!isBlank(action) && !"run".equals(action)) || !isBlank(jobId)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thao tác phòng thử không hợp lệ.\"}"); return;
+        }
+        int tickets = isBlank(values.get("ticketCount")) ? 3 : parseStrictPositiveInt(values.get("ticketCount"));
+        int validation = isBlank(values.get("validationCount")) ? 10 : parseStrictPositiveInt(values.get("validationCount"));
+        int test = isBlank(values.get("testCount")) ? 20 : parseStrictPositiveInt(values.get("testCount"));
+        if (tickets < 1 || tickets > 10 || validation < 5 || validation > 50 || test < 5 || test > 50 || validation + test > 100) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn 1–10 vé và 5–50 kỳ cho mỗi tập chọn/đánh giá.\"}"); return;
+        }
+        if (!Files.isRegularFile(rootDir.resolve("ai").resolve("algorithm_lab.py"))) {
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Phòng thử chưa sẵn sàng trên server.\"}"); return;
+        }
+        if (!algorithmLabRunning.compareAndSet(false, true)) {
+            sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang có lượt thử thuật toán chạy. Vui lòng chờ hoàn tất.\"}"); return;
+        }
+        AlgorithmLabJob job = new AlgorithmLabJob(su.username, type, tickets, validation, test);
+        algorithmLabJobs.put(job.id, job);
+        Thread worker = new Thread(() -> runAlgorithmLab(job), "algorithm-lab-" + job.id);
+        worker.setDaemon(true);
+        try { worker.start(); }
+        catch (RuntimeException failure) {
+            algorithmLabJobs.remove(job.id); algorithmLabRunning.set(false);
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Không khởi chạy được phòng thử.\"}"); return;
+        }
+        sendAlgorithmLabJob(ex, 202, job, true);
+    }
+
+    private void runAlgorithmLab(AlgorithmLabJob job) {
+        Process process = null;
+        try {
+            List<String> command = buildPythonCommand(rootDir.resolve("ai").resolve("algorithm_lab.py"));
+            command.add("--action=run"); command.add("--game=" + job.type);
+            command.add("--ticket-count=" + job.ticketCount);
+            command.add("--validation-count=" + job.validationCount); command.add("--test-count=" + job.testCount);
+            synchronized (job) {
+                if (job.cancelled) return;
+                process = new ProcessBuilder(command).directory(rootDir.toFile()).start(); job.process = process;
+            }
+            ProcessOutput output = waitForProcessOutput(process, AI_ML_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
+            synchronized (job) {
+                if (job.cancelled) return;
+                if (!output.finished) throw new IllegalArgumentException("Lượt thử quá thời gian chờ; hãy giảm số kỳ.");
+                Map<String, String> fields = jsonFields(payload);
+                if (output.exitCode != 0 || !"true".equals(fields.get("ok"))) {
+                    String message = jsonString(fields.get("message"));
+                    throw new IllegalArgumentException(isBlank(message) ? "Không hoàn tất lượt thử thuật toán." : message);
+                }
+                if (!job.type.equals(jsonString(fields.get("type")))) throw new IllegalArgumentException("Báo cáo không khớp loại xổ số đã chọn.");
+                job.report = payload; job.state = "completed"; job.finishedAt = Instant.now().toString();
+            }
+        } catch (Exception failure) {
+            if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
+            synchronized (job) {
+                if (!job.cancelled) {
+                    job.state = "failed";
+                    job.error = failure instanceof IllegalArgumentException ? nvl(failure.getMessage()) : "Không chạy được phòng thử thuật toán.";
+                    job.finishedAt = Instant.now().toString();
+                }
+            }
+        } finally {
+            if (process != null) process.destroyForcibly();
+            synchronized (job) { job.process = null; if (isBlank(job.finishedAt)) job.finishedAt = Instant.now().toString(); }
+            algorithmLabRunning.set(false);
+        }
     }
 
     private void handleMlStatus(HttpExchange ex) throws IOException {

@@ -11,6 +11,7 @@
     { key: "ewma", label: "EWMA", color: "#34d399" },
   ];
   const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, timer: null, lines: new Set(methods.map(item => item.key)), openDetails: new Map(), initializedGames: new Set() };
+  const lab = { job: null, canManage: false, loading: false, busy: false, controller: null, serial: 0, timer: null };
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
   const number = (value, digits = 3) => finite(value) ? Number(value).toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
@@ -43,6 +44,7 @@
     ["effectivenessType", "effectivenessLimit"].forEach(id => { byId(id).disabled = state.busy; });
     ["effectivenessEnabled", "effectivenessTicketCount", "effectivenessSave", "effectivenessLock"].forEach(id => { byId(id).disabled = !canManage || state.busy || state.loading; });
     root.setAttribute("aria-busy", state.loading || state.busy ? "true" : "false");
+    setLabControls();
   }
 
   async function request(path, { method = "GET", form = null, signal } = {}) {
@@ -126,15 +128,24 @@
     host.innerHTML = `<details data-effectiveness-state="${escape(trendKey)}"${opened(trendKey)}><summary class="effectiveness-chart-head"><strong>Số trùng theo kỳ</strong><span>${cycles.length} kỳ gần nhất · xem biểu đồ</span></summary><div class="effectiveness-chart-body"><div class="effectiveness-chart-legend">${methods.map(method => `<button type="button" class="secondary" data-effectiveness-line="${method.key}" aria-pressed="${state.lines.has(method.key)}"><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</button>`).join("")}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="effectivenessChartTitle effectivenessChartDescription"><title id="effectivenessChartTitle">Số trùng trung bình từng kỳ của bốn phương pháp</title><desc id="effectivenessChartDescription">Trục ngang là kỳ quay theo thời gian. Trục dọc là số chính trùng trung bình trên mỗi vé. Số liệu từng kỳ có trong nhật ký bên dưới.</desc>${grid}${lines}<text x="${pad.left}" y="${height - 12}">Kỳ ${escape(cycles[0].targetDrawId)}</text><text x="${width - pad.right}" y="${height - 12}" text-anchor="end">Kỳ ${escape(cycles[cycles.length - 1].targetDrawId)}</text></svg></div></details>`;
   }
 
-  function ticketHtml(ticket, actual) {
+  function ticketHtml(ticket, actual, options = {}) {
     const values = Array.isArray(ticket.main) ? ticket.main : [];
-    return `<span class="effectiveness-ticket">${values.map(value => `<span class="effectiveness-ball${actual.has(Number(value)) ? " is-hit" : ""}">${escape(String(value).padStart(2, "0"))}${actual.has(Number(value)) ? '<span class="sr-only"> trùng</span>' : ""}</span>`).join("")}${ticket.special !== null && ticket.special !== undefined && ticket.special !== "" ? `<span class="effectiveness-special">ĐB ${escape(String(ticket.special).padStart(2, "0"))}</span>` : ""}</span>`;
+    const specialLabel = options.power ? "Phụ" : "ĐB";
+    return `<span class="effectiveness-ticket">${values.map(value => `<span class="effectiveness-ball${actual.has(Number(value)) ? " is-hit" : ""}">${escape(String(value).padStart(2, "0"))}${actual.has(Number(value)) ? '<span class="sr-only"> trùng</span>' : ""}</span>`).join("")}${ticket.special !== null && ticket.special !== undefined && ticket.special !== "" ? `<span class="effectiveness-special${options.specialMatched === true && !options.power ? " is-matched" : ""}"${options.power ? ' title="Số phụ dự đoán; giải Power xét sáu số trên vé và bóng thứ 7 thực tế"' : ""}>${specialLabel} ${escape(String(ticket.special).padStart(2, "0"))}</span>` : ""}</span>`;
   }
 
-  function ticketRowHtml(ticket, actual, index, mainCount) {
+  function ticketRowHtml(ticket, actual, index, mainCount, result = null, power = false) {
     const values = Array.isArray(ticket.main) ? ticket.main : [];
     const hits = actual.size ? [...new Set(values.map(Number))].filter(value => actual.has(value)).length : null;
-    return `<div class="effectiveness-ticket-row"><span class="effectiveness-ticket-label">Vé ${String(index + 1).padStart(2, "0")}</span>${ticketHtml(ticket, actual)}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span></div>`;
+    const resultStatus = ["won", "lost", "unknown", "pending", "unsupported", "invalid"].includes(result?.status) ? result.status : "unknown";
+    const prizeLabel = result?.prizeLabel || (hits === null ? "Chờ kết quả" : "Chưa có phân loại giải");
+    return `<div class="effectiveness-ticket-row"><span class="effectiveness-ticket-label">Vé ${String(index + 1).padStart(2, "0")}</span>${ticketHtml(ticket, actual, { power, specialMatched: result?.specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span><span class="effectiveness-ticket-prize" data-prize-status="${resultStatus}"${result?.reason ? ` title="${escape(result.reason)}"` : ""}>${escape(prizeLabel)}</span></div>`;
+  }
+
+  function actualSpecialHtml(cycle, game) {
+    if (game === "LOTO_6_45") return "";
+    const label = game === "LOTO_6_55" ? "Bóng thứ 7" : "ĐB";
+    return finite(cycle.actualSpecial) ? `<span class="effectiveness-actual-special">${label} <strong>${escape(String(cycle.actualSpecial).padStart(2, "0"))}</strong></span>` : `<span class="effectiveness-special-unknown">${label}: chưa có dữ liệu</span>`;
   }
 
   function cycleInfoHtml(cycle, cycleKey, budget) {
@@ -163,11 +174,11 @@
       const cycleKey = `${game}:cycle:${cycle.targetDrawId}`;
       const lockedBudget = cycle.config?.ticketCount;
       const budget = finite(lockedBudget) ? number(lockedBudget, 0) : Array.isArray(cycle.methods?.web?.tickets) ? String(cycle.methods.web.tickets.length) : "—";
-      return `<details class="effectiveness-cycle" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey, initialize && index === 0)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>Hạn khóa ${escape(dateTime(cycle.deadline))}</small></span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${escape(budget)} vé / phương pháp đã khóa`}</span>${actual.size ? ticketHtml({ main: actualList }, new Set()) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span><span class="effectiveness-cycle-chevron" aria-hidden="true">⌄</span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-methods">${methods.map(method => {
+      return `<details class="effectiveness-cycle" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey, initialize && index === 0)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>Hạn khóa ${escape(dateTime(cycle.deadline))}</small></span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${escape(budget)} vé / phương pháp đã khóa`}</span>${actual.size ? `${ticketHtml({ main: actualList }, new Set())}${actualSpecialHtml(cycle, game)}` : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span><span class="effectiveness-cycle-chevron" aria-hidden="true">⌄</span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-methods">${methods.map(method => {
         const entry = cycle.methods?.[method.key] || {};
         const tickets = Array.isArray(entry.tickets) ? entry.tickets : [];
-        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${actual.size ? `TB ${number(entry.meanHits, 2)} số / vé` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map((ticket, ticketIndex) => ticketRowHtml(ticket, actual, ticketIndex, mainCount)).join("") : '<span class="muted">Chưa có bộ số</span>'}</div></div>`;
-      }).join("")}</div><p class="effectiveness-cycle-note">Chấm số chính; ĐB chưa tính vào số trùng trên trang này.</p>${cycleInfoHtml(cycle, cycleKey, budget)}</div></details>`;
+        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${actual.size ? `TB ${number(entry.meanHits, 2)} số / vé` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map((ticket, ticketIndex) => ticketRowHtml(ticket, actual, ticketIndex, mainCount, (Array.isArray(entry.ticketResults) ? entry.ticketResults : []).find(result => Number(result.ticketIndex) === ticketIndex + 1), game === "LOTO_6_55")).join("") : '<span class="muted">Chưa có bộ số</span>'}</div></div>`;
+      }).join("")}</div><p class="effectiveness-cycle-note">Số trùng chỉ tính số chính. Nhãn giải do backend đối chiếu cơ cấu giải chuẩn; ĐB / bóng thứ 7 được xét riêng.</p>${cycleInfoHtml(cycle, cycleKey, budget)}</div></details>`;
     }).join("");
     state.initializedGames.add(game);
   }
@@ -180,6 +191,175 @@
     renderTimeline(report);
     renderCycles(report);
     setControls();
+  }
+
+  function labIsVisible() {
+    return state.active && state.authenticated && byId("effectivenessLab").open && !document.hidden;
+  }
+
+  function labIsRunning() {
+    return ["queued", "running"].includes(lab.job?.state);
+  }
+
+  function setLabControls() {
+    const canManage = state.authenticated && (lab.canManage || state.report?.canManage === true);
+    const running = labIsRunning();
+    byId("effectivenessLabAdmin").hidden = !canManage;
+    ["effectivenessLabTickets", "effectivenessLabValidation", "effectivenessLabTest", "effectivenessLabRun"].forEach(id => { byId(id).disabled = !canManage || lab.loading || lab.busy || running; });
+    byId("effectivenessLabCancel").hidden = !canManage || !running;
+    byId("effectivenessLabCancel").disabled = !canManage || lab.busy;
+    byId("effectivenessLab").setAttribute("aria-busy", lab.loading || lab.busy || running ? "true" : "false");
+  }
+
+  function showLabStatus(message, error = false) {
+    byId("effectivenessLabStatus").textContent = message;
+    byId("effectivenessLabStatus").dataset.kind = error ? "error" : "";
+  }
+
+  function resetLab() {
+    lab.serial += 1;
+    lab.controller?.abort();
+    lab.controller = null;
+    clearTimeout(lab.timer);
+    lab.timer = null;
+    lab.job = null;
+    lab.canManage = false;
+    lab.loading = false;
+    lab.busy = false;
+    byId("effectivenessLabResult").innerHTML = "";
+    showLabStatus(state.authenticated ? "Mở phòng thử để tải kết quả gần nhất của tài khoản." : "Đăng nhập để xem phòng thử.");
+    setLabControls();
+  }
+
+  function renderLabReport(report) {
+    const rows = Array.isArray(report.methods) ? report.methods : [];
+    const split = report.split || {};
+    const selection = report.selection || {};
+    const parameters = report.parameters || {};
+    const notes = Array.isArray(report.notes) ? report.notes.filter(note => typeof note === "string") : [];
+    byId("effectivenessLabResult").innerHTML = `<div class="effectiveness-lab-split">${[["training", "Huấn luyện"], ["validation", "Chọn cấu hình"], ["test", "Kiểm tra giữ riêng"]].map(([key, label]) => `<span><strong>${escape(label)} · ${number(split[key]?.count, 0)} kỳ</strong><small>Kỳ ${escape(split[key]?.firstDrawId ?? "—")} → ${escape(split[key]?.lastDrawId ?? "—")}</small></span>`).join("")}</div>
+      <p class="effectiveness-lab-selection"><strong>${escape(selection.label || methodLabel(selection.selectedMethod || "")) || "Chưa có lựa chọn"}</strong> được chọn từ validation. Điểm test phía dưới không dùng để chọn lại thuật toán. ${number(parameters.ticketCount, 0)} vé / phương pháp / kỳ.</p>
+      <div class="effectiveness-table-wrap"><table class="effectiveness-table effectiveness-comparison-table"><caption><strong>Kiểm tra lịch sử ngoài mẫu</strong><span>Cấu hình cố định trước tập test · không phải dự đoán tương lai đã khóa</span></caption><thead><tr><th scope="col">Phương pháp</th><th scope="col">Brier validation</th><th scope="col">Brier test</th><th scope="col">Trùng / vé test</th><th scope="col">Số trùng so với ngẫu nhiên</th><th scope="col">Nhận định test</th></tr></thead><tbody>${rows.map(row => {
+        const test = row.test || {};
+        const selected = row.key === selection.selectedMethod;
+        return `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}${selected ? '<small class="effectiveness-lab-selected">Được validation chọn</small>' : `<small>${number(test.sampleCount, 0)} kỳ test</small>`}</th><td data-label="Brier validation">${number(row.validation?.brierScore, 5)}</td><td data-label="Brier test">${number(test.brierScore, 5)}</td><td data-label="Trùng / vé test" class="effectiveness-mean">${number(test.meanHits)}</td><td data-label="So với ngẫu nhiên"><strong>${signed(test.deltaVsRandom)}</strong><small class="effectiveness-ci">95% ${interval(test.ci95)}</small></td><td data-label="Nhận định test" class="effectiveness-decision">${escape(decisionText({ ...test, key: row.key }))}</td></tr>`;
+      }).join("")}</tbody></table></div>
+      <details class="effectiveness-lab-detail"><summary>Chỉ số và ghi chú thử nghiệm</summary><p>Brier / log-loss càng thấp càng tốt. Tỷ lệ trùng xét số chính trên từng vé; kết quả lịch sử không bảo đảm kỳ sau và không tự nâng model.</p><div class="effectiveness-table-wrap"><table class="effectiveness-table"><thead><tr><th>Phương pháp</th><th>Log-loss test</th><th>Trùng ≥3</th><th>Trùng ≥4</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}</th><td>${number(row.test?.logLoss, 5)}</td><td>${percent(row.test?.rate3)}</td><td>${percent(row.test?.rate4)}</td></tr>`).join("")}</tbody></table></div>${selection.reason ? `<p>${escape(selection.reason)}</p>` : ""}${notes.length ? `<ul>${notes.map(note => `<li>${escape(note)}</li>`).join("")}</ul>` : ""}</details>`;
+  }
+
+  function renderLabJob() {
+    const job = lab.job;
+    byId("effectivenessLabResult").innerHTML = "";
+    if (!job) {
+      showLabStatus("Tài khoản chưa có lượt thử cho loại xổ số này.");
+    } else if (labIsRunning()) {
+      showLabStatus(`Đang chạy thử ${number(job.validationCount, 0)} kỳ validation + ${number(job.testCount, 0)} kỳ test… Có thể đóng phòng thử và quay lại sau.`);
+    } else if (job.state === "completed" && job.report) {
+      showLabStatus(`Hoàn tất ${dateTime(job.finishedAt || job.createdAt)} · báo cáo riêng của tài khoản.`);
+      renderLabReport(job.report);
+    } else if (job.state === "cancelled") {
+      showLabStatus("Đã hủy lượt thử. Không có model sản xuất nào được thay đổi.");
+    } else {
+      showLabStatus(String(job.error || "Lượt thử chưa có báo cáo hoàn chỉnh."), true);
+    }
+    setLabControls();
+  }
+
+  function scheduleLabPoll() {
+    clearTimeout(lab.timer);
+    lab.timer = null;
+    if (labIsVisible() && labIsRunning() && !lab.busy) lab.timer = setTimeout(() => void loadLab(), 2000);
+  }
+
+  function pauseLab() {
+    clearTimeout(lab.timer);
+    lab.timer = null;
+    if (lab.loading) {
+      lab.serial += 1;
+      lab.controller?.abort();
+      lab.controller = null;
+      lab.loading = false;
+    }
+    setLabControls();
+  }
+
+  async function loadLab() {
+    if (!labIsVisible() || lab.loading || lab.busy) return;
+    const serial = ++lab.serial;
+    const generation = state.generation;
+    const type = byId("effectivenessType").value;
+    const controller = new AbortController();
+    lab.controller?.abort();
+    lab.controller = controller;
+    lab.loading = true;
+    if (!lab.job) showLabStatus("Đang tải kết quả thử nghiệm…");
+    setLabControls();
+    try {
+      const jobId = lab.job?.id;
+      const payload = await request(`/api/ml/algorithm-lab?type=${encodeURIComponent(type)}${jobId ? `&jobId=${encodeURIComponent(jobId)}` : ""}`, { signal: controller.signal });
+      if (serial !== lab.serial || generation !== state.generation || type !== byId("effectivenessType").value) return;
+      if (payload.job && payload.job.type !== type) throw new Error("Báo cáo thử nghiệm không khớp loại xổ số đang chọn.");
+      lab.canManage = payload.canManage === true;
+      lab.job = payload.job || null;
+      renderLabJob();
+    } catch (error) {
+      if (error.name !== "AbortError" && serial === lab.serial && generation === state.generation) {
+        if (error.status === 401) { lab.job = null; lab.canManage = false; byId("effectivenessLabResult").innerHTML = ""; }
+        showLabStatus(error.message, true);
+      }
+    } finally {
+      if (serial === lab.serial) {
+        lab.loading = false;
+        lab.controller = null;
+        setLabControls();
+        scheduleLabPoll();
+      }
+    }
+  }
+
+  async function runLab(cancel = false) {
+    if (!state.authenticated || !(lab.canManage || state.report?.canManage === true) || lab.busy || lab.loading || !cancel && labIsRunning()) return;
+    const type = byId("effectivenessType").value;
+    const form = { type };
+    if (cancel) {
+      if (!lab.job?.id) return;
+      form.action = "cancel";
+      form.jobId = lab.job.id;
+    } else {
+      const ticketCount = Number(byId("effectivenessLabTickets").value);
+      const validationCount = Number(byId("effectivenessLabValidation").value);
+      const testCount = Number(byId("effectivenessLabTest").value);
+      if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > 10 || !Number.isInteger(validationCount) || validationCount < 5 || validationCount > 50 || !Number.isInteger(testCount) || testCount < 5 || testCount > 50 || validationCount + testCount > 100) {
+        showLabStatus("Chọn 1–10 vé; validation và test mỗi tập 5–50 kỳ, tổng không quá 100 kỳ.", true); return;
+      }
+      Object.assign(form, { ticketCount: String(ticketCount), validationCount: String(validationCount), testCount: String(testCount) });
+    }
+    const serial = ++lab.serial;
+    const generation = state.generation;
+    const controller = new AbortController();
+    lab.controller?.abort();
+    lab.controller = controller;
+    clearTimeout(lab.timer);
+    lab.busy = true;
+    setLabControls();
+    showLabStatus(cancel ? "Đang hủy lượt thử…" : "Đang bắt đầu thử nghiệm…");
+    try {
+      const payload = await request("/api/ml/algorithm-lab", { method: "POST", form, signal: controller.signal });
+      if (serial !== lab.serial || generation !== state.generation || type !== byId("effectivenessType").value) return;
+      if (payload.job && payload.job.type !== type) throw new Error("Lượt thử không khớp loại xổ số đang chọn.");
+      lab.canManage = payload.canManage === true;
+      lab.job = payload.job || null;
+      renderLabJob();
+    } catch (error) {
+      if (error.name !== "AbortError" && serial === lab.serial && generation === state.generation) showLabStatus(error.message, true);
+    } finally {
+      if (serial === lab.serial) {
+        lab.busy = false;
+        lab.controller = null;
+        setLabControls();
+        scheduleLabPoll();
+      }
+    }
   }
 
   function clearReport() {
@@ -268,7 +448,9 @@
       state.active = !!active;
       syncTimer();
       if (state.active && state.authenticated && (changed || !state.report)) void refresh();
+      if (state.active && labIsVisible() && changed) void loadLab();
       if (!state.active) { state.controller?.abort(); state.loading = false; setControls(); }
+      if (!state.active) pauseLab();
     },
   });
   window.addEventListener("dvlf:auth-changed", event => {
@@ -282,6 +464,8 @@
     state.initializedGames.clear();
     byId("effectivenessAdmin").open = false;
     clearReport();
+    byId("effectivenessLab").open = false;
+    resetLab();
     showStatus(state.authenticated ? "Mở tab Hiệu quả dự đoán để tải báo cáo." : "Đăng nhập để xem báo cáo.");
     syncTimer();
     if (state.active && state.authenticated) void refresh();
@@ -289,10 +473,18 @@
   root.addEventListener("toggle", event => {
     if (event.target.matches("details[data-effectiveness-state]") && root.contains(event.target)) state.openDetails.set(event.target.dataset.effectivenessState, event.target.open);
   }, true);
-  ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => { rememberOpenDetails(); clearReport(); void refresh(); }));
+  byId("effectivenessLab").addEventListener("toggle", () => { if (labIsVisible()) void loadLab(); else pauseLab(); });
+  ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => {
+    rememberOpenDetails(); clearReport();
+    if (id === "effectivenessType") resetLab();
+    void refresh();
+    if (id === "effectivenessType" && labIsVisible()) void loadLab();
+  }));
   byId("effectivenessRefresh").addEventListener("click", () => void refresh());
   byId("effectivenessSave").addEventListener("click", () => void mutate("settings"));
   byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
+  byId("effectivenessLabRun").addEventListener("click", () => void runLab());
+  byId("effectivenessLabCancel").addEventListener("click", () => void runLab(true));
   byId("effectivenessTimeline").addEventListener("click", event => {
     const button = event.target.closest("[data-effectiveness-line]");
     if (!button || !state.report) return;
@@ -302,6 +494,9 @@
     renderTimeline(state.report);
     byId("effectivenessTimeline").querySelector(`[data-effectiveness-line="${key}"]`)?.focus();
   });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.active && state.authenticated && !state.loading && !state.busy) void refresh(); });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.active && state.authenticated && !state.loading && !state.busy) void refresh();
+    if (labIsVisible()) void loadLab(); else pauseLab();
+  });
   setControls();
 })();

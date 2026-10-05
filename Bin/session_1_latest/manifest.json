@@ -1,21 +1,76 @@
 {
-  "created_at": "2026-10-05T15:08:54.383129+00:00",
-  "reason": "Refine only effectiveness overview header, controls, feedback and equal compact metrics after screenshot feedback",
+  "created_at": "2026-10-05T15:27:56.081724+00:00",
+  "reason": "Add verified prize classification and isolated chronological web-pipeline algorithm laboratory",
   "files": [
     {
-      "path": "frontend/vietlott-web.html",
+      "path": "ai/prediction_effectiveness.py",
       "action": "replace",
-      "sha256": "c9db88e903fecada5dd774ac57c935733324a5ea53c7abbbe58738d5d627061e"
+      "sha256": "e6e0fe968bf4cdcaa7f2c254934e498358ce6622e44e0c437537295ffab32641"
+    },
+    {
+      "path": "ai/prediction_ledger.py",
+      "action": "replace",
+      "sha256": "e8d3699d58ac74d8281ba773e4065b1b52bf2650f935f8d2abb2cf517020344e"
+    },
+    {
+      "path": "ai/predictors/ai_predict.py",
+      "action": "replace",
+      "sha256": "633d6c81c271dedd7e43e88e093e7799b7bbfbc9cdd06dcd024989a295371878"
+    },
+    {
+      "path": "ai/controlled_models.py",
+      "action": "replace",
+      "sha256": "f5966fb976d776b4fd0b17bacf7b5ef21b06840cbf0b44fc24a7bee9074e3127"
+    },
+    {
+      "path": "backend/LottoWebServer.java",
+      "action": "replace",
+      "sha256": "e1ff31773b70205c301b8b79328f6ccfe3bd9239e74ef69ac782f4ec5b9261c5"
+    },
+    {
+      "path": "frontend/vietlott-web-effectiveness.js",
+      "action": "replace",
+      "sha256": "01135089a855ef5c58a6cd869e76946b5e51babdfcbc265be9933f08183162c2"
     },
     {
       "path": "frontend/vietlott-web-extra.css",
       "action": "replace",
-      "sha256": "f6b2474e417d48705eab0be66e29be7b4ad22629b73febcf2be6290bc1f82793"
+      "sha256": "4b5cdd526d1e584918dacb2fe56ce045074507965d78c9837ea1ae5d233ab163"
+    },
+    {
+      "path": "frontend/vietlott-web.html",
+      "action": "replace",
+      "sha256": "59799af1e108d82e3f75116916bba3a6142bd97872810b79966e783ed025ee1a"
+    },
+    {
+      "path": "tests/test_prediction_effectiveness.py",
+      "action": "replace",
+      "sha256": "fdb412398a40cdea0ee8ad01d20c529a71fc9957083785ba5ab69b7cd600b5de"
+    },
+    {
+      "path": "tests/test_effectiveness_frontend.py",
+      "action": "replace",
+      "sha256": "958aa4b615e21083d2f4c22da3d23c4587a8273ab9ba2e3a6c2c5e7b5c1c8b82"
+    },
+    {
+      "path": "tests/test_effectiveness_web.py",
+      "action": "replace",
+      "sha256": "719797e91e28103db11e1d5d715980ae2603aa5a9238e4e76f35221b04648c15"
+    },
+    {
+      "path": "docs/QuyTac.md",
+      "action": "replace",
+      "sha256": "a531ab7b56574afefda35b3e2db1f38a59da6e77d3e6fa9db45fe3837a83bbc3"
     },
     {
       "path": "docs/NhatKyThayDoi.md",
       "action": "replace",
-      "sha256": "045d01fd09166c4a0154b2d282360b32823d7428232a240b2b288104e54eea23"
+      "sha256": "1b272d713512964b13066c86ce1378232a937f3290414eea5770c90a684ec1b2"
+    },
+    {
+      "path": "README.md",
+      "action": "replace",
+      "sha256": "87cd54531d48863521c552b3d86b64b3d36bc1f604baa069a2f5ffd69c6bc3d7"
     }
   ]
 }

@@ -13,6 +13,7 @@ from typing import Any, Callable, Iterable
 from ai.configs import data_paths as dp
 from ai.evaluation.metrics import brier_score, lift, log_loss
 from ai.evaluation.probability import scores_to_probabilities
+from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_tickets, prize_counts
 
 DEFAULT_DB_PATH = dp.RUNTIME_DIR / "lotto_web.db"
 SCORING_VERSION = "ledger_scoring_v2"
@@ -391,7 +392,8 @@ def score_prediction_payload(
     best_hit = 0
     special_hit = 0
     per_ticket = []
-    for ticket in tickets:
+    prize_results = classify_tickets(str(prediction_payload.get("type") or prediction_payload.get("game_type") or ""), tickets, actual_draw)
+    for ticket_index, ticket in enumerate(tickets):
         main = _ticket_main(ticket)
         hit = len(set(main) & set(actual_main))
         best_hit = max(best_hit, hit)
@@ -403,7 +405,11 @@ def score_prediction_payload(
         expected = size * draw_size / float(universe_size)
         per_ticket.append({"hit_count": hit, "special_hit": int(matched_special),
                            "prediction_size": size, "expected_random_hits": expected,
-                           "lift": hit / expected - 1.0 if expected else 0.0})
+                           "lift": hit / expected - 1.0 if expected else 0.0,
+                           "prize_code": prize_results[ticket_index]["prizeCode"],
+                           "prize_label": prize_results[ticket_index]["prizeLabel"],
+                           "prize_status": prize_results[ticket_index]["status"],
+                           "prize_special_matched": prize_results[ticket_index]["specialMatched"]})
     probabilities = normalize_probability_payload(
         prediction_payload.get("probabilities")
         or prediction_payload.get("calibratedProbability")
@@ -439,6 +445,10 @@ def score_prediction_payload(
         "prediction_size": int(prediction_size),
         "actual_main": actual_main,
         "actual_special": actual_special,
+        "prize_results": prize_results,
+        "prize_counts": prize_counts(prize_results),
+        "prize_rule_version": PRIZE_RULE_VERSION,
+        "prize_scope": PRIZE_SCOPE,
     }
 
 

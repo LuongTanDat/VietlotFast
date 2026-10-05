@@ -11,7 +11,7 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from tests.test_prize_web import ROOT, JAVA, JAVAC, CHROME
@@ -142,6 +142,105 @@ class EffectivenessWebTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         with closing(sqlite3.connect(self.work / 'runtime/lotto_web.db')) as connection:
             self.assertEqual(0, connection.execute('SELECT COUNT(*) FROM prediction_runs').fetchone()[0])
+
+    @contextmanager
+    def lab_script(self, body):
+        """Exercise the real Java process bridge with a deterministic isolated CLI."""
+        path = self.work / 'ai/algorithm_lab.py'
+        previous = path.read_bytes() if path.exists() else None
+        path.write_text(body, encoding='utf-8')
+        try:
+            yield
+        finally:
+            if previous is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(previous)
+
+    def wait_lab(self, job_id, states=('completed', 'failed')):
+        for _ in range(150):
+            code, result, _ = self.request('/api/ml/algorithm-lab?type=LOTO_6_45&jobId=' + job_id, cookie=self.admin)
+            self.assertEqual(200, code, result)
+            if result['job']['state'] in states:
+                return result['job']
+            time.sleep(.05)
+        self.fail('Algorithm lab did not finish')
+
+    def test_algorithm_lab_auth_validation_and_empty_report(self):
+        route = '/api/ml/algorithm-lab'
+        self.assertEqual(401, self.request(route + '?type=LOTO_6_45')[0])
+        self.assertEqual(401, self.request(route, {'type': 'LOTO_6_45'})[0])
+        self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45'}, self.member)[0])
+        code, result, _ = self.request(route + '?type=LOTO_6_45', cookie=self.member)
+        self.assertEqual(200, code, result)
+        self.assertFalse(result['canManage'])
+        self.assertIsNone(result['job'])
+        self.assertEqual(400, self.request(route + '?type=KENO', cookie=self.admin)[0])
+        self.assertEqual(405, self.request(route + '?type=LOTO_6_45', {}, self.admin, method='PUT')[0])
+        for key, value in (('ticketCount', '11'), ('ticketCount', '0'), ('validationCount', '4'),
+                           ('testCount', '51'), ('testCount', '5.5'), ('action', 'promote')):
+            self.assertEqual(400, self.request(route, {'type': 'LOTO_6_45', key: value}, self.admin)[0])
+        self.assertEqual(400, self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel'}, self.admin)[0])
+        self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45'}, self.admin, origin='https://untrusted.invalid')[0])
+
+    def test_algorithm_lab_async_owner_isolation_and_single_job(self):
+        script = """import json,sys,time
+args=dict(argument[2:].split('=',1) for argument in sys.argv[1:])
+time.sleep(1.2)
+print(json.dumps({'ok':True,'type':args['game'],'scope':'historical_out_of_sample',
+                 'config':{'ticketCount':int(args['ticket-count']),'validationCount':int(args['validation-count']),
+                           'testCount':int(args['test-count'])},'methods':[]}))
+"""
+        route = '/api/ml/algorithm-lab'
+        with self.lab_script(script):
+            started = time.monotonic()
+            code, result, _ = self.request(route, {'type': 'LOTO_6_45', 'ticketCount': '4',
+                                                  'validationCount': '5', 'testCount': '7'}, self.admin)
+            self.assertEqual(202, code, result)
+            self.assertLess(time.monotonic() - started, 1.0)
+            job_id = result['job']['id']
+            self.assertEqual(200, self.request('/api/time')[0])
+            self.assertEqual(409, self.request(route, {'type': 'LOTO_6_45'}, self.admin)[0])
+            query = route + '?type=LOTO_6_45&jobId=' + job_id
+            self.assertEqual(404, self.request(query, cookie=self.member)[0])
+            self.assertEqual(404, self.request(route + '?type=LOTO_5_35&jobId=' + job_id, cookie=self.admin)[0])
+            self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': job_id}, self.member)[0])
+            completed = self.wait_lab(job_id)
+            self.assertEqual('completed', completed['state'], completed)
+            self.assertEqual({'ticketCount': 4, 'validationCount': 5, 'testCount': 7}, completed['report']['config'])
+            self.assertTrue(completed['finishedAt'])
+            code, result, _ = self.request(route + '?type=LOTO_6_45', cookie=self.admin)
+            self.assertEqual(job_id, result['job']['id'])
+        with closing(sqlite3.connect(self.work / 'runtime/lotto_web.db')) as connection:
+            self.assertEqual(0, connection.execute('SELECT COUNT(*) FROM prediction_runs').fetchone()[0])
+
+    def test_algorithm_lab_domain_error_and_cancel(self):
+        route = '/api/ml/algorithm-lab'
+        with self.lab_script("import json,sys\nprint(json.dumps({'ok':False,'message':'Unsafe model cutoff'}))\nsys.exit(1)\n"):
+            code, result, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
+            self.assertEqual(202, code, result)
+            failed = self.wait_lab(result['job']['id'])
+            self.assertEqual('failed', failed['state'])
+            self.assertEqual('Unsafe model cutoff', failed['error'])
+            self.assertIsNone(failed['report'])
+        with self.lab_script("import time\ntime.sleep(30)\n"):
+            code, result, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
+            self.assertEqual(202, code, result)
+            job_id = result['job']['id']
+            code, result, _ = self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': job_id}, self.admin)
+            self.assertEqual(200, code, result)
+            self.assertEqual('cancelled', result['job']['state'])
+            self.assertIsNone(result['job']['report'])
+            # Wait for the killed worker to release its global slot before changing the stub.
+            for _ in range(100):
+                code, next_job, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
+                if code == 202:
+                    self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': next_job['job']['id']}, self.admin)
+                    break
+                self.assertEqual(409, code, next_job)
+                time.sleep(.05)
+            else:
+                self.fail('Cancelled worker did not release the lab slot')
 
     @unittest.skipUnless(Path(CHROME).exists(), 'Chrome required')
     def test_full_frontend_tab_empty_state_and_admin_controls(self):
