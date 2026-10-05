@@ -102,7 +102,7 @@
             </div>
             <label class="check-row">
               <input id="rememberCreds" type="checkbox" />
-              <span>Ghi nhớ tài khoản và mật khẩu trên máy này</span>
+              <span>Ghi nhớ tên tài khoản trên máy này</span>
             </label>
             <button id="loginBtn">Đăng nhập</button>
             <button id="recoverAdminBtn" type="button" class="secondary" style="margin-top:8px;">Quên mật khẩu admin (khôi phục cục bộ)</button>
@@ -128,7 +128,7 @@
             </div>
             <label class="check-row">
               <input id="regRemember" type="checkbox" />
-              <span>Lưu tài khoản và mật khẩu này để đăng nhập nhanh lần sau</span>
+              <span>Ghi nhớ tên tài khoản cho lần đăng nhập sau</span>
             </label>
             <button id="registerBtn">Tạo tài khoản</button>
           </div>
@@ -712,7 +712,54 @@
           <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu đồ</button>
           <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard</button>
           <button id="predictModeAnalysisTab" type="button" class="predict-tab-btn" data-predict-mode-tab="analysis">Phân tích</button>
+          <button id="predictModeEffectivenessTab" type="button" class="predict-tab-btn" data-predict-mode-tab="effectiveness">Hiệu quả dự đoán</button>
         </div>
+      </section>
+      <section id="predictRootEffectiveness" class="card predict-card predict-root effectiveness-board" aria-labelledby="effectivenessTitle" hidden>
+        <div class="effectiveness-head">
+          <div>
+            <span class="effectiveness-eyebrow">ĐỐI CHIẾU TỪNG KỲ THỰC TẾ</span>
+            <h2 id="effectivenessTitle">Hiệu quả dự đoán</h2>
+            <p class="effectiveness-intro">Bộ số được khóa trước giờ quay; kết quả được chấm khi dữ liệu kỳ quay cập nhật. Bốn phương pháp dùng cùng số vé.</p>
+          </div>
+          <button id="effectivenessRefresh" type="button" class="secondary">↻ Làm mới báo cáo</button>
+        </div>
+        <div class="effectiveness-toolbar">
+          <label>Loại xổ số
+            <select id="effectivenessType">
+              <option value="LOTO_5_35">Loto 5/35</option>
+              <option value="LOTO_6_45">Mega 6/45</option>
+              <option value="LOTO_6_55">Power 6/55</option>
+            </select>
+          </label>
+          <label>Nhật ký hiển thị
+            <select id="effectivenessLimit">
+              <option value="30">30 kỳ gần nhất</option>
+              <option value="100" selected>100 kỳ gần nhất</option>
+              <option value="300">300 kỳ gần nhất</option>
+            </select>
+          </label>
+          <span id="effectivenessUpdated" class="muted"></span>
+        </div>
+        <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
+        <div id="effectivenessAdmin" class="effectiveness-admin" hidden>
+          <div class="effectiveness-admin-copy"><strong>Theo dõi tự động</strong><span>Lưu một lượt cho kỳ kế tiếp khi server đang chạy. Thay đổi số vé chỉ áp dụng cho kỳ chưa khóa.</span></div>
+          <label class="effectiveness-enable"><input id="effectivenessEnabled" type="checkbox" /> Bật cho loại xổ số này</label>
+          <label>Số vé / phương pháp <input id="effectivenessTicketCount" type="number" min="1" max="10" step="1" value="1" /></label>
+          <div class="effectiveness-admin-actions">
+            <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
+            <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
+          </div>
+        </div>
+        <div id="effectivenessSummary" class="effectiveness-summary"></div>
+        <div class="effectiveness-explainer">
+          <strong>Đọc kết quả:</strong> chỉ xét số chính; mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký bên dưới. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.
+        </div>
+        <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
+        <div id="effectivenessComparison"></div>
+        <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
+        <div class="effectiveness-history-head"><h3>Nhật ký từng kỳ</h3><span class="muted">Mở một kỳ để xem bộ số đã khóa và số trùng.</span></div>
+        <div id="effectivenessCycles" class="effectiveness-cycles"></div>
       </section>
       <section id="predictRootManual" class="card predict-card predict-root predict-root-manual" hidden>
         <div class="predict-card-head">
@@ -1484,6 +1531,7 @@
   <!-- ------ App Scripts --- -->
   <script defer src="/vietlott-web-stats.js"></script>
   <script defer src="/vietlott-web-data.js"></script>
+  <script defer src="/vietlott-web-effectiveness.js"></script>
   <script defer src="/vietlott-web-core.js"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>
 

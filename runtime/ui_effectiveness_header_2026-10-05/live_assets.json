@@ -1,0 +1,12 @@
+[
+  {
+    "file": "vietlott-web.html",
+    "http": 200,
+    "matches_disk": true
+  },
+  {
+    "file": "vietlott-web-extra.css",
+    "http": 200,
+    "matches_disk": true
+  }
+]

@@ -1,117 +1,21 @@
 {
-  "created_at": "2026-10-04T15:54:40.950018+00:00",
-  "reason": "Add prospective prediction effectiveness dashboard with equal-budget random, Bayesian and EWMA controls",
+  "created_at": "2026-10-05T15:08:54.383129+00:00",
+  "reason": "Refine only effectiveness overview header, controls, feedback and equal compact metrics after screenshot feedback",
   "files": [
-    {
-      "path": "backend/LottoWebServer.java",
-      "action": "replace",
-      "sha256": "d873b7db678f35cf908cff79c48c55b7db4ecfad6dc42a0903bde65b60b9233c"
-    },
-    {
-      "path": "ai/prediction_ledger.py",
-      "action": "replace",
-      "sha256": "9b39e0c6907ac3e5c50f2748deee939bfba7b9fa0790b0b1a34974fe488cb0db"
-    },
     {
       "path": "frontend/vietlott-web.html",
       "action": "replace",
-      "sha256": "6c434e26dfd035727f3297c9e989f23e1bac118f44292d8ae15f01d6df9e56a4"
-    },
-    {
-      "path": "frontend/vietlott-web-core.js",
-      "action": "replace",
-      "sha256": "72a1a200c0f8bd64eba122514abd6a6d751678c5b1ee19e76e959c1bfed4be15"
+      "sha256": "c9db88e903fecada5dd774ac57c935733324a5ea53c7abbbe58738d5d627061e"
     },
     {
       "path": "frontend/vietlott-web-extra.css",
       "action": "replace",
-      "sha256": "eb37d53d830adbd72fabfa8c9a65040508f876fab5fbbdbb9d39e5e5a8c8f4d7"
-    },
-    {
-      "path": "docs/QuyTac.md",
-      "action": "replace",
-      "sha256": "769bea327ab6cb9ffcc9032062d785e54473839214ab7d39b6be179d0169b056"
+      "sha256": "f6b2474e417d48705eab0be66e29be7b4ad22629b73febcf2be6290bc1f82793"
     },
     {
       "path": "docs/NhatKyThayDoi.md",
       "action": "replace",
-      "sha256": "5772d52bdde72ea3ada5d762635540b1429b50c2c9c6a09bfc5ff0a672f596db"
-    },
-    {
-      "path": "README.md",
-      "action": "replace",
-      "sha256": "6917dce1836fefc809c19f4c3029be11f0fc1cd982dffba545cb586fd8ed660e"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$1.class",
-      "action": "replace",
-      "sha256": "0724bb732ff0e2148083eb87b52fc15baf146775cedde65f171a30f889c57c0a"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$Account.class",
-      "action": "replace",
-      "sha256": "e0a98a793944c4b3884684966936df171b0482c444979ba1c9be09721238a5b2"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$CanonicalHistoryRow.class",
-      "action": "replace",
-      "sha256": "b56f3d92e5efad90aef95bf32346bd54e4b494199b2d7d3904d0b8ea86843a01"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$DatabaseRepo.class",
-      "action": "replace",
-      "sha256": "2ed5b24037e841d371780576cd08d8e41678038624a4b88ab74e62cffed87810"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$JsonCursor.class",
-      "action": "replace",
-      "sha256": "f3677ff6dd3dff1eff84e94829e0fff73e9ec03b34b785bf87da372d37440a4c"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$ProcessOutput.class",
-      "action": "replace",
-      "sha256": "6d1f53a999ecc2a82b1e4f992e9493430fe326c2b0c2b4731670403f1677d601"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$SessionUser.class",
-      "action": "replace",
-      "sha256": "81780161f06c8976ed8091734199704eaa7ba9ddc8bb09c9e39864f96d0743c6"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$StaticAsset.class",
-      "action": "replace",
-      "sha256": "8fc9eff876641084e7c0a5c909dabc583e06046ccec1dede6ac3b805b482c7c9"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$TimedJsonPayload.class",
-      "action": "replace",
-      "sha256": "b92124164f9daa48bf48b48e7189b8d2657a04616946d35f1f9a3c899e29115e"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$UserView.class",
-      "action": "replace",
-      "sha256": "41ddfe042caa2f2255c6be89f0b7c62bc041eb20b108394dd72a3752fd230d8c"
-    },
-    {
-      "path": "backend/bin/LottoWebServer.class",
-      "action": "replace",
-      "sha256": "f7cff568dbb43868db3851dcfb6844e925c39ea046018f33adde8a25e8d438f4"
-    },
-    {
-      "path": "frontend/vietlott-web-stats.js",
-      "action": "replace",
-      "sha256": "5e0bca588d0e095ab03213ed811a93136c20f02206fb156979abcf63e3b0eb3b"
-    },
-    {
-      "path": "runtime/lotto_web.db",
-      "action": "replace",
-      "method": "sqlite_backup_including_WAL",
-      "sha256": "39308d4c83030637181732d272a89c3d4c13f7f20e3b4daa0ce7a244068d865d"
+      "sha256": "045d01fd09166c4a0154b2d282360b32823d7428232a240b2b288104e54eea23"
     }
-  ],
-  "database_before": {
-    "users": 1,
-    "stores": 1,
-    "quickCheck": "ok"
-  }
+  ]
 }

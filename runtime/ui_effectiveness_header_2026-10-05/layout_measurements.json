@@ -1,0 +1,152 @@
+[
+  {
+    "width": 320,
+    "overflow": false,
+    "overviewHeight": 223.578125,
+    "metricWidths": [
+      128,
+      128,
+      128,
+      128
+    ],
+    "controls": [
+      {
+        "width": 124,
+        "height": 36
+      },
+      {
+        "width": 124,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "overflow": false,
+    "overviewHeight": 223.578125,
+    "metricWidths": [
+      163,
+      163,
+      163,
+      163
+    ],
+    "controls": [
+      {
+        "width": 159,
+        "height": 36
+      },
+      {
+        "width": 159,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "width": 760,
+    "overflow": false,
+    "overviewHeight": 179.984375,
+    "metricWidths": [
+      338.765625,
+      338.765625,
+      338.765625,
+      338.765625
+    ],
+    "controls": [
+      {
+        "width": 284.078125,
+        "height": 36
+      },
+      {
+        "width": 284.09375,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "width": 800,
+    "overflow": false,
+    "overviewHeight": 128.078125,
+    "metricWidths": [
+      178.90625,
+      178.90625,
+      178.90625,
+      178.90625
+    ],
+    "controls": [
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "width": 960,
+    "overflow": false,
+    "overviewHeight": 110.484375,
+    "metricWidths": [
+      216.984375,
+      216.984375,
+      216.984375,
+      216.984375
+    ],
+    "controls": [
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "width": 1640,
+    "overflow": false,
+    "overviewHeight": 110.484375,
+    "metricWidths": [
+      385.5,
+      385.5,
+      385.5,
+      385.5
+    ],
+    "controls": [
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 168,
+        "height": 36
+      },
+      {
+        "width": 91.359375,
+        "height": 36
+      }
+    ]
+  }
+]

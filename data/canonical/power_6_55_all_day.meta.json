@@ -2,7 +2,7 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-04T22:42:52",
+  "lastSyncAt": "2026-10-05T22:02:13",
   "lastBootstrapAt": "2026-03-17T19:34:02",
   "effectiveEarliestKy": "5",
   "effectiveEarliestDate": "01/08/2017",
@@ -10,7 +10,7 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-04T22:42:52",
+    "updatedAt": "2026-10-05T22:02:13",
     "complete": true,
     "totalRows": 1402,
     "completeRows": 1402,

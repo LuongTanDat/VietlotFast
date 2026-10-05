@@ -116,27 +116,71 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertFalse(browser.value("document.getElementById('effectivenessAdmin').hidden"))
                 self.assertFalse(browser.value("document.getElementById('effectivenessTimeline').hidden"))
                 self.assertEqual(browser.value("document.querySelectorAll('#effectivenessComparison img').length"), 0)
-                self.assertIn("Gộp 3 cấu hình / ngân sách", browser.value("document.getElementById('effectivenessReportNotes').textContent"))
+                self.assertIn("Gộp 3 cấu hình / ngân sách", browser.value("document.getElementById('effectivenessMixedWarning').textContent"))
                 self.assertIn("chưa hiệu chỉnh", browser.value("document.getElementById('effectivenessReportNotes').textContent"))
                 self.assertEqual(browser.value("document.querySelectorAll('#effectivenessReportNotes img').length"), 0)
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:first-child .is-hit').length"), 0)
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .is-hit').length"), 12)
                 self.assertIn("fixture_model", browser.value("document.querySelector('.effectiveness-cycle').textContent"))
-                browser.value("document.querySelector('[data-effectiveness-line=web]').click()")
+                self.assertTrue(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle .effectiveness-ticket-hits').textContent"), "—")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits').textContent"), "2/6")
+                self.assertFalse(browser.value("document.querySelector('.effectiveness-provenance').open"))
+                self.assertFalse(browser.value("document.querySelector('.effectiveness-help').open"))
+                browser.value("document.querySelector('#effectivenessTimeline details').open=true;document.querySelector('[data-effectiveness-line=web]').click()")
                 self.assertEqual(browser.value("document.querySelector('[data-effectiveness-line=web]').getAttribute('aria-pressed')"), "false")
-                browser.value("document.getElementById('effectivenessTicketCount').value='2';document.getElementById('effectivenessSave').click()")
+                self.assertTrue(browser.value("document.querySelector('#effectivenessTimeline details').open"))
+                browser.value("document.getElementById('effectivenessAdmin').open=true;document.getElementById('effectivenessTicketCount').value='2';document.getElementById('effectivenessSave').click()")
                 wait("document.getElementById('effectivenessStatus').textContent.includes('Đã lưu cấu hình')")
                 self.assertTrue(any(method == "POST" and path.endswith("settings") and "ticketCount=2" in body for method, path, body in requests))
                 browser.value("document.getElementById('effectivenessLock').click()")
                 wait("document.getElementById('effectivenessStatus').textContent.includes('quá hạn khóa')")
                 self.assertEqual(browser.value("document.getElementById('effectivenessStatus').dataset.kind"), "error")
 
-                browser.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True}, page=True)
-                self.assertTrue(browser.value("document.documentElement.scrollWidth<=window.innerWidth+2"))
+                for cycle in report["cycles"]:
+                    cycle["config"] = {"ticketCount": 10}
+                    for entry in cycle["methods"].values():
+                        entry["modelId"] = "model_" + "long_version_" * 50 + "<img src=x>"
+                        entry["tickets"] = [{"main": [10, 11, 12, 13, 14, 15], "special": 7} for _ in range(10)]
+                        if cycle["status"] == "scored":
+                            entry["meanHits"] = entry["bestHits"] = 0
+                browser.value("document.querySelector('.effectiveness-cycle').open=false;document.querySelector('.effectiveness-cycle:nth-child(2)').open=true;document.getElementById('effectivenessRefresh').click()")
+                wait("document.querySelectorAll('.effectiveness-cycle:first-child .effectiveness-ticket-row').length===40")
+                self.assertFalse(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertTrue(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2)').open"))
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits').textContent"), "0/6")
+                self.assertIn("10 vé / phương pháp", browser.value("document.querySelector('.effectiveness-cycle .effectiveness-cycle-preview').textContent"))
+                self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle img').length"), 0)
+                for width in (320, 390, 1440):
+                    browser.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 500}, page=True)
+                    self.assertTrue(browser.value("document.documentElement.scrollWidth<=window.innerWidth+2"), f"Page overflows at {width}px")
+                    browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-provenance').open=true")
+                    self.assertTrue(browser.value("document.documentElement.scrollWidth<=window.innerWidth+2"), f"Long provenance overflows at {width}px")
+                self.assertTrue(browser.value("document.querySelector('[data-effectiveness-line=web]').getBoundingClientRect().width<180"))
+                browser.value("document.querySelector('.effectiveness-cycle:nth-child(2)').open=false;document.getElementById('effectivenessRefresh').click()")
+                wait("!document.getElementById('effectivenessRefresh').disabled")
+                self.assertFalse(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertFalse(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2)').open"))
                 browser.value("window.dispatchEvent(new CustomEvent('dvlf:auth-changed',{detail:{authenticated:false}}))")
                 self.assertTrue(browser.value("document.getElementById('effectivenessAdmin').hidden"))
                 self.assertEqual(browser.value("document.getElementById('effectivenessCycles').textContent"), "")
                 self.assertEqual(browser.value("document.getElementById('effectivenessReportNotes').textContent"), "")
+                self.assertEqual(browser.value("document.getElementById('effectivenessMixedWarning').textContent"), "")
+                report["canManage"] = False
+                browser.value("window.dispatchEvent(new CustomEvent('dvlf:auth-changed',{detail:{authenticated:true,user:'second'}}))")
+                wait("document.querySelectorAll('.effectiveness-cycle').length===3")
+                self.assertTrue(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertTrue(browser.value("document.getElementById('effectivenessAdmin').hidden"))
+                report["type"] = "LOTO_5_35"
+                for cycle in report["cycles"]:
+                    if cycle["status"] == "scored":
+                        cycle["actualMain"] = [1, 2, 3, 4, 5]
+                    for entry in cycle["methods"].values():
+                        entry["tickets"] = [{"main": [10, 11, 12, 13, 14], "special": 1}]
+                browser.value("document.getElementById('effectivenessRefresh').click()")
+                wait("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits').textContent==='0/5'")
+                self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .is-hit').length"), 0)
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:first-child .effectiveness-ticket-hits').textContent"), "—")
                 self.assertEqual(browser.value("uiErrors"), [])
                 for name in ("vietlott-web-effectiveness.js", "vietlott-web-core.js"):
                     result = browser.call("Runtime.evaluate", {"expression": "(async()=>{try{new Function(await (await fetch(" + json.dumps("/" + name) + ")).text());return 'ok'}catch(e){return e.message}})()", "awaitPromise": True, "returnByValue": True}, page=True)

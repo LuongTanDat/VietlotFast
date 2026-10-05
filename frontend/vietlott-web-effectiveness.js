@@ -10,7 +10,7 @@
     { key: "bayesian", label: "Bayesian", color: "#38bdf8" },
     { key: "ewma", label: "EWMA", color: "#34d399" },
   ];
-  const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, timer: null, lines: new Set(methods.map(item => item.key)) };
+  const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, timer: null, lines: new Set(methods.map(item => item.key)), openDetails: new Map(), initializedGames: new Set() };
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
   const number = (value, digits = 3) => finite(value) ? Number(value).toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
@@ -23,6 +23,12 @@
   };
   const interval = value => value && finite(value.lower) && finite(value.upper) ? `[${signed(value.lower)}; ${signed(value.upper)}]` : "—";
   const methodLabel = key => methods.find(item => item.key === key)?.label || key;
+  const reportGame = report => String(report.type || byId("effectivenessType").value);
+  const opened = (key, fallback = false) => (state.openDetails.has(key) ? state.openDetails.get(key) : fallback) ? " open" : "";
+
+  function rememberOpenDetails() {
+    root.querySelectorAll("details[data-effectiveness-state]").forEach(details => state.openDetails.set(details.dataset.effectivenessState, details.open));
+  }
 
   function showStatus(message, kind = "") {
     const el = byId("effectivenessStatus");
@@ -72,29 +78,32 @@
     const counts = report.counts || {};
     const settings = report.settings || {};
     const cards = [
-      ["Đã chấm", number(counts.scored, 0), "Kỳ đã có kết quả thực tế"],
-      ["Chờ kết quả", number(counts.locked, 0), "Bộ số đã khóa, chưa chấm"],
-      ["Ngân sách hiện tại", finite(settings.ticketCount) ? `${number(settings.ticketCount, 0)} vé` : "—", "Cho mỗi phương pháp / kỳ mới"],
-      ["Theo dõi tự động", settings.enabled ? "Đang bật" : "Đang tắt", "Chạy trong khi server hoạt động"],
+      ["Đã chấm", number(counts.scored, 0), "kỳ có kết quả"],
+      ["Chờ kết quả", number(counts.locked, 0), "kỳ đã khóa"],
+      ["Ngân sách kỳ mới", finite(settings.ticketCount) ? `${number(settings.ticketCount, 0)} vé` : "—", "mỗi phương pháp"],
+      ["Theo dõi tự động", settings.enabled ? "Bật" : "Tắt", "khi server đang chạy"],
     ];
     byId("effectivenessSummary").innerHTML = cards.map(([label, value, note]) => `<div class="effectiveness-metric"><span>${escape(label)}</span><strong>${escape(value)}</strong><small>${escape(note)}</small></div>`).join("");
     byId("effectivenessEnabled").checked = settings.enabled === true;
     byId("effectivenessTicketCount").value = finite(settings.ticketCount) ? String(settings.ticketCount) : "1";
+    byId("effectivenessAdminSummary").textContent = `${settings.enabled ? "Đang bật" : "Đang tắt"} · ${number(settings.ticketCount, 0)} vé / phương pháp`;
   }
 
   function renderComparison(report) {
     const rows = methods.map(method => (Array.isArray(report.methods) ? report.methods : []).find(item => item.key === method.key) || { key: method.key, label: method.label });
-    byId("effectivenessComparison").innerHTML = `<div class="effectiveness-table-wrap" tabindex="0" role="region" aria-label="Bảng so sánh bốn phương pháp, cuộn ngang để xem hết">
-      <table class="effectiveness-table"><caption>So sánh trên tất cả các kỳ đã chấm, cùng số vé trong từng kỳ</caption>
-      <thead><tr><th scope="col">Phương pháp</th><th scope="col">Số kỳ</th><th scope="col">Trùng / vé</th><th scope="col">Vé trùng ≥3</th><th scope="col">Vé trùng ≥4</th><th scope="col">Chênh lệch với ngẫu nhiên</th><th scope="col">Khoảng 95%</th><th scope="col">Nhận định</th></tr></thead>
-      <tbody>${rows.map(row => `<tr><th scope="row"><span class="effectiveness-method-dot" style="background:${methods.find(method => method.key === row.key).color}"></span>${escape(row.label || methodLabel(row.key))}</th><td>${number(row.sampleCount, 0)}</td><td>${number(row.meanHits)}</td><td>${percent(row.rate3)}</td><td>${percent(row.rate4)}</td><td>${signed(row.deltaVsRandom)}</td><td class="effectiveness-ci">${interval(row.ci95)}</td><td class="effectiveness-decision">${escape(decisionText(row))}</td></tr>`).join("")}</tbody></table></div>
-      <details class="effectiveness-probabilities"><summary>Chỉ số xác suất số chính</summary><p>Brier và log-loss dùng xác suất biên chưa hiệu chỉnh; thấp hơn là tốt hơn. Dấu — nghĩa là phương pháp chưa cung cấp xác suất hợp lệ để chấm. Các chỉ số này không phải xác suất trúng toàn bộ vé.</p><div class="effectiveness-table-wrap"><table class="effectiveness-table"><thead><tr><th scope="col">Phương pháp</th><th scope="col">Brier</th><th scope="col">Log-loss</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}</th><td>${number(row.brierScore, 5)}</td><td>${number(row.logLoss, 5)}</td></tr>`).join("")}</tbody></table></div></details>`;
+    const probabilityKey = `${reportGame(report)}:probabilities`;
+    byId("effectivenessComparison").innerHTML = `<div class="effectiveness-table-wrap" tabindex="0" role="region" aria-label="So sánh bốn phương pháp trên tất cả kỳ đã chấm">
+      <table class="effectiveness-table effectiveness-comparison-table"><caption><strong>So sánh phương pháp</strong><span>Tất cả các kỳ đã chấm · cùng số vé trong từng kỳ</span></caption>
+      <thead><tr><th scope="col">Phương pháp</th><th scope="col">Trùng / vé</th><th scope="col">Tỷ lệ trùng</th><th scope="col">So với ngẫu nhiên</th><th scope="col">Nhận định</th></tr></thead>
+      <tbody>${rows.map(row => `<tr><th scope="row"><span class="effectiveness-method-dot" style="background:${methods.find(method => method.key === row.key).color}"></span>${escape(row.label || methodLabel(row.key))}<small>${number(row.sampleCount, 0)} kỳ đã chấm</small></th><td data-label="Trùng / vé" class="effectiveness-mean">${number(row.meanHits)}</td><td data-label="Tỷ lệ trùng"><span>≥3 số <strong>${percent(row.rate3)}</strong></span><span>≥4 số <strong>${percent(row.rate4)}</strong></span></td><td data-label="So với ngẫu nhiên"><strong>${signed(row.deltaVsRandom)}</strong><small class="effectiveness-ci">95% ${interval(row.ci95)}</small></td><td data-label="Nhận định" class="effectiveness-decision">${escape(decisionText(row))}</td></tr>`).join("")}</tbody></table></div>
+      <details class="effectiveness-probabilities" data-effectiveness-state="${escape(probabilityKey)}"${opened(probabilityKey)}><summary>Chỉ số xác suất số chính <span>Brier · Log-loss</span></summary><p>Brier và log-loss dùng xác suất biên chưa hiệu chỉnh; thấp hơn là tốt hơn. Dấu — là thiếu dữ liệu hợp lệ, không phải điểm 0. Đây không phải xác suất trúng toàn bộ vé.</p><div class="effectiveness-table-wrap"><table class="effectiveness-table"><thead><tr><th scope="col">Phương pháp</th><th scope="col">Brier</th><th scope="col">Log-loss</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}</th><td>${number(row.brierScore, 5)}</td><td>${number(row.logLoss, 5)}</td></tr>`).join("")}</tbody></table></div></details>`;
   }
 
   function renderNotes(report) {
     const notes = Array.isArray(report.notes) ? report.notes.filter(note => typeof note === "string" && note.trim()) : [];
     const count = finite(report.configurationCount) ? number(report.configurationCount, 0) : "nhiều";
-    byId("effectivenessReportNotes").innerHTML = `${report.mixedConfigurations === true ? `<p class="effectiveness-mixed-configurations"><strong>Gộp ${escape(count)} cấu hình / ngân sách.</strong> Xem chi tiết từng kỳ để đối chiếu số vé, engine và model đã dùng.</p>` : ""}${notes.length ? `<ul>${notes.map(note => `<li>${escape(note)}</li>`).join("")}</ul>` : ""}`;
+    byId("effectivenessMixedWarning").innerHTML = report.mixedConfigurations === true ? `<p class="effectiveness-mixed-configurations"><strong>Gộp ${escape(count)} cấu hình / ngân sách.</strong> Xem cấu hình đã khóa trong từng kỳ.</p>` : "";
+    byId("effectivenessReportNotes").innerHTML = notes.length ? `<ul>${notes.map(note => `<li>${escape(note)}</li>`).join("")}</ul>` : "";
   }
 
   function renderTimeline(report) {
@@ -113,12 +122,28 @@
       points.forEach(point => { if (!point) { contiguous = false; return; } path += `${contiguous ? " L" : " M"}${x(point[0])},${y(point[1])}`; contiguous = true; });
       return `<path d="${path}" fill="none" stroke="${method.color}" stroke-width="2.5"/>${points.filter(Boolean).map(([index, value]) => `<circle cx="${x(index)}" cy="${y(value)}" r="3" fill="${method.color}"><title>${escape(`${method.label} · kỳ ${cycles[index].targetDrawId} · ${number(value)} số trùng / vé`)}</title></circle>`).join("")}`;
     }).join("");
-    host.innerHTML = `<div class="effectiveness-chart-head"><h3>Số trùng theo kỳ</h3><span class="muted">${cycles.length} kỳ đã chấm gần nhất · trung bình trên vé</span></div><div class="effectiveness-chart-legend">${methods.map(method => `<button type="button" class="secondary" data-effectiveness-line="${method.key}" aria-pressed="${state.lines.has(method.key)}"><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</button>`).join("")}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="effectivenessChartTitle effectivenessChartDescription"><title id="effectivenessChartTitle">Số trùng trung bình từng kỳ của bốn phương pháp</title><desc id="effectivenessChartDescription">Trục ngang là kỳ quay theo thời gian. Trục dọc là số chính trùng trung bình trên mỗi vé. Số liệu từng kỳ có trong nhật ký bên dưới.</desc>${grid}${lines}<text x="${pad.left}" y="${height - 12}">Kỳ ${escape(cycles[0].targetDrawId)}</text><text x="${width - pad.right}" y="${height - 12}" text-anchor="end">Kỳ ${escape(cycles[cycles.length - 1].targetDrawId)}</text></svg>`;
+    const trendKey = `${reportGame(report)}:trend`;
+    host.innerHTML = `<details data-effectiveness-state="${escape(trendKey)}"${opened(trendKey)}><summary class="effectiveness-chart-head"><strong>Số trùng theo kỳ</strong><span>${cycles.length} kỳ gần nhất · xem biểu đồ</span></summary><div class="effectiveness-chart-body"><div class="effectiveness-chart-legend">${methods.map(method => `<button type="button" class="secondary" data-effectiveness-line="${method.key}" aria-pressed="${state.lines.has(method.key)}"><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</button>`).join("")}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="effectivenessChartTitle effectivenessChartDescription"><title id="effectivenessChartTitle">Số trùng trung bình từng kỳ của bốn phương pháp</title><desc id="effectivenessChartDescription">Trục ngang là kỳ quay theo thời gian. Trục dọc là số chính trùng trung bình trên mỗi vé. Số liệu từng kỳ có trong nhật ký bên dưới.</desc>${grid}${lines}<text x="${pad.left}" y="${height - 12}">Kỳ ${escape(cycles[0].targetDrawId)}</text><text x="${width - pad.right}" y="${height - 12}" text-anchor="end">Kỳ ${escape(cycles[cycles.length - 1].targetDrawId)}</text></svg></div></details>`;
   }
 
   function ticketHtml(ticket, actual) {
     const values = Array.isArray(ticket.main) ? ticket.main : [];
     return `<span class="effectiveness-ticket">${values.map(value => `<span class="effectiveness-ball${actual.has(Number(value)) ? " is-hit" : ""}">${escape(String(value).padStart(2, "0"))}${actual.has(Number(value)) ? '<span class="sr-only"> trùng</span>' : ""}</span>`).join("")}${ticket.special !== null && ticket.special !== undefined && ticket.special !== "" ? `<span class="effectiveness-special">ĐB ${escape(String(ticket.special).padStart(2, "0"))}</span>` : ""}</span>`;
+  }
+
+  function ticketRowHtml(ticket, actual, index, mainCount) {
+    const values = Array.isArray(ticket.main) ? ticket.main : [];
+    const hits = actual.size ? [...new Set(values.map(Number))].filter(value => actual.has(value)).length : null;
+    return `<div class="effectiveness-ticket-row"><span class="effectiveness-ticket-label">Vé ${String(index + 1).padStart(2, "0")}</span>${ticketHtml(ticket, actual)}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span></div>`;
+  }
+
+  function cycleInfoHtml(cycle, cycleKey, budget) {
+    const infoKey = `${cycleKey}:info`;
+    return `<details class="effectiveness-provenance" data-effectiveness-state="${escape(infoKey)}"${opened(infoKey)}><summary>Thông tin dự đoán</summary><dl class="effectiveness-info-list"><div><dt>Dữ liệu đến</dt><dd>Kỳ ${escape(cycle.cutoffDrawId)}</dd></div><div><dt>Đã khóa lúc</dt><dd>${escape(dateTime(cycle.createdAt))} (giờ Việt Nam)</dd></div><div><dt>Hạn khóa</dt><dd>${escape(dateTime(cycle.deadline))} (giờ Việt Nam)</dd></div><div><dt>Ngân sách đã khóa</dt><dd>${escape(budget)} vé / phương pháp</dd></div>${methods.map(method => {
+      const entry = cycle.methods?.[method.key] || {};
+      const fields = [["Engine", entry.engine], ["Model", entry.modelId], ["Mã dự đoán", entry.predictionId], ["Seed", entry.seed], ["Trung bình số trùng / vé", entry.meanHits], ["Số trùng tốt nhất", entry.bestHits]];
+      return fields.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => `<div><dt>${escape(method.label)} · ${label}</dt><dd>${escape(value)}</dd></div>`).join("");
+    }).join("")}</dl></details>`;
   }
 
   function renderCycles(report) {
@@ -127,20 +152,28 @@
       byId("effectivenessCycles").innerHTML = `<div class="effectiveness-empty"><strong>Chưa có lượt theo dõi thực tế.</strong><p>${report.canManage ? "Bật theo dõi tự động hoặc khóa kỳ tiếp theo để bắt đầu." : "Quản trị viên có thể bật theo dõi cho các kỳ sắp tới."} Các kỳ trong dữ liệu cũ không được thêm vào như dự đoán đã khóa.</p></div>`;
       return;
     }
-    byId("effectivenessCycles").innerHTML = cycles.map(cycle => {
+    const game = reportGame(report);
+    const initialize = !state.initializedGames.has(game);
+    const mainCount = game === "LOTO_5_35" ? 5 : 6;
+    byId("effectivenessCycles").innerHTML = cycles.map((cycle, index) => {
       const actualList = Array.isArray(cycle.actualMain) ? cycle.actualMain : [];
       const actual = new Set(actualList.map(Number));
       const scored = cycle.status === "scored" || cycle.status === "complete" || actual.size > 0;
-      const scoredText = scored ? "Đã chấm" : "Đã khóa · chờ kết quả";
-      return `<details class="effectiveness-cycle"><summary><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><span class="effectiveness-cycle-date">Hạn khóa: ${escape(dateTime(cycle.deadline))}</span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-meta"><span>Dữ liệu đến kỳ <strong>${escape(cycle.cutoffDrawId)}</strong></span><span>Đã khóa lúc ${escape(dateTime(cycle.createdAt))} (giờ Việt Nam)</span></div><div class="effectiveness-actual"><strong>Số chính thực tế:</strong>${actualList.length ? ticketHtml({ main: actualList }, new Set()) : '<span class="muted">Chưa có kết quả</span>'}</div><div class="effectiveness-cycle-methods">${methods.map(method => {
+      const scoredText = scored ? "Đã chấm" : "Chờ kết quả";
+      const cycleKey = `${game}:cycle:${cycle.targetDrawId}`;
+      const lockedBudget = cycle.config?.ticketCount;
+      const budget = finite(lockedBudget) ? number(lockedBudget, 0) : Array.isArray(cycle.methods?.web?.tickets) ? String(cycle.methods.web.tickets.length) : "—";
+      return `<details class="effectiveness-cycle" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey, initialize && index === 0)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>Hạn khóa ${escape(dateTime(cycle.deadline))}</small></span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${escape(budget)} vé / phương pháp đã khóa`}</span>${actual.size ? ticketHtml({ main: actualList }, new Set()) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span><span class="effectiveness-cycle-chevron" aria-hidden="true">⌄</span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-methods">${methods.map(method => {
         const entry = cycle.methods?.[method.key] || {};
         const tickets = Array.isArray(entry.tickets) ? entry.tickets : [];
-        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${scored ? `${number(entry.meanHits)} trùng / vé · tốt nhất ${number(entry.bestHits, 0)}` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map(ticket => ticketHtml(ticket, actual)).join("") : '<span class="muted">Không có bộ số để hiển thị</span>'}</div>${entry.engine || entry.modelId ? `<div class="effectiveness-cycle-provenance">${entry.engine ? `Engine: ${escape(entry.engine)}` : ""}${entry.engine && entry.modelId ? " · " : ""}${entry.modelId ? `Model: ${escape(entry.modelId)}` : ""}</div>` : ""}</div>`;
-      }).join("")}</div><p class="effectiveness-cycle-note">Số màu xanh là số chính trùng. Số ĐB được lưu cùng vé và chưa tính vào các chỉ số so sánh trên trang này.</p></div></details>`;
+        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${actual.size ? `TB ${number(entry.meanHits, 2)} số / vé` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map((ticket, ticketIndex) => ticketRowHtml(ticket, actual, ticketIndex, mainCount)).join("") : '<span class="muted">Chưa có bộ số</span>'}</div></div>`;
+      }).join("")}</div><p class="effectiveness-cycle-note">Chấm số chính; ĐB chưa tính vào số trùng trên trang này.</p>${cycleInfoHtml(cycle, cycleKey, budget)}</div></details>`;
     }).join("");
+    state.initializedGames.add(game);
   }
 
   function render(report) {
+    rememberOpenDetails();
     renderSummary(report);
     renderNotes(report);
     renderComparison(report);
@@ -151,7 +184,7 @@
 
   function clearReport() {
     state.report = null;
-    ["effectivenessSummary", "effectivenessReportNotes", "effectivenessComparison", "effectivenessTimeline", "effectivenessCycles"].forEach(id => { byId(id).innerHTML = ""; });
+    ["effectivenessSummary", "effectivenessMixedWarning", "effectivenessReportNotes", "effectivenessComparison", "effectivenessTimeline", "effectivenessCycles"].forEach(id => { byId(id).innerHTML = ""; });
     byId("effectivenessTimeline").hidden = true;
     byId("effectivenessUpdated").textContent = "";
     setControls();
@@ -174,7 +207,7 @@
       state.report = report;
       render(report);
       byId("effectivenessUpdated").textContent = `Cập nhật ${dateTime(new Date().toISOString())}`;
-      showStatus(statusAfter || (Number(report.counts?.scored) ? "Đã tải báo cáo. Làm mới chỉ đọc kết quả; không tạo lượt dự đoán mới." : "Chưa có kỳ đã chấm. Số liệu sẽ xuất hiện khi kỳ đã khóa có kết quả thực tế."));
+      showStatus(statusAfter || (Number(report.counts?.scored) ? "Báo cáo đã cập nhật." : "Chưa có kỳ đã chấm. Đang chờ kết quả thực tế."));
     } catch (error) {
       if (error.name === "AbortError" || generation !== state.generation || state.controller !== controller) return;
       if (error.status === 401) clearReport();
@@ -245,18 +278,25 @@
     state.controller = null;
     state.busy = false;
     state.loading = false;
+    state.openDetails.clear();
+    state.initializedGames.clear();
+    byId("effectivenessAdmin").open = false;
     clearReport();
     showStatus(state.authenticated ? "Mở tab Hiệu quả dự đoán để tải báo cáo." : "Đăng nhập để xem báo cáo.");
     syncTimer();
     if (state.active && state.authenticated) void refresh();
   });
-  ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => { clearReport(); void refresh(); }));
+  root.addEventListener("toggle", event => {
+    if (event.target.matches("details[data-effectiveness-state]") && root.contains(event.target)) state.openDetails.set(event.target.dataset.effectivenessState, event.target.open);
+  }, true);
+  ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => { rememberOpenDetails(); clearReport(); void refresh(); }));
   byId("effectivenessRefresh").addEventListener("click", () => void refresh());
   byId("effectivenessSave").addEventListener("click", () => void mutate("settings"));
   byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
   byId("effectivenessTimeline").addEventListener("click", event => {
     const button = event.target.closest("[data-effectiveness-line]");
     if (!button || !state.report) return;
+    rememberOpenDetails();
     const key = button.dataset.effectivenessLine;
     if (state.lines.has(key)) state.lines.delete(key); else state.lines.add(key);
     renderTimeline(state.report);

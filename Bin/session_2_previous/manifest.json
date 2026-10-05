@@ -1,247 +1,31 @@
 {
-  "created_at": "2026-10-04T13:45:28.596165+00:00",
-  "reason": "Fix verified findings from BaoCaoRaSoat.md",
+  "created_at": "2026-10-05T14:52:51.737201+00:00",
+  "reason": "Redesign prediction effectiveness section and per-draw comparison for compact desktop/mobile presentation",
   "files": [
-    {
-      "path": "backend/LottoWebServer.java",
-      "action": "replace",
-      "sha256": "a3541fddfe0026f50bac321977c87c79122fa86963b39b7949cc24deb82d619e"
-    },
-    {
-      "path": "backend/live_results.py",
-      "action": "replace",
-      "sha256": "08a4b0ec5fd5937b4f415d4a4cc9c3bcdd012eea25c0c3dd8c7880a1b70eaa52"
-    },
-    {
-      "path": "ai/prediction_ledger.py",
-      "action": "replace",
-      "sha256": "a2caf989a45cb0a7c4d6bb2318828a0337e30a34c292506b8f236a0522c2f72a"
-    },
-    {
-      "path": "ai/ml_pipeline.py",
-      "action": "replace",
-      "sha256": "7e43eae40d8d208444fc3b2ad7628c21e8aa21ac06912359ed7ee1c38812a7b4"
-    },
-    {
-      "path": "ai/predictors/ai_predict.py",
-      "action": "replace",
-      "sha256": "208e4e1f1a47094e2eca70d730d75ada6b54143f24389fffcb395a043ccbecd0"
-    },
-    {
-      "path": "ai/analysis/analysis.py",
-      "action": "replace",
-      "sha256": "f31db0e5c24d6a0b0f8520177f4cc974afc664a11e3822ebb75cb277f99b813a"
-    },
-    {
-      "path": "ai/stats/stats_v2.py",
-      "action": "replace",
-      "sha256": "fc71c4bb5d9ed0820c64453e0383c311ac52f9c28d20440ec0a32b60e39d7fc9"
-    },
-    {
-      "path": "frontend/vietlott-web-core.js",
-      "action": "replace",
-      "sha256": "45096a6ba35a18c11f51b15e008b241c25a539c11eaeb5b800c8b783ccf99980"
-    },
-    {
-      "path": "frontend/vietlott-web-data.js",
-      "action": "replace",
-      "sha256": "ce5ba96b39cb5caf7a9240b80f5f78c36e2bffe89dea878b18c7243992751f6b"
-    },
-    {
-      "path": "frontend/vietlott-web-stats.js",
-      "action": "replace",
-      "sha256": "b2297c4c92b8203d6e28c5a2181f3d714dafc126e34285f58917bbbf01798bb4"
-    },
     {
       "path": "frontend/vietlott-web.html",
       "action": "replace",
-      "sha256": "df3e66135763743942d0a80dbf0605c4bf46ffa227b8fa5b61d6cb3cfe4feb5a"
+      "sha256": "eaa44afd454ee9baa7216b7dc0cdcf69ba968d2e3e5d0354e14a884738c3b281"
     },
     {
-      "path": "docs/QuyTac.md",
+      "path": "frontend/vietlott-web-effectiveness.js",
       "action": "replace",
-      "sha256": "3ffce3bfb47fb0647a6abf4428888ebca17fdedad3cd756776b62d5f18909776"
+      "sha256": "9db903cd82e05556fc14645f5c60e76c928628bb5db162e15634458c1f9f0528"
+    },
+    {
+      "path": "frontend/vietlott-web-extra.css",
+      "action": "replace",
+      "sha256": "0393195c6933626652b8a320597924ae61b43f6841b45a7accebdf721291a27e"
+    },
+    {
+      "path": "tests/test_effectiveness_frontend.py",
+      "action": "replace",
+      "sha256": "f49c0139e16a0db14522b63fb83e8398a7606b38ae4c4ca2711590337ae95157"
     },
     {
       "path": "docs/NhatKyThayDoi.md",
       "action": "replace",
-      "sha256": "1efdaadd9cb468bbd3ba268003015379dc46321b2bae214d26bbd6b8174e0119"
-    },
-    {
-      "path": "README.md",
-      "action": "replace",
-      "sha256": "d62841a30c0e7ed8f2196119b8558bddfb1c1ad4503d0a432f20d7f86dd12e98"
-    },
-    {
-      "path": "tests/test_prediction_ledger_pipeline.py",
-      "action": "replace",
-      "sha256": "99621da72c15bd2323772ad845138a8b6e514e4f39ef89f02d663ac608dfc6c6"
-    },
-    {
-      "path": "tests/test_evaluation_pipeline.py",
-      "action": "replace",
-      "sha256": "08748626d13369b3f24acf3f36dd170885e69c79f2544944ccf3f05871497af7"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/src/deep_model.py",
-      "action": "replace",
-      "sha256": "f471eabc0d4c16f5038544e82884bbe4396dbd75bdbd30bab8c6a67f5e430e20"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/src/deep_dataset.py",
-      "action": "replace",
-      "sha256": "6a204f1f3a44fc4a04b01e06d7334b1f4d2574b0607e4a5dea33534d4c1b57aa"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/src/backtest.py",
-      "action": "replace",
-      "sha256": "9da64136ecb5551d797681b21292f535c3bd8a24c95bc667d291c5325deb8a3c"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/src/predictor_api.py",
-      "action": "replace",
-      "sha256": "2a0d006410358ce13809908207a6a1e462a8a13e7c17a3974357c64909ab6340"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/src/config.py",
-      "action": "replace",
-      "sha256": "32a09572746e12e723eb1dbeeccc7fc4ff2f514e7890cd96a20b4ec0adc6a920"
-    },
-    {
-      "path": "ai/standalone_predictors/loto_5_35_predictor/README.md",
-      "action": "replace",
-      "sha256": "72797d426aa829d4a86ceca148b7763e77060bfd15ae9f292825ebddb4876ef8"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/src/deep_model.py",
-      "action": "replace",
-      "sha256": "87dc16bc884e05de51320c91167aa7c81b6bb08582bfbdb132189d9488f52333"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/src/deep_dataset.py",
-      "action": "replace",
-      "sha256": "bcbc72a9d48a1bed462c19b53f1ae12e60e3ddf6ca6848764ea8cc289512c833"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/src/backtest.py",
-      "action": "replace",
-      "sha256": "4904c6e667272a87f818104ce1f5626549b6dde5524599f6922a9d3ac449b88d"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/src/predictor_api.py",
-      "action": "replace",
-      "sha256": "d9599ef774fcb63636b2735389f034d35623cc6deb562ec48bbb690107bedda4"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/README.md",
-      "action": "replace",
-      "sha256": "95fdb70e50efed8f2c14d7982b87c0779ea4acc79b5f8925d47b666b145cf49a"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/src/deep_model.py",
-      "action": "replace",
-      "sha256": "84364935877c5f5234f2175602b92c86cc0463d541129cf74b334622e83f72bc"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/src/deep_dataset.py",
-      "action": "replace",
-      "sha256": "8b4eddf9e3a3c548ee0f2e0f51cc079645182df7f0e0736584293bc2126d7719"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/src/backtest.py",
-      "action": "replace",
-      "sha256": "ebf820855571d24adf7bd270c25d2369b82688dfc26885615b3647ed813e3648"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/src/predictor_api.py",
-      "action": "replace",
-      "sha256": "7e5ad1171aed764366cc7cceb7ef414149f1cd81565eaa4f7860c926cb117739"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/README.md",
-      "action": "replace",
-      "sha256": "f9e36b27d6b15dea043240df9eae0154be6d283605b68e9b4763ed6b73e87f2f"
-    },
-    {
-      "path": "ai/adaptive_coverage.py",
-      "action": "replace",
-      "sha256": "f5803adc0e469d46a869968642de4304587459d6cc4a4e1f5b904fcba2ddefc6"
-    },
-    {
-      "path": "ai/standalone_predictors/mega_6_45_predictor/src/feature_engineering.py",
-      "action": "replace",
-      "sha256": "6dcd49c725ba156df59d63743ebfc61b7856a42697b0a5956d921a3b5b676a64"
-    },
-    {
-      "path": "ai/standalone_predictors/power_6_55_predictor/src/feature_engineering.py",
-      "action": "replace",
-      "sha256": "1384795100d456760d81e37bc75b19e5d3c457bfa5237853e19d041b7a8115e7"
-    },
-    {
-      "path": "tests/test_web_performance.py",
-      "action": "replace",
-      "sha256": "e8538f6980229f73f5dc4ca75c7741688b4f67392e6fe7995520cb94bda9e792"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$1.class",
-      "action": "replace",
-      "sha256": "0724bb732ff0e2148083eb87b52fc15baf146775cedde65f171a30f889c57c0a"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$Account.class",
-      "action": "replace",
-      "sha256": "b474a7e0b8362cb0f1e5b35dccb41d73843640f3d4bb4845feda111cfe1fe249"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$CanonicalHistoryRow.class",
-      "action": "replace",
-      "sha256": "520cd78c6fced96b3b6da91286cae61a8e55055241ca3aba258b2a05ffe0d32c"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$DatabaseRepo.class",
-      "action": "replace",
-      "sha256": "ef90ba6735d4338c3663460812241479ebc765c20b107971e7a19f1c08ce599a"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$JsonCursor.class",
-      "action": "replace",
-      "sha256": "9ce171fd5c6a857a6284832a69f4c51e6357afb7d05a26c330e511e890ebe66a"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$ProcessOutput.class",
-      "action": "replace",
-      "sha256": "f4dfefd6cc15380b37b091b7c13ab1f60e94ae538a3e343dcd5bf771fefb385d"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$SessionUser.class",
-      "action": "replace",
-      "sha256": "58d16b67c8d6cdde22f821badbb6b868f4c45f9cdd6945acea2ab209f427112a"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$StaticAsset.class",
-      "action": "replace",
-      "sha256": "dfeaa974590c9446d33095bf8fd38d38af3015e34464203cb0d23c2134e9d0f6"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$TimedJsonPayload.class",
-      "action": "replace",
-      "sha256": "88ea010bf9386fc51247f0d7e3622479e7ddd0ea1e80321c29ce82a8bc184ffb"
-    },
-    {
-      "path": "backend/bin/LottoWebServer$UserView.class",
-      "action": "replace",
-      "sha256": "9ed56f3c84ffe734825c45983a66b87a47f94260fe6264bc0f2977e2ef0ceb54"
-    },
-    {
-      "path": "backend/bin/LottoWebServer.class",
-      "action": "replace",
-      "sha256": "568135b28f94a80c87cb174e5d6e5f7711896b29731d695ed0301b96f07e008d"
-    },
-    {
-      "path": "runtime/lotto_web.db",
-      "action": "replace",
-      "method": "consistent SQLite online backup before schema migration",
-      "sha256": "37f4d2e77ee11986baec4b13fc521e8a39da0dc62bd3b8737854266304f4e5a7"
+      "sha256": "1eca34046336379dd1889ec0d771b90058c82ac4c7b09a53f4c11976f2240cd5"
     }
   ]
 }

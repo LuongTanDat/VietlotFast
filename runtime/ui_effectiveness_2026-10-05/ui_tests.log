@@ -1,0 +1,11 @@
+test_empty_scored_pending_admin_and_account_change (tests.test_effectiveness_frontend.EffectivenessFrontendTests.test_empty_scored_pending_admin_and_account_change) ... ok
+test_full_frontend_tab_empty_state_and_admin_controls (tests.test_effectiveness_web.EffectivenessWebTests.test_full_frontend_tab_empty_state_and_admin_controls) ... ok
+test_real_report_is_empty_read_only_and_settings_persist (tests.test_effectiveness_web.EffectivenessWebTests.test_real_report_is_empty_read_only_and_settings_persist) ... ok
+test_request_validation_and_empty_source_cannot_lock (tests.test_effectiveness_web.EffectivenessWebTests.test_request_validation_and_empty_source_cannot_lock) ... ok
+test_routes_require_login_and_admin_for_mutations (tests.test_effectiveness_web.EffectivenessWebTests.test_routes_require_login_and_admin_for_mutations) ... ok
+test_system_actor_cannot_be_registered_renamed_or_logged_in (tests.test_effectiveness_web.EffectivenessWebTests.test_system_actor_cannot_be_registered_renamed_or_logged_in) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 21.182s
+
+OK
