@@ -358,7 +358,7 @@ def _ticket_special(ticket: Any) -> int | None:
     return None
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=16)
 def _portfolio_random_best(tickets: tuple[tuple[int, ...], ...], universe_size: int, draw_size: int) -> float:
     """Uniform draws against the same tickets preserve budget and overlap."""
     if not tickets:
@@ -366,11 +366,34 @@ def _portfolio_random_best(tickets: tuple[tuple[int, ...], ...], universe_size: 
     if len(set(tickets)) == 1:
         return len(set(tickets[0])) * draw_size / float(universe_size)
     rng = random.Random(20261004)
-    ticket_sets = [set(ticket) for ticket in tickets]
+    # Bit slices count hits for every ticket at once. This is the same 1024
+    # draws and exact maximum as set intersections, without O(draws * tickets).
+    width = (len(tickets) + 7) // 8
+    buffers = [bytearray(width) for _ in range(universe_size + 1)]
+    for index, ticket in enumerate(tickets):
+        for number in set(ticket):
+            if 1 <= number <= universe_size:
+                buffers[number][index // 8] |= 1 << (index % 8)
+    incidence = [int.from_bytes(buffer, "little") for buffer in buffers]
+    all_tickets = (1 << len(tickets)) - 1
     total = 0
     for _ in range(1024):
-        actual = set(rng.sample(range(1, universe_size + 1), draw_size))
-        total += max(len(ticket & actual) for ticket in ticket_sets)
+        planes = []
+        for number in rng.sample(range(1, universe_size + 1), draw_size):
+            carry, bit = incidence[number], 0
+            while carry:
+                if bit == len(planes):
+                    planes.append(carry)
+                    break
+                planes[bit], carry = planes[bit] ^ carry, planes[bit] & carry
+                bit += 1
+        candidates, best = all_tickets, 0
+        for plane in reversed(planes):
+            possible = candidates & plane
+            best = best * 2 + bool(possible)
+            if possible:
+                candidates = possible
+        total += best
     return total / 1024.0
 
 
@@ -388,6 +411,7 @@ def score_prediction_payload(
     if inferred_prediction_size > 0:
         prediction_size = inferred_prediction_size
     actual_main = [int(value) for value in list(actual_draw.get("main") or actual_draw.get("main_numbers") or [])]
+    actual_set = set(actual_main)
     actual_special = actual_draw.get("special")
     best_hit = 0
     special_hit = 0
@@ -395,7 +419,7 @@ def score_prediction_payload(
     prize_results = classify_tickets(str(prediction_payload.get("type") or prediction_payload.get("game_type") or ""), tickets, actual_draw)
     for ticket_index, ticket in enumerate(tickets):
         main = _ticket_main(ticket)
-        hit = len(set(main) & set(actual_main))
+        hit = len(set(main) & actual_set)
         best_hit = max(best_hit, hit)
         ticket_special = _ticket_special(ticket)
         matched_special = ticket_special is not None and actual_special is not None and int(ticket_special) == int(actual_special)

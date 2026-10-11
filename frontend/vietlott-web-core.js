@@ -147,7 +147,7 @@
       { key: "MAX_3D_PRO", label: "Max 3D Pro", desc: "Đã nối AI, history và đối chiếu kiểu 3 chữ số", badge: "SẴN SÀNG", supported: true }
     ];
     const KENO_PAYOUT = {
-      10: { 10: "2 tỷ *", 9: "150 triệu", 8: "7,4 triệu", 7: "600.000", 6: "80.000", 5: "20.000", 0: "10.000" },
+      10: { 10: "2 tỷ *", 9: "150 triệu", 8: "8 triệu", 7: "710.000", 6: "80.000", 5: "20.000", 0: "10.000" },
       9: { 9: "800 triệu *", 8: "12 triệu", 7: "1,5 triệu", 6: "150.000", 5: "30.000", 4: "10.000", 0: "10.000" },
       8: { 8: "200 triệu *", 7: "5 triệu", 6: "500.000", 5: "50.000", 4: "10.000", 0: "10.000" },
       7: { 7: "40 triệu", 6: "1,2 triệu", 5: "100.000", 4: "20.000", 3: "10.000" },
@@ -213,6 +213,10 @@
     const APP_FULL_NAME = "Deep Vietlott Fast";
     const HEADER_NOTIFICATION_READ_KEY = "dvlf_header_notification_read_v1";
     const HEADER_NOTIFICATION_DISMISSED_KEY = "dvlf_header_notification_dismissed_v1";
+    const HEADER_NOTIFICATION_HISTORY_KEY = "dvlf_header_notification_history_v1";
+    const headerNotificationMemory = new Map();
+    const headerNotificationMemoryOnly = new Set();
+    let headerNotificationView = { user: "", expanded: false, page: 1 };
     const MAX_PICKS_PER_TYPE = 45;
     const LIVE_RESULT_TYPES = [
       { key: "LOTO_5_35", label: "Loto_5/35", importable: true },
@@ -231,28 +235,7 @@
       MAX_3D: { kind: "weekly", weekdays: [1, 3, 5], time: "18:00" },
       MAX_3D_PRO: { kind: "weekly", weekdays: [2, 4, 6], time: "18:00" },
     };
-    const DEFAULT_LIVE_HISTORY_COUNT_OPTIONS = [
-      { value: "2", label: "2 kỳ" },
-      { value: "10", label: "10 kỳ" },
-      { value: "20", label: "20 kỳ" },
-      { value: "50", label: "50 kỳ" },
-      { value: "100", label: "100 kỳ" },
-      { value: "all", label: "Tất Cả" },
-    ];
-    const KENO_LIVE_HISTORY_COUNT_OPTIONS = [
-      { value: "2", label: "2 kỳ" },
-      { value: "today", label: "Hôm Nay" },
-      { value: "3d", label: "3 Ngày" },
-      { value: "1w", label: "1 Tuần" },
-      { value: "1m", label: "1 Tháng" },
-      { value: "3m", label: "3 Tháng" },
-      { value: "6m", label: "6 Tháng" },
-      { value: "1y", label: "1 Năm" },
-      { value: "all", label: "Tất cả Kỳ" },
-    ];
-    const KENO_LIVE_HISTORY_COUNT_LABELS = Object.fromEntries(
-      KENO_LIVE_HISTORY_COUNT_OPTIONS.map(item => [item.value, item.label])
-    );
+    const KENO_LIVE_HISTORY_RANGE_KEYS = new Set(["2", "today", "3d", "1w", "1m", "3m", "6m", "1y", "all"]);
     const AI_PREDICT_TYPES = new Set(["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"]);
     const PREDICTION_LOG_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const ML_PREDICTION_LOG_TYPES = new Set(["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55"]);
@@ -501,7 +484,6 @@
     const LUCKY_WHEEL_TOPUP_PAYPAL_PER_SPIN = 2000;
     const LUCKY_WHEEL_TOPUP_MAX_PER_ACTION = 50;
     const LUCKY_WHEEL_TOPUP_MAX_PER_DAY = 1000;
-    const LIVE_HISTORY_RECENT_REPAIR_DAYS = 15;
     const LUCKY_WHEEL_SEGMENTS = [
       { label: "5 Kim cương + 100 PayPal", short: "5 KC + 100 PP", desc: "Phần thưởng", color: "#f4d35e", weight: 28, reward: { diamond: 5, paypal: 100 } },
       { label: "Thêm 1 lượt", short: "+1 Lượt", desc: "Lượt quay", color: "#ffd166", weight: 10, reward: { bonusSpins: 1 } },
@@ -569,17 +551,15 @@
     let liveUpdateBadgeState = {};
     let liveHistoryState = {};
     let liveHistoryLegacyApiMode = false;
-    let liveHistoryRecentRefreshBusy = false;
     let dataTableSelectedType = "LOTO_5_35";
     let dataTableSelectedLimit = "500";
     let dataTableHitOnly = false;
+    let dataTableShareOnly = false;
     let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
     let dataTableLoading = false;
     let liveResultsFetchedAt = "";
     let liveAutoTimer = null;
     let liveResultsProgressTypeCursor = {};
-    let liveResultsProgressHistoryRefreshCursor = {};
-    let liveResultsProgressHistoryRefreshBusy = false;
     let predictPageModeValue = "normal";
     let manualPredictTypeValue = "LOTO_5_35";
     let manualPredictPlayModeValue = "normal";
@@ -1921,22 +1901,33 @@
       return `${baseKey}:${userKey}`;
     }
 
-    function getReadHeaderNotificationIds() {
+    function readHeaderNotificationValue(baseKey, fallback) {
+      const key = getHeaderNotificationStorageKey(baseKey);
+      let raw = headerNotificationMemory.get(key);
+      if (!headerNotificationMemoryOnly.has(key)) try {
+        raw = localStorage.getItem(key) ?? raw;
+      } catch {}
+      try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+    }
+
+    function writeHeaderNotificationValue(baseKey, value) {
+      const key = getHeaderNotificationStorageKey(baseKey);
+      const raw = JSON.stringify(value);
+      headerNotificationMemory.set(key, raw);
       try {
-        const parsed = JSON.parse(localStorage.getItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_READ_KEY)) || "[]");
-        return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-      } catch {
-        return new Set();
-      }
+        if (localStorage.getItem(key) !== raw) localStorage.setItem(key, raw);
+        headerNotificationMemoryOnly.delete(key);
+      } catch { headerNotificationMemoryOnly.add(key); }
+    }
+
+    function getReadHeaderNotificationIds() {
+      const parsed = readHeaderNotificationValue(HEADER_NOTIFICATION_READ_KEY, []);
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
     }
 
     function getDismissedHeaderNotificationIds() {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_DISMISSED_KEY)) || "[]");
-        return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-      } catch {
-        return new Set();
-      }
+      const parsed = readHeaderNotificationValue(HEADER_NOTIFICATION_DISMISSED_KEY, []);
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
     }
 
     function collectHeaderNotifications() {
@@ -1969,10 +1960,25 @@
         });
       }
       const dismissedIds = getDismissedHeaderNotificationIds();
-      return items
-        .filter(item => !dismissedIds.has(item.id))
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 8);
+      const saved = readHeaderNotificationValue(HEADER_NOTIFICATION_HISTORY_KEY, []);
+      const history = new Map();
+      for (const item of Array.isArray(saved) ? saved : []) {
+        if (!item || typeof item.id !== "string" || !["live", "prediction"].includes(item.kind) || dismissedIds.has(item.id)) continue;
+        history.set(item.id, {
+          id: item.id, kind: item.kind,
+          title: String(item.title || "Thông báo"), detail: String(item.detail || ""),
+          timestamp: Number.isFinite(new Date(Number(item.timestamp)).getTime()) ? Number(item.timestamp) : 0,
+        });
+      }
+      for (const item of items) {
+        if (dismissedIds.has(item.id)) continue;
+        const previous = history.get(item.id);
+        history.set(item.id, { ...item, timestamp: previous?.timestamp || item.timestamp });
+      }
+      const archive = [...history.values()]
+        .sort((a, b) => b.timestamp - a.timestamp || a.id.localeCompare(b.id));
+      writeHeaderNotificationValue(HEADER_NOTIFICATION_HISTORY_KEY, archive);
+      return archive;
     }
 
     function formatHeaderNotificationTime(timestamp) {
@@ -1991,16 +1997,43 @@
       const button = document.getElementById("notificationBtn");
       const markReadButton = document.getElementById("notificationMarkReadBtn");
       const clearButton = document.getElementById("notificationClearBtn");
+      const footer = document.getElementById("notificationFooter");
+      const moreButton = document.getElementById("notificationMoreBtn");
+      const pager = document.getElementById("notificationPager");
       if (!list || !badge || !button) return;
+      const user = getHeaderNotificationStorageKey();
+      if (headerNotificationView.user !== user) headerNotificationView = { user, expanded: false, page: 1 };
       const items = collectHeaderNotifications();
       const readIds = getReadHeaderNotificationIds();
       const unreadCount = items.filter(item => !readIds.has(item.id)).length;
+      if (items.length <= 5) headerNotificationView.expanded = false;
+      const pageSize = headerNotificationView.expanded ? 10 : 5;
+      const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+      headerNotificationView.page = headerNotificationView.expanded ? Math.min(Math.max(1, headerNotificationView.page), pageCount) : 1;
+      const start = (headerNotificationView.page - 1) * pageSize;
+      const visible = items.slice(start, start + pageSize);
       badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
       badge.hidden = unreadCount === 0;
       button.setAttribute("aria-label", unreadCount ? `Mở thông báo, ${unreadCount} tin chưa đọc` : "Mở thông báo");
-      if (markReadButton) markReadButton.disabled = items.length === 0 || unreadCount === 0;
-      if (clearButton) clearButton.disabled = items.length === 0;
+      if (markReadButton) markReadButton.disabled = !visible.some(item => !readIds.has(item.id));
+      if (clearButton) clearButton.disabled = !items.some(item => readIds.has(item.id));
+      if (footer) footer.hidden = !items.length;
+      if (moreButton) {
+        moreButton.hidden = items.length <= 5;
+        moreButton.textContent = headerNotificationView.expanded ? "Thu gọn" : "Xem thêm";
+        moreButton.setAttribute("aria-expanded", String(headerNotificationView.expanded));
+      }
+      if (pager) pager.hidden = !headerNotificationView.expanded;
+      const range = document.getElementById("notificationRange");
+      if (range) range.textContent = items.length ? `${start + 1}–${start + visible.length} / ${items.length} tin` : "";
+      const pageLabel = document.getElementById("notificationPageLabel");
+      if (pageLabel) pageLabel.textContent = `Trang ${headerNotificationView.page} / ${pageCount}`;
+      const prev = document.getElementById("notificationPrevBtn");
+      const next = document.getElementById("notificationNextBtn");
+      if (prev) prev.disabled = headerNotificationView.page <= 1;
+      if (next) next.disabled = headerNotificationView.page >= pageCount;
       list.replaceChildren();
+      list.scrollTop = 0;
       if (!items.length) {
         const empty = document.createElement("div");
         empty.className = "header-notification-empty";
@@ -2008,36 +2041,74 @@
         list.appendChild(empty);
         return;
       }
-      for (const item of items) {
+      for (const item of visible) {
+        const isRead = readIds.has(item.id);
         const row = document.createElement("div");
-        row.className = `header-notification-item${readIds.has(item.id) ? " is-read" : ""}`;
+        row.className = `header-notification-item${isRead ? " is-read" : ""}`;
+        row.dataset.notificationId = item.id;
         const dot = document.createElement("span");
-        dot.className = `header-notification-dot is-${item.kind}`;
-        dot.setAttribute("aria-hidden", "true");
-        const content = document.createElement("div");
+        dot.className = isRead ? "header-notification-check" : `header-notification-dot is-${item.kind}`;
+        dot.textContent = isRead ? "✓" : "";
+        dot.setAttribute("aria-label", isRead ? "Đã đọc" : "Chưa đọc");
+        dot.title = isRead ? "Đã đọc" : "Chưa đọc";
+        const content = document.createElement("button");
+        content.type = "button";
+        content.className = "header-notification-content";
+        content.title = `${item.title}\n${item.detail || ""}\n${isRead ? "Đã đọc" : "Bấm để đánh dấu đã đọc"}`;
+        content.setAttribute("aria-label", `${item.title}. ${item.detail || ""}. ${isRead ? "Đã đọc" : "Đánh dấu đã đọc"}`);
+        content.onclick = () => markHeaderNotificationRead(item.id);
         const title = document.createElement("strong");
         const detail = document.createElement("span");
         const time = document.createElement("time");
         title.textContent = item.title;
         detail.textContent = item.detail || "Dữ liệu mới đã sẵn sàng.";
         time.textContent = formatHeaderNotificationTime(item.timestamp);
-        content.append(title, detail, time);
+        if (item.timestamp) time.dateTime = new Date(item.timestamp).toISOString();
+        content.append(title, time, detail);
         row.append(dot, content);
+        if (isRead) {
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "header-notification-remove";
+          remove.textContent = "×";
+          remove.title = "Xóa thông báo đã đọc";
+          remove.setAttribute("aria-label", `Xóa thông báo đã đọc: ${item.title}`);
+          remove.onclick = () => dismissReadHeaderNotifications(item.id);
+          row.appendChild(remove);
+        }
         list.appendChild(row);
       }
     }
 
+    function markHeaderNotificationRead(id) {
+      if (!collectHeaderNotifications().some(item => item.id === id)) return;
+      const ids = getReadHeaderNotificationIds();
+      ids.add(id);
+      writeHeaderNotificationValue(HEADER_NOTIFICATION_READ_KEY, [...ids]);
+      renderHeaderNotifications();
+    }
+
     function markHeaderNotificationsRead() {
-      const ids = collectHeaderNotifications().map(item => item.id);
-      localStorage.setItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_READ_KEY), JSON.stringify(ids));
+      const items = collectHeaderNotifications();
+      const size = headerNotificationView.expanded ? 10 : 5;
+      const start = (headerNotificationView.page - 1) * size;
+      const ids = getReadHeaderNotificationIds();
+      items.slice(start, start + size).forEach(item => ids.add(item.id));
+      writeHeaderNotificationValue(HEADER_NOTIFICATION_READ_KEY, [...ids]);
       renderHeaderNotifications();
     }
 
     function clearHeaderNotifications() {
+      dismissReadHeaderNotifications();
+    }
+
+    function dismissReadHeaderNotifications(id = null) {
       const dismissedIds = getDismissedHeaderNotificationIds();
-      collectHeaderNotifications().forEach(item => dismissedIds.add(item.id));
-      const limitedIds = [...dismissedIds].slice(-200);
-      localStorage.setItem(getHeaderNotificationStorageKey(HEADER_NOTIFICATION_DISMISSED_KEY), JSON.stringify(limitedIds));
+      const readIds = getReadHeaderNotificationIds();
+      collectHeaderNotifications().forEach(item => {
+        if (readIds.has(item.id) && (id === null || item.id === id)) dismissedIds.add(item.id);
+      });
+      writeHeaderNotificationValue(HEADER_NOTIFICATION_DISMISSED_KEY, [...dismissedIds]);
       renderHeaderNotifications();
     }
 
@@ -2058,7 +2129,11 @@
       closeHeaderPopovers();
       panel.hidden = !willOpen;
       button.setAttribute("aria-expanded", willOpen ? "true" : "false");
-      if (willOpen && panelId === "notificationPanel") renderHeaderNotifications();
+      if (willOpen && panelId === "notificationPanel") {
+        headerNotificationView.expanded = false;
+        headerNotificationView.page = 1;
+        renderHeaderNotifications();
+      }
       if (willOpen && panelId === "vipMembershipPanel") renderVipMembership();
     }
 
@@ -3793,7 +3868,6 @@
       setSideMenuActiveButton("homeMenuBtn");
       renderPrizePanel();
       renderLiveResultsBoard();
-      renderLiveHistoryOutput();
     }
 
     function scrollToAppSection(sectionId, menuButtonId = "") {
@@ -3810,47 +3884,12 @@
       el.innerHTML = TYPE_KEYS.map(k => `<option value="${k}">${id === "prizeType" ? (PRIZE_TYPE_SHORT_LABELS[k] || TYPES[k].label) : TYPES[k].label}</option>`).join("");
     }
 
-    function fillLiveHistoryTypeSelect() {
-      const el = document.getElementById("liveHistoryType");
-      if (!el) return;
-      el.innerHTML = LIVE_HISTORY_TYPES.map(item => `<option value="${item.key}">${item.label}</option>`).join("");
-    }
-
     function isKenoLiveHistoryRangeKey(value) {
       const normalized = String(value || "").trim().toLowerCase();
-      return Object.prototype.hasOwnProperty.call(KENO_LIVE_HISTORY_COUNT_LABELS, normalized);
-    }
-
-    function getLiveHistoryCountOptions(type) {
-      return type === "KENO" ? KENO_LIVE_HISTORY_COUNT_OPTIONS : DEFAULT_LIVE_HISTORY_COUNT_OPTIONS;
-    }
-
-    function getDefaultLiveHistoryCountKey(type) {
-      return "2";
-    }
-
-    function getKenoLiveHistoryRangeLabel(countKey) {
-      return KENO_LIVE_HISTORY_COUNT_LABELS[String(countKey || "").trim().toLowerCase()] || "Tất cả Kỳ";
-    }
-
-    function syncLiveHistoryCountOptions() {
-      const type = document.getElementById("liveHistoryType")?.value || LIVE_HISTORY_TYPES[0]?.key || "LOTO_5_35";
-      const labelEl = document.getElementById("liveHistoryCountLabel");
-      const selectEl = document.getElementById("liveHistoryCount");
-      if (!selectEl) return;
-      const currentValue = String(selectEl.value || "").trim().toLowerCase();
-      const options = getLiveHistoryCountOptions(type);
-      selectEl.innerHTML = options.map(item => `<option value="${item.value}">${item.label}</option>`).join("");
-      const allowedValues = new Set(options.map(item => item.value));
-      selectEl.value = allowedValues.has(currentValue) ? currentValue : getDefaultLiveHistoryCountKey(type);
-      if (labelEl) {
-        labelEl.textContent = type === "KENO" ? "Số kỳ" : "Số kỳ gần nhất";
-      }
+      return KENO_LIVE_HISTORY_RANGE_KEYS.has(normalized);
     }
 
     ["prizeType", "pdType", "vipPdType", "dataTableType"].forEach(fillTypeSelect);
-    fillLiveHistoryTypeSelect();
-    syncLiveHistoryCountOptions();
 
     function setTypeSelectValue(id, value) {
       const el = document.getElementById(id);
@@ -3881,7 +3920,7 @@
         note.textContent = `Đã đồng bộ nhanh loại ${menuItem.label} cho các khung chính. Bạn có thể nhập liệu, thống kê và dự đoán ngay.`;
       } else {
         note.className = "lottery-menu-note warn";
-        note.textContent = `${menuItem.label} đã xuất hiện trong bảng menu. Hiện đã có bảng live và lịch sử CSV tự động, nhưng logic nhập liệu và tra cứu riêng cho loại này mình chưa nối vào công cụ hiện tại.`;
+        note.textContent = `${menuItem.label} có kết quả live và lịch sử tại Bảng Dữ Liệu. Công cụ nhập liệu và tra cứu riêng đang được phát triển.`;
       }
     }
 
@@ -4101,7 +4140,20 @@
     document.getElementById("notificationBtn").onclick = () => toggleHeaderPopover("notificationBtn", "notificationPanel");
     document.getElementById("settingsBtn").onclick = () => toggleHeaderPopover("settingsBtn", "settingsPanel");
     document.getElementById("notificationMarkReadBtn").onclick = markHeaderNotificationsRead;
-    document.getElementById("notificationClearBtn").onclick = clearHeaderNotifications;
+    document.getElementById("notificationClearBtn").onclick = () => clearHeaderNotifications();
+    document.getElementById("notificationMoreBtn").onclick = () => {
+      headerNotificationView.expanded = !headerNotificationView.expanded;
+      headerNotificationView.page = 1;
+      renderHeaderNotifications();
+    };
+    document.getElementById("notificationPrevBtn").onclick = () => {
+      headerNotificationView.page = Math.max(1, headerNotificationView.page - 1);
+      renderHeaderNotifications();
+    };
+    document.getElementById("notificationNextBtn").onclick = () => {
+      headerNotificationView.page += 1;
+      renderHeaderNotifications();
+    };
     document.getElementById("settingsReloadBtn").onclick = () => window.location.reload();
     document.addEventListener("click", event => {
       if (!event.target.closest(".header-tool-wrap")) closeHeaderPopovers();
@@ -5870,62 +5922,12 @@
     clearLegacyLiveHistoryCache();
     clearLiveHistoryState();
     renderLiveResultsBoard();
-    renderLiveHistoryOutput();
     renderPredictionHistoryPanel();
     {
       const liveSyncBtn = document.getElementById("liveSyncBtn");
       if (liveSyncBtn) {
         liveSyncBtn.addEventListener("click", () => {
           syncLiveResults({ repairCanonical: true });
-        });
-      }
-    }
-    {
-      const liveHistoryBtn = document.getElementById("liveHistoryBtn");
-      if (liveHistoryBtn) {
-        liveHistoryBtn.addEventListener("click", async () => {
-          try {
-            await refreshCurrentLiveHistory({ force: true });
-          } catch (err) {
-            line(document.getElementById("liveHistoryOut"), `Không tải được lịch sử CSV: ${err.message || err}`, "warn");
-          }
-        });
-      }
-    }
-    {
-      const liveHistoryRefreshBtn = document.getElementById("liveHistoryRefreshBtn");
-      if (liveHistoryRefreshBtn) {
-        liveHistoryRefreshBtn.addEventListener("click", async () => {
-          try {
-            await refreshRecentLiveHistoryWindow();
-          } catch (err) {
-            line(document.getElementById("liveHistoryOut"), `Không thể cập nhật 15 ngày gần nhất: ${err.message || err}`, "warn");
-          }
-        });
-      }
-    }
-    {
-      const liveHistoryType = document.getElementById("liveHistoryType");
-      if (liveHistoryType) {
-        liveHistoryType.addEventListener("change", async () => {
-          try {
-            syncLiveHistoryCountOptions();
-            await refreshCurrentLiveHistory();
-          } catch (err) {
-            line(document.getElementById("liveHistoryOut"), `Không tải được lịch sử CSV: ${err.message || err}`, "warn");
-          }
-        });
-      }
-    }
-    {
-      const liveHistoryCount = document.getElementById("liveHistoryCount");
-      if (liveHistoryCount) {
-        liveHistoryCount.addEventListener("change", async () => {
-          try {
-            await refreshCurrentLiveHistory();
-          } catch (err) {
-            line(document.getElementById("liveHistoryOut"), `Không tải được lịch sử CSV: ${err.message || err}`, "warn");
-          }
         });
       }
     }
@@ -5968,10 +5970,22 @@
       }
     }
     {
+      const dataTableShareFilterBtn = document.getElementById("dataTableShareFilterBtn");
+      if (dataTableShareFilterBtn) {
+        dataTableShareFilterBtn.addEventListener("click", async () => {
+          if (dataTableShareFilterBtn.disabled) return;
+          dataTableShareOnly = !dataTableShareOnly;
+          syncDataTableHitFilterControl();
+          await loadDataTableRows();
+        });
+      }
+    }
+    {
       const dataTableClearFilterBtn = document.getElementById("dataTableClearFilterBtn");
       if (dataTableClearFilterBtn) {
         dataTableClearFilterBtn.addEventListener("click", async () => {
           dataTableHitOnly = false;
+          dataTableShareOnly = false;
           syncDataTableHitFilterControl();
           resetDataTableDateFilters();
           await loadDataTableRows();

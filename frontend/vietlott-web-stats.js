@@ -3874,13 +3874,9 @@
       statsPanelError = "";
       renderStatsPanel();
       try {
-        await fetchLiveHistory(type, "all", {
-          force,
-          silent,
-          repair: type === "KENO",
-          recentDays: type === "KENO" ? 1 : null,
-        });
+        await fetchLiveHistory(type, "all", { force, silent });
         if (refreshToken !== statsPanelRefreshToken) return;
+        renderStatsPanel();
         let storeChanged = false;
         try {
           const ledgerScored = await scorePendingPredictionLedger(type);
@@ -3889,6 +3885,7 @@
         } catch (ledgerError) {
           console.warn("Không thể đồng bộ chấm điểm prediction ledger:", ledgerError);
         }
+        if (refreshToken !== statsPanelRefreshToken) return;
         reconcilePredictionLogsForType(type);
         const refreshedEntries = buildStatsEntriesForFeed(type, getLiveHistoryFeed(type));
         storeChanged = ensureStatsPredictionCycle(type, refreshedEntries) || storeChanged;
@@ -3933,7 +3930,7 @@
       statsPanelAutoRefreshTimer = window.setInterval(() => {
         statsPanelNextRefreshAt = getSyncedNowMs() + STATS_PANEL_AUTO_REFRESH_MS;
         updateStatsRefreshCountdownText();
-        if (predictPageModeValue !== PREDICTION_MODE_STATS || statsPanelLoading) return;
+        if (document.hidden || predictPageModeValue !== PREDICTION_MODE_STATS || statsPanelLoading) return;
         startStatsPanelRefresh({ force: true, silent: true });
       }, STATS_PANEL_AUTO_REFRESH_MS);
     }

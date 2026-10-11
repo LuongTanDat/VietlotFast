@@ -38,16 +38,18 @@ class PrizeWebTests(unittest.TestCase):
             for key in (*lr.PRIZE_FIELDS_BY_TYPE, "MAX_3D", "MAX_3D_PRO"):
                 fields = lr.PRIZE_FIELDS_BY_TYPE.get(key, ())
                 rows = {}
-                for ky in (1, 2):
+                for ky in (1, 2, 3):
                     row = {field: "" for field in lr.CSV_FIELDS}
                     row.update(Ky=str(ky), Ngay="01/10/2026", Main="1,2,3,4,5,6", Label=lr.LIVE_TYPES[key].label)
                     if key.startswith("MAX"):
                         row.update(Main="", DisplayLines="Đặc biệt: 000 000 || Giải nhất: 001 002 003 004 || Giải nhì: 005 006 007 008 009 010 || Giải ba: 011 012 013 014 015 016 017 018")
                     row.update({field: str(178900548500 + index) if ky == 2 else "" for index, field in enumerate(fields)})
                     row["PrizeHit"] = {"LOTO_5_35": "ĐB", "LOTO_6_45": "Jackpot", "LOTO_6_55": "Jackpot 1, 2"}.get(key, "") if ky == 2 else ""
+                    if key == "LOTO_5_35" and ky == 3:
+                        row["PrizeHit"] = "Chia Giải"
                     rows[str(ky)] = row
                 lr.write_csv_rows(canonical / f"{lr.CANONICAL_OUTPUT_STEMS[key]}_all_day.csv", rows, type_key=key)
-                expected[key] = [lr.csv_row_to_history_item(rows[str(ky)]) for ky in (2, 1)]
+                expected[key] = [lr.csv_row_to_history_item(rows[str(ky)]) for ky in (3, 2, 1)]
             harness = work / "PrizeHistoryHarness.java"
             harness.write_text('''import java.lang.reflect.Method;
 import java.util.Collections;
@@ -68,7 +70,7 @@ public class PrizeHistoryHarness {
             for line in output.splitlines():
                 payload = json.loads(line)
                 key = payload["type"]
-                self.assertEqual(2, len(payload["history"]))
+                self.assertEqual(3, len(payload["history"]))
                 for actual, wanted in zip(payload["history"], expected[key]):
                     for field in ("ky", "main", "date", "special", "displayLines", "label", "prizeHit", *[lr.PRIZE_RESULT_KEYS[f] for f in lr.PRIZE_FIELDS_BY_TYPE.get(key, ())]):
                         self.assertEqual(wanted.get(field), actual.get(field))
@@ -80,7 +82,7 @@ public class PrizeHistoryHarness {
         columns_start = source.index("    const DRAW_PRIZE_COLUMNS")
         columns_end = source.index("    function getDrawPrizeAmount", columns_start)
         code = source[columns_start:columns_end]
-        for name in ("emptyLiveHistoryFeed", "getDrawPrizeAmount", "getDrawPrizeFields", "getDrawPrizeHit", "formatDrawPrizeAmount", "formatDrawPrizes", "cloneDraw", "kySortValue", "normalizeLiveHistoryKy", "mergeLiveHistoryDraw", "normalizeLiveHistoryRepairErrors", "buildLiveHistoryFeedFromResponse", "getDataTableHeaders", "getDataTableMatchingKeys", "getDataTableSelectedKeys", "buildDataTableRows", "renderDataTableRows", "renderLiveResultsBoard", "getExcelColumnName", "buildXlsxSheetXml"):
+        for name in ("emptyLiveHistoryFeed", "getDrawPrizeAmount", "getDrawPrizeFields", "getDrawPrizeHit", "formatDrawPrizeAmount", "formatDrawPrizes", "cloneDraw", "kySortValue", "normalizeLiveHistoryKy", "mergeLiveHistoryDraw", "normalizeLiveHistoryRepairErrors", "buildLiveHistoryFeedFromResponse", "getDataTableHeaders", "isDataTableDrawInPrizeFilter", "getDataTableMatchingKeys", "getDataTableSelectedKeys", "buildDataTableRows", "renderDataTableRows", "renderLiveResultsBoard", "getExcelColumnName", "buildXlsxSheetXml"):
             code += js_function(source, name) + "\n"
         code += js_function(core, "getLiveResultSignature")
         for name in ("parseDataTableDateParts", "normalizeDataTableFilterNumber", "normalizeDataTableWeekdayFilter", "getDataTableDateFilters", "hasDataTableDateFilter", "isDataTableDrawInDateFilter", "setDataTableFilterSelectValue", "syncDataTableDateFilterControls", "resetDataTableDateFilters", "syncDataTableHitFilterControl"):
@@ -96,6 +98,7 @@ const liveSingleRefreshBusy = new Set();
 let liveResultsState = {};
 let dataTableSelectedType = 'LOTO_5_35';
 let dataTableHitOnly = false;
+let dataTableShareOnly = false;
 let dataTableDateFilters = {weekday:'all',day:'all',month:'all',year:'all'};
 let tableLoadCalls = 0;
 async function loadDataTableRows() { tableLoadCalls++; }
@@ -152,6 +155,13 @@ try {
   check(document.getElementById('liveResultGrid').textContent.includes('178.900.548.500 VNĐ'),'live card amount');
   check(!getDrawPrizeFields('KENO',{jackpot:100}).jackpot,'unrelated game prize');
   check(!getDataTableHeaders('KENO').includes('Nổ') && !getDataTableHeaders('MAX_3D').includes('Nổ'),'unrelated game hit column');
+  for (const marker of ['ĐB','Chia Giải','']) {
+    const feed = buildLiveHistoryFeedFromResponse('LOTO_5_35',[{ky:'3',date:'01/10/2026',time:'21:00',main:[1,2,3,4,5],special:10,specialPrize:12000000000,prizeHit:marker}]);
+    renderDataTableRows('LOTO_5_35',feed,{});
+    check(document.querySelector('#dataTableBody tr').lastElementChild.textContent === marker,'Lotto sharing marker rendering');
+    const xml = buildXlsxSheetXml(getDataTableHeaders('LOTO_5_35'),buildDataTableRows('LOTO_5_35',feed,'all',{}));
+    if (marker) check(xml.includes('>'+marker+'</t>'),'Excel lost Lotto sharing marker');
+  }
   for (const marker of ['Jackpot 1','Jackpot 2','Jackpot 1, 2','']) {
     const feed = buildLiveHistoryFeedFromResponse('LOTO_6_55',[{ky:'3',date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit:marker}]);
     renderDataTableRows('LOTO_6_55',feed,{});
@@ -197,6 +207,56 @@ try {
     check(!dataTableHitOnly,'disabled button cannot filter');
   }
   check(tableLoadCalls === 8,'toggle and clear must reload table');
+  const shareButton = document.getElementById('dataTableShareFilterBtn');
+  dataTableSelectedType = 'LOTO_5_35';
+  syncDataTableHitFilterControl();
+  check(!shareButton.disabled && shareButton.getAttribute('aria-pressed') === 'false','sharing filter available for Lotto');
+  const prizeFeed = buildLiveHistoryFeedFromResponse('LOTO_5_35',[
+    ['12','','01/10/2026'],['11','ĐB','01/10/2026'],['10','Chia Giải','01/09/2026'],
+    ['9','Chia Giải','01/10/2026'],['8','ĐB','01/09/2026'],['7','','01/10/2026']
+  ].map(([ky,prizeHit,date]) => ({ky,prizeHit,date,main:[1,2,3,4,5],special:10,specialPrize:12000000000})));
+  const allPrizeDates = {weekday:'all',day:'all',month:'all',year:'all'};
+  const selectedPrizes = (limit='all',filters=allPrizeDates) => buildDataTableRows('LOTO_5_35',prizeFeed,limit,filters);
+  const selectedIds = () => selectedPrizes().map(row => row[0]).join(',');
+  check(selectedIds() === '12,11,10,9,8,7','no prize filters shows every draw');
+  hitButton.click();
+  check(selectedIds() === '11,8','Nổ excludes shared and blank draws');
+  shareButton.click();
+  check(dataTableHitOnly && dataTableShareOnly && selectedIds() === '11,10,9,8','both filters form a union without duplicates');
+  check(hitButton.getAttribute('aria-pressed') === 'true' && shareButton.getAttribute('aria-pressed') === 'true','both toggles stay active');
+  hitButton.click();
+  check(selectedIds() === '10,9','Chia giải alone excludes hits and blanks');
+  check(selectedPrizes('1')[0][0] === '10','share filter runs before row limit');
+  check(selectedPrizes('all',{...allPrizeDates,month:'10',year:'2026'})[0][0] === '9','share filter combines with date filter');
+  const sharedXml = buildXlsxSheetXml(getDataTableHeaders('LOTO_5_35'),selectedPrizes());
+  check((sharedXml.match(/<row r=/g)||[]).length === 3 && sharedXml.includes('>Chia Giải</t>') && !sharedXml.includes('>ĐB</t></is></c></row>'),'Excel contains only sharing rows');
+  renderDataTableRows('LOTO_5_35',prizeFeed,{...allPrizeDates,year:'2025'});
+  check(document.getElementById('dataTableBody').textContent.includes('Không có kỳ chia giải'),'sharing empty state');
+  hitButton.click();
+  const bothXml = buildXlsxSheetXml(getDataTableHeaders('LOTO_5_35'),selectedPrizes());
+  check((bothXml.match(/<row r=/g)||[]).length === 5 && bothXml.includes('>ĐB</t>') && bothXml.includes('>Chia Giải</t>'),'Excel exports both groups');
+  shareButton.click();
+  check(selectedIds() === '11,8','turning off sharing retains Nổ');
+  hitButton.click();
+  check(selectedPrizes().length === 6,'turning off both restores every draw');
+  shareButton.click();
+  hitButton.click();
+  document.getElementById('dataTableMonth').value = '10';
+  getDataTableDateFilters();
+  clearButton.click();
+  check(!dataTableHitOnly && !dataTableShareOnly && !hasDataTableDateFilter() && selectedPrizes().length === 6,'clear resets both prize filters and dates');
+  check(hitButton.getAttribute('aria-pressed') === 'false' && shareButton.getAttribute('aria-pressed') === 'false','clear resets both button states');
+  for (const type of ['LOTO_6_45','LOTO_6_55','KENO','MAX_3D','MAX_3D_PRO']) {
+    dataTableSelectedType = type;
+    dataTableHitOnly = true;
+    dataTableShareOnly = true;
+    syncDataTableHitFilterControl();
+    check(!dataTableShareOnly && shareButton.disabled && shareButton.getAttribute('aria-pressed') === 'false','changing type resets unsupported sharing filter');
+    const beforeCalls = tableLoadCalls;
+    shareButton.click();
+    check(!dataTableShareOnly && tableLoadCalls === beforeCalls,'unsupported sharing cannot load or filter');
+    check(dataTableHitOnly === !!DRAW_PRIZE_COLUMNS[type]?.length,'Mega/Power hit filter remains supported');
+  }
   for (const value of [null,'',0,-1,'bad',Number.MAX_SAFE_INTEGER+1]) check(getDrawPrizeAmount({jackpot:value},'jackpot') === null,'invalid money');
   document.getElementById('result').textContent = 'PASS';
 } catch(error) { document.getElementById('result').textContent = 'FAIL: '+error.stack; }
@@ -204,7 +264,7 @@ try {
         with tempfile.TemporaryDirectory(prefix="lotto-prize-browser-", dir=TEST_TMP) as folder:
             work = Path(folder)
             page = work / "test.html"
-            page.write_text('<!doctype html><meta charset="utf-8"><button id="dataTableHitFilterBtn" aria-pressed="false">Nổ</button><button id="dataTableClearFilterBtn">Xóa lọc</button><select id="dataTableMonth"><option value="all">Tất Cả</option><option value="10">10</option></select><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
+            page.write_text('<!doctype html><meta charset="utf-8"><button id="dataTableHitFilterBtn" aria-pressed="false">Nổ</button><button id="dataTableShareFilterBtn" aria-pressed="false">Chia giải</button><button id="dataTableClearFilterBtn">Xóa lọc</button><select id="dataTableMonth"><option value="all">Tất Cả</option><option value="10">10</option></select><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
             output = subprocess.run([CHROME,"--headless","--disable-gpu","--no-sandbox","--no-first-run","--no-default-browser-check","--user-data-dir="+str(work / "profile"),"--dump-dom",page.as_uri()], capture_output=True, timeout=30, creationflags=0x08000000 if os.name == "nt" else 0)
             dom = output.stdout.decode("utf-8", errors="replace")
             result = re.search(r'<pre id="result">(.*?)</pre>', dom, re.DOTALL)

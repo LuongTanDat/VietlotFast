@@ -1,4 +1,11 @@
 # DVLF
+cd "c:\Users\Luong Tan Dat\OneDrive\Vsuacode\Dự Án\Lotto"
+.\scripts\chay_lotto_web.bat
+
+#----------Cách nhanh nhất mỗi lần update-------------#
+git add .
+git commit -m "update"
+git push
 
 **DVLF** là tên viết tắt của **Deep Vietlott Fast**.
 
@@ -6,7 +13,7 @@ Tên thư mục/repo nội bộ: `Lotto`.
 
 Đây là ứng dụng web chạy cục bộ để tra cứu kết quả Vietlott, cập nhật dữ liệu CSV, dự đoán bộ số tham khảo, thống kê, phân tích, quản lý tài khoản và quản lý lịch sử dự đoán theo từng người dùng.
 
-> Lưu ý: các tính năng dự đoán, thống kê và phân tích chỉ có giá trị tham khảo. Dự án không cam kết kết quả trúng thưởng.
+> Lưu ý: các tính năng dự đoán, thống kê và phân tích chỉ có giá trị tham khảo.
 
 ## Loại Dự Án
 
@@ -71,7 +78,7 @@ Ba CSV số tự chọn lưu thêm giá trị giải thưởng công bố cho t�
 Chạy `py -3 scripts/update_prize_history.py` để bổ sung tiền thưởng cho lịch sử đã có;
 script đối chiếu kỳ/ngày/giờ/bộ số, sao lưu đầu vào và chỉ sửa cột tiền thưởng.
 Độ đầy đủ và nguồn tiền thưởng được ghi trong `prizeAmounts` của file meta tương ứng.
-Tiền thưởng từng kỳ được hiển thị trong Bảng Dữ Liệu, lịch sử CSV và thẻ kết quả live.
+Tiền thưởng từng kỳ được hiển thị trong Bảng Dữ Liệu và thẻ kết quả live.
 File Excel tải xuống có các cột tiền thưởng dạng số VNĐ; Power 6/55 tách Jackpot 1 và Jackpot 2.
 
 Kiểm tra và làm sạch cả sáu CSV bằng `py -3 scripts/clean_canonical_data.py`.
@@ -89,8 +96,9 @@ giữ phạm vi lịch sử của các CSV bộ dự đoán và sao lưu vào `r
 
 - `Hiển thị`: tải và hiển thị dữ liệu theo loại vé, số dòng và bộ lọc thời gian.
 - `Tải Excel`: xuất đúng các dòng đang lọc, gồm cột Nổ sau tiền thưởng.
-- `Nổ`: chỉ hiện kỳ có giải nổ đã xác minh; kết hợp bộ lọc thời gian.
-- `Xóa lọc`: bỏ cả thời gian và Nổ.
+- `Nổ`: hiện kỳ có vé trúng ĐB/Jackpot đã xác minh.
+- `Chia giải`: hiện kỳ 5/35 có 0 vé trúng ĐB khi tiền thưởng kỳ kế tiếp giảm; đánh dấu ở kỳ trước, có ít nhất 1 vé trúng vẫn là `ĐB`. Bật cùng `Nổ` để xem cả hai nhóm. Hai nút kết hợp bộ lọc thời gian, bảng và Excel dùng cùng dữ liệu.
+- `Xóa lọc`: bỏ thời gian và cả hai nút Nổ/Chia giải.
 - Các select `Loại`, `Số lượng`, `Thứ`, `Ngày`, `Tháng`, `Năm`: điều khiển tập dữ liệu đang xem.
 
 ### Nạp Tiền PayPal Nội Bộ
@@ -108,18 +116,16 @@ giữ phạm vi lịch sử của các CSV bộ dự đoán và sao lưu vào `r
 - `Hủy`, `Xác nhận đổi`: hủy hoặc xác nhận đổi thêm lượt.
 - Nút tăng/giảm trong hộp thoại: chỉnh số lượt muốn đổi.
 
-### Cập Nhật Kết Quả Và Lịch Sử
+### Cập Nhật Kết Quả
 
 - `Cập Nhật`: đồng bộ kết quả live, repair canonical khi cần.
-- `Xem lịch sử CSV`: tải lịch sử CSV theo loại và số kỳ.
-- `Cập Nhật` trong khung lịch sử: làm mới nhanh cửa sổ lịch sử gần đây.
 - `Xem Cơ Cấu Thưởng`: hiện cơ cấu giải thưởng/luật trúng thưởng theo loại vé.
 
 ### Dự Đoán, Thống Kê Và Phân Tích
 
 - Tab `Dự Đoán Thường`: màn dự đoán thường.
 - Tab `Dự Đoán Vip`: màn dự đoán Vip.
-- Tab `Thống Kê`: thống kê gần đây.
+- Tab `Thống Kê`: thống kê gần đây. Keno đọc trực tiếp CSV canonical hiện có; lịch sử được gom và sắp xếp một lần để tránh đứng trình duyệt với dữ liệu lớn. Bộ lọc `Tất cả` vẫn dùng toàn bộ lịch sử, dữ liệu mới cập nhật qua mục `Cập Nhật`.
 - Tab `Thống Kê V2`: thống kê tần suất/combo theo kỳ, ngày, custom range.
 - Tab `Biểu Đồ`: biểu đồ thống kê.
 - Tab `Dashboard`: dashboard tổng hợp theo game.
@@ -229,11 +235,13 @@ Backtest ablation chọn winner trên tập đánh giá là chẩn đoán; `eval
 
 ## Hiệu quả dự đoán thực tế
 
-Tab **Hiệu quả dự đoán** theo dõi 5/35, Mega và Power. Mỗi chu kỳ khóa đồng thời pipeline web thường (classic/balanced, gồm fallback và Adaptive Coverage hoặc champion thực đang chạy) và ba đối chứng: vé ngẫu nhiên, Bayesian co về prior cố định 100 kỳ và EWMA với bán rã 60 kỳ. Bốn phương pháp có cùng số vé và cùng snapshot canonical. Báo cáo chỉ tính số chính; số phụ Power không được diễn giải thành Jackpot 2.
+Tab **Hiệu quả dự đoán** theo dõi 5/35, Mega, Power và Keno. Mỗi chu kỳ khóa đồng thời pipeline web thường (classic/balanced, gồm fallback và Adaptive Coverage hoặc champion thực đang chạy) và ba đối chứng: vé ngẫu nhiên, Bayesian co về prior cố định 100 kỳ và EWMA với bán rã 60 kỳ. Bốn phương pháp có cùng số vé và cùng snapshot canonical. Các chỉ số so sánh vẫn tính số chính; mỗi vé có thêm hạng giải được phân loại riêng theo thể lệ vé chuẩn.
 
 Đăng nhập để xem bảng so sánh, biểu đồ theo kỳ và bộ số đã khóa/kết quả thực tế. Admin chọn **Tự động theo dõi**, số vé 1–10 và **Lưu cấu hình** cho từng game; mặc định tắt. **Khóa kỳ tiếp theo** chạy một chu kỳ ngay dù tự động đang tắt. Mỗi game/kỳ chỉ được khóa một lần, đổi cấu hình áp dụng cho kỳ mới. Server kiểm tra mỗi 60 giây: chấm các chu kỳ đã có kết quả canonical, rồi tạo chu kỳ mới cho game bật tự động. Tác vụ chạy khi server còn hoạt động; cần cập nhật kết quả canonical như luồng hiện có, không dựng dự đoán cho các kỳ bị bỏ lỡ.
 
 Các thống kê dùng tất cả kỳ đã chấm đủ bốn phương pháp; lựa chọn 30/100/300 chỉ giới hạn nhật ký hiển thị. CI lấy kỳ làm đơn vị so sánh, không lấy từng vé tương quan làm mẫu độc lập. Chỉ số trùng trung bình, tỷ lệ vé trùng ≥3/≥4, Brier/log loss và khoảng chênh lệch giúp kiểm chứng, không bảo đảm dự đoán trúng. Nhận định dưới 30 kỳ ghi chưa đủ bằng chứng; tín hiệu tốt hơn trong mẫu vẫn cần xác nhận, đặc biệt khi đổi cấu hình hoặc thử nhiều phương pháp.
+
+Hạng giải dùng kết quả đã ghi trong điểm ledger, không đọc bù số đặc biệt thiếu của điểm cũ từ CSV hiện tại. Loto 5/35 xét số chính và ĐB; Power Jackpot 2 cần trùng 5 số chính và bóng thứ bảy thực tế nằm trong 6 số của vé, không xét số phụ do AI dự đoán riêng. Chỉ trả hạng giải cao nhất; vé bao chưa tách thành vé chuẩn ghi chưa hỗ trợ. Phân loại này không xác nhận vé đã mua hoặc số tiền thực nhận; quỹ Jackpot công bố còn phụ thuộc chia giải.
 
 API đọc `/api/ml/effectiveness` và `/api/ml/effectiveness-settings` yêu cầu đăng nhập; POST settings/cycle yêu cầu admin. Các dự đoán hệ thống lưu trong ledger với mapping riêng, không đưa lịch sử cá nhân vào báo cáo chung. Có thể tắt worker bằng `-Dlotto.effectivenessWorker=false` khi chạy fixture/kiểm tra. CLI tương ứng:
 
@@ -242,7 +250,40 @@ python ai/prediction_effectiveness.py report LOTO_6_45
 python ai/prediction_effectiveness.py configure LOTO_6_45 --enabled=true --ticket-count=3 --actor=local_admin
 python ai/prediction_effectiveness.py cycle LOTO_6_45
 python ai/prediction_effectiveness.py tick
+python ai/prediction_effectiveness.py report KENO --level=10 --page=1
 ```
+
+Danh sách **Đối chiếu từng kỳ** hiển thị 3 kỳ/trang cho 5/35, Mega 6/45 và Power 6/55, có thanh số trang ở cuối. Lựa chọn nhật ký 30/100/300 chỉ giới hạn số kỳ để xem; bảng so sánh vẫn dùng mọi kỳ đã chấm.
+
+**Keno:** khóa đồng thời cả 10 bậc × 4 phương pháp; mặc định 3 vé/phương pháp/bậc, tổng 120 vé/kỳ. Chọn **Bậc Keno** để mở 12 vé của bậc đó; **Tổng quan 10 bậc** có thể mở để so sánh, nhật ký 10 kỳ/trang. API đọc nhận `type=KENO&level=1..10&page=1..`; đổi bậc/trang không chạy lại thuật toán. Ngân sách yêu cầu tối đa 10.000 vé/phương pháp/bậc; bậc 1 giới hạn 80 bộ, bậc 2 là 3.160 bộ, các bậc còn lại tối đa 10.000 bộ khác nhau.
+
+Khi server chạy, worker tự lấy kết quả Keno mới nhất khoảng mỗi phút, chấm kỳ đã khóa rồi khóa kỳ tiếp theo trước giờ quay, kể cả khi tab Hiệu quả đang đóng. Luồng này dùng trang gần nhất, không chạy cập nhật toàn bộ lịch sử hoặc huấn luyện; giữ nguyên dữ liệu cũ. Báo cáo hiển thị **Tự cập nhật Keno**, kỳ CSV và lần kiểm tra nguồn. Tắt theo dõi dừng tạo kỳ mới; các kỳ đã khóa vẫn được lấy kết quả và chấm. Khi nguồn chậm/lỗi, worker thử lại và giữ đúng mã kỳ/deadline. Chi tiết khắc phục ở `docs/KhacPhucTuDongKeno.md`.
+
+Kỳ mục tiêu luôn là mã canonical mới nhất + 1, giờ quay kế tiếp theo lịch 06:08–21:52 cách 8 phút; sau 21:52 chuyển sang 06:08 ngày sau. Kết quả trễ được chấm vào đúng mã kỳ đã khóa; giờ ghi nhận điểm lưu riêng. Nếu canonical chưa cập nhật và hạn khóa đã qua, hệ thống chờ nguồn mới, không nhảy kỳ theo đồng hồ và không tạo ngược bộ số. Các cặp giờ bất thường trong lịch sử cũ được đếm trong snapshot; cặp kỳ mới nhất lệch lịch sẽ chặn khóa để kiểm tra dữ liệu.
+
+So sánh Keno xét cùng bậc: trùng kỳ vọng ngẫu nhiên là bậc/4 số/vé. **Có giải** và **trùng đủ** là hai tỷ lệ riêng, gồm cả giải trùng 0 số ở bậc 8–10; không tính tiền lĩnh thưởng. CI lấy cặp chênh lệch và bootstrap theo cả ngày để giữ phụ thuộc trong ngày; dưới 300 kỳ hoặc 7 ngày ghi chưa đủ bằng chứng. Kiểm tra nhiều bậc/phương pháp là thăm dò, chưa điều chỉnh nhiều giả thuyết và không tự chọn bậc thắng/promote. Phòng thử thuật toán hiện dành cho 5/35, Mega và Power.
+
+Backend chia sẻ việc tính đặc trưng/ranking khi chạy 10 bậc, vẫn chọn chiến lược riêng của từng bậc như pipeline web. Ledger chỉ lưu vector xác suất chính thức và thông tin thực thi cần thiết, bỏ các alias/export lặp. Báo cáo dùng bảng metrics nhỏ cho tổng quan, chỉ đọc vé của bậc đang chọn trên trang hiện tại; không tải toàn bộ 120 vé mọi kỳ lên trình duyệt.
+
+### Phòng thử thuật toán
+
+Trong tab **Hiệu quả dự đoán**, mở **Phòng thử thuật toán**. Admin chọn số vé, số kỳ chọn cấu hình (validation) và số kỳ kiểm tra giữ riêng (test), rồi bấm **Chạy thử**. Báo cáo nêu kết luận, ứng viên được chọn và mức chênh lệch với ngẫu nhiên/web; bảng chi tiết và lịch sử mở khi cần. Lượt thử chạy nền, hiển thị số kỳ đã xử lý và có thể **Hủy lượt thử**; báo cáo và điều khiển của mỗi tài khoản được kiểm tra quyền ở server.
+
+Mỗi kỳ đi qua pipeline web thường thực tế với lịch sử trước kỳ đó, cùng các đối chứng ngẫu nhiên/Bayesian/EWMA và sáu cấu hình thử thật. Các cấu hình ghép lịch sử 60/180/toàn bộ kỳ, trọng số tần suất/xu hướng/đồng xuất hiện khác nhau và hai chính sách phân bổ vé; ước lượng biên trộn 85% phân bố đều để giảm độ cực đoan, vẫn chưa hiệu chỉnh. Tập validation chọn phương pháp bằng Brier thấp nhất trước khi chấm test; ứng viên tốt nhất trong sáu cấu hình được chọn riêng, đồng Brier xét số trùng validation. Không chọn lại bằng điểm test. Champion/artifact web được ghim, chỉ dùng khi huấn luyện trước kỳ validation đầu tiên và snapshot khớp canonical. Dữ liệu/mã/artifact thay đổi trong lượt thử sẽ chặn báo cáo. Lượt thử không ghi prediction ledger, tracking, canonical hoặc model sản xuất, không tự promote.
+
+Mặc định 3 vé/phương pháp, 20 kỳ validation và 30 kỳ test; mỗi tập cho phép 5–50 kỳ, cần ít nhất 60 kỳ lịch sử trước hai tập. Kết luận yêu cầu tối thiểu 30 kỳ và CI hỗ trợ trước cả ngẫu nhiên lẫn web; số kỳ tối thiểu tự nó chưa đủ để kết luận lợi thế. Đây là chẩn đoán lịch sử ngoài mẫu theo thời gian; lịch sử đã từng được xem không trở thành tập tương lai chưa dùng. Brier/log loss chấm xác suất biên số chính chưa hiệu chỉnh; lựa chọn này chưa tối ưu trực tiếp xác suất ĐB/Jackpot.
+
+Báo cáo web hoàn tất tự lưu trong `runtime/algorithm_lab.db`, thuộc tài khoản đã tạo và giữ sau khi khởi động lại; mục **Lượt thử đã lưu** mở lại 20 lượt gần nhất. CLI chạy thử thuần túy chỉ xuất JSON:
+
+```powershell
+python ai/algorithm_lab.py --game LOTO_6_45 --ticket-count 3 --validation-count 20 --test-count 30 > report.json
+```
+
+Sau khi có báo cáo, admin bấm **Theo dõi ứng viên trên kỳ mới**. Hệ thống giữ cố định cấu hình được validation chọn và khóa ba danh mục ứng viên/web/ngẫu nhiên trước giờ quay, cùng ngân sách. Khi canonical cập nhật kết quả, worker chấm số trùng, Brier, log-loss và nhãn giải từng vé. Nếu kỳ kế tiếp đã qua giờ quay mà dữ liệu chưa cập nhật, ứng viên chờ dữ liệu và ghi lý do; không tạo dự đoán lịch sử bù. **Dừng theo dõi** ngăn khóa kỳ mới, các kỳ đã khóa tiếp tục được chấm. Bật lại cùng báo cáo giữ vé đã khóa. Muốn theo dõi cấu hình khác, dừng ứng viên hiện tại rồi mở báo cáo đó và bật theo dõi.
+
+Một tài khoản/game có một ứng viên hoạt động, tối đa 8 trên server. Worker hoạt động khi server chạy; cấu hình, chu kỳ, payload và điểm lưu riêng trong DB phòng thử. Thay mã thuật toán hoặc sửa prefix dữ liệu cũ sẽ chặn khóa kỳ mới và yêu cầu chạy thử lại. Kết luận kỳ tương lai cần đủ cặp so sánh với hai đối chứng, vẫn không tự thay model web.
+
+API `/api/ml/algorithm-lab`: GET theo `type`/`jobId` trả `job`, `history`, `tracking`; POST chạy/hủy và `action=start_tracking` với `jobId`, `action=stop_tracking` với `candidateId` yêu cầu admin. Server kiểm tra quyền sở hữu cho lịch sử và ứng viên. Chạy tối đa một lượt thử đồng thời; chỉ báo cáo hoàn tất mới được lưu.
 
 ## Quản trị và bảo mật
 

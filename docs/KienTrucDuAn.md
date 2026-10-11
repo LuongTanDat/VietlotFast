@@ -8,6 +8,7 @@ Tổng quan cấu trúc thư mục, backend, frontend, AI và luồng dữ liệ
 - `data/`: dữ liệu canonical và export scoring
 - `backend/`: backend Python, Java server, thư viện JDBC
 - `frontend/`: giao diện HTML, CSS, JavaScript
+  Trang chủ giữ bảng kết quả live; lịch sử CSV chỉ xem tại Bảng Dữ Liệu. Bộ đọc/cache canonical và `/api/live-history` dùng chung cho bảng/Excel, thống kê và đối chiếu dự đoán; khung Lịch Sử CSV Tự Động riêng đã được gỡ.
 - `runtime/`: database runtime và log
 - `scripts/`: script chạy dự án
 - `tests/`: khu vực test

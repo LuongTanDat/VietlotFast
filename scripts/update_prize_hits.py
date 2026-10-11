@@ -152,6 +152,10 @@ def main():
                 raise RuntimeError(f"History changed during verification: {key}; rerun with cached evidence")
             for ky, result in verified[key].items():
                 current[ky][lr.PRIZE_HIT_FIELD] = verify_result(key, current[ky], result)
+                if key == "LOTO_5_35":
+                    current[ky][lr.SPECIAL_WINNER_COUNT_FIELD] = result["prizeWinnerCounts"]["specialPrize"]
+            if key == "LOTO_5_35":
+                lr.refresh_loto535_prize_sharing(current)
             outputs.append((key, path, current))
             snapshot_path = ROOT / "ai/standalone_predictors" / SNAPSHOTS[key]
             snapshot, info = lr.load_csv_rows(snapshot_path, return_info=True, type_key=key)
@@ -159,6 +163,10 @@ def main():
                 raise ValueError(f"Malformed predictor snapshot: {key}")
             for ky, row in snapshot.items():
                 row[lr.PRIZE_HIT_FIELD] = verify_result(key, row, verified[key][ky])
+                if key == "LOTO_5_35":
+                    row[lr.SPECIAL_WINNER_COUNT_FIELD] = verified[key][ky]["prizeWinnerCounts"]["specialPrize"]
+            if key == "LOTO_5_35":
+                lr.refresh_loto535_prize_sharing(snapshot)
             outputs.append((key, snapshot_path, snapshot))
         # Prepare and validate every output before committing; the project Bin
         # backup must cover each CSV at its current revision.
@@ -176,6 +184,10 @@ def main():
             meta["prizeHits"] = {**report["types"][key], "checkedAt": lr.now_iso(), "complete": True,
                                  "meaning": "At least one winning ticket in the top-prize table",
                                  "evidenceFile": str(work / "verified_draws.json")}
+            if key == "LOTO_5_35":
+                canonical_rows = next(output for output_key, path, output in outputs
+                                      if output_key == key and path == paths[key])
+                meta["prizeSharing"] = lr.build_loto535_prize_sharing_meta(canonical_rows)
             lr.write_canonical_meta(key, meta)
         report["applied"] = True
     report["finishedAt"] = lr.now_iso()

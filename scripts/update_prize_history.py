@@ -1,7 +1,8 @@
 """Backfill only advertised top-prize amounts for existing canonical draws.
 
 Caches source evidence, backs up inputs, and checks draw identity before changing
-money columns. Re-running retries missing amounts without changing result data.
+money columns. Lotto 5/35 also refreshes sharing markers from verified zero
+winners and the next draw's pool. Result numbers and dates stay unchanged.
 """
 import argparse
 import copy
@@ -123,14 +124,20 @@ def main():
                     if row.get(field):
                         current[ky][field] = row[field]
             rows.update(current)
-            lr.write_csv_rows(path, rows, type_key=key)
+            meta = lr.read_canonical_meta(key)
+            if key == "LOTO_5_35":
+                lr.restore_loto535_winner_evidence(current, meta)
+                lr.refresh_loto535_prize_sharing(current)
+            # Commit the freshly loaded version, so concurrent live writes are guarded.
+            lr.write_csv_rows(path, current, type_key=key)
             missing = pending(key)
             status = {"totalRows": len(rows), "completeRows": len(rows) - len(missing),
                       "missingRows": len(missing), "missingDraws": [r["Ky"] for r in missing],
                       "columns": [lr.PRIZE_CSV_HEADERS[f] for f in lr.PRIZE_FIELDS_BY_TYPE[key]]}
             report["types"][key] = status
-            meta = lr.read_canonical_meta(key)
             meta["prizeAmounts"] = lr.build_prize_amount_meta(key, rows, meta.get("prizeAmounts"))
+            if key == "LOTO_5_35":
+                meta["prizeSharing"] = lr.build_loto535_prize_sharing_meta(current)
             if key in supplemental_sources:
                 meta["prizeAmounts"].setdefault("sourceOverrides", {}).update(supplemental_sources[key])
             lr.write_canonical_meta(key, meta)

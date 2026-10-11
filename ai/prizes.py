@@ -18,6 +18,15 @@ from typing import Any, Iterable
 
 RULE_VERSION = "official_prize_rules_2026_10_05"
 PRIZE_SCOPE = "official_standard_ticket"
+# Numeric selections only; the Chẵn/Lẻ and Lớn/Nhỏ side bets are separate.
+# Vietlott Keno draw rules, Article 5:
+# https://media.vietlott.vn/main/08.2019/cms/game/the-le-quay-so-keno.pdf
+KENO_WINNING_HITS = {
+    1: {1}, 2: {2}, 3: {2, 3}, 4: {2, 3, 4},
+    5: {3, 4, 5}, 6: {3, 4, 5, 6}, 7: {3, 4, 5, 6, 7},
+    8: {0, 4, 5, 6, 7, 8}, 9: {0, 4, 5, 6, 7, 8, 9},
+    10: {0, 5, 6, 7, 8, 9, 10},
+}
 GAMES = {"LOTO_5_35": (35, 5), "LOTO_6_45": (45, 6), "LOTO_6_55": (55, 6)}
 PRIZE_LABELS = {
     "LOTTO_JACKPOT": "Độc Đắc", "MEGA_JACKPOT": "Jackpot",
@@ -52,6 +61,22 @@ def classify_ticket(game: str, ticket: Any, actual: dict | None) -> dict[str, An
     Missing result balls remain unknown; they are never converted to a loss.
     """
     game = str(game or "").strip().upper()
+    if game == "KENO":
+        main = ticket.get("main") if isinstance(ticket, dict) else ticket
+        size = len(main) if isinstance(main, (list, tuple)) else 0
+        if size not in KENO_WINNING_HITS or not _valid_numbers(main, size, 80):
+            return _result("INVALID", reason="Vé Keno cần 1–10 số khác nhau từ 1 đến 80.")
+        if isinstance(ticket, dict) and ticket.get("special") is not None:
+            return _result("INVALID", reason="Vé Keno chọn số không có số đặc biệt.")
+        if actual is None:
+            return _result("PENDING")
+        if not isinstance(actual, dict) or not _valid_numbers(actual.get("main", actual.get("main_numbers")), 20, 80):
+            return _result("UNKNOWN", reason="Kết quả Keno cần đủ 20 số hợp lệ.")
+        hits = len(set(main) & set(actual.get("main", actual.get("main_numbers"))))
+        if hits not in KENO_WINNING_HITS[size]:
+            return _result("NONE", hits)
+        return {**_result("FIRST", hits), "prizeCode": f"KENO_{size}_{hits}",
+                "prizeLabel": f"Trúng {hits}/{size} số", "kenoLevel": size}
     if game not in GAMES:
         return _result("UNSUPPORTED", reason="Chỉ hỗ trợ vé chuẩn Loto 5/35, Mega 6/45 và Power 6/55.")
     universe, size = GAMES[game]

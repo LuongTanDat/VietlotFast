@@ -11,6 +11,7 @@ from unittest import mock
 
 from ai import prediction_effectiveness as effectiveness
 from ai import prediction_ledger as ledger
+from ai.prizes import PRIZE_SCOPE, RULE_VERSION, classify_tickets, prize_counts
 
 
 class PredictionEffectivenessTests(unittest.TestCase):
@@ -75,7 +76,7 @@ class PredictionEffectivenessTests(unittest.TestCase):
 
     def test_configure_validates_settings_and_audits_actor(self):
         for enabled, count, actor in (("true", 3, "admin"), (True, 0, "admin"),
-                                      (True, 11, "admin"), (True, 2.5, "admin"), (True, 3, "")):
+                                      (True, 10001, "admin"), (True, 2.5, "admin"), (True, 3, "")):
             with self.assertRaises(ValueError):
                 effectiveness.configure(self.GAME, enabled, count, actor, self.db)
         result = effectiveness.configure(self.GAME, True, 4, "owner", self.db)
@@ -85,6 +86,31 @@ class PredictionEffectivenessTests(unittest.TestCase):
             row = connection.execute("SELECT * FROM effectiveness_config_audit").fetchone()
             self.assertEqual(row["actor"], "owner")
             self.assertEqual(json.loads(row["settings_json"])["ticketCount"], 4)
+
+    def test_10000_tickets_are_all_scored_with_bounded_read_only_pages(self):
+        effectiveness.configure(self.GAME, True, 10000, "admin_fixture", self.db)
+        first = effectiveness.cycle(self.GAME, self.db)
+        pending = effectiveness.report(self.GAME, db_path=self.db)["cycles"][0]
+        for entry in pending["methods"].values():
+            self.assertEqual(len(entry["tickets"]), 20)
+            self.assertEqual(entry["ticketPagination"]["total"], 10000)
+            self.assertEqual(entry["prizeCounts"], {"PENDING": 10000})
+            self.assertEqual(entry["prizeStatistics"]["pendingTicketCount"], 10000)
+        self._actual()
+        self.assertEqual(effectiveness.score_cycles(self.GAME, self.db)["scored"], [first["targetDrawId"]])
+        report = effectiveness.report(self.GAME, db_path=self.db)
+        for summary in report["methods"]:
+            self.assertEqual(sum(summary["hitHistogram"].values()), 10000)
+            self.assertEqual(summary["prizeStatistics"]["ticketCount"], 10000)
+        entry = report["cycles"][0]["methods"]["web"]
+        scores = self._stored_scores()
+        last = effectiveness.ticket_page(self.GAME, entry["predictionId"], 500, self.db)
+        self.assertEqual(last["ticketPagination"]["offset"], 9980)
+        self.assertEqual([result["ticketIndex"] for result in last["ticketResults"]], list(range(9981, 10001)))
+        self.assertEqual(last["ticketResults"], [{**result, "ticketIndex": result["ticketIndex"] + 9980} for result in classify_tickets(self.GAME, last["tickets"], {"main": [1, 2, 3, 4, 5], "special": 2})])
+        self.assertEqual(self._stored_scores(), scores)
+        with self.assertRaises(ValueError):
+            effectiveness.ticket_page(self.GAME, "missing", 1, self.db)
 
     def test_four_predictions_lock_atomically_and_cannot_reroll_same_target(self):
         first = effectiveness.cycle(self.GAME, self.db)
@@ -227,6 +253,113 @@ class PredictionEffectivenessTests(unittest.TestCase):
         result = effectiveness.report(self.GAME, db_path=self.db)
         self.assertEqual(result["counts"]["scored"], 0)
         self.assertTrue(all(method["sampleCount"] == 0 for method in result["methods"]))
+
+    def _edit_recorded_scores(self, edit):
+        with closing(effectiveness._connect(self.db)) as connection:
+            rows = connection.execute("SELECT ep.method,ps.score_id,ps.metrics_json FROM prediction_scores ps "
+                                      "JOIN effectiveness_predictions ep ON ep.prediction_id=ps.prediction_id").fetchall()
+            for row in rows:
+                metrics = json.loads(row["metrics_json"])
+                edit(row["method"], metrics)
+                connection.execute("UPDATE prediction_scores SET metrics_json=? WHERE score_id=?",
+                                   (ledger.canonical_json(metrics), row["score_id"]))
+
+    def _stored_scores(self):
+        with closing(effectiveness._connect(self.db)) as connection:
+            return [tuple(row) for row in connection.execute("SELECT * FROM prediction_scores ORDER BY score_id")]
+
+    def test_pending_prizes_are_not_losses_or_counted_as_classified_tickets(self):
+        effectiveness.cycle(self.GAME, self.db)
+        result = effectiveness.report(self.GAME, db_path=self.db)
+        cycle = result["cycles"][0]
+        self.assertEqual(cycle["actualMain"], [])
+        self.assertIsNone(cycle["actualSpecial"])
+        self.assertEqual(cycle["actualSpecialStatus"], "pending")
+        self.assertEqual(cycle["actualSource"], "pending")
+        self.assertEqual(result["prizeScope"], PRIZE_SCOPE)
+        self.assertEqual(result["prizeRuleVersion"], RULE_VERSION)
+        for method in cycle["methods"].values():
+            self.assertEqual(method["prizeCounts"], {"PENDING": 3})
+            self.assertEqual(method["prizeStatistics"]["classifiedTicketCount"], 0)
+            self.assertIsNone(method["prizeStatistics"]["winningTicketRate"])
+            self.assertEqual([ticket["ticketIndex"] for ticket in method["ticketResults"]], [1, 2, 3])
+        for summary in result["methods"]:
+            self.assertEqual(summary["prizeCounts"], {})
+            self.assertEqual(summary["prizeStatistics"]["ticketCount"], 0)
+
+    def test_report_prizes_use_recorded_result_and_preserve_all_stored_scores(self):
+        effectiveness.cycle(self.GAME, self.db)
+        self._actual()
+        effectiveness.score_cycles(self.GAME, self.db)
+        stored = self._stored_scores()
+        # A read-only report must not consult or replace its result from a later CSV.
+        with mock.patch.object(effectiveness.ml_pipeline, "load_actual_draws",
+                               side_effect=AssertionError("Report attempted to fetch current canonical")):
+            result = effectiveness.report(self.GAME, db_path=self.db)
+        cycle = result["cycles"][0]
+        self.assertEqual(cycle["actualSpecial"], 2)
+        self.assertEqual(cycle["actualSpecialStatus"], "recorded")
+        self.assertEqual(cycle["actualSource"], "recorded_ledger_score")
+        for key, method in cycle["methods"].items():
+            expected = classify_tickets(self.GAME, method["tickets"], {"main": [1, 2, 3, 4, 5], "special": 2})
+            self.assertEqual(method["ticketResults"], expected)
+            self.assertEqual(method["prizeSource"], "recorded_ledger_score")
+            self.assertEqual(method["prizeCounts"], prize_counts(expected))
+            summary = next(item for item in result["methods"] if item["key"] == key)
+            self.assertEqual(summary["prizeCounts"], method["prizeCounts"])
+            self.assertEqual(summary["prizeStatistics"]["classifiedTicketCount"], 3)
+        self.assertEqual(self._stored_scores(), stored)
+
+    def test_old_missing_special_is_unknown_without_rescoring_or_csv_backfill(self):
+        effectiveness.cycle(self.GAME, self.db)
+        self._actual()
+        effectiveness.score_cycles(self.GAME, self.db)
+
+        def remove_special(_method, metrics):
+            for key in ("actual_special", "prize_results", "prize_counts", "prize_rule_version", "prize_scope"):
+                metrics.pop(key, None)
+
+        self._edit_recorded_scores(remove_special)
+        stored = self._stored_scores()
+        with mock.patch.object(effectiveness.ml_pipeline, "load_actual_draws",
+                               side_effect=AssertionError("Old special must not be filled from canonical")):
+            result = effectiveness.report(self.GAME, db_path=self.db)
+        cycle = result["cycles"][0]
+        self.assertEqual(cycle["status"], "scored")
+        self.assertEqual(cycle["actualMain"], [1, 2, 3, 4, 5])
+        self.assertEqual(cycle["actualSpecialStatus"], "missing")
+        self.assertIsNone(cycle["actualSpecial"])
+        for method in cycle["methods"].values():
+            self.assertEqual(method["prizeCounts"], {"UNKNOWN": 3})
+            self.assertEqual(method["prizeStatistics"]["unknownTicketCount"], 3)
+            self.assertIsNone(method["prizeStatistics"]["winningTicketRate"])
+            self.assertIsNotNone(method["meanHits"])
+            self.assertIsNotNone(method["brierScore"])
+            self.assertEqual(sum(method["hitHistogram"].values()), 3)
+        self.assertEqual(self._stored_scores(), stored)
+
+    def test_conflicting_recorded_special_does_not_choose_one_method_result(self):
+        effectiveness.cycle(self.GAME, self.db)
+        self._actual()
+        effectiveness.score_cycles(self.GAME, self.db)
+        self._edit_recorded_scores(lambda method, metrics: metrics.update({"actual_special": 3}) if method == "ewma" else None)
+        result = effectiveness.report(self.GAME, db_path=self.db)
+        cycle = result["cycles"][0]
+        self.assertEqual(cycle["actualMain"], [1, 2, 3, 4, 5])
+        self.assertIsNone(cycle["actualSpecial"])
+        self.assertTrue(all(method["prizeCounts"] == {"UNKNOWN": 3} for method in cycle["methods"].values()))
+
+    def test_conflicting_recorded_main_does_not_fabricate_prizes(self):
+        effectiveness.cycle(self.GAME, self.db)
+        self._actual()
+        effectiveness.score_cycles(self.GAME, self.db)
+        self._edit_recorded_scores(lambda method, metrics: metrics.update({"actual_main": [1, 2, 3, 4, 6]}) if method == "ewma" else None)
+        result = effectiveness.report(self.GAME, db_path=self.db)
+        cycle = result["cycles"][0]
+        self.assertEqual(cycle["actualMain"], [])
+        for method in cycle["methods"].values():
+            self.assertEqual(method["prizeCounts"], {"UNKNOWN": 3})
+            self.assertTrue(all(ticket["mainHits"] is None for ticket in method["ticketResults"]))
 
     def test_malformed_actual_or_wrong_slot_does_not_permanently_score_predictions(self):
         effectiveness.cycle(self.GAME, self.db)

@@ -174,22 +174,13 @@ Nut tang/giam so luot trong hop thoai doi luot
 - Handler: bindLuckyWheelTopupStepButton(), setLuckyWheelTopupSpins().
 
 ============================================================
-6. Cap nhat ket qua live va lich su CSV
+6. Cap nhat ket qua live
 ============================================================
 
 liveSyncBtn - "Cap Nhat"
 - Chuc nang: Chay dong bo/cap nhat ket qua live, sua canonical neu can.
 - Handler: syncLiveResults({ repairCanonical: true }).
 - API lien quan: /api/live-results-start, /api/live-results-progress, /api/live-results.
-
-liveHistoryBtn - "Xem lich su CSV"
-- Chuc nang: Tai lich su CSV theo loai va so ky dang chon.
-- Handler: refreshCurrentLiveHistory({ force: true }).
-- API lien quan: /api/live-history.
-
-liveHistoryRefreshBtn - "Cap Nhat" trong khung lich su
-- Chuc nang: Cap nhat nhanh cua so lich su gan day.
-- Handler: refreshRecentLiveHistoryWindow().
 
 showPrizeBtn - "Xem Co Cau Thuong"
 - Chuc nang: Render bang co cau thuong/luat trung thuong cho loai xo so dang chon.

@@ -2278,13 +2278,13 @@
       }).filter(Boolean);
     }
 
-    function mergeLiveHistoryDraw(feed, ky, draw) {
+    function mergeLiveHistoryDraw(feed, ky, draw, { updateOrder = true } = {}) {
       const key = normalizeLiveHistoryKy(ky);
       const cloned = cloneDraw(draw);
       if (!key || !cloned) return false;
       const existed = !!feed.results[key];
       feed.results[key] = cloned;
-      feed.order = Object.keys(feed.results).sort((a, b) => kySortValue(a) - kySortValue(b));
+      if (updateOrder) feed.order = Object.keys(feed.results).sort((a, b) => kySortValue(a) - kySortValue(b));
       return !existed;
     }
 
@@ -2421,8 +2421,9 @@
           label: String(row?.label || meta.label),
           ...getDrawPrizeFields(type, row),
           prizeHit: getDrawPrizeHit(type, row),
-        });
+        }, { updateOrder: false });
       });
+      next.order = Object.keys(next.results).sort((a, b) => kySortValue(a) - kySortValue(b));
       next.allCount = Math.max(next.allCount, next.order.length);
       next.canonicalCount = Math.max(next.canonicalCount, next.order.length);
       return next;
@@ -2472,14 +2473,10 @@
       return nextFeed;
     }
 
-    async function fetchLiveHistory(type, countRaw = "2", { force = false, silent = false, repair = false, recentDays = null } = {}) {
-      const out = document.getElementById("liveHistoryOut");
+    async function fetchLiveHistory(type, countRaw = "2", { force = false, repair = false, recentDays = null } = {}) {
       const meta = LIVE_HISTORY_TYPES.find(item => item.key === type);
       if (!meta) throw new Error("Loại lịch sử không hợp lệ.");
       if (IS_LOCAL_MODE) {
-        if (!silent && out) {
-          line(out, "Lịch sử CSV tự động chỉ hoạt động khi mở qua http://localhost:8080.", "warn");
-        }
         return getLiveHistoryFeed(type);
       }
 
@@ -2487,10 +2484,6 @@
       const currentFeed = getLiveHistoryFeed(type);
       if (!force && doesLiveHistoryFeedSatisfyCount(type, currentFeed, normalizedCount)) {
         return currentFeed;
-      }
-
-      if (!silent && out) {
-        line(out, `Đang tải lịch sử CSV ${meta.label} từ all_day.csv...`, "muted");
       }
 
       let nextFeed;
@@ -2549,66 +2542,6 @@
       return getLiveHistoryFeed(type);
     }
 
-    async function refreshCurrentLiveHistory({ force = false, silent = false } = {}) {
-      const out = document.getElementById("liveHistoryOut");
-      const type = document.getElementById("liveHistoryType")?.value || LIVE_HISTORY_TYPES[0]?.key;
-      const countRaw = String(document.getElementById("liveHistoryCount")?.value || "2").trim().toLowerCase();
-      const feed = await fetchLiveHistory(type, countRaw, { force, silent });
-      if (!feed?.order?.length && !String(feed?.historyNote || "").trim()) {
-        if (!out) return;
-        if (IS_LOCAL_MODE) {
-          line(out, "Lịch sử CSV tự động chỉ hoạt động khi mở qua http://localhost:8080.", "warn");
-          return;
-        }
-        line(out, `Chưa có dữ liệu lịch sử CSV cho ${TYPES[type]?.label || type} trong all_day.csv.`, "warn");
-        return;
-      }
-      renderLiveHistoryOutput();
-    }
-
-    function setLiveHistoryRefreshButtonBusy(isBusy) {
-      const btn = document.getElementById("liveHistoryRefreshBtn");
-      if (!btn) return;
-      const originalText = btn.dataset.originalText || String(btn.textContent || "Cập nhật 15 ngày");
-      btn.dataset.originalText = originalText;
-      btn.disabled = !!isBusy;
-      btn.textContent = isBusy ? "Đang cập nhật..." : originalText;
-    }
-
-    async function refreshRecentLiveHistoryWindow() {
-      const out = document.getElementById("liveHistoryOut");
-      const type = document.getElementById("liveHistoryType")?.value || LIVE_HISTORY_TYPES[0]?.key || "LOTO_5_35";
-      const typeLabel = TYPES[type]?.label || type;
-      if (liveHistoryRecentRefreshBusy) return;
-      if (IS_LOCAL_MODE) {
-        line(out, "Cập nhật lịch sử CSV chỉ hoạt động khi mở qua http://localhost:8080.", "warn");
-        return;
-      }
-      liveHistoryRecentRefreshBusy = true;
-      setLiveHistoryRefreshButtonBusy(true);
-      line(out, `Đang kiểm tra và cập nhật ${typeLabel} trong ${LIVE_HISTORY_RECENT_REPAIR_DAYS} ngày gần nhất...`, "muted");
-      try {
-        const params = new URLSearchParams({
-          type,
-          repair: "1",
-          recentDays: String(LIVE_HISTORY_RECENT_REPAIR_DAYS),
-        });
-        const requestStartedAtMs = Date.now();
-        const res = await api(`/api/live-results?${params.toString()}`);
-        applyLiveResultsApiResponse(res, { repairCanonical: true, requestStartedAtMs });
-        await refreshCurrentLiveHistory({ force: true, silent: true });
-        const historyText = String(out?.textContent || "").trim();
-        line(
-          out,
-          `Đã kiểm tra và cập nhật dữ liệu ${typeLabel} trong ${LIVE_HISTORY_RECENT_REPAIR_DAYS} ngày gần nhất.` + (historyText ? `\n\n${historyText}` : ""),
-          "ok"
-        );
-      } finally {
-        liveHistoryRecentRefreshBusy = false;
-        setLiveHistoryRefreshButtonBusy(false);
-      }
-    }
-
     function formatLiveHistoryDraw(type, draw) {
       const displayLines = Array.isArray(draw?.displayLines) ? draw.displayLines.filter(Boolean) : [];
       if (TYPES[type]?.threeDigit && displayLines.length) {
@@ -2620,60 +2553,6 @@
       if (displayLines.length) return displayLines.join(" | ");
       if (Array.isArray(draw?.main) && draw.main.length) return draw.main.join(" ");
       return "(không có dữ liệu)";
-    }
-
-    function renderLiveHistoryOutput() {
-      const out = document.getElementById("liveHistoryOut");
-      const type = document.getElementById("liveHistoryType")?.value || LIVE_HISTORY_TYPES[0]?.key;
-      const countRaw = String(document.getElementById("liveHistoryCount")?.value || "2").trim().toLowerCase();
-      if (!out || !type) return;
-      const feed = getLiveHistoryFeed(type);
-      if (!feed.order.length && !String(feed.historyNote || "").trim()) {
-        return line(out, "Chọn loại rồi bấm Xem lịch sử CSV để tải dữ liệu từ all_day.csv.", "muted");
-      }
-
-      const isKenoRangeMode = type === "KENO" && isKenoLiveHistoryRangeKey(countRaw);
-      const selectedKeys = isKenoRangeMode || countRaw === "all"
-        ? [...feed.order].reverse()
-        : [...feed.order].slice(-Math.max(1, Number(countRaw) || 20)).reverse();
-      const selectedCount = selectedKeys.length;
-      const totalCount = Math.max(feed.order.length, Number(feed.canonicalCount || feed.allCount || 0));
-      const lines = [];
-      if (isKenoRangeMode) {
-        lines.push(`Lịch sử CSV ${feed.label || type}: ${feed.rangeLabel || getKenoLiveHistoryRangeLabel(countRaw)} • ${formatLiveSyncCount(selectedCount)} kỳ.`);
-      } else {
-        lines.push(`Lịch sử CSV ${feed.label || type}: đang hiển thị ${formatLiveSyncCount(selectedCount)}/${formatLiveSyncCount(totalCount)} kỳ.`);
-      }
-      const sourceParts = [];
-      if (feed.canonicalFile || feed.allFile) {
-        sourceParts.push(`Nguồn: ${feed.canonicalFile || feed.allFile}`);
-      }
-      if (Number(feed.todayCount || 0) > 0) {
-        sourceParts.push(`${formatLiveSyncCount(feed.todayCount)} kỳ hôm nay`);
-      }
-      const latestMetaParts = buildLiveMetaParts(feed.latestKy || "", feed.latestDate || "", feed.latestTime || "");
-      if (latestMetaParts.length) {
-        sourceParts.push(`mới nhất ${latestMetaParts.join(" • ")}`);
-      }
-      if (sourceParts.length) {
-        lines.push(sourceParts.join(" • "));
-      }
-      if (feed.loadedAt) {
-        lines.push(`Cập nhật cache: ${new Date(feed.loadedAt).toLocaleString("vi-VN")}.`);
-      }
-      if (feed.historyNote) {
-        lines.push(feed.historyNote);
-      }
-      lines.push("");
-      selectedKeys.forEach(ky => {
-        const draw = feed.results[ky];
-        if (!draw) return;
-        const metaParts = buildLiveMetaParts(ky, draw.date, draw.time);
-        lines.push(`${feed.label || type} ${metaParts.join(" • ")}: ${formatLiveHistoryDraw(type, draw)}`);
-        const prizes = formatDrawPrizes(type, draw);
-        if (prizes) lines.push(`  ${prizes}`);
-      });
-      line(out, lines.join("\n"));
     }
 
     const DATA_TABLE_WEEKDAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
@@ -2864,20 +2743,38 @@
     function syncDataTableHitFilterControl(type = dataTableSelectedType) {
       const supported = !!DRAW_PRIZE_COLUMNS[type]?.length;
       if (!supported) dataTableHitOnly = false;
+      const sharingSupported = type === "LOTO_5_35";
+      if (!sharingSupported) dataTableShareOnly = false;
       const button = document.getElementById("dataTableHitFilterBtn");
-      if (!button) return;
-      button.disabled = !supported;
-      button.setAttribute("aria-pressed", String(dataTableHitOnly));
-      button.title = supported
-        ? (dataTableHitOnly ? "Đang lọc kỳ nổ — bấm để xem tất cả" : "Chỉ hiển thị kỳ có giải nổ")
-        : "Lọc Nổ áp dụng cho 5/35, Mega 6/45 và Power 6/55";
+      if (button) {
+        button.disabled = !supported;
+        button.setAttribute("aria-pressed", String(dataTableHitOnly));
+        button.title = supported
+          ? (dataTableHitOnly ? "Đang lọc kỳ có vé trúng ĐB/Jackpot — có thể bật thêm Chia giải" : "Chỉ hiển thị kỳ có vé trúng ĐB/Jackpot")
+          : "Lọc Nổ áp dụng cho 5/35, Mega 6/45 và Power 6/55";
+      }
+      const shareButton = document.getElementById("dataTableShareFilterBtn");
+      if (shareButton) {
+        shareButton.disabled = !sharingSupported;
+        shareButton.setAttribute("aria-pressed", String(dataTableShareOnly));
+        shareButton.title = sharingSupported
+          ? (dataTableShareOnly ? "Đang lọc kỳ chia giải — có thể bật thêm Nổ" : "Chỉ hiển thị kỳ chia giải 5/35; bật cùng Nổ để xem cả hai")
+          : "Chia giải chỉ áp dụng cho 5/35";
+      }
+    }
+
+    function isDataTableDrawInPrizeFilter(type, draw) {
+      const sharing = type === "LOTO_5_35" && dataTableShareOnly;
+      if (!DRAW_PRIZE_COLUMNS[type]?.length || (!dataTableHitOnly && !sharing)) return true;
+      const marker = getDrawPrizeHit(type, draw);
+      return marker === "Chia Giải" ? sharing : dataTableHitOnly && !!marker;
     }
 
     function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters(), type = dataTableSelectedType) {
       return [...(feed?.order || [])]
         .reverse()
         .filter(ky => isDataTableDrawInDateFilter(feed?.results?.[ky], filters)
-          && (!dataTableHitOnly || !DRAW_PRIZE_COLUMNS[type]?.length || !!getDrawPrizeHit(type, feed?.results?.[ky])));
+          && isDataTableDrawInPrizeFilter(type, feed?.results?.[ky]));
     }
 
     function getDataTableSelectedKeys(feed, limitValue = getDataTableLimitValue(), filters = getDataTableDateFilters(), type = dataTableSelectedType) {
@@ -2937,8 +2834,10 @@
 
       const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
-        const message = dataTableHitOnly && DRAW_PRIZE_COLUMNS[type]?.length
-          ? "Không có kỳ nổ phù hợp với bộ lọc." : "Chưa có dữ liệu để hiển thị.";
+        const sharing = type === "LOTO_5_35" && dataTableShareOnly;
+        const message = (dataTableHitOnly || sharing) && DRAW_PRIZE_COLUMNS[type]?.length
+          ? (sharing ? (dataTableHitOnly ? "Không có kỳ nổ hoặc chia giải phù hợp với bộ lọc." : "Không có kỳ chia giải phù hợp với bộ lọc.") : "Không có kỳ nổ phù hợp với bộ lọc.")
+          : "Chưa có dữ liệu để hiển thị.";
         body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">${message}</td></tr>`;
         return;
       }
@@ -2978,7 +2877,8 @@
         const matching = getDataTableMatchingKeys(feed, filters, type).length;
         const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
         const source = feed.canonicalFile || feed.allFile || "all_day.csv";
-        const filterSummary = [formatDataTableDateFilterSummary(filters), dataTableHitOnly ? "Nổ" : ""].filter(Boolean).join(", ");
+        const prizeFilter = [dataTableHitOnly ? "Nổ" : "", dataTableShareOnly ? "Chia giải" : ""].filter(Boolean).join(" hoặc ");
+        const filterSummary = [formatDataTableDateFilterSummary(filters), prizeFilter].filter(Boolean).join(", ");
         if (filterSummary) {
           const tone = matching > 0 ? "ok" : "warn";
           renderDataTableStatus(`Đang hiển thị ${formatLiveSyncCount(shown)}/${formatLiveSyncCount(matching)} kỳ phù hợp • Tổng ${formatLiveSyncCount(total)} kỳ • Lọc: ${filterSummary} • Nguồn: ${source}`, tone);
@@ -3011,7 +2911,7 @@
       const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
-      const safeFilter = getDataTableFilterFileSuffix(filters) + (dataTableHitOnly ? "_no" : "");
+      const safeFilter = getDataTableFilterFileSuffix(filters) + (dataTableHitOnly ? "_no" : "") + (dataTableShareOnly ? "_chia_giai" : "");
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;
@@ -4851,22 +4751,6 @@
       return !samePayload || imported.has(key);
     }
 
-    async function refreshLiveHistoryForProgressType(type, updatedAt) {
-      if (!type || liveResultsProgressHistoryRefreshBusy) return;
-      const currentType = document.getElementById("liveHistoryType")?.value || "";
-      if (String(currentType || "").toUpperCase() !== String(type || "").toUpperCase()) return;
-      const refreshKey = `${type}:${updatedAt || ""}`;
-      if (liveResultsProgressHistoryRefreshCursor[type] === refreshKey) return;
-      liveResultsProgressHistoryRefreshCursor[type] = refreshKey;
-      liveResultsProgressHistoryRefreshBusy = true;
-      try {
-        await refreshCurrentLiveHistory({ force: true, silent: true });
-      } catch {
-      } finally {
-        liveResultsProgressHistoryRefreshBusy = false;
-      }
-    }
-
     async function applyLiveResultsProgressSnapshot(progress) {
       const typeStates = progress?.typeStates && typeof progress.typeStates === "object"
         ? progress.typeStates
@@ -4883,12 +4767,8 @@
         if (state.liveResult && typeof state.liveResult === "object") {
           changed = mergeLiveResultIntoState(state.liveResult) || changed;
         }
-        await refreshLiveHistoryForProgressType(cursorKey, updatedAt);
       }
-      if (changed || badgeChanged) {
-        if (badgeChanged && !changed) renderLiveResultsBoard();
-        renderLiveHistoryOutput();
-      }
+      if (badgeChanged && !changed) renderLiveResultsBoard();
     }
 
     function applyLiveResultsApiResponse(res, { repairCanonical = false, requestStartedAtMs = Date.now(), requestedType = "" } = {}) {

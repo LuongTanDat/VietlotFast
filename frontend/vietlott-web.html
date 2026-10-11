@@ -7,10 +7,10 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css" />
-  <link rel="stylesheet" href="/vietlott-web-extra.css" />
+  <link rel="stylesheet" href="/vietlott-web-extra.css?v=notifications-20261011" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
   <link rel="preload" href="/vietlott-web-data.js" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=notifications-20261011" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -139,6 +139,7 @@
   </div>
 
   <!-- ---abc--- App Shell / Main Layout --- -->
+  <audio id="backgroundMusic" data-src="/Music_V1.mp3" loop preload="none" aria-hidden="true"></audio>
   <div id="appShell">
   <header class="top-fixed">
     <div class="top-fixed-inner">
@@ -213,13 +214,24 @@
           </button>
           <div id="notificationPanel" class="header-popover notification-popover" hidden>
             <div class="header-popover-head">
-              <div><strong>Thông báo</strong><span>Tin mới từ DVLF</span></div>
+              <strong>Thông báo</strong>
               <div class="header-popover-actions">
-                <button id="notificationMarkReadBtn" class="header-popover-link" type="button">Đã đọc</button>
-                <button id="notificationClearBtn" class="header-popover-link is-danger" type="button">Xóa tất cả</button>
+                <button id="notificationMarkReadBtn" class="header-popover-link" type="button" title="Đánh dấu các thông báo đang xem là đã đọc">Đọc trang</button>
+                <button id="notificationClearBtn" class="header-popover-link is-danger" type="button" title="Chỉ xóa các thông báo đã đọc">Xóa đã đọc</button>
               </div>
             </div>
             <div id="notificationList" class="header-notification-list"></div>
+            <div id="notificationFooter" class="header-notification-footer" hidden>
+              <div class="header-notification-footer-line">
+                <span id="notificationRange" class="header-notification-range" aria-live="polite"></span>
+                <button id="notificationMoreBtn" class="header-popover-link" type="button" aria-expanded="false" aria-controls="notificationList">Xem thêm</button>
+              </div>
+              <div id="notificationPager" class="header-notification-pager" hidden>
+                <button id="notificationPrevBtn" type="button" aria-label="Trang thông báo mới hơn">‹</button>
+                <span id="notificationPageLabel" aria-live="polite"></span>
+                <button id="notificationNextBtn" type="button" aria-label="Trang thông báo cũ hơn">›</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="header-tool-wrap">
@@ -227,10 +239,28 @@
             <span aria-hidden="true">⚙</span>
           </button>
           <div id="settingsPanel" class="header-popover settings-popover" hidden>
-            <div class="header-popover-head"><div><strong>Cài đặt</strong><span>Tùy chỉnh nhanh</span></div></div>
+            <div class="header-popover-head"><strong>Setting | Cài Đặt</strong></div>
             <div class="header-setting-row">
-              <div><strong>Giao diện</strong><span>Chuyển chế độ sáng hoặc tối</span></div>
+              <div class="header-theme-label"><strong>Giao diện</strong><span>Sáng | Tối</span></div>
               <button id="themeToggleBtn" class="theme-toggle" type="button" title="Đang tối, bấm để chuyển sáng" aria-label="Đang tối, bấm để chuyển sáng" aria-pressed="false">🌙</button>
+            </div>
+            <div class="header-setting-row background-music-setting">
+              <div class="background-music-controls">
+                <div class="header-theme-label"><strong>Nhạc nền</strong><span id="backgroundMusicStatus">Phát sau khi đăng nhập</span></div>
+                <button id="backgroundMusicToggle" class="header-icon-btn background-music-toggle" type="button" title="Nhạc nền" aria-label="Nhạc nền" aria-pressed="true" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l11-2v13M9 8l11-2" />
+                    <ellipse cx="6" cy="18" rx="3" ry="2.5" /><ellipse cx="17" cy="16" rx="3" ry="2.5" />
+                    <path class="background-music-slash" d="M3 3l18 18" />
+                  </svg>
+                </button>
+              </div>
+              <div class="background-music-volume-control">
+                <input id="backgroundMusicVolume" type="range" min="0" max="100" step="1" value="25" style="--music-volume: 25%" aria-label="Âm lượng nhạc nền" aria-valuetext="25%" />
+                <div class="background-music-volume-marks" aria-hidden="true">
+                  <span style="left: 0%">0</span><span style="left: 25%">25</span><span style="left: 50%">50</span><span style="left: 75%">75</span><span style="left: 100%">100</span>
+                </div>
+              </div>
             </div>
             <button id="settingsReloadBtn" class="header-panel-command" type="button"><span aria-hidden="true">↻</span><span>Cập nhật lại trang</span></button>
             <button id="logoutBtn" class="header-panel-command header-panel-command-danger" type="button"><span aria-hidden="true">↪</span><span>Đăng xuất</span></button>
@@ -274,9 +304,8 @@
         <div>
           <p class="data-table-eyebrow">CANONICAL ALL_DAY.CSV</p>
           <h2>Bảng Dữ Liệu</h2>
-          <p class="data-table-subtitle">Xem và tải dữ liệu theo bộ lọc.</p>
         </div>
-        <div class="data-table-actions">
+        <div class="data-table-actions data-table-toolbar" aria-label="Bộ lọc và thao tác dữ liệu">
           <div>
             <label for="dataTableType">Loại</label>
             <select id="dataTableType"></select>
@@ -291,11 +320,6 @@
               <option value="all">Tất Cả</option>
             </select>
           </div>
-          <button id="dataTableRefreshBtn" type="button">Hiển thị</button>
-          <button id="dataTableDownloadBtn" type="button">Tải Excel</button>
-        </div>
-      </div>
-      <div class="data-table-date-filters" aria-label="Bộ lọc dữ liệu">
         <div>
           <label for="dataTableWeekday">Thứ</label>
           <select id="dataTableWeekday">
@@ -370,8 +394,16 @@
             <option value="all">Tất Cả</option>
           </select>
         </div>
-        <button id="dataTableHitFilterBtn" class="secondary data-table-hit-filter" type="button" aria-pressed="false" title="Chỉ hiển thị kỳ có giải nổ">Nổ</button>
-        <button id="dataTableClearFilterBtn" class="secondary" type="button">Xóa lọc</button>
+        <div class="data-table-buttons">
+          <button id="dataTableRefreshBtn" type="button">Hiển thị</button>
+          <button id="dataTableDownloadBtn" type="button">Tải Excel</button>
+          <div class="data-table-prize-filters" role="group" aria-label="Lọc giải thưởng">
+            <button id="dataTableHitFilterBtn" class="secondary data-table-hit-filter" type="button" aria-pressed="false" title="Chỉ hiển thị kỳ có giải nổ">Nổ</button>
+            <button id="dataTableShareFilterBtn" class="secondary data-table-hit-filter" type="button" aria-pressed="false" title="Chỉ hiển thị kỳ chia giải 5/35">Chia giải</button>
+          </div>
+          <button id="dataTableClearFilterBtn" class="secondary" type="button">Xóa lọc</button>
+        </div>
+        </div>
       </div>
       <div id="dataTableStatus" class="data-table-status muted">Chọn loại rồi bấm Hiển thị để xem dữ liệu.</div>
       <div class="data-table-wrap">
@@ -626,10 +658,6 @@
         <div>
           <!-- ---abc--- Live Results --- -->
           <h2 class="live-board-title"><span class="live-title-kicker">LIVE RESULTS</span><span class="live-title-main">Kết Quả 6 Loại Vé</span></h2>
-          <p class="live-board-subtitle">
-            Tự lấy kỳ gần nhất cho Loto_5/35, Mega_6/45, Power_6/55, Keno, Max 3D và Max 3D Pro.
-            Các loại số truyền thống sẽ tự nhập vào kho dữ liệu hiện tại sau khi đồng bộ thành công, đồng thời lưu và đọc lại lịch sử CSV ngay trong web.
-          </p>
         </div>
         <div class="live-board-actions">
           <div id="liveSyncStatus" class="result-box muted live-status-box">
@@ -639,34 +667,6 @@
         </div>
       </div>
       <div id="liveResultGrid" class="live-result-grid"></div>
-      <div class="card live-history-card">
-        <div class="live-history-head live-history-compact-head">
-          <div class="live-history-title-block">
-            <h2>Lịch Sử CSV Tự Động</h2>
-            <p>Đọc nhanh dữ liệu từ canonical all_day.csv theo loại vé và số kỳ.</p>
-          </div>
-          <div class="live-history-head-actions live-history-controls">
-            <label class="live-history-field">
-              <span>Loại</span>
-              <select id="liveHistoryType"></select>
-            </label>
-            <label class="live-history-field">
-              <span id="liveHistoryCountLabel">Số kỳ gần nhất</span>
-              <select id="liveHistoryCount">
-                <option value="2" selected>2 kỳ</option>
-                <option value="10">10 kỳ</option>
-                <option value="20">20 kỳ</option>
-                <option value="50">50 kỳ</option>
-                <option value="100">100 kỳ</option>
-                <option value="all">Tất Cả</option>
-              </select>
-            </label>
-            <button id="liveHistoryBtn" type="button">Xem lịch sử CSV</button>
-            <button id="liveHistoryRefreshBtn" type="button" class="live-history-refresh-btn">Cập Nhật</button>
-          </div>
-        </div>
-        <div id="liveHistoryOut" class="result-box muted">Chưa có thao tác.</div>
-      </div>
     </section>
     <div id="mainContentGrid" class="grid">
       <div id="legacyInputSection" class="input-grid">
@@ -678,7 +678,6 @@
               <span class="prize-kicker">Prize Matrix</span>
               <h2>Phần Thưởng Vietlott</h2>
             </div>
-            <p>Cơ cấu giải, điều kiện trúng và giá trị thưởng theo từng loại vé.</p>
           </div>
           <div class="prize-toolbar">
             <div id="prizePartField" class="prize-field prize-part-field">
@@ -728,64 +727,105 @@
                 <option value="LOTO_5_35">Loto 5/35</option>
                 <option value="LOTO_6_45">Mega 6/45</option>
                 <option value="LOTO_6_55">Power 6/55</option>
+                <option value="KENO">Keno · 10 bậc</option>
               </select>
             </label>
-            <label>Nhật ký
+            <label id="effectivenessLimitLabel">Nhật ký
               <select id="effectivenessLimit">
                 <option value="30">30 kỳ gần nhất</option>
                 <option value="100" selected>100 kỳ gần nhất</option>
                 <option value="300">300 kỳ gần nhất</option>
               </select>
             </label>
-            <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
+            <label id="effectivenessKenoLevelLabel" hidden>Bậc Keno
+              <select id="effectivenessKenoLevel">
+                <option value="1">Bậc 1 · 1 số</option><option value="2">Bậc 2 · 2 số</option>
+                <option value="3">Bậc 3 · 3 số</option><option value="4">Bậc 4 · 4 số</option>
+                <option value="5">Bậc 5 · 5 số</option><option value="6">Bậc 6 · 6 số</option>
+                <option value="7">Bậc 7 · 7 số</option><option value="8">Bậc 8 · 8 số</option>
+                <option value="9">Bậc 9 · 9 số</option><option value="10" selected>Bậc 10 · 10 số</option>
+              </select>
+            </label>
+            <div id="effectivenessSummary" class="effectiveness-summary" aria-label="Tóm tắt hiệu quả dự đoán"></div>
+            <div class="effectiveness-toolbar-actions">
+              <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
+              <button id="effectivenessSettings" type="button" class="secondary" title="Cấu hình theo dõi" aria-label="Cấu hình theo dõi" aria-expanded="false" aria-controls="effectivenessAdmin" hidden><span aria-hidden="true">⚙</span></button>
+              <button id="effectivenessHelpButton" type="button" class="secondary" title="Cách đọc kết quả" aria-label="Cách đọc kết quả" aria-haspopup="dialog" aria-expanded="false" aria-controls="effectivenessHelpPanel"><span aria-hidden="true">?</span></button>
+              <details id="effectivenessAdmin" class="effectiveness-admin effectiveness-settings-panel" role="dialog" aria-labelledby="effectivenessSettingsTitle" hidden>
+                <summary><strong id="effectivenessSettingsTitle">Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>
+                <div class="effectiveness-admin-body">
+                  <div class="effectiveness-admin-controls">
+                    <label class="effectiveness-enable"><span>Theo Dõi Cấu Hình</span><span class="effectiveness-tracking-switch"><input id="effectivenessEnabled" type="checkbox" role="switch" aria-label="Theo Dõi Cấu Hình" /><span class="effectiveness-tracking-state" aria-hidden="true"></span></span></label>
+                    <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 10.000</small></span><input id="effectivenessTicketCount" type="number" min="1" max="10000" step="1" value="1" placeholder="Max 10.000" aria-describedby="effectivenessTicketMax effectivenessTicketHint" /></label>
+                    <div class="effectiveness-admin-actions">
+                      <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
+                      <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
+                    </div>
+                  </div>
+                  <p id="effectivenessTicketHint" class="effectiveness-admin-copy">Tự khóa khi server chạy · Cấu hình mới áp dụng từ kỳ chưa khóa.</p>
+                </div>
+              </details>
+              <details id="effectivenessHelpPanel" class="effectiveness-help effectiveness-help-panel" role="dialog" aria-labelledby="effectivenessHelpTitle" tabindex="-1">
+                <summary><strong id="effectivenessHelpTitle">Cách đọc kết quả</strong><span>Số chính · Khoảng bất định · Phạm vi so sánh</span></summary>
+                <div class="effectiveness-help-body">
+                  <p id="effectivenessExplainer" class="effectiveness-explainer">Mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký. Số trùng và tỷ lệ ≥3 / ≥4 xét từng vé, chỉ tính số chính. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.</p>
+                  <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="effectiveness-feedback">
             <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
             <span id="effectivenessUpdated" class="muted"></span>
           </div>
         </div>
-        <div id="effectivenessSummary" class="effectiveness-summary"></div>
-        <details id="effectivenessAdmin" class="effectiveness-admin" hidden>
-          <summary><strong>Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>
-          <div class="effectiveness-admin-body">
-            <p class="effectiveness-admin-copy">Tự khóa kỳ tiếp theo khi server đang chạy. Thay đổi chỉ áp dụng cho kỳ chưa khóa.</p>
-            <div class="effectiveness-admin-controls">
-              <label class="effectiveness-enable"><input id="effectivenessEnabled" type="checkbox" /> Theo dõi tự động</label>
-              <label>Số vé / phương pháp <input id="effectivenessTicketCount" type="number" min="1" max="10" step="1" value="1" /></label>
-              <div class="effectiveness-admin-actions">
-                <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
-                <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
-              </div>
-            </div>
-          </div>
-        </details>
         <div id="effectivenessMixedWarning"></div>
-        <details class="effectiveness-help">
-          <summary><span>Cách đọc kết quả</span><span>Số chính · Khoảng bất định · Phạm vi so sánh</span></summary>
-          <div class="effectiveness-help-body">
-            <p class="effectiveness-explainer">Mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký. Số trùng và tỷ lệ ≥3 / ≥4 xét từng vé, chỉ tính số chính. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.</p>
-            <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
-          </div>
-        </details>
+        <div id="effectivenessKenoOverview" hidden></div>
         <div id="effectivenessComparison"></div>
         <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
         <details id="effectivenessLab" class="effectiveness-lab">
-          <summary><strong>Phòng thử thuật toán</strong><span>Lịch sử ngoài mẫu</span></summary>
+          <summary><strong>Phòng thử thuật toán</strong><span>Thử cấu hình · Theo dõi kỳ mới</span></summary>
           <div class="effectiveness-lab-body">
-            <p class="effectiveness-lab-intro">Chọn cấu hình trên tập validation, rồi kiểm tra trên các kỳ test phía sau. Kết quả lịch sử được tách khỏi dự đoán đã khóa trước quay.</p>
+            <p class="effectiveness-lab-intro">So sánh 6 cấu hình cùng 4 đối chứng, chọn ứng viên bằng các kỳ đầu rồi kiểm tra ở các kỳ phía sau. Tiếp tục theo dõi ứng viên bằng bộ số khóa trước kỳ quay mới.</p>
             <div id="effectivenessLabAdmin" class="effectiveness-lab-controls" hidden>
               <label>Vé / phương pháp <input id="effectivenessLabTickets" type="number" min="1" max="10" step="1" value="3" /></label>
-              <label>Kỳ validation <input id="effectivenessLabValidation" type="number" min="5" max="50" step="1" value="10" /></label>
-              <label>Kỳ test <input id="effectivenessLabTest" type="number" min="5" max="50" step="1" value="20" /></label>
+              <label>Kỳ chọn cấu hình <input id="effectivenessLabValidation" type="number" min="5" max="50" step="1" value="20" /></label>
+              <label>Kỳ kiểm tra <input id="effectivenessLabTest" type="number" min="5" max="50" step="1" value="30" /></label>
               <button id="effectivenessLabRun" type="button" class="secondary">Chạy thử</button>
               <button id="effectivenessLabCancel" type="button" class="secondary" hidden>Hủy lượt thử</button>
             </div>
             <div id="effectivenessLabStatus" class="effectiveness-lab-status" role="status" aria-live="polite">Mở phòng thử để tải kết quả gần nhất của tài khoản.</div>
             <div id="effectivenessLabResult"></div>
+            <div id="effectivenessLabTracking"></div>
+            <details id="effectivenessLabHistoryDetails" class="effectiveness-lab-detail effectiveness-lab-history">
+              <summary>Lượt thử đã lưu <span id="effectivenessLabHistoryCount">0 lượt</span></summary>
+              <div id="effectivenessLabHistory"></div>
+            </details>
           </div>
         </details>
-        <div class="effectiveness-history-head"><h3>Đối chiếu từng kỳ</h3><span class="muted">Số xanh là số chính trùng.</span></div>
+        <div class="effectiveness-history-head">
+          <h3>Đối chiếu từng kỳ</h3>
+          <nav id="effectivenessKenoLevels" class="effectiveness-keno-levels" aria-label="Chọn bậc Keno cho đối chiếu từng kỳ" hidden>
+            <button type="button" class="secondary" data-keno-level="1" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 1</button>
+            <button type="button" class="secondary" data-keno-level="2" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 2</button>
+            <button type="button" class="secondary" data-keno-level="3" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 3</button>
+            <button type="button" class="secondary" data-keno-level="4" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 4</button>
+            <button type="button" class="secondary" data-keno-level="5" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 5</button>
+            <button type="button" class="secondary" data-keno-level="6" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 6</button>
+            <button type="button" class="secondary" data-keno-level="7" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 7</button>
+            <button type="button" class="secondary" data-keno-level="8" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 8</button>
+            <button type="button" class="secondary" data-keno-level="9" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 9</button>
+            <button type="button" class="secondary" data-keno-level="10" aria-pressed="true" aria-controls="effectivenessCycles">Bậc 10</button>
+          </nav>
+          <span class="muted">Số xanh là số chính trùng.</span>
+        </div>
         <div id="effectivenessCycles" class="effectiveness-cycles"></div>
+        <nav id="effectivenessKenoPager" class="effectiveness-keno-pager" aria-label="Trang đối chiếu từng kỳ" hidden>
+          <span id="effectivenessKenoPageInfo" class="muted" aria-live="polite"></span>
+          <button id="effectivenessKenoPrevious" type="button" class="secondary" aria-label="Trang kỳ mới hơn">‹</button>
+          <div id="effectivenessCyclePages" class="effectiveness-cycle-pages"></div>
+          <button id="effectivenessKenoNext" type="button" class="secondary" aria-label="Trang kỳ cũ hơn">›</button>
+        </nav>
       </section>
       <section id="predictRootManual" class="card predict-card predict-root predict-root-manual" hidden>
         <div class="predict-card-head">
@@ -1555,10 +1595,11 @@
     </section>
   </div>
   <!-- ------ App Scripts --- -->
+  <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
   <script defer src="/vietlott-web-stats.js"></script>
   <script defer src="/vietlott-web-data.js"></script>
-  <script defer src="/vietlott-web-effectiveness.js"></script>
-  <script defer src="/vietlott-web-core.js"></script>
+  <script defer src="/vietlott-web-effectiveness.js?v=ticket-cost-label-20261011"></script>
+  <script defer src="/vietlott-web-core.js?v=notifications-20261011"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>
 
 </body>

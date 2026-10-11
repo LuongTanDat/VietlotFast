@@ -104,6 +104,7 @@ public class LottoWebServer {
     private final SecureRandom random = new SecureRandom();
     private final AtomicBoolean effectivenessJobRunning = new AtomicBoolean();
     private final AtomicBoolean algorithmLabRunning = new AtomicBoolean();
+    private final AtomicBoolean algorithmLabTrackingActionRunning = new AtomicBoolean();
     private final Map<String, AlgorithmLabJob> algorithmLabJobs = new ConcurrentHashMap<>();
 
     private static final class AlgorithmLabJob {
@@ -112,6 +113,7 @@ public class LottoWebServer {
         final int ticketCount, validationCount, testCount;
         final Instant createdAt = Instant.now();
         String state = "running", finishedAt = "", report = "null", error = "";
+        int completedFolds;
         boolean cancelled;
         Process process;
 
@@ -125,6 +127,7 @@ public class LottoWebServer {
                     + ",\"state\":" + quoteJson(state) + ",\"createdAt\":" + quoteJson(createdAt.toString())
                     + ",\"finishedAt\":" + quoteJson(finishedAt) + ",\"ticketCount\":" + ticketCount
                     + ",\"validationCount\":" + validationCount + ",\"testCount\":" + testCount
+                    + ",\"progress\":{\"completed\":" + completedFolds + ",\"total\":" + (validationCount + testCount) + "}"
                     + ",\"report\":" + report + ",\"error\":" + quoteJson(error) + "}";
         }
     }
@@ -143,6 +146,23 @@ public class LottoWebServer {
             this.stdout = stdout;
             this.stderr = stderr;
         }
+    }
+
+    private static final class LimitedProcessOutput extends OutputStream {
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private final int limit;
+        private final Process process;
+        volatile boolean exceeded;
+
+        LimitedProcessOutput(int limit, Process process) { this.limit = limit; this.process = process; }
+
+        @Override public synchronized void write(int value) { write(new byte[] {(byte)value}, 0, 1); }
+        @Override public synchronized void write(byte[] bytes, int offset, int length) {
+            int available = limit - buffer.size();
+            if (available > 0) buffer.write(bytes, offset, Math.min(available, length));
+            if (length > available && !exceeded) { exceeded = true; process.destroyForcibly(); }
+        }
+        synchronized byte[] bytes() { return buffer.toByteArray(); }
     }
 
     private static final class StaticAsset {
@@ -408,6 +428,8 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-chatbot.js", ex -> serveStaticTextFile(ex, chatbotJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-effectiveness.js", ex -> serveStaticTextFile(ex, effectivenessJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-music.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-music.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/Music_V1.mp3", this::serveBackgroundMusic);
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);
@@ -433,6 +455,7 @@ public class LottoWebServer {
         server.createContext("/api/ml/effectiveness", this::handleMlEffectiveness);
         server.createContext("/api/ml/effectiveness-settings", this::handleMlEffectivenessSettings);
         server.createContext("/api/ml/effectiveness-cycle", this::handleMlEffectivenessCycle);
+        server.createContext("/api/ml/effectiveness-tickets", this::handleMlEffectivenessTickets);
         server.createContext("/api/ml/algorithm-lab", this::handleAlgorithmLab);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
@@ -499,6 +522,52 @@ public class LottoWebServer {
             return;
         }
         serveCachedAsset(ex, file, contentType, "private, max-age=300, must-revalidate");
+    }
+
+    private void serveBackgroundMusic(HttpExchange ex) throws IOException {
+        if (!"/Music_V1.mp3".equals(ex.getRequestURI().getPath())) { sendNotFound(ex); return; }
+        if (!isGetOrHead(ex)) { sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return; }
+        Path file = rootDir.resolve("frontend/Music_V1.mp3");
+        if (!Files.isRegularFile(file)) { sendNotFound(ex); return; }
+        StaticAsset asset = loadStaticAsset(file);
+        Headers h = ex.getResponseHeaders();
+        h.set("Content-Type", "audio/mpeg");
+        h.set("Accept-Ranges", "bytes");
+        h.set("Cache-Control", "private, max-age=86400, must-revalidate");
+        h.set("ETag", asset.etag);
+        if (asset.etag.equals(ex.getRequestHeaders().getFirst("If-None-Match"))) {
+            ex.sendResponseHeaders(304, -1); ex.close(); return;
+        }
+        int start = 0, end = asset.raw.length - 1, code = 200;
+        String range = ex.getRequestHeaders().getFirst("Range");
+        String ifRange = ex.getRequestHeaders().getFirst("If-Range");
+        if (range != null && (ifRange == null || ifRange.equals(asset.etag))) {
+            try {
+                if (!range.matches("bytes=\\d*-\\d*")) throw new IllegalArgumentException();
+                String[] bounds = range.substring(6).split("-", -1);
+                if (bounds[0].isEmpty()) {
+                    long suffix = Long.parseLong(bounds[1]);
+                    if (suffix <= 0) throw new IllegalArgumentException();
+                    start = (int) Math.max(0L, asset.raw.length - suffix);
+                } else {
+                    long first = Long.parseLong(bounds[0]);
+                    if (first >= asset.raw.length) throw new IllegalArgumentException();
+                    start = (int) first;
+                    if (!bounds[1].isEmpty()) end = (int) Math.min((long) end, Long.parseLong(bounds[1]));
+                    if (end < start) throw new IllegalArgumentException();
+                }
+                code = 206;
+                h.set("Content-Range", "bytes " + start + "-" + end + "/" + asset.raw.length);
+            } catch (IllegalArgumentException error) {
+                h.set("Content-Range", "bytes */" + asset.raw.length);
+                ex.sendResponseHeaders(416, -1); ex.close(); return;
+            }
+        }
+        int length = end - start + 1;
+        h.set("Content-Length", String.valueOf(length));
+        if ("HEAD".equalsIgnoreCase(ex.getRequestMethod())) { ex.sendResponseHeaders(code, -1); ex.close(); return; }
+        ex.sendResponseHeaders(code, length);
+        try (OutputStream out = ex.getResponseBody()) { out.write(asset.raw, start, length); }
     }
 
     private boolean isGetOrHead(HttpExchange ex) {
@@ -1861,8 +1930,8 @@ public class LottoWebServer {
     }
 
     private boolean validateEffectivenessType(HttpExchange ex, String type) throws IOException {
-        if (!Arrays.asList("LOTO_5_35", "LOTO_6_45", "LOTO_6_55").contains(type)) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Hiệu quả dự đoán hỗ trợ 5/35, Mega và Power.\"}");
+        if (!Arrays.asList("LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "KENO").contains(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Hiệu quả dự đoán hỗ trợ 5/35, Mega, Power và Keno.\"}");
             return false;
         }
         return true;
@@ -1909,6 +1978,15 @@ public class LottoWebServer {
         }
         List<String> command = effectivenessCommand("report", type);
         command.add("--limit=" + limit);
+        if ("KENO".equals(type)) {
+            int level = isBlank(query.get("level")) ? 10 : parseStrictPositiveInt(query.get("level"));
+            int page = isBlank(query.get("page")) ? 1 : parseStrictPositiveInt(query.get("page"));
+            if (level < 1 || level > 10 || page < 1 || page > 1000000) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Bậc Keno phải từ 1 đến 10; trang phải là số nguyên dương.\"}"); return;
+            }
+            command.add("--level=" + level);
+            command.add("--page=" + page);
+        }
         sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
     }
 
@@ -1927,13 +2005,34 @@ public class LottoWebServer {
         if (!read) {
             String enabled = nvl(values.get("enabled"));
             int count = parseStrictPositiveInt(values.get("ticketCount"));
-            if (!("true".equals(enabled) || "false".equals(enabled)) || count < 1 || count > 10) {
-                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn trạng thái tự động và từ 1 đến 10 vé.\"}"); return;
+            if (!("true".equals(enabled) || "false".equals(enabled)) || count < 1 || count > 10000) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn trạng thái tự động và từ 1 đến 10.000 vé.\"}"); return;
             }
             command.add("--enabled=" + enabled);
             command.add("--ticket-count=" + count);
             command.add("--actor=" + su.username);
         }
+        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+    }
+
+    private void handleMlEffectivenessTickets(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        int page = isBlank(query.get("page")) ? 1 : parseStrictPositiveInt(query.get("page"));
+        String predictionId = nvl(query.get("predictionId"));
+        if (page < 1 || page > 1000000 || !predictionId.matches("[a-fA-F0-9\\-]{36}")) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã dự đoán hoặc trang vé không hợp lệ.\"}"); return;
+        }
+        List<String> command = effectivenessCommand("tickets", type);
+        command.add("--prediction-id=" + predictionId);
+        command.add("--page=" + page);
         sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
     }
 
@@ -2005,6 +2104,45 @@ public class LottoWebServer {
         sendJson(ex, status, "{\"ok\":true,\"canManage\":" + canManage + ",\"job\":" + (job == null ? "null" : job.json()) + "}");
     }
 
+    private static boolean validLabId(String id) {
+        return id.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+    }
+
+    private String executeLabService(String script, String action, String owner, String type, String... options)
+            throws Exception {
+        Path source = rootDir.resolve("ai").resolve(script);
+        if (!Files.isRegularFile(source)) throw new IOException("Lab service is unavailable");
+        List<String> command = buildPythonCommand(source);
+        command.add("--action=" + action);
+        command.add("--owner=" + owner);
+        command.add("--game=" + type);
+        Collections.addAll(command, options);
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
+            ProcessOutput output = waitForLabProcessOutput(process, 30);
+            if (!output.finished) throw new IOException("Lab service timeout");
+            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
+            Map<String, String> fields = jsonFields(payload);
+            if (output.exitCode != 0 || !"true".equals(fields.get("ok"))) {
+                String message = jsonString(fields.get("message"));
+                if (!isBlank(message)) throw new IllegalArgumentException(message);
+                throw new IOException("Lab service did not return a valid result");
+            }
+            if (!type.equals(jsonString(fields.get("type")))) throw new IOException("Lab service game mismatch");
+            return payload;
+        } finally {
+            if (process != null) process.destroyForcibly();
+        }
+    }
+
+    private void sendAlgorithmLabServiceFailure(HttpExchange ex, Exception failure) throws IOException {
+        if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
+        sendJson(ex, failure instanceof IllegalArgumentException ? 400 : 503,
+                "{\"ok\":false,\"message\":" + quoteJson(failure instanceof IllegalArgumentException
+                        ? nvl(failure.getMessage()) : "Không đọc hoặc cập nhật được dữ liệu phòng thử. Vui lòng thử lại.") + "}");
+    }
+
     private void handleAlgorithmLab(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         String method = ex.getRequestMethod();
@@ -2017,11 +2155,40 @@ public class LottoWebServer {
         String type = normalizeLiveType(values.get("type"));
         if (!validateEffectivenessType(ex, type)) return;
         pruneAlgorithmLabJobs();
+        if ("KENO".equals(type)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Phòng thử hiện hỗ trợ 5/35, Mega và Power.\"}"); return;
+        }
         String jobId = nvl(values.get("jobId")).trim();
+        String candidateId = nvl(values.get("candidateId")).trim();
+        if ((!isBlank(jobId) && !validLabId(jobId)) || (!isBlank(candidateId) && !validLabId(candidateId))) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã lượt thử hoặc ứng viên không hợp lệ.\"}"); return;
+        }
+        String action = nvl(values.get("action")).trim();
+        if ("POST".equalsIgnoreCase(method) && ("start_tracking".equals(action) || "stop_tracking".equals(action))) {
+            boolean start = "start_tracking".equals(action);
+            if ((start && (isBlank(jobId) || !isBlank(candidateId))) || (!start && (isBlank(candidateId) || !isBlank(jobId)))) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn lượt thử hoặc ứng viên cần theo dõi.\"}"); return;
+            }
+            if (!algorithmLabTrackingActionRunning.compareAndSet(false, true)) {
+                sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang cập nhật theo dõi ứng viên. Vui lòng chờ.\"}"); return;
+            }
+            try {
+                String payload = executeLabService("lab_trials.py", start ? "start" : "stop", su.username, type,
+                        start ? "--run-id=" + jobId : "--candidate-id=" + candidateId);
+                Map<String, String> fields = jsonFields(payload);
+                sendJson(ex, 200, "{\"ok\":true,\"type\":" + quoteJson(type)
+                        + ",\"canManage\":true,\"tracking\":" + fields.getOrDefault("tracking", "null") + "}");
+            } catch (Exception failure) { sendAlgorithmLabServiceFailure(ex, failure); }
+            finally { algorithmLabTrackingActionRunning.set(false); }
+            return;
+        }
+        if (!isBlank(candidateId) || ("GET".equalsIgnoreCase(method) && !isBlank(action))) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thao tác phòng thử không hợp lệ.\"}"); return;
+        }
         AlgorithmLabJob selected = null;
         if (!isBlank(jobId)) {
             selected = algorithmLabJobs.get(jobId);
-            if (selected == null || !selected.owner.equals(su.username) || !selected.type.equals(type)) {
+            if (selected != null && (!selected.owner.equals(su.username) || !selected.type.equals(type))) {
                 sendJson(ex, 404, "{\"ok\":false,\"message\":\"Không tìm thấy lượt thử của tài khoản này.\"}"); return;
             }
         }
@@ -2032,9 +2199,29 @@ public class LottoWebServer {
                             && (selected == null || job.createdAt.isAfter(selected.createdAt))) selected = job;
                 }
             }
-            sendAlgorithmLabJob(ex, 200, selected, "admin".equals(su.account.role)); return;
+            try {
+                String payload = isBlank(jobId)
+                        ? executeLabService("lab_store.py", "overview", su.username, type)
+                        : executeLabService("lab_store.py", "overview", su.username, type, "--run-id=" + jobId);
+                Map<String, String> fields = jsonFields(payload);
+                String storedJob = fields.getOrDefault("job", "null");
+                String chosenJob = selected == null ? storedJob : selected.json();
+                if (isBlank(jobId) && selected != null && !"null".equals(storedJob)) {
+                    try {
+                        Instant storedAt = Instant.parse(jsonString(jsonFields(storedJob).get("createdAt")));
+                        if (storedAt.isAfter(selected.createdAt)) chosenJob = storedJob;
+                    } catch (RuntimeException ignored) { }
+                }
+                if (!isBlank(jobId) && "null".equals(chosenJob)) {
+                    sendJson(ex, 404, "{\"ok\":false,\"message\":\"Không tìm thấy lượt thử của tài khoản này.\"}"); return;
+                }
+                sendJson(ex, 200, "{\"ok\":true,\"type\":" + quoteJson(type)
+                        + ",\"canManage\":" + "admin".equals(su.account.role) + ",\"job\":" + chosenJob
+                        + ",\"history\":" + fields.getOrDefault("history", "[]")
+                        + ",\"tracking\":" + fields.getOrDefault("tracking", "null") + "}");
+            } catch (Exception failure) { sendAlgorithmLabServiceFailure(ex, failure); }
+            return;
         }
-        String action = nvl(values.get("action")).trim();
         if ("cancel".equals(action)) {
             if (selected == null) {
                 sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu mã lượt thử cần hủy.\"}"); return;
@@ -2052,8 +2239,8 @@ public class LottoWebServer {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thao tác phòng thử không hợp lệ.\"}"); return;
         }
         int tickets = isBlank(values.get("ticketCount")) ? 3 : parseStrictPositiveInt(values.get("ticketCount"));
-        int validation = isBlank(values.get("validationCount")) ? 10 : parseStrictPositiveInt(values.get("validationCount"));
-        int test = isBlank(values.get("testCount")) ? 20 : parseStrictPositiveInt(values.get("testCount"));
+        int validation = isBlank(values.get("validationCount")) ? 20 : parseStrictPositiveInt(values.get("validationCount"));
+        int test = isBlank(values.get("testCount")) ? 30 : parseStrictPositiveInt(values.get("testCount"));
         if (tickets < 1 || tickets > 10 || validation < 5 || validation > 50 || test < 5 || test > 50 || validation + test > 100) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn 1–10 vé và 5–50 kỳ cho mỗi tập chọn/đánh giá.\"}"); return;
         }
@@ -2086,7 +2273,7 @@ public class LottoWebServer {
                 if (job.cancelled) return;
                 process = new ProcessBuilder(command).directory(rootDir.toFile()).start(); job.process = process;
             }
-            ProcessOutput output = waitForProcessOutput(process, AI_ML_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            ProcessOutput output = waitForLabProcessOutput(process, AI_ML_TIMEOUT_SECONDS, job);
             String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
             synchronized (job) {
                 if (job.cancelled) return;
@@ -2097,7 +2284,15 @@ public class LottoWebServer {
                     throw new IllegalArgumentException(isBlank(message) ? "Không hoàn tất lượt thử thuật toán." : message);
                 }
                 if (!job.type.equals(jsonString(fields.get("type")))) throw new IllegalArgumentException("Báo cáo không khớp loại xổ số đã chọn.");
-                job.report = payload; job.state = "completed"; job.finishedAt = Instant.now().toString();
+                String finishedAt = Instant.now().toString();
+                Path reportFile = Files.createTempFile(rootDir.resolve("runtime"), "algorithm-lab-report-", ".json");
+                try {
+                    Files.write(reportFile, payload.getBytes(StandardCharsets.UTF_8));
+                    executeLabService("lab_store.py", "save", job.owner, job.type,
+                            "--run-id=" + job.id, "--created-at=" + job.createdAt,
+                            "--finished-at=" + finishedAt, "--report-file=" + reportFile);
+                } finally { Files.deleteIfExists(reportFile); }
+                job.report = payload; job.state = "completed"; job.finishedAt = finishedAt;
             }
         } catch (Exception failure) {
             if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -3123,7 +3318,64 @@ public class LottoWebServer {
         return new ProcessOutput(finished, exitCode, stdout.toByteArray(), stderr.toByteArray());
     }
 
-    private static Thread pumpProcessStream(InputStream input, ByteArrayOutputStream output, String name) {
+    private static ProcessOutput waitForLabProcessOutput(Process process) throws IOException, InterruptedException {
+        return waitForLabProcessOutput(process, AI_ML_TIMEOUT_SECONDS);
+    }
+
+    private static ProcessOutput waitForLabProcessOutput(Process process, long timeoutSeconds) throws IOException, InterruptedException {
+        return waitForLabProcessOutput(process, timeoutSeconds, null);
+    }
+
+    private static ProcessOutput waitForLabProcessOutput(Process process, long timeoutSeconds, AlgorithmLabJob job) throws IOException, InterruptedException {
+        LimitedProcessOutput stdout = new LimitedProcessOutput(8 * 1024 * 1024, process);
+        LimitedProcessOutput stderr = new LimitedProcessOutput(256 * 1024, process);
+        Thread outThread = pumpProcessStream(process.getInputStream(), stdout, "lab-stdout");
+        Thread errThread = job == null ? pumpProcessStream(process.getErrorStream(), stderr, "lab-stderr")
+                : pumpLabProgress(process.getErrorStream(), stderr, job);
+        boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+        if (!finished) { process.destroyForcibly(); process.waitFor(5, TimeUnit.SECONDS); }
+        joinQuietly(outThread, 5000); joinQuietly(errThread, 5000);
+        if (stdout.exceeded || stderr.exceeded) throw new IllegalArgumentException("Lượt thử vượt giới hạn dung lượng báo cáo hoặc nhật ký.");
+        return new ProcessOutput(finished, finished ? process.exitValue() : -1, stdout.bytes(), stderr.bytes());
+    }
+
+    private static Thread pumpLabProgress(InputStream input, LimitedProcessOutput output, AlgorithmLabJob job) {
+        Thread thread = new Thread(() -> {
+            ByteArrayOutputStream line = new ByteArrayOutputStream();
+            boolean tooLong = false;
+            try {
+                byte[] bytes = new byte[8192];
+                int count;
+                while ((count = input.read(bytes)) != -1) {
+                    output.write(bytes, 0, count);
+                    for (int index = 0; index < count; index++) {
+                        if (bytes[index] == '\n') {
+                            if (!tooLong) {
+                                try {
+                                    Map<String, String> fields = jsonFields(new String(line.toByteArray(), StandardCharsets.UTF_8));
+                                    int done = Integer.parseInt(fields.get("completed"));
+                                    int total = Integer.parseInt(fields.get("total"));
+                                    synchronized (job) {
+                                        if (total == job.validationCount + job.testCount && done >= job.completedFolds && done <= total) {
+                                            job.completedFolds = done;
+                                        }
+                                    }
+                                } catch (RuntimeException ignored) { }
+                            }
+                            line.reset(); tooLong = false;
+                        } else if (line.size() < 4096 && !tooLong) {
+                            line.write(bytes[index]);
+                        } else { tooLong = true; }
+                    }
+                }
+            } catch (IOException ignored) { }
+        }, "lab-progress");
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private static Thread pumpProcessStream(InputStream input, OutputStream output, String name) {
         Thread thread = new Thread(() -> {
             try {
                 byte[] buffer = new byte[8192];

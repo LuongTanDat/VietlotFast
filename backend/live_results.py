@@ -77,6 +77,8 @@ PRIZE_RESULT_KEYS = {
 }
 PRIZE_HIT_FIELD = "PrizeHit"
 PRIZE_HIT_HEADER = "Nổ"
+LOTO535_SHARED_PRIZE_LABEL = "Chia Giải"
+SPECIAL_WINNER_COUNT_FIELD = "_SpecialPrizeWinnerCount"
 PRIZE_HIT_LABELS = {
     "LOTO_5_35": ("ĐB",),
     "LOTO_6_45": ("Jackpot",),
@@ -87,9 +89,68 @@ PRIZE_HIT_LABELS = {
 def valid_prize_hit(type_key, value):
     labels = PRIZE_HIT_LABELS.get(type_key, ())
     allowed = {"", *labels}
+    if type_key == "LOTO_5_35":
+        allowed.add(LOTO535_SHARED_PRIZE_LABEL)
     if len(labels) == 2:
         allowed.add("Jackpot 1, 2")
     return value in allowed
+
+
+def loto535_draw_identity(row):
+    return "|".join(str(row.get(field, "")) for field in ("Ngay", "Time", "Main", "Special"))
+
+
+def restore_loto535_winner_evidence(rows_by_ky, meta):
+    """Counts stay in metadata, bound to the actual draw, without another CSV column."""
+    evidence = (meta.get("prizeSharing") or {}).get("winnerEvidenceByDraw", {})
+    for ky, row in rows_by_ky.items():
+        item = evidence.get(ky, {})
+        count = item.get("count")
+        if (type(count) is int and count >= 0
+                and item.get("identity") == loto535_draw_identity(row)):
+            row[SPECIAL_WINNER_COUNT_FIELD] = count
+
+
+def refresh_loto535_prize_sharing(rows_by_ky):
+    """A confirmed zero plus a lower pool in draw N+1 marks draw N as shared."""
+    changed = []
+    ordered = {int(row["Ky"]): row for row in rows_by_ky.values()
+               if str(row.get("Ky", "")).isdigit()}
+    for ky, row in ordered.items():
+        count = row.get(SPECIAL_WINNER_COUNT_FIELD)
+        if type(count) is not int or count < 0:
+            continue  # An empty hit marker alone does not confirm zero winners.
+        marker = "ĐB" if count > 0 else ""
+        following = ordered.get(ky + 1)
+        if count == 0 and following:
+            try:
+                pool = int(row.get("SpecialPrize") or 0)
+                next_pool = int(following.get("SpecialPrize") or 0)
+                drawn_at = datetime.strptime(row["Ngay"] + " " + row["Time"], "%d/%m/%Y %H:%M")
+                next_at = datetime.strptime(following["Ngay"] + " " + following["Time"], "%d/%m/%Y %H:%M")
+                if pool > next_pool > 0 and next_at > drawn_at:
+                    marker = LOTO535_SHARED_PRIZE_LABEL
+            except (ValueError, KeyError, TypeError):
+                pass
+        if row.get(PRIZE_HIT_FIELD, "") != marker:
+            row[PRIZE_HIT_FIELD] = marker
+            changed.append(str(row["Ky"]))
+    return changed
+
+
+def build_loto535_prize_sharing_meta(rows_by_ky):
+    evidence = {}
+    for ky, row in rows_by_ky.items():
+        count = row.get(SPECIAL_WINNER_COUNT_FIELD)
+        if type(count) is int and count >= 0:
+            evidence[ky] = {"identity": loto535_draw_identity(row), "count": count}
+    return {
+        "updatedAt": now_iso(),
+        "rule": "Confirmed zero special-prize winners and a lower positive pool in the immediate next draw; mark the preceding draw",
+        "winnerEvidenceByDraw": evidence,
+        "sharedDraws": sorted((ky for ky, row in rows_by_ky.items()
+                               if row.get(PRIZE_HIT_FIELD) == LOTO535_SHARED_PRIZE_LABEL), key=int),
+    }
 
 
 CSV_REMOVED_FIELDS_BY_TYPE = {
@@ -750,20 +811,22 @@ def create_session():
     return session
 
 
-def request_with_retry(session, method, url, allow_404=False, **kwargs):
+def request_with_retry(session, method, url, allow_404=False, retry_count=None, **kwargs):
+    timeout = kwargs.pop("timeout", REQUEST_TIMEOUT)
+    attempts = REQUEST_RETRY_COUNT if retry_count is None else max(0, int(retry_count))
     last_error = None
-    for attempt in range(REQUEST_RETRY_COUNT + 1):
+    for attempt in range(attempts + 1):
         try:
-            response = session.request(method, url, timeout=REQUEST_TIMEOUT, **kwargs)
+            response = session.request(method, url, timeout=timeout, **kwargs)
             if allow_404 and response.status_code == 404:
                 return None
             if response.status_code == 429:
-                if attempt >= REQUEST_RETRY_COUNT:
+                if attempt >= attempts:
                     response.raise_for_status()
                 time.sleep(REQUEST_RETRY_SLEEP_SECONDS * (attempt + 1))
                 continue
             if response.status_code == 200 and "<title>Đang kiểm tra truy cập...</title>" in response.text:
-                if attempt >= REQUEST_RETRY_COUNT:
+                if attempt >= attempts:
                     raise requests.HTTPError("MinhChinh đang giới hạn truy cập; thử lại sau.", response=response)
                 time.sleep(5 * (attempt + 1))
                 continue
@@ -771,7 +834,7 @@ def request_with_retry(session, method, url, allow_404=False, **kwargs):
             return response
         except requests.RequestException as exc:
             last_error = exc
-            if attempt >= REQUEST_RETRY_COUNT:
+            if attempt >= attempts:
                 raise
             time.sleep(REQUEST_RETRY_SLEEP_SECONDS * (attempt + 1))
     if last_error:
@@ -1268,6 +1331,8 @@ def load_canonical_rows(type_key, rewrite_if_needed=True):
             info["issues"].append(f"type_filter_removed:{removed_rows}")
 
     meta = read_canonical_meta(type_key)
+    if type_key == "LOTO_5_35":
+        restore_loto535_winner_evidence(rows_by_ky, meta)
     normalized_meta, meta_changed = normalize_meta_from_rows(type_key, meta, rows_by_ky)
 
     if rewrite_if_needed and info.get("sanitized"):
@@ -1301,6 +1366,10 @@ def result_to_csv_row(result):
     if result.get("special") is not None and str(result.get("special")).strip():
         special = str(result.get("special"))
     display_lines = " || ".join(str(item).strip() for item in (result.get("displayLines") or []) if str(item).strip())
+    winner_count = (result.get("prizeWinnerCounts") or {}).get("specialPrize")
+    winner_evidence = ({SPECIAL_WINNER_COUNT_FIELD: winner_count}
+                       if result.get("key") == "LOTO_5_35" and result.get("prizeHitKnown")
+                       and type(winner_count) is int and winner_count >= 0 else {})
     return {
         "Ky": str(result.get("ky", "")).strip(),
         "Thu": format_csv_weekday(result.get("date")),
@@ -1314,6 +1383,7 @@ def result_to_csv_row(result):
         "SourceDate": str(result.get("sourceDate", "")).strip(),
         **{field: str(result.get(key) or "") for field, key in PRIZE_RESULT_KEYS.items()},
         PRIZE_HIT_FIELD: str(result.get("prizeHit") or ""),
+        **winner_evidence,
     }
 
 
@@ -1411,10 +1481,11 @@ def sync_result_to_canonical_csv(result):
 
     ky = row["Ky"]
     previous = rows_by_ky.get(ky)
-    if (type_key in PRIZE_FIELDS_BY_TYPE and previous and not result.get("prizeHitKnown")
-            and all(previous.get(field, "") == row.get(field, "") for field in ("Ngay", "Time", "Main", "Special"))):
-        row[PRIZE_HIT_FIELD] = previous.get(PRIZE_HIT_FIELD, "")
-    rows_by_ky[ky] = row
+    if type_key == "KENO":
+        rows_by_ky[ky] = row
+    else:
+        merge_result_rows(rows_by_ky, [result])
+        row = rows_by_ky[ky]
     canonical_paths, today_count, all_count = write_canonical_rows(type_key, rows_by_ky, today)
     latest_row, earliest_row = get_latest_and_earliest_rows(rows_by_ky)
     earliest_ky = str(earliest_row.get("Ky", "")).strip()
@@ -1424,6 +1495,8 @@ def sync_result_to_canonical_csv(result):
     canonical_meta["effectiveEarliestDate"] = earliest_date
     if type_key == "KENO":
         canonical_meta["sourceLimited"] = sort_key_from_ky(earliest_ky) > 1
+    if type_key == "LOTO_5_35":
+        canonical_meta["prizeSharing"] = build_loto535_prize_sharing_meta(rows_by_ky)
     write_canonical_meta(type_key, canonical_meta)
 
     return {
@@ -2032,7 +2105,7 @@ def keno_result_to_csv_row(result):
 
 
 @versioned_loader
-def load_keno_csv_rows(csv_path, return_info=False):
+def load_keno_csv_rows(csv_path, return_info=False, *, normalize_schedule=True):
     rows_by_ky = {}
     info = {"sanitized": False, "issues": []}
     if not csv_path.exists():
@@ -2113,7 +2186,7 @@ def load_keno_csv_rows(csv_path, return_info=False):
                 else KENO_URL
             ) or KENO_URL,
         }
-    fixed_times = normalize_keno_schedule_times(rows_by_ky)
+    fixed_times = normalize_keno_schedule_times(rows_by_ky) if normalize_schedule else 0
     if fixed_times:
         info["sanitized"] = True
         info["issues"].append(f"keno_time_slots_normalized:{fixed_times}")
@@ -2121,8 +2194,9 @@ def load_keno_csv_rows(csv_path, return_info=False):
 
 
 @guarded_writer
-def write_keno_csv_rows(csv_path, rows_by_ky):
-    normalize_keno_schedule_times(rows_by_ky)
+def write_keno_csv_rows(csv_path, rows_by_ky, *, normalize_schedule=True):
+    if normalize_schedule:
+        normalize_keno_schedule_times(rows_by_ky)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     sorted_rows = sorted(
         rows_by_ky.values(),
@@ -2150,6 +2224,8 @@ def merge_result_rows(rows_by_ky, results):
                             for field in ("Ngay", "Time", "Main", "Special")):
             if not result.get("prizeHitKnown"):
                 row[PRIZE_HIT_FIELD] = previous.get(PRIZE_HIT_FIELD, "")
+            if SPECIAL_WINNER_COUNT_FIELD not in row and SPECIAL_WINNER_COUNT_FIELD in previous:
+                row[SPECIAL_WINNER_COUNT_FIELD] = previous[SPECIAL_WINNER_COUNT_FIELD]
             for field in PRIZE_CSV_HEADERS:
                 if not row.get(field):
                     row[field] = previous.get(field, "")
@@ -3116,6 +3192,8 @@ def collect_missing_dates_for_range(type_key, existing_dates, start_date, end_da
 def write_canonical_rows(type_key, rows_by_ky, today):
     canonical_paths = get_canonical_output_paths(type_key)
     today_count = count_rows_for_date(rows_by_ky, today)
+    if type_key == "LOTO_5_35":
+        refresh_loto535_prize_sharing(rows_by_ky)
 
     if type_key == "KENO":
         write_keno_csv_rows(canonical_paths["all"], rows_by_ky)
@@ -3331,6 +3409,8 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     meta["sourceLimited"] = source_limited
     if type_key in PRIZE_FIELDS_BY_TYPE:
         meta["prizeAmounts"] = build_prize_amount_meta(type_key, rows_by_ky, meta.get("prizeAmounts"))
+    if type_key == "LOTO_5_35":
+        meta["prizeSharing"] = build_loto535_prize_sharing_meta(rows_by_ky)
     write_canonical_meta(type_key, meta)
     return {
         "type": type_key,

@@ -20,11 +20,18 @@ class Browser:
         try:
             active = profile / "DevToolsActivePort"
             for _ in range(100):
-                if active.exists():
+                try:
+                    port, path = active.read_text().splitlines()
+                    port = int(port)
                     break
+                except (OSError, ValueError):
+                    # Chrome can briefly hold this file open while creating it on Windows.
+                    if self.process.poll() is not None:
+                        raise RuntimeError("Chrome exited before its debugging endpoint was ready")
                 time.sleep(.05)
-            port, path = active.read_text().splitlines()
-            self.sock = socket.create_connection(("127.0.0.1", int(port)), timeout=15)
+            else:
+                raise RuntimeError("Chrome debugging endpoint did not become readable")
+            self.sock = socket.create_connection(("127.0.0.1", port), timeout=15)
             key = base64.b64encode(os.urandom(16)).decode()
             self.sock.sendall((f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n"
                                f"Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\n"
