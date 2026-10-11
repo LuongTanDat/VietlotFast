@@ -3,3 +3,5 @@ __pycache__/
 backend/bin/
 runtime/logs/
 *.class
+Bin/
+runtime/

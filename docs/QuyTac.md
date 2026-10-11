@@ -23,6 +23,10 @@ Tài liệu quy tắc vận hành và nghiệp vụ dự án VietlotFast.
   - code predictor
   - file backend/frontend quan trọng
 
+## Khởi động web trong VS Code
+
+- Khi mở thư mục Lotto trong VS Code, task `folderOpen` tự chạy launcher với `--auto` trong workspace tin cậy. Chế độ tự chạy dùng lại server Lotto trên 8080, không dừng server đang hoạt động hay tiến trình khác; server mới chạy nền ẩn, log ở `runtime/web_auto_stdout.log` và `runtime/web_auto_stderr.log`. Lệnh launcher thủ công vẫn dùng để khởi động lại/nạp backend mới.
+
 ## Dọn file tạm và bản nháp
 
 - Chỉ dọn theo danh sách đã rà soát đường dẫn và nơi tham chiếu. Không coi một module là thừa chỉ vì tên cũ, không được import trực tiếp hoặc trùng nội dung với module khác; phải kiểm tra cả CLI, fallback và đường tải asset.

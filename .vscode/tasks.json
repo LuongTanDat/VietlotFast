@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Lotto: Tự khởi động web",
+      "type": "shell",
+      "command": "call scripts\\chay_lotto_web.bat --auto",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "${env:ComSpec}",
+          "args": ["/d", "/c"]
+        }
+      },
+      "runOptions": {
+        "runOn": "folderOpen",
+        "instanceLimit": 1
+      },
+      "presentation": {
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

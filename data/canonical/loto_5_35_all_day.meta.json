@@ -2,7 +2,7 @@
   "type": "LOTO_5_35",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-11T11:47:15",
+  "lastSyncAt": "2026-10-11T16:54:37",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "29/06/2025",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-11T11:47:15",
+    "updatedAt": "2026-10-11T16:54:37",
     "complete": true,
-    "totalRows": 938,
-    "completeRows": 938,
+    "totalRows": 939,
+    "completeRows": 939,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -66,9 +66,13 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeSharing": {
-    "updatedAt": "2026-10-11T11:47:15",
+    "updatedAt": "2026-10-11T16:54:37",
     "rule": "Confirmed zero special-prize winners and a lower positive pool in the immediate next draw; mark the preceding draw",
     "winnerEvidenceByDraw": {
+      "939": {
+        "identity": "11/10/2026|13:00|4,8,19,33,35|5",
+        "count": 0
+      },
       "938": {
         "identity": "10/10/2026|21:00|14,19,20,21,29|4",
         "count": 0
