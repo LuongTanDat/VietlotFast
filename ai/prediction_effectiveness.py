@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import random
 import sqlite3
 import sys
@@ -25,9 +26,11 @@ if __package__ in (None, ""):
 
 from ai import ml_pipeline, prediction_ledger as ledger
 from ai import tracking_portfolio as portfolio
+from ai import tracking_progress as progress
+from ai.tracking_storage import database_path
 from ai.configs import data_paths as dp
 from ai.evaluation.statistical_tests import paired_bootstrap_ci
-from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_tickets, prize_counts, prize_statistics
+from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_ticket, classify_tickets, prize_counts, prize_statistics
 from backend.file_guard import resource_lock, version
 
 GAMES = ("LOTO_5_35", "LOTO_6_45", "LOTO_6_55")
@@ -55,11 +58,11 @@ def _digest(value: Any) -> str:
 
 
 def _connect(db_path=None):
-    connection = ledger.connect(db_path)
+    connection = ledger.connect(database_path(db_path))
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS effectiveness_settings (
             game_type TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 0,
-            ticket_count INTEGER NOT NULL DEFAULT 3 CHECK(ticket_count BETWEEN 1 AND 10000),
+            ticket_count INTEGER NOT NULL DEFAULT 3 CHECK(ticket_count BETWEEN 1 AND 1000000),
             updated_at TEXT NOT NULL DEFAULT '', updated_by TEXT NOT NULL DEFAULT '',
             last_tick TEXT NOT NULL DEFAULT '', last_error TEXT NOT NULL DEFAULT '',
             next_target TEXT NOT NULL DEFAULT ''
@@ -80,6 +83,24 @@ def _connect(db_path=None):
             event_id TEXT PRIMARY KEY, game_type TEXT NOT NULL, actor TEXT NOT NULL,
             created_at TEXT NOT NULL, settings_json TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS effectiveness_ticket_index (
+            prediction_id TEXT PRIMARY KEY REFERENCES prediction_runs(prediction_id),
+            ticket_count INTEGER NOT NULL, calibration_status TEXT NOT NULL,
+            chunk_size INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS effectiveness_ticket_chunks (
+            prediction_id TEXT NOT NULL REFERENCES prediction_runs(prediction_id),
+            chunk_number INTEGER NOT NULL, tickets_json TEXT NOT NULL,
+            PRIMARY KEY(prediction_id,chunk_number)
+        );
+        CREATE TRIGGER IF NOT EXISTS effectiveness_ticket_index_immutable
+        BEFORE UPDATE ON effectiveness_ticket_index BEGIN
+            SELECT RAISE(ABORT,'ticket index is immutable');
+        END;
+        CREATE TRIGGER IF NOT EXISTS effectiveness_ticket_chunks_immutable
+        BEFORE UPDATE ON effectiveness_ticket_chunks BEGIN
+            SELECT RAISE(ABORT,'ticket chunk is immutable');
+        END;
         CREATE TRIGGER IF NOT EXISTS effectiveness_cycle_immutable
         BEFORE UPDATE ON effectiveness_cycles BEGIN
             SELECT RAISE(ABORT,'prospective cycle is immutable');
@@ -91,12 +112,12 @@ def _connect(db_path=None):
     """)
     # Rebuild only the mutable settings table; forecasts and audits stay intact.
     schema = connection.execute("SELECT sql FROM sqlite_master WHERE name='effectiveness_settings'").fetchone()[0]
-    if "BETWEEN 1 AND 10)" in schema:
+    if re.search(r"BETWEEN 1 AND (?:10|10000)\)", schema):
         connection.execute("BEGIN IMMEDIATE")
         try:
             schema = connection.execute("SELECT sql FROM sqlite_master WHERE name='effectiveness_settings'").fetchone()[0]
-            if "BETWEEN 1 AND 10)" in schema:
-                connection.execute(schema.replace("effectiveness_settings", "effectiveness_settings_next", 1).replace("BETWEEN 1 AND 10)", "BETWEEN 1 AND 10000)"))
+            if re.search(r"BETWEEN 1 AND (?:10|10000)\)", schema):
+                connection.execute(re.sub(r"BETWEEN 1 AND (?:10|10000)\)", "BETWEEN 1 AND 1000000)", schema.replace("effectiveness_settings", "effectiveness_settings_next", 1)))
                 connection.execute("INSERT INTO effectiveness_settings_next SELECT * FROM effectiveness_settings")
                 connection.execute("DROP TABLE effectiveness_settings")
                 connection.execute("ALTER TABLE effectiveness_settings_next RENAME TO effectiveness_settings")
@@ -105,13 +126,19 @@ def _connect(db_path=None):
             connection.rollback()
             connection.close()
             raise
+    existing_games = {row[0] for row in connection.execute("SELECT game_type FROM effectiveness_settings")}
     for game in (*GAMES, "KENO"):
-        connection.execute("INSERT OR IGNORE INTO effectiveness_settings(game_type) VALUES(?)", (game,))
+        if game not in existing_games:
+            connection.execute("INSERT OR IGNORE INTO effectiveness_settings(game_type) VALUES(?)", (game,))
     return connection
 
 
+def ticket_limit(game: str) -> int:
+    return 100000 if game == "KENO" else portfolio.MAX_TICKETS
+
+
 def _settings(row) -> dict:
-    return {"enabled": bool(row["enabled"]), "ticketCount": int(row["ticket_count"]), "maxTicketCount": portfolio.MAX_TICKETS,
+    return {"enabled": bool(row["enabled"]), "ticketCount": int(row["ticket_count"]), "maxTicketCount": ticket_limit(row["game_type"]),
             "engine": "classic", "riskMode": "balanced", "predictionMode": "normal",
             "bayesianPrior": PRIOR_STRENGTH, "ewmaHalfLife": HALF_LIFE,
             "updatedAt": row["updated_at"], "updatedBy": row["updated_by"]}
@@ -126,8 +153,9 @@ def settings(game: str, db_path=None) -> dict:
 
 def configure(game: str, enabled: bool, ticket_count: int = 3, actor: str = "", db_path=None) -> dict:
     game = _game(game)
-    if not isinstance(enabled, bool) or type(ticket_count) is not int or not 1 <= ticket_count <= portfolio.MAX_TICKETS:
-        raise ValueError("Bật/tắt phải là boolean và số vé phải trong khoảng 1–10.000.")
+    maximum = ticket_limit(game)
+    if not isinstance(enabled, bool) or type(ticket_count) is not int or not 1 <= ticket_count <= maximum:
+        raise ValueError(f"Bật/tắt phải là boolean và số vé phải trong khoảng 1–{maximum:,}.".replace(",", "."))
     if not str(actor).strip():
         raise ValueError("Thiếu tài khoản quản trị thay đổi cấu hình.")
     with closing(_connect(db_path)) as connection:
@@ -223,7 +251,7 @@ def _guard(snapshot: dict):
 
 def _execution_manifest(game: str) -> dict:
     paths = [dp.PROJECT_ROOT / "ai/predictors/ai_predict.py", dp.PROJECT_ROOT / "ai/adaptive_coverage.py",
-             Path(__file__), Path(portfolio.__file__), Path(ledger.__file__)]
+             Path(__file__), Path(portfolio.__file__), Path(ledger.__file__), dp.PROJECT_ROOT / "ai/tracking_capacity.py", dp.PROJECT_ROOT / "ai/tracking_storage.py"]
     paths += [path for path in (dp.MODELS_DIR / game).glob("*.json") if path.is_file()]
     return {str(path.relative_to(dp.PROJECT_ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in paths if path.is_file()}
@@ -288,7 +316,8 @@ def _baseline(game: str, method: str, count: int, snapshot: dict) -> dict:
                 break
         else:
             raise RuntimeError("Không tạo được danh mục vé khác nhau.")
-        seen.add(tuple(main))
+        if large_mains is None:
+            seen.add(tuple(main))
         special = rng.randrange(1, 13) if game == "LOTO_5_35" else (
             rng.choice([n for n in range(1, 56) if n not in main]) if game == "LOTO_6_55" else None)
         tickets.append({"main": main, "special": special})
@@ -335,12 +364,13 @@ def _cycle_rows(connection, game: str):
     return connection.execute("SELECT * FROM effectiveness_cycles WHERE game_type=? ORDER BY CAST(target_draw_id AS INTEGER) DESC", (game,)).fetchall()
 
 
+@progress.track
 def cycle(game: str, db_path=None, force=True) -> dict:
     game = _game(game)
     if game == "KENO":
         from ai import keno_effectiveness
         return keno_effectiveness.cycle(db_path, force)
-    database = Path(db_path or ledger.DEFAULT_DB_PATH)
+    database = database_path(db_path)
     with resource_lock(database.parent / f"effectiveness_{game.lower()}", timeout=15):
         with closing(_connect(db_path)) as connection:
             row = connection.execute("SELECT * FROM effectiveness_settings WHERE game_type=?", (game,)).fetchone()
@@ -353,14 +383,20 @@ def cycle(game: str, db_path=None, force=True) -> dict:
             if existing:
                 return {"ok": True, "type": game, "status": "already_locked", "cycleId": existing[0], "targetDrawId": snapshot["target"]}
             _guard(snapshot)
-            count = configuration["ticketCount"]
+            count = portfolio.effective_count(configuration["ticketCount"], ml_pipeline.game_config(game)["universe_size"], ml_pipeline.game_config(game)["draw_size"])
+            if count > 10000:
+                from ai.tracking_capacity import ensure_storage
+                ensure_storage(database, [(ml_pipeline.game_config(game)["draw_size"], 4 * count)])
+            progress.start("creating", 8 * count, 4 * count)
             manifest = _execution_manifest(game)
             payloads = {"web": _production_web_prediction(game, count, snapshot)}
             payloads["web"] = dict(payloads["web"])
             if not payloads["web"].get("trackingPortfolio") and (payloads["web"].get("adaptiveCoverage") or {}).get("seed") is not None:
                 payloads["web"]["randomSeed"] = int(payloads["web"]["adaptiveCoverage"]["seed"])
+            progress.advance(count)
             for method in ("random", "bayesian", "ewma"):
                 payloads[method] = _baseline(game, method, count, snapshot)
+                progress.advance(count)
             for payload in payloads.values():
                 _validate(payload, game, count, snapshot)
             with resource_lock(snapshot["path"]):
@@ -370,7 +406,9 @@ def cycle(game: str, db_path=None, force=True) -> dict:
                 if _execution_manifest(game) != manifest:
                     raise RuntimeError("Mã/model thay đổi trong khi dự đoán; chưa khóa chu kỳ.")
                 _guard(fresh)
-                config = {**configuration, "pipeline": PIPELINE, "sourceManifest": manifest,
+                if count > 10000:
+                    ensure_storage(database, [(ml_pipeline.game_config(game)["draw_size"], 4 * count)])
+                config = {**configuration, "actualTicketCount": count, "pipeline": PIPELINE, "sourceManifest": manifest,
                           "allocationPolicy": portfolio.VERSION if count > 10 else "legacy",
                           "scope": "main_numbers_only", "specialBaseline": "uniform_seeded",
                           "actualWebEngine": payloads["web"].get("engine"), "actualWebModelId": payloads["web"].get("modelId")}
@@ -398,6 +436,8 @@ def cycle(game: str, db_path=None, force=True) -> dict:
                         locked = ledger.lock_prediction(payload, username=ACTOR, connection=connection,
                                                         random_seed=int(payload.get("randomSeed") or _seed(game, method, snapshot, count)))
                         connection.execute("INSERT INTO effectiveness_predictions VALUES(?,?,?)", (cycle_id, method, locked["prediction_id"]))
+                        _index_tickets(connection, locked["prediction_id"], payload)
+                        progress.advance(count)
                     _guard(snapshot)
                     connection.commit()
                 except Exception:
@@ -407,6 +447,7 @@ def cycle(game: str, db_path=None, force=True) -> dict:
                     "targetDrawId": snapshot["target"], "cutoffDrawId": snapshot["cutoff"], "ticketCount": count}
 
 
+@progress.track
 def score_cycles(game: str, db_path=None) -> dict:
     """Score only complete system mappings using ledger v2 metrics."""
     if _game(game) == "KENO":
@@ -438,6 +479,9 @@ def score_cycles(game: str, db_path=None) -> dict:
             if all(row["status"] == "scored" for row in rows):
                 continue
             try:
+                budget = json.loads(cycle_row["config_json"])
+                tickets = budget.get("actualTicketCount", budget["ticketCount"]) * 4
+                progress.start("scoring", 4, tickets)
                 connection.execute("BEGIN IMMEDIATE")
                 for row in rows:
                     payload = json.loads(row["payload_json"])
@@ -445,12 +489,13 @@ def score_cycles(game: str, db_path=None) -> dict:
                         raise ValueError("Checksum dự đoán không khớp.")
                     if row["username"] != ACTOR or row["status"] not in ("locked", "scored"):
                         raise ValueError("Run không thuộc chu kỳ hệ thống hợp lệ.")
-                    metrics = ledger.score_prediction_payload(payload, actual[target], cfg["universe_size"], cfg["draw_size"], cfg["prediction_size"])
+                    metrics = ledger.score_prediction_payload(payload, actual[target], cfg["universe_size"], cfg["draw_size"], cfg["prediction_size"], compact=len(payload.get("tickets") or []) > portfolio.TICKET_PAGE_SIZE)
                     connection.execute("INSERT OR IGNORE INTO prediction_scores VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                                        (str(uuid.uuid4()), row["prediction_id"], ledger.now_iso(), target,
                                         metrics["hit_count"], metrics["special_hit"], metrics["brier_score"], metrics["log_loss"],
                                         metrics["lift"], ledger.canonical_json(_score_storage(metrics)), ledger.SCORING_VERSION))
                     connection.execute("UPDATE prediction_runs SET status='scored' WHERE prediction_id=? AND status='locked'", (row["prediction_id"],))
+                    progress.advance(1)
                 connection.commit()
                 scored.append(target)
             except Exception as exc:
@@ -465,7 +510,7 @@ def _score_storage(metrics):
     Keep immutable tickets and recorded actual plus exact whole-portfolio totals,
     rather than duplicating hundreds of thousands of reconstructible labels.
     """
-    if metrics["ticket_count"] <= portfolio.TICKET_PAGE_SIZE:
+    if metrics.get("report_summary") or metrics["ticket_count"] <= portfolio.TICKET_PAGE_SIZE:
         return metrics
     hits = [ticket["hit_count"] for ticket in metrics["per_ticket"]]
     results = metrics["prize_results"]
@@ -477,11 +522,54 @@ def _score_storage(metrics):
             "report_summary": summary, "per_ticket_storage": "derive_from_immutable_tickets_and_recorded_actual"}
 
 
+def _index_tickets(connection, prediction_id, payload):
+    """Derived read index written atomically with its immutable ledger payload."""
+    tickets = payload.get("tickets") or []
+    chunk_size = 1000 if len(tickets) > 10000 else 0
+    connection.execute("INSERT INTO effectiveness_ticket_index VALUES(?,?,?,?)",
+                       (prediction_id, len(tickets), str(payload.get("probabilityCalibrationStatus") or "uncalibrated"), chunk_size))
+    if chunk_size:
+        connection.executemany("INSERT INTO effectiveness_ticket_chunks VALUES(?,?,?)",
+                              ((prediction_id, start // chunk_size, ledger.canonical_json(tickets[start:start + chunk_size]))
+                               for start in range(0, len(tickets), chunk_size)))
+
+
+def _ticket_total(connection, prediction_id):
+    indexed = connection.execute("SELECT ticket_count FROM effectiveness_ticket_index WHERE prediction_id=?", (prediction_id,)).fetchone()
+    return indexed[0] if indexed else connection.execute("SELECT json_array_length(tickets_json) FROM prediction_runs WHERE prediction_id=?", (prediction_id,)).fetchone()[0]
+
+
+def _iter_tickets(connection, prediction_id):
+    indexed = connection.execute("SELECT chunk_size FROM effectiveness_ticket_index WHERE prediction_id=?", (prediction_id,)).fetchone()
+    if indexed and indexed[0]:
+        for row in connection.execute("SELECT tickets_json FROM effectiveness_ticket_chunks WHERE prediction_id=? ORDER BY chunk_number", (prediction_id,)):
+            yield from json.loads(row[0])
+    else:
+        for row in connection.execute("SELECT t.value FROM prediction_runs pr,json_each(pr.tickets_json) t WHERE pr.prediction_id=?", (prediction_id,)):
+            yield json.loads(row[0])
+
+
 def _ticket_slice(connection, prediction_id, page=1):
-    total = connection.execute("SELECT json_array_length(tickets_json) FROM prediction_runs WHERE prediction_id=?", (prediction_id,)).fetchone()[0]
+    total = _ticket_total(connection, prediction_id)
     pages = max(1, math.ceil(total / portfolio.TICKET_PAGE_SIZE))
     page = min(page, pages)
     offset = (page - 1) * portfolio.TICKET_PAGE_SIZE
+    indexed = connection.execute("SELECT chunk_size FROM effectiveness_ticket_index WHERE prediction_id=?", (prediction_id,)).fetchone()
+    if indexed and indexed[0]:
+        size = indexed[0]
+        tickets = []
+        start = offset
+        while start < min(total, offset + portfolio.TICKET_PAGE_SIZE):
+            row = connection.execute("SELECT tickets_json FROM effectiveness_ticket_chunks WHERE prediction_id=? AND chunk_number=?", (prediction_id, start // size)).fetchone()
+            if row is None:
+                raise ValueError("Thiếu dữ liệu trang vé; chưa thể mở danh mục.")
+            chunk = json.loads(row[0])
+            if len(chunk) != min(size, total - (start // size) * size):
+                raise ValueError("Dữ liệu trang vé chưa đầy đủ.")
+            count = min(size - start % size, offset + portfolio.TICKET_PAGE_SIZE - start, total - start)
+            tickets.extend(chunk[start % size:start % size + count])
+            start += count
+        return tickets, {"page": page, "pageSize": portfolio.TICKET_PAGE_SIZE, "total": total, "totalPages": pages, "offset": offset}
     tickets = [json.loads(row[0]) for row in connection.execute(
         "SELECT t.value FROM prediction_runs pr,json_each(pr.tickets_json) t WHERE pr.prediction_id=? LIMIT ? OFFSET ?",
         (prediction_id, portfolio.TICKET_PAGE_SIZE, offset))]
@@ -489,10 +577,14 @@ def _ticket_slice(connection, prediction_id, page=1):
                      "totalPages": pages, "offset": offset}
 
 
-def ticket_page(game, prediction_id, page=1, db_path=None):
+def ticket_page(game, prediction_id, page=1, db_path=None, prize_code=None, after_ticket_index=0):
     game = _game(game)
     if type(page) is not int or not 1 <= page <= 1000000:
         raise ValueError("Trang vé phải là số nguyên dương.")
+    if prize_code is not None and (not isinstance(prize_code, str) or not re.fullmatch(r"[A-Z][A-Z0-9_]{0,39}", prize_code)):
+        raise ValueError("Mã giải thưởng không hợp lệ.")
+    if type(after_ticket_index) is not int or not 0 <= after_ticket_index <= 1000000 or (after_ticket_index and prize_code is None):
+        raise ValueError("Vị trí vé đã xem không hợp lệ.")
     with closing(_connect(db_path)) as connection:
         connection.execute("BEGIN")
         mapping_table = "keno_effectiveness_predictions" if game == "KENO" else "effectiveness_predictions"
@@ -508,12 +600,95 @@ def ticket_page(game, prediction_id, page=1, db_path=None):
             complete = len(rows) == 4 and all(row["status"] == "scored" and row["main"] for row in rows)
             actual = {"main": json.loads(rows[0]["main"]) if all(row["main"] == rows[0]["main"] for row in rows) else [],
                       "special": rows[0]["special"] if all(row["special"] == rows[0]["special"] for row in rows) else None} if complete else None
+        jump_index = None
+        if prize_code is not None:
+            if not actual or not actual.get("main"):
+                raise ValueError("Kỳ này chưa có kết quả để tìm vé trúng.")
+            total = _ticket_total(connection, prediction_id)
+            if after_ticket_index > total:
+                raise ValueError("Vị trí vé đã xem vượt số vé của dự đoán.")
+            first_winner = None
+            for index, ticket in enumerate(_iter_tickets(connection, prediction_id), 1):
+                result = classify_ticket(game, ticket, actual)
+                if result["prizeCode"] == prize_code and result["status"] == "won":
+                    if first_winner is None:
+                        first_winner = index
+                    if index > after_ticket_index:
+                        jump_index = index
+                        break
+            if first_winner is None:
+                raise ValueError("Không tìm thấy vé trúng giải này trong bộ dự đoán.")
+            jump_index = jump_index or first_winner
+            page = (jump_index - 1) // portfolio.TICKET_PAGE_SIZE + 1
         tickets, pagination = _ticket_slice(connection, prediction_id, page)
         results = classify_tickets(game, tickets, actual)
         for result in results:
             result["ticketIndex"] += pagination["offset"]
         return {"ok": True, "type": game, "predictionId": prediction_id, "tickets": tickets,
-                "ticketResults": results, "ticketPagination": pagination}
+                "ticketResults": results, "ticketPagination": pagination,
+                **({"jumpTicketIndex": jump_index} if jump_index is not None else {})}
+
+
+def export_cycle(game, cycle_id, db_path=None, level=10, allow_large=False):
+    """Read one complete locked portfolio/recorded result in one DB snapshot."""
+    game = _game(game)
+    try:
+        uuid.UUID(cycle_id)
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError("Mã kỳ dự đoán không hợp lệ.")
+    if type(level) is not int or not 1 <= level <= 10:
+        raise ValueError("Bậc Keno phải từ 1 đến 10.")
+    if game == "KENO":
+        from ai import keno_effectiveness
+        connect = keno_effectiveness._connect
+    else:
+        connect = _connect
+    with closing(connect(db_path)) as connection:
+        connection.execute("BEGIN")
+        table = "keno_effectiveness_cycles" if game == "KENO" else "effectiveness_cycles"
+        cycle = connection.execute(f"SELECT * FROM {table} WHERE cycle_id=?" +
+                                   ("" if game == "KENO" else " AND game_type=?"),
+                                   (cycle_id,) if game == "KENO" else (cycle_id, game)).fetchone()
+        if cycle is None:
+            raise ValueError("Không tìm thấy kỳ thuộc báo cáo hiệu quả.")
+        if game == "KENO":
+            predictions = connection.execute("SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,json_array_length(pr.tickets_json) ticket_count FROM keno_effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id WHERE ep.cycle_id=? AND ep.level=?", (cycle_id, level)).fetchall()
+            scored = cycle["status"] == "scored"
+            actual = json.loads(cycle["actual_json"]) if scored else None
+        else:
+            predictions = connection.execute("SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,json_array_length(pr.tickets_json) ticket_count,ps.metrics_json FROM effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id LEFT JOIN prediction_scores ps ON ps.prediction_id=pr.prediction_id AND ps.scoring_version=? WHERE ep.cycle_id=?", (ledger.SCORING_VERSION, cycle_id)).fetchall()
+            scored = len(predictions) == 4 and all(p["status"] == "scored" and p["metrics_json"] for p in predictions)
+            recorded = [json.loads(p["metrics_json"]) for p in predictions] if scored else []
+            if recorded and any((m.get("actual_main"), m.get("actual_special")) !=
+                                (recorded[0].get("actual_main"), recorded[0].get("actual_special")) for m in recorded):
+                raise ValueError("Kết quả đã lưu của bốn phương pháp không khớp.")
+            actual = {"main": recorded[0].get("actual_main", []), "special": recorded[0].get("actual_special")} if recorded else None
+        if len(predictions) != 4 or {p["method"] for p in predictions} != set(METHODS) or any(
+                p["username"] != ACTOR or p["game_type"] != game or p["status"] not in ("locked", "scored") for p in predictions):
+            raise ValueError("Kỳ không có đủ bốn bộ dự đoán hệ thống hợp lệ.")
+        if scored and not (actual or {}).get("main"):
+            raise ValueError("Kỳ đã chấm thiếu kết quả thực tế đã lưu.")
+        if not allow_large and any(p["ticket_count"] > 10000 for p in predictions):
+            raise ValueError("Danh mục lớn cần tải trực tiếp file Excel; không tải toàn bộ vé dạng JSON.")
+        result = {"ok": True, "type": game, "cycleId": cycle_id, "targetDrawId": cycle["target_draw_id"],
+                  "cutoffDrawId": cycle["cutoff_draw_id"], "createdAt": cycle["created_at"],
+                  "deadline": cycle["deadline"], "dataHash": cycle["data_hash"],
+                  "config": json.loads(cycle["config_json"]), "status": "scored" if scored else "locked",
+                  "actualMain": (actual or {}).get("main", []), "actualSpecial": (actual or {}).get("special"),
+                  "actualSource": "recorded_ledger_score" if scored else "pending", "methods": {},
+                  **({"level": level} if game == "KENO" else {})}
+        result["config"].pop("sourceManifest", None)
+        for p in predictions:
+            tickets = json.loads(connection.execute("SELECT tickets_json FROM prediction_runs WHERE prediction_id=?", (p["prediction_id"],)).fetchone()[0])
+            if not 1 <= len(tickets) <= portfolio.MAX_TICKETS:
+                raise ValueError("Số vé đã khóa vượt phạm vi xuất dữ liệu.")
+            labels = classify_tickets(game, tickets, actual)
+            result["methods"][p["method"]] = {"predictionId": p["prediction_id"], "tickets": tickets,
+                "ticketCount": len(tickets), "ticketResults": labels,
+                "prizeCounts": prize_counts(labels), "prizeStatistics": prize_statistics(labels),
+                "engine": p["engine"], "modelId": p["model_id"], "seed": p["random_seed"],
+                "payloadChecksum": p["payload_checksum"]}
+        return result
 
 
 def _combined_prizes(samples):
@@ -565,9 +740,10 @@ def report(game: str, limit: int = 100, db_path=None, level: int = 10, page: int
         rows = _cycle_rows(connection, game)
         for row in rows:
             predictions = connection.execute("""SELECT ep.method,pr.prediction_id,pr.engine,pr.model_id,pr.status,pr.random_seed,ps.metrics_json,ps.brier_score,ps.log_loss,
-                json_extract(pr.payload_json,'$.probabilityCalibrationStatus') calibration,
+                COALESCE(ti.calibration_status,json_extract(pr.payload_json,'$.probabilityCalibrationStatus')) calibration,
                 ps.scoring_version FROM effectiveness_predictions ep
                 JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id
+                LEFT JOIN effectiveness_ticket_index ti ON ti.prediction_id=pr.prediction_id
                 LEFT JOIN prediction_scores ps ON ps.prediction_id=pr.prediction_id AND ps.scoring_version=?
                 WHERE ep.cycle_id=?""", (ledger.SCORING_VERSION, row["cycle_id"])).fetchall()
             if len(predictions) != 4 or {p["method"] for p in predictions} != set(METHODS):
@@ -638,7 +814,7 @@ def report(game: str, limit: int = 100, db_path=None, level: int = 10, page: int
                 "automation": {"lastError": settings_row["last_error"], "lastTick": settings_row["last_tick"],
                                "nextTargetDrawId": settings_row["next_target"]},
                 "notes": ["Chỉ đánh giá kỳ đã khóa trước giờ quay; không dựng lại dự đoán lịch sử.",
-                          "Tối đa 10.000 bộ số khác nhau/phương pháp. Nhật ký tải 20 vé mỗi trang; thống kê chấm toàn bộ danh mục đã khóa.",
+                          "Tối đa 1.000.000 vé/phương pháp; 5/35 dùng tối đa 324.632 bộ số chính khác nhau. Nhật ký tải từng trang; thống kê chấm toàn bộ danh mục đã khóa.",
                           "So bốn phương pháp cùng kỳ và cùng số vé. Số trùng/Brier/CI vẫn chấm số chính; nhãn giải chấm riêng theo thể lệ vé chuẩn.",
                           "Giải dựa trên kết quả đã lưu lúc chấm; thiếu ĐB cũ ghi chưa xác định, không bổ sung từ CSV hiện tại. Số đặc biệt đối chứng lấy ngẫu nhiên.",
                           "Jackpot 2 Power cần trùng 5 số chính và số thứ bảy thực tế nằm trong 6 số của vé; số phụ dự đoán không quyết định giải.",
@@ -684,7 +860,7 @@ def tick(db_path=None) -> dict:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for command in ("report", "settings", "configure", "cycle", "tick", "tickets"):
+    for command in ("report", "settings", "configure", "cycle", "tick", "tickets", "export", "export-file"):
         child = sub.add_parser(command)
         if command != "tick":
             child.add_argument("game", choices=(*GAMES, "KENO"))
@@ -697,16 +873,31 @@ def main(argv=None) -> int:
             child.add_argument("--enabled", choices=("true", "false"), required=True)
             child.add_argument("--ticket-count", type=int, default=3)
             child.add_argument("--actor", required=True)
+        if command in ("export", "export-file"):
+            child.add_argument("--cycle-id", required=True)
+            child.add_argument("--level", type=int, default=10)
+        if command == "export-file":
+            child.add_argument("--output", required=True)
         if command == "tickets":
             child.add_argument("--prediction-id", required=True)
             child.add_argument("--page", type=int, default=1)
+            child.add_argument("--prize-code", default=None)
+            child.add_argument("--after-ticket-index", type=int, default=0)
     args = parser.parse_args(argv)
     try:
         # Keep stdout exclusively JSON even if a legacy engine prints a diagnostic.
         with redirect_stdout(StringIO()):
             if args.command == "report": result = report(args.game, args.limit, args.db_path, args.level, args.page)
             elif args.command == "settings": result = settings(args.game, args.db_path)
-            elif args.command == "tickets": result = ticket_page(args.game, args.prediction_id, args.page, args.db_path)
+            elif args.command == "tickets": result = ticket_page(args.game, args.prediction_id, args.page, args.db_path, args.prize_code, args.after_ticket_index)
+            elif args.command == "export": result = export_cycle(args.game, args.cycle_id, args.db_path, args.level)
+            elif args.command == "export-file":
+                from ai.effectiveness_xlsx import write_cycle_xlsx
+                destination = Path(args.output).resolve()
+                allowed = Path(args.db_path).resolve().parent if args.db_path else dp.RUNTIME_DIR.resolve()
+                if not destination.is_relative_to(allowed) or destination.suffix != '.xlsx':
+                    raise ValueError("Đường dẫn file Excel không hợp lệ.")
+                result = write_cycle_xlsx(args.game, args.cycle_id, destination, args.db_path, args.level)
             elif args.command == "configure": result = configure(args.game, args.enabled == "true", args.ticket_count, args.actor, args.db_path)
             elif args.command == "cycle":
                 score_cycles(args.game, args.db_path)

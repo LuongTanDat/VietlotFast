@@ -2222,6 +2222,89 @@
       LOTO_6_45: [{ key: "jackpot", label: "Jackpot" }],
       LOTO_6_55: [{ key: "jackpot1", label: "Jackpot 1" }, { key: "jackpot2", label: "Jackpot 2" }],
     };
+    const DRAW_WINNER_COLUMNS = {
+      LOTO_5_35: [{ key: "specialPrize", label: "ĐB" }, { key: "first", label: "Giải 1" }, { key: "second", label: "Giải 2" }, { key: "third", label: "Giải 3" }, { key: "fourth", label: "Giải 4" }, { key: "fifth", label: "Giải 5" }, { key: "consolation", label: "Khuyến khích" }],
+      LOTO_6_45: [{ key: "jackpot", label: "Jackpot" }, { key: "first", label: "Giải 1" }, { key: "second", label: "Giải 2" }, { key: "third", label: "Giải 3" }],
+      LOTO_6_55: [{ key: "jackpot1", label: "Jackpot 1" }, { key: "jackpot2", label: "Jackpot 2" }, { key: "first", label: "Giải 1" }, { key: "second", label: "Giải 2" }, { key: "third", label: "Giải 3" }],
+    };
+    const livePrizeComparisonState = new Map();
+
+    function getLivePrizeChanges(type, item, rows) {
+      const ky = Number(String(item?.ky || "").replace(/^#/, ""));
+      if (!Number.isSafeInteger(ky) || ky < 2 || !Array.isArray(rows) || rows.length > 2) return {};
+      const current = rows.find(row => Number(row.ky) === ky);
+      const previous = rows.find(row => Number(row.ky) === ky - 1);
+      if (!current || !previous || new Set(rows.map(row => Number(row.ky))).size !== rows.length) return {};
+      const main = draw => [...(draw?.main || draw?.numbers || [])].sort((a, b) => a - b).join(",");
+      const time = draw => String(draw.time || (["LOTO_6_45", "LOTO_6_55"].includes(type) ? "18:00" : "")).slice(0, 5);
+      const stamp = draw => Date.parse(`${String(draw.date || "").split("/").reverse().join("-")}T${time(draw)}+07:00`);
+      if (current.date !== item.date || time(current) !== time(item) || main(current) !== main(item) || !main(current) || (TYPES[type]?.hasSpecial && current.special !== item.special) || !Number.isFinite(stamp(current)) || !Number.isFinite(stamp(previous)) || stamp(previous) >= stamp(current)) return {};
+      const changes = {};
+      for (const { key } of (DRAW_PRIZE_COLUMNS[type] || [])) {
+        const amount = item[key], before = previous[key];
+        if (Number.isSafeInteger(amount) && amount > 0 && Number.isSafeInteger(before) && before > 0 && current[key] === amount) changes[key] = amount - before;
+      }
+      return changes;
+    }
+
+    function renderLivePrizeChange(type, item, key) {
+      const state = livePrizeComparisonState.get(type);
+      if (Number(String(item?.ky || "").replace(/^#/, "")) < 2 || IS_LOCAL_MODE || !currentUser) return '<small class="live-prize-change is-pending">Chưa đủ dữ liệu kỳ trước</small>';
+      if (!state || state.signature !== getLiveResultSignature(item) || state.loading) return '<small class="live-prize-change is-pending">Đang đối chiếu…</small>';
+      const delta = state.changes[key];
+      if (!Number.isSafeInteger(delta)) return '<small class="live-prize-change is-pending">Chưa đủ dữ liệu kỳ trước</small>';
+      const amount = `${Math.abs(delta).toLocaleString("vi-VN")} VNĐ`;
+      const label = delta === 0 ? "Không đổi" : `<span class="live-prize-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 19V5M6 11l6-6 6 6" /></svg></span> ${escapeHtml(amount)}`;
+      const description = `${delta > 0 ? `Tăng ${amount}` : delta < 0 ? `Giảm ${amount}` : "Không đổi"} so với kỳ #${Number(String(item.ky).replace(/^#/, "")) - 1}`;
+      return `<small class="live-prize-change ${delta > 0 ? "is-up" : delta < 0 ? "is-down" : "is-flat"}" title="${escapeHtml(description)}" aria-label="${escapeHtml(description)}">${label}</small>`;
+    }
+
+    function refreshLivePrizeChanges(type) {
+      const item = liveResultsState?.[type];
+      if (!item) return;
+      document.querySelectorAll(`[data-live-prize-type="${type}"]`).forEach(node => {
+        node.innerHTML = renderLivePrizeChange(type, item, node.dataset.livePrizeKey);
+      });
+    }
+
+    function loadLivePrizeComparisons(force = false) {
+      if (IS_LOCAL_MODE || !currentUser) return;
+      for (const type of Object.keys(DRAW_PRIZE_COLUMNS)) {
+        const item = liveResultsState?.[type];
+        const ky = Number(String(item?.ky || "").replace(/^#/, ""));
+        if (!Number.isSafeInteger(ky) || ky < 2) continue;
+        const signature = getLiveResultSignature(item), user = currentUser;
+        const cached = livePrizeComparisonState.get(type);
+        if (cached?.signature === signature && (cached.loading || (!force && Date.now() - cached.checkedAt < 60000))) continue;
+        const state = { signature, loading: true, checkedAt: 0, changes: {} };
+        livePrizeComparisonState.set(type, state);
+        refreshLivePrizeChanges(type);
+        const active = () => livePrizeComparisonState.get(type) === state && currentUser === user && getLiveResultSignature(liveResultsState?.[type]) === signature;
+        state.request = api(`/api/live-history?type=${type}&count=2&drawIds=${ky},${ky - 1}`)
+          .then(response => {
+            if (!active()) return;
+            if (response.type !== type || !Array.isArray(response.history)) throw new Error("Mismatched prize history");
+            state.changes = getLivePrizeChanges(type, item, response.history);
+          })
+          .catch(() => { if (active()) state.changes = {}; })
+          .finally(() => {
+            if (!active()) return;
+            state.loading = false; state.checkedAt = Date.now(); state.request = null;
+            refreshLivePrizeChanges(type);
+          });
+      }
+    }
+
+    window.addEventListener("dvlf:auth-changed", () => {
+      livePrizeComparisonState.clear();
+      Object.keys(DRAW_PRIZE_COLUMNS).forEach(refreshLivePrizeChanges);
+      loadLivePrizeComparisons();
+    });
+
+    function getDrawWinnerCount(draw, key) {
+      const count = draw?.prizeWinnerCounts?.[key];
+      return Number.isSafeInteger(count) && count >= 0 ? count : null;
+    }
 
     function getDrawPrizeAmount(draw, key) {
       const amount = Number(draw?.[key]);
@@ -2234,6 +2317,12 @@
         const amount = getDrawPrizeAmount(draw, key);
         if (amount !== null) fields[key] = amount;
       }
+      const counts = {};
+      for (const { key } of (DRAW_WINNER_COLUMNS[type] || [])) {
+        const count = getDrawWinnerCount(draw, key);
+        if (count !== null) counts[key] = count;
+      }
+      if (Object.keys(counts).length) fields.prizeWinnerCounts = counts;
       return fields;
     }
 
@@ -2737,24 +2826,70 @@
       const hasSpecialColumn = !!TYPES[type]?.hasSpecial && !TYPES[type]?.threeDigit;
       return ["Kỳ", "Thứ", "Ngày", ...(!TYPES[type]?.threeDigit ? ["Giờ"] : []), TYPES[type]?.threeDigit ? "Nhóm giải" : "Bộ số", ...(hasSpecialColumn ? ["ĐB"] : []),
         ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ label }) => `${label} (VNĐ)`),
+        ...(DRAW_WINNER_COLUMNS[type] || []).map(({ label }) => `${label} (SL)`),
         ...(DRAW_PRIZE_COLUMNS[type]?.length ? ["Nổ"] : [])];
     }
 
+    function getDataTablePrimaryPrizeFilterLabel(type = dataTableSelectedType) {
+      if (type === "LOTO_6_45") return "Jackpot";
+      if (type === "LOTO_6_55") return ({ both: "Jackpot 1, 2", jackpot1: "Jackpot 1", jackpot2: "Jackpot 2" })[dataTableJackpotMode] || "Jackpot 1, 2";
+      return "Nổ";
+    }
+
+    function getDataTableActivePrizeFilters(type = dataTableSelectedType) {
+      const filters = [];
+      if (dataTableHitOnly && DRAW_PRIZE_COLUMNS[type]?.length) filters.push(getDataTablePrimaryPrizeFilterLabel(type));
+      if (type === "LOTO_5_35" && dataTableShareOnly) filters.push("Chia giải");
+      return filters;
+    }
+
+    function getDataTablePrizeFilterFileSuffix(type = dataTableSelectedType) {
+      const suffixes = [];
+      if (dataTableHitOnly) {
+        if (type === "LOTO_6_45") suffixes.push("jackpot");
+        else if (type === "LOTO_6_55") suffixes.push(({ both: "jackpot_1_2", jackpot1: "jackpot_1", jackpot2: "jackpot_2" })[dataTableJackpotMode] || "jackpot_1_2");
+        else suffixes.push("no");
+      }
+      if (type === "LOTO_5_35" && dataTableShareOnly) suffixes.push("chia_giai");
+      return suffixes.length ? `_${suffixes.join("_")}` : "";
+    }
+
     function syncDataTableHitFilterControl(type = dataTableSelectedType) {
-      const supported = !!DRAW_PRIZE_COLUMNS[type]?.length;
+      const supported = ["LOTO_5_35", "LOTO_6_45", "LOTO_6_55"].includes(type) && !!DRAW_PRIZE_COLUMNS[type]?.length;
       if (!supported) dataTableHitOnly = false;
+      if (!["both", "jackpot1", "jackpot2"].includes(dataTableJackpotMode)) dataTableJackpotMode = "both";
       const sharingSupported = type === "LOTO_5_35";
       if (!sharingSupported) dataTableShareOnly = false;
+      const filterGroup = document.querySelector(".data-table-prize-filters");
+      if (filterGroup) {
+        filterGroup.hidden = !supported;
+        filterGroup.dataset.layout = sharingSupported ? "dual" : "single";
+      }
       const button = document.getElementById("dataTableHitFilterBtn");
       if (button) {
+        button.hidden = !supported;
         button.disabled = !supported;
         button.setAttribute("aria-pressed", String(dataTableHitOnly));
-        button.title = supported
-          ? (dataTableHitOnly ? "Đang lọc kỳ có vé trúng ĐB/Jackpot — có thể bật thêm Chia giải" : "Chỉ hiển thị kỳ có vé trúng ĐB/Jackpot")
-          : "Lọc Nổ áp dụng cho 5/35, Mega 6/45 và Power 6/55";
+        button.classList.toggle("is-cycle", type === "LOTO_6_55");
+        button.textContent = getDataTablePrimaryPrizeFilterLabel(type);
+        if (type === "LOTO_6_55") {
+          const next = dataTableJackpotMode === "both" ? "Jackpot 1" : dataTableJackpotMode === "jackpot1" ? "Jackpot 2" : "trạng thái ban đầu";
+          button.title = !dataTableHitOnly
+            ? `Lọc đúng kỳ ${button.textContent}. Sau khi bật, bấm tiếp để chuyển loại Jackpot.`
+            : dataTableJackpotMode === "jackpot2"
+              ? `Đang lọc đúng kỳ ${button.textContent}. Bấm để trở về trạng thái ban đầu.`
+              : `Đang lọc đúng kỳ ${button.textContent}. Bấm để chuyển sang ${next}; dùng Xóa lọc để xem tất cả.`;
+          button.setAttribute("aria-label", `${button.textContent}${dataTableHitOnly ? ", đang lọc" : ", chưa lọc"}. ${button.title}`);
+        } else {
+          button.title = supported
+            ? (dataTableHitOnly ? `Đang lọc kỳ ${button.textContent}. Bấm để tắt lọc.` : `Chỉ hiển thị kỳ ${button.textContent}.`)
+            : "Bộ lọc giải không áp dụng cho loại xổ số này.";
+          button.setAttribute("aria-label", button.title);
+        }
       }
       const shareButton = document.getElementById("dataTableShareFilterBtn");
       if (shareButton) {
+        shareButton.hidden = !sharingSupported;
         shareButton.disabled = !sharingSupported;
         shareButton.setAttribute("aria-pressed", String(dataTableShareOnly));
         shareButton.title = sharingSupported
@@ -2764,10 +2899,19 @@
     }
 
     function isDataTableDrawInPrizeFilter(type, draw) {
-      const sharing = type === "LOTO_5_35" && dataTableShareOnly;
-      if (!DRAW_PRIZE_COLUMNS[type]?.length || (!dataTableHitOnly && !sharing)) return true;
-      const marker = getDrawPrizeHit(type, draw);
-      return marker === "Chia Giải" ? sharing : dataTableHitOnly && !!marker;
+      if (!DRAW_PRIZE_COLUMNS[type]?.length) return true;
+      const marker = getDrawPrizeHit(type, draw).trim();
+      if (type === "LOTO_5_35") {
+        if (!dataTableHitOnly && !dataTableShareOnly) return true;
+        return marker === "Chia Giải" ? dataTableShareOnly : dataTableHitOnly && marker === "ĐB";
+      }
+      if (!dataTableHitOnly) return true;
+      if (type === "LOTO_6_45") return marker === "Jackpot";
+      if (type === "LOTO_6_55") {
+        const expected = ({ both: "Jackpot 1, 2", jackpot1: "Jackpot 1", jackpot2: "Jackpot 2" })[dataTableJackpotMode] || "Jackpot 1, 2";
+        return marker === expected;
+      }
+      return true;
     }
 
     function getDataTableMatchingKeys(feed, filters = getDataTableDateFilters(), type = dataTableSelectedType) {
@@ -2795,6 +2939,7 @@
           TYPES[type]?.threeDigit ? (splitDataTableDisplayLines(draw).join(" | ") || cells.numbers || "") : (cells.numbers || ""),
           ...((!!TYPES[type]?.hasSpecial && !TYPES[type]?.threeDigit) ? [cells.special || ""] : []),
           ...(DRAW_PRIZE_COLUMNS[type] || []).map(({ key }) => getDrawPrizeAmount(draw, key) ?? ""),
+          ...(DRAW_WINNER_COLUMNS[type] || []).map(({ key }) => getDrawWinnerCount(draw, key) ?? ""),
           ...(DRAW_PRIZE_COLUMNS[type]?.length ? [getDrawPrizeHit(type, draw)] : []),
         ];
       });
@@ -2829,26 +2974,34 @@
       const head = document.getElementById("dataTableHead");
       const body = document.getElementById("dataTableBody");
       if (!head || !body) return;
+      head.closest("table").dataset.type = type;
       const headers = getDataTableHeaders(type);
-      head.innerHTML = `<tr>${headers.map(label => `<th>${escapeHtml(label)}</th>`).join("")}</tr>`;
+      const specialIndex = TYPES[type]?.hasSpecial && !TYPES[type]?.threeDigit ? 5 : -1;
+      const prizeStart = 5 + (specialIndex >= 0 ? 1 : 0) - (TYPES[type]?.threeDigit ? 1 : 0);
+      const prizeEnd = prizeStart + (DRAW_PRIZE_COLUMNS[type] || []).length;
+      const countEnd = prizeEnd + (DRAW_WINNER_COLUMNS[type] || []).length;
+      head.innerHTML = `<tr>${headers.map((label, index) => index === specialIndex ? "" : `<th scope="col"${index >= prizeEnd && index < countEnd ? ' class="data-table-count" title="Số lượng vé trúng hạng này"' : ""}>${index >= prizeEnd && index < countEnd ? `${escapeHtml(label.replace(" (SL)", ""))}<small>SL</small>` : escapeHtml(label.replace("Giải Đặc biệt (VNĐ)", "Độc Đắc (₫)").replace(" (VNĐ)", " (₫)"))}</th>`).join("")}</tr>`;
 
       const rows = buildDataTableRows(type, feed, getDataTableLimitValue(), filters);
       if (!rows.length) {
-        const sharing = type === "LOTO_5_35" && dataTableShareOnly;
-        const message = (dataTableHitOnly || sharing) && DRAW_PRIZE_COLUMNS[type]?.length
-          ? (sharing ? (dataTableHitOnly ? "Không có kỳ nổ hoặc chia giải phù hợp với bộ lọc." : "Không có kỳ chia giải phù hợp với bộ lọc.") : "Không có kỳ nổ phù hợp với bộ lọc.")
+        const prizeFilters = getDataTableActivePrizeFilters(type);
+        const prizeDescription = prizeFilters.map(label => label === "Nổ" ? "nổ" : label === "Chia giải" ? "chia giải" : label);
+        const message = prizeFilters.length
+          ? `Không có kỳ ${prizeDescription.join(" hoặc ")} phù hợp với bộ lọc.`
           : "Chưa có dữ liệu để hiển thị.";
-        body.innerHTML = `<tr><td colspan="${headers.length}" class="data-table-empty">${message}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="${headers.length - (specialIndex >= 0 ? 1 : 0)}" class="data-table-empty">${message}</td></tr>`;
         return;
       }
 
       body.innerHTML = rows.map(rowCells => {
-        const prizeCount = (DRAW_PRIZE_COLUMNS[type] || []).length;
-        const prizeEnd = headers.length - (prizeCount ? 1 : 0);
-        const prizeStart = prizeEnd - prizeCount;
-        return `<tr>${rowCells.map((value, index) => index >= prizeStart && index < prizeEnd
-          ? `<td class="data-table-prize">${escapeHtml(value === "" ? "Chưa có dữ liệu" : Number(value).toLocaleString("vi-VN"))}</td>`
-          : `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+        return `<tr>${rowCells.map((value, index) => {
+          if (index === specialIndex) return "";
+          if (index === 4 && specialIndex >= 0) return `<td class="data-table-numbers"><span>${escapeHtml(value)}</span><i aria-hidden="true">|</i><b class="data-table-special">${escapeHtml(rowCells[specialIndex])}</b></td>`;
+          if (index === 4 || (TYPES[type]?.threeDigit && index === 3)) return `<td class="data-table-numbers">${escapeHtml(value)}</td>`;
+          if (index >= prizeStart && index < prizeEnd) return `<td class="data-table-prize" title="${value === "" ? "Chưa công bố giá trị giải" : `${Number(value).toLocaleString("vi-VN")} ₫`}">${escapeHtml(value === "" ? "—" : formatCompactBalance(value))}</td>`;
+          if (index >= prizeEnd && index < countEnd) return `<td class="data-table-count${value === "" ? " is-unknown" : value > 0 ? " has-winners" : ""}" title="${value === "" ? "Chưa có thống kê" : `${Number(value).toLocaleString("vi-VN")} vé trúng`}">${value === "" ? "—" : Number(value).toLocaleString("vi-VN")}</td>`;
+          return `<td>${escapeHtml(value)}</td>`;
+        }).join("")}</tr>`;
       }).join("");
     }
 
@@ -2877,7 +3030,7 @@
         const matching = getDataTableMatchingKeys(feed, filters, type).length;
         const shown = buildDataTableRows(type, feed, dataTableSelectedLimit, filters).length;
         const source = feed.canonicalFile || feed.allFile || "all_day.csv";
-        const prizeFilter = [dataTableHitOnly ? "Nổ" : "", dataTableShareOnly ? "Chia giải" : ""].filter(Boolean).join(" hoặc ");
+        const prizeFilter = getDataTableActivePrizeFilters(type).join(" hoặc ");
         const filterSummary = [formatDataTableDateFilterSummary(filters), prizeFilter].filter(Boolean).join(", ");
         if (filterSummary) {
           const tone = matching > 0 ? "ok" : "warn";
@@ -2911,7 +3064,7 @@
       const blob = buildXlsxWorkbookBlob(headers, rows, `Bang Du Lieu ${TYPES[type]?.label || type}`);
       const safeType = String(type || "DATA").toLowerCase();
       const safeLimit = getDataTableLimitValue() === "all" ? "tat_ca" : getDataTableLimitValue();
-      const safeFilter = getDataTableFilterFileSuffix(filters) + (dataTableHitOnly ? "_no" : "") + (dataTableShareOnly ? "_chia_giai" : "");
+      const safeFilter = getDataTableFilterFileSuffix(filters) + getDataTablePrizeFilterFileSuffix(type);
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `bang_du_lieu_${safeType}_${safeLimit}${safeFilter}.xlsx`;
@@ -2944,7 +3097,7 @@
       return name;
     }
 
-    function buildXlsxSheetXml(headers, rows) {
+    function buildXlsxSheetXml(headers, rows, columnWidths = null) {
       const allRows = [headers, ...rows];
       const rowXml = allRows.map((row, rowIndex) => {
         const rowNumber = rowIndex + 1;
@@ -2966,16 +3119,15 @@
   <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
-    <col min="1" max="4" width="14" customWidth="1"/>
-    <col min="5" max="5" width="72" customWidth="1"/>
-    <col min="6" max="6" width="24" customWidth="1"/>
-    ${headers.length > 6 ? `<col min="7" max="${headers.length}" width="24" customWidth="1"/>` : ""}
+    ${columnWidths ? headers.map((_, index) => `<col min="${index + 1}" max="${index + 1}" width="${Number(columnWidths[index]) || 24}" customWidth="1"/>`).join("") : `<col min="1" max="4" width="14" customWidth="1"/><col min="5" max="5" width="72" customWidth="1"/><col min="6" max="6" width="24" customWidth="1"/>${headers.length > 6 ? `<col min="7" max="${headers.length}" width="24" customWidth="1"/>` : ""}`}
   </cols>
   <sheetData>${rowXml}</sheetData>
+  <autoFilter ref="A1:${lastCol}${lastRow}"/>
 </worksheet>`;
     }
 
-    function buildXlsxWorkbookBlob(headers, rows, title = "Bang Du Lieu") {
+    function buildXlsxWorkbookBlob(headers, rows, title = "Bang Du Lieu", extraSheets = [], firstSheetName = "Bang Du Lieu", firstColumnWidths = null) {
+      const sheets = [{ name: firstSheetName, headers, rows, columnWidths: firstColumnWidths }, ...extraSheets];
       const now = getSyncedIsoString();
       const files = {
         "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -2986,7 +3138,7 @@
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  ${sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}
 </Types>`,
         "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -3007,12 +3159,12 @@
 </cp:coreProperties>`,
         "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="Bang Du Lieu" sheetId="1" r:id="rId1"/></sheets>
+  <sheets>${sheets.map((sheet, index) => `<sheet name="${escapeXml(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets>
 </workbook>`,
         "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  ${sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("")}
+  <Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`,
         "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -3022,8 +3174,8 @@
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
   <cellXfs count="2"><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
 </styleSheet>`,
-        "xl/worksheets/sheet1.xml": buildXlsxSheetXml(headers, rows),
       };
+      sheets.forEach((sheet, index) => { files[`xl/worksheets/sheet${index + 1}.xml`] = buildXlsxSheetXml(sheet.headers, sheet.rows, sheet.columnWidths); });
       return buildZipBlob(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
@@ -4456,7 +4608,8 @@
           });
         }
         if (TYPES[typeKey]?.hasSpecial && String(part || "").includes("|")) afterSpecialDivider = true;
-        return `<span class="live-card-text-segment">${escapeHtml(part)}</span>`;
+        const text = String(part || "").trim();
+        return text ? `<span class="live-card-text-segment">${escapeHtml(text)}</span>` : "";
       }).join("");
       return `<div class="live-card-line ${index === 0 ? "primary" : ""}">${html}</div>`;
     }
@@ -4518,6 +4671,7 @@
       const nowValue = getSyncedNowDate();
       if (!force && host.dataset.liveResultsSignature === signature && host.querySelector("[data-live-countdown-type]")) {
         updateLiveResultsCountdownText(nowValue);
+        loadLivePrizeComparisons();
         return;
       }
       host.dataset.liveResultsSignature = signature;
@@ -4539,7 +4693,7 @@
             <span class="live-card-badge-action">${isRefreshing ? "Đang cập nhật" : "Cập nhật"}</span>
           </button>
         `;
-        const cardClass = `live-card${TYPES[meta.key]?.threeDigit ? " is-three-digit" : ""}`;
+        const cardClass = `live-card${TYPES[meta.key]?.threeDigit ? " is-three-digit" : ""}${DRAW_PRIZE_COLUMNS[meta.key]?.length ? " has-prizes" : ""}`;
         const item = liveResultsState?.[meta.key];
         if (!item) {
           const pendingMetaParts = buildUpcomingLiveMetaParts(meta.key, null, nowValue);
@@ -4560,15 +4714,8 @@
         const metaParts = buildUpcomingLiveMetaParts(meta.key, item, nowValue);
         const lines = renderLiveCardMainLines(meta.key, item);
         const prizeLines = (DRAW_PRIZE_COLUMNS[meta.key] || []).map(({ key, label }) =>
-          `<div class="live-card-amount"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatDrawPrizeAmount(item, key))}</strong></div>`
+          `<div class="live-card-amount"><span class="live-card-prize-name">${escapeHtml(label)}</span><span class="live-card-prize-delta" data-live-prize-type="${meta.key}" data-live-prize-key="${key}">${renderLivePrizeChange(meta.key, item, key)}</span><strong>${escapeHtml(formatDrawPrizeAmount(item, key))}</strong></div>`
         ).join("");
-        let sourceHost = "";
-        try {
-          sourceHost = item.sourceUrl ? new URL(item.sourceUrl).hostname : "";
-        } catch {
-          sourceHost = "";
-        }
-        const footParts = [item.sourceDate ? `Nguồn ngày ${item.sourceDate}` : "", sourceHost].filter(Boolean);
         return `
           <article class="${cardClass}" data-live-type="${meta.key}">
             <div class="live-card-top">
@@ -4581,7 +4728,6 @@
             </div>
             <div class="live-card-main">${lines}</div>
             ${prizeLines ? `<div class="live-card-amounts">${prizeLines}</div>` : ""}
-            <div class="live-card-foot">${escapeHtml(footParts.join(" • "))}</div>
           </article>
         `;
       });
@@ -4590,10 +4736,12 @@
         const currentCard = host.querySelector(`[data-live-type="${scopedType}"]`);
         if (scopedIndex >= 0 && currentCard) {
           currentCard.outerHTML = cardHtml[scopedIndex];
+          loadLivePrizeComparisons(force);
           return;
         }
       }
       host.innerHTML = cardHtml.join("");
+      loadLivePrizeComparisons(force);
     }
 
     function setLiveStatus(message, cls = "") {
@@ -4741,6 +4889,7 @@
         [key]: nextItem,
       };
       const imported = applyLiveResultsToStore([nextItem]);
+      if (key === "LOTO_5_35") void loadLotto535SharingEstimate(true);
       nextItem.imported = imported.has(key) || isLiveResultStored(nextItem);
       if (!samePayload || imported.has(key)) {
         liveResultsFetchedAt = getSyncedIsoString();
@@ -4789,6 +4938,7 @@
       });
       saveLiveResultsCache();
       startLiveDrawCountdown();
+      if (resultMap.LOTO_5_35) void loadLotto535SharingEstimate();
       if (repairCanonical) {
         applyManualLiveUpdateBadgesFromApiResponse(res, { render: false });
       } else if (scopedType) {
@@ -5454,7 +5604,6 @@
         <div class="prize-note prize-legend">
           <span class="prize-legend-title">Ghi chú</span>
           ${legendItems}
-          <span class="prize-legend-rule">Các số không theo thứ tự.</span>
         </div>
       `;
     }
@@ -5478,7 +5627,7 @@
         <section class="prize-section">
           <div class="prize-section-head">
             <h3 class="prize-section-title">${escapeHtml(title)}</h3>
-            <div class="prize-section-subtitle">${subtitle}</div>
+            ${subtitle ? `<div class="prize-section-subtitle">${subtitle}</div>` : ""}
           </div>
           ${content}
         </section>
@@ -5800,6 +5949,104 @@
       );
     }
     // ---abc--- Prize Panel / Brochure Rendering ---
+    const lotto535SharingState = { row: null, loading: false, error: '', checkedAt: 0, request: null, generation: 0 };
+    const LOTTO535_SHARE_TIERS = [
+      { key: 'first', base: 10000000, units: 2 }, { key: 'second', base: 5000000, units: 1 },
+      { key: 'third', base: 500000, units: 1 }, { key: 'fourth', base: 100000, units: 1 },
+      { key: 'fifth', base: 30000, units: 1 },
+    ];
+
+    function getLotto535SharingEstimate(draw) {
+      const pool = getDrawPrizeAmount(draw, 'specialPrize');
+      const result = { pool, rows: {}, status: 'waiting', message: 'Chờ dữ liệu kỳ quay mới nhất.' };
+      if (!draw) return result;
+      if (pool === null) return { ...result, message: 'Chưa công bố quỹ Độc Đắc của kỳ này.' };
+      if (pool <= 12000000000) return { ...result, status: 'below', message: 'Quỹ chưa vượt 12 tỷ; chưa áp dụng ước lượng chia giải.' };
+      const jackpotWinners = getDrawWinnerCount(draw, 'specialPrize');
+      if (jackpotWinners === null) return { ...result, message: 'Chờ số vé trúng Độc Đắc của kỳ này.' };
+      if (jackpotWinners > 0) return { ...result, status: 'jackpot', message: 'Có vé trúng Độc Đắc; không chia cho các giải thấp hơn.' };
+      const counts = LOTTO535_SHARE_TIERS.map(tier => getDrawWinnerCount(draw, tier.key));
+      if (counts.some(count => count === null)) return { ...result, message: 'Chờ đủ số vé trúng từ Giải Nhất đến Giải Năm.' };
+      const occupied = counts.filter(count => count > 0).length;
+      if (!occupied) return { ...result, status: 'empty', message: 'Chưa có hạng giải Nhất–Năm nào có vé trúng để ước lượng.' };
+      const emptyUnits = LOTTO535_SHARE_TIERS.reduce((sum, tier, index) => sum + (counts[index] === 0 ? tier.units : 0), 0);
+      LOTTO535_SHARE_TIERS.forEach((tier, index) => {
+        const count = counts[index];
+        if (count === 0) { result.rows[tier.key] = { count: 0 }; return; }
+        // Empty-tier shares are divided equally among occupied TIERS, not tickets.
+        // Use integers throughout; only the displayed per-ticket estimate is rounded.
+        const numerator = BigInt(pool) * BigInt(tier.units * occupied + emptyUnits);
+        const denominator = BigInt(6 * occupied) * BigInt(count);
+        const addition = (numerator + denominator / 2n) / denominator;
+        result.rows[tier.key] = { count, addition, total: BigInt(tier.base) + addition, redistributed: emptyUnits > 0 };
+      });
+      return { ...result, status: 'estimate', message: 'Ước lượng nếu chia theo số vé trúng của kỳ này · trước thuế, làm tròn đến đồng.' };
+    }
+
+    function renderLotto535SharingCell(estimate, key) {
+      const row = estimate.rows[key];
+      if (!row) return `<span class="prize-share-none" title="${escapeHtml(estimate.message)}">${estimate.status === 'waiting' ? 'Chờ dữ liệu' : '—'}</span>`;
+      if (row.count === 0) return '<span class="prize-share-none">0 vé trúng</span>';
+      const tier = LOTTO535_SHARE_TIERS.find(item => item.key === key);
+      const money = value => value.toLocaleString('vi-VN');
+      const title = `Thưởng cơ bản ${money(BigInt(tier.base))} ₫ + phần quỹ chia cho ${money(BigInt(row.count))} vé${row.redistributed ? '; đã phân bổ phần của hạng không có vé trúng' : ''}. Chỉ là ước lượng nếu chia, không phải tiền trả thưởng đã xác nhận.`;
+      return `<span class="prize-share-formula" title="${escapeHtml(title)}"><span class="prize-share-ratio" aria-label="Tỷ lệ gốc ${tier.units}/6${row.redistributed ? ', có phân bổ lại' : ''}">${tier.units}/6${row.redistributed ? '+' : ''}</span><span class="prize-share-estimate"><strong>≈ ${money(row.total)} ₫/vé</strong><small>${money(BigInt(tier.base))} + ${money(row.addition)} · ${money(BigInt(row.count))} vé</small></span></span>`;
+    }
+
+    function refreshLotto535SharingCells(out = document.getElementById('prizeOut')) {
+      if (!out?.querySelector('[data-prize-share-context]')) return;
+      const state = lotto535SharingState;
+      const estimate = getLotto535SharingEstimate(state.loading || state.error ? null : state.row);
+      if (state.loading) estimate.message = 'Đang lấy quỹ và số vé trúng mới nhất…';
+      if (state.error) estimate.message = 'Không tải được dữ liệu; bấm Xem Cơ Cấu Thưởng để thử lại.';
+      const draw = state.row;
+      const label = draw && !state.loading && !state.error ? `Kỳ ${draw.ky} · ${draw.date} ${draw.time || ''} · Quỹ ${estimate.pool === null ? 'chưa công bố' : `${estimate.pool.toLocaleString('vi-VN')} ₫`}\n` : '';
+      out.querySelector('[data-prize-share-context]').textContent = label + estimate.message;
+      out.querySelectorAll('[data-prize-share-tier]').forEach(cell => { cell.innerHTML = renderLotto535SharingCell(estimate, cell.dataset.prizeShareTier); });
+    }
+
+    async function loadLotto535SharingEstimate(force = false) {
+      const out = document.getElementById('prizeOut');
+      if (IS_LOCAL_MODE || !currentUser || document.getElementById('prizeType')?.value !== 'LOTO_5_35' || !out?.querySelector('[data-prize-share-context]') || !out.getClientRects().length) return;
+      const state = lotto535SharingState;
+      if (state.request) return state.request;
+      if (!force && Date.now() - state.checkedAt < 60000) return;
+      const user = currentUser, generation = state.generation;
+      state.loading = true; state.error = '';
+      refreshLotto535SharingCells(out);
+      const request = (async () => {
+        try {
+          // Read only: do not repair canonical, replace full history caches or use a
+          // pool from a live card together with winner counts from another draw.
+          const response = await api('/api/live-history?type=LOTO_5_35&count=1');
+          if (generation !== state.generation || currentUser !== user) return;
+          if (response.type !== 'LOTO_5_35' || !Array.isArray(response.history)) throw new Error('Mismatched canonical history');
+          const rows = response.history;
+          if (rows.length > 1) throw new Error('Unexpected history size');
+          const row = rows[0] || null;
+          if (row && (!/^#?\d+$/.test(String(row.ky)) || !Array.isArray(row.main) || row.main.length !== 5 || new Set(row.main).size !== 5 || row.main.some(n => !Number.isInteger(n) || n < 1 || n > 35) || !Number.isInteger(row.special) || row.special < 1 || row.special > 12)) throw new Error('Invalid canonical draw');
+          state.row = row;
+        } catch (error) {
+          if (generation !== state.generation || currentUser !== user) return;
+          state.row = null; state.error = String(error.message || error);
+        } finally {
+          if (generation === state.generation && currentUser === user) {
+            state.loading = false; state.checkedAt = Date.now(); state.request = null;
+            refreshLotto535SharingCells();
+          }
+        }
+      })();
+      state.request = request;
+      return request;
+    }
+
+    window.addEventListener('dvlf:auth-changed', () => {
+      const state = lotto535SharingState;
+      state.generation += 1; state.row = null; state.request = null;
+      state.loading = false; state.error = ''; state.checkedAt = 0;
+      refreshLotto535SharingCells();
+    });
+
     function renderPrizeTable(type) {
       if (type === "KENO") {
         const cols = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -5914,31 +6161,41 @@
         `;
       }
       if (type === "LOTO_5_35") {
+        const sharingHelp = `
+          <div id="prizeSharingHelp" class="prize-share-help-popover" popover="auto" role="dialog" aria-label="Điều kiện Chia Giải">
+            <p><b>Điều kiện Chia Giải:</b> Độc Đắc vượt 12 tỷ và không có vé trúng; chia tại kỳ 21h ngày kế tiếp nếu vẫn không có vé trúng Độc Đắc.</p>
+            <p>Toàn bộ Độc Đắc chia thành 6 phần theo tỷ lệ trong bảng. Phần của mỗi hạng được chia đều cho các vé trúng hạng đó; Giải Khuyến Khích không tham gia.</p>
+            <p>Ước lượng dùng quỹ Độc Đắc và số vé trúng cùng kỳ mới nhất. Hạng không có vé trúng được chia lại phần quỹ cho các hạng có vé trúng; Giải Khuyến Khích không tham gia.</p><p>Số tiền chỉ là ước lượng nếu chia, trước thuế, làm tròn đến đồng; vượt 12 tỷ chưa có nghĩa là kỳ đó đã Chia Giải. Thiếu số vé trúng thì chờ dữ liệu.</p>
+            <a href="https://info.vietlottsms.vn/lotto535/" target="_blank" rel="noopener noreferrer">Quy định Vietlott</a>
+          </div>
+        `;
         const regularSection = buildPrizeSection(
           "Vé Thường",
-          "Cơ cấu thưởng chuẩn của Lotto 5/35",
+          "",
           `
-            <div class="prize-table-wrap">
+            <div class="prize-table-wrap" tabindex="0" role="region" aria-label="Cơ cấu thưởng và chia giải Lotto 5/35">
               <table class="prize-table prize-table-lotto-535">
                 <colgroup>
                   <col class="prize-col-name">
                   <col class="prize-col-match">
                   <col class="prize-col-value">
+                  <col class="prize-col-share">
                 </colgroup>
                 <thead>
                   <tr>
                     <th>Giải</th>
                     <th>Trúng khớp</th>
-                    <th>Giá trị giải thưởng (VNĐ)</th>
+                    <th>Thưởng cơ bản (₫)</th>
+                    <th><span class="prize-share-heading"><span>Ước lượng chia giải khi vượt 12 tỷ</span> <button type="button" class="prize-share-help-button" popovertarget="prizeSharingHelp" aria-label="Xem điều kiện Chia Giải" aria-haspopup="dialog" aria-expanded="false">?</button></span><small class="prize-share-context" data-prize-share-context aria-live="polite">Chờ dữ liệu kỳ quay mới nhất.</small>${sharingHelp}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td>Giải Độc Đắc</td><td>${renderLotto535Match(5, true)}</td><td>(Tối thiểu 6 tỷ và tích lũy)</td></tr>
-                  <tr><td>Giải Nhất</td><td>${renderLotto535Match(5)}</td><td>10.000.000 *</td></tr>
-                  <tr><td>Giải Nhì</td><td>${renderLotto535Match(4, true)}</td><td>5.000.000 *</td></tr>
-                  <tr><td>Giải Ba</td><td>${renderLotto535Match(4)}</td><td>500.000 *</td></tr>
-                  <tr><td>Giải Tư</td><td>${renderLotto535Match(3, true)}</td><td>100.000 *</td></tr>
-                  <tr><td>Giải Năm</td><td>${renderLotto535Match(3)}</td><td>30.000 *</td></tr>
+                  <tr><td>Giải Độc Đắc</td><td>${renderLotto535Match(5, true)}</td><td>Từ 6 tỷ + tích lũy ≤ 12 tỷ</td><td class="prize-share-cell"><span class="prize-share-none" aria-label="Không áp dụng">—</span></td></tr>
+                  <tr><td>Giải Nhất</td><td>${renderLotto535Match(5)}</td><td>10.000.000 *</td><td class="prize-share-cell" data-prize-share-tier="first">${renderLotto535SharingCell(getLotto535SharingEstimate(lotto535SharingState.row), "first")}</td></tr>
+                  <tr><td>Giải Nhì</td><td>${renderLotto535Match(4, true)}</td><td>5.000.000 *</td><td class="prize-share-cell" data-prize-share-tier="second">${renderLotto535SharingCell(getLotto535SharingEstimate(lotto535SharingState.row), "second")}</td></tr>
+                  <tr><td>Giải Ba</td><td>${renderLotto535Match(4)}</td><td>500.000 *</td><td class="prize-share-cell" data-prize-share-tier="third">${renderLotto535SharingCell(getLotto535SharingEstimate(lotto535SharingState.row), "third")}</td></tr>
+                  <tr><td>Giải Tư</td><td>${renderLotto535Match(3, true)}</td><td>100.000 *</td><td class="prize-share-cell" data-prize-share-tier="fourth">${renderLotto535SharingCell(getLotto535SharingEstimate(lotto535SharingState.row), "fourth")}</td></tr>
+                  <tr><td>Giải Năm</td><td>${renderLotto535Match(3)}</td><td>30.000 *</td><td class="prize-share-cell" data-prize-share-tier="fifth">${renderLotto535SharingCell(getLotto535SharingEstimate(lotto535SharingState.row), "fifth")}</td></tr>
                   <tr>
                     <td>Giải Khuyến Khích</td>
                     <td class="prize-lines">
@@ -5946,7 +6203,8 @@
                       <div>${renderLotto535Match(1, true)}</div>
                       <div>${renderLotto535Match(0, true)}</div>
                     </td>
-                    <td>10.000 *</td>
+                    <td>10.000</td>
+                    <td class="prize-share-cell"><span class="prize-share-none" aria-label="Không được chia giải">—</span></td>
                   </tr>
                 </tbody>
               </table>
@@ -5957,7 +6215,7 @@
             ])}
           `
         );
-        return `<div class="prize-sections">${regularSection}${renderBaoPrizeTable(type)}</div>`;
+        return `<div class="prize-sections prize-sections-lotto-535">${regularSection}${renderBaoPrizeTable(type)}</div>`;
       }
       if (type === "LOTO_6_45") {
         const regularSection = buildPrizeSection(
@@ -6061,6 +6319,49 @@
       if (currentPrizePartIndex >= sections.length) currentPrizePartIndex = 0;
       setPrizePart(out, currentPrizePartIndex);
     }
+    function bindPrizeSharingHelp(out) {
+      bindPrizeSharingHelp.cleanup?.();
+      const trigger = out?.querySelector(".prize-share-help-button");
+      const panel = out?.querySelector("#prizeSharingHelp");
+      if (!trigger || !panel) return;
+      let closeTimer;
+      const position = () => {
+        if (!panel.matches(":popover-open")) return;
+        const anchor = trigger.getBoundingClientRect();
+        const box = panel.getBoundingClientRect();
+        const left = Math.max(12, Math.min(anchor.right - box.width, innerWidth - box.width - 12));
+        const below = anchor.bottom + 8;
+        const top = Math.max(12, Math.min(below + box.height <= innerHeight - 12 ? below : anchor.top - box.height - 8, innerHeight - box.height - 12));
+        panel.style.left = `${left}px`;
+        panel.style.top = `${top}px`;
+      };
+      const keepOpen = () => clearTimeout(closeTimer);
+      const show = () => {
+        keepOpen();
+        if (!panel.matches(":popover-open")) panel.showPopover();
+        position();
+      };
+      const closeLater = () => {
+        keepOpen();
+        closeTimer = setTimeout(() => {
+          if (panel.isConnected && panel.matches(":popover-open") && !trigger.matches(":hover, :focus-visible") && !panel.matches(":hover, :focus-within")) panel.hidePopover();
+        }, 180);
+      };
+      trigger.addEventListener("pointerenter", event => { if (event.pointerType !== "touch") show(); });
+      trigger.addEventListener("pointerleave", closeLater);
+      trigger.addEventListener("focus", () => { if (trigger.matches(":focus-visible")) show(); });
+      trigger.addEventListener("blur", closeLater);
+      panel.addEventListener("mouseenter", keepOpen);
+      panel.addEventListener("mouseleave", closeLater);
+      panel.addEventListener("focusin", keepOpen);
+      panel.addEventListener("focusout", closeLater);
+      panel.addEventListener("toggle", () => {
+        trigger.setAttribute("aria-expanded", String(panel.matches(":popover-open")));
+        position();
+      });
+      window.addEventListener("resize", position);
+      bindPrizeSharingHelp.cleanup = () => { keepOpen(); window.removeEventListener("resize", position); };
+    }
     function bindPrizePartTabs() {
       const tabs = document.getElementById("prizePartTabs");
       if (!tabs || tabs.dataset.bound) return;
@@ -6077,15 +6378,17 @@
         setPrizePart(out, Number(button.dataset.prizePart || 0));
       });
     }
-    function renderPrizePanel() {
+    function renderPrizePanel({ refreshSharing = false } = {}) {
       const type = document.getElementById("prizeType").value;
       const out = document.getElementById("prizeOut");
       out.className = "result-box prize-box";
       out.innerHTML = renderPrizeTable(type);
+      bindPrizeSharingHelp(out);
       out.classList.toggle("is-section-layout", !!out.querySelector(":scope > .prize-sections"));
       applyPrizePartTabs(out);
+      if (type === "LOTO_5_35") { refreshLotto535SharingCells(out); void loadLotto535SharingEstimate(refreshSharing); }
     }
-    document.getElementById("showPrizeBtn").onclick = () => renderPrizePanel();
+    document.getElementById("showPrizeBtn").onclick = () => renderPrizePanel({ refreshSharing: true });
     document.getElementById("prizeType").onchange = () => renderPrizePanel();
     bindPrizePartTabs();
 

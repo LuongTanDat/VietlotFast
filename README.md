@@ -184,7 +184,7 @@ Một số predictor standalone có `requirements.txt` riêng trong từng thư 
 
 ## Chạy Website
 
-Mở thư mục **Lotto** trong VS Code: task tự chạy `scripts\chay_lotto_web.bat --auto` và mở web, không cần nhập terminal. Cấu hình nằm trong `.vscode/tasks.json` và `.vscode/settings.json`; VS Code cần tin cậy thư mục này (Trust). Nếu đã tắt task tự động ở VS Code, dùng **Tasks: Manage Automatic Tasks** → **Allow Automatic Tasks** rồi mở lại thư mục.
+Task **Lotto: Tự khởi động web** trong `.vscode/tasks.json` chạy `scripts\chay_lotto_web.bat --auto` khi mở thư mục Lotto, nếu VS Code cho phép automatic tasks và thư mục được tin cậy (Trust). Bản VS Code đã kiểm tra trên máy đặt `task.allowAutomaticTasks` ở phạm vi ứng dụng (User Settings), nên đặt trong `.vscode/settings.json` không có hiệu lực. Bật trong User Settings ảnh hưởng mọi workspace đã tin cậy có task tự động; cần người dùng đồng ý trước khi thay đổi. Khi chưa bật, có thể dùng **Terminal → Run Task → Lotto: Tự khởi động web** để chạy mà không nhập lệnh.
 
 Chế độ tự chạy giữ server Lotto đang hoạt động; nếu chưa chạy thì biên dịch và khởi động server nền ẩn. Log tại `runtime/web_auto_stdout.log` và `runtime/web_auto_stderr.log`. Đóng VS Code không tự dừng server. Lệnh thủ công dưới đây vẫn khởi động lại server Lotto như trước khi cần nạp backend mới.
 

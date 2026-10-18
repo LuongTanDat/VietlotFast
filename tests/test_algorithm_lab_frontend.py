@@ -105,7 +105,7 @@ class AlgorithmLabFrontendTests(unittest.TestCase):
         section = html[html.index('      <section id="predictRootEffectiveness"'):html.index('      <section id="predictRootManual"')]
         page = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
                 "<link rel=stylesheet href=/vietlott-web.css><link rel=stylesheet href=/vietlott-web-extra.css>"
-                + section + "<script src=/vietlott-web-effectiveness.js></script>")
+                + section + "<script src=/vietlott-web-numeric.js></script><script src=/vietlott-web-effectiveness.js></script>")
         fixture = self
 
         class Handler(BaseHTTPRequestHandler):

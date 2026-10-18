@@ -56,7 +56,7 @@ def verify_result(key, row, result):
         raise ValueError(f"Invalid source marker: {key} #{result['ky']}")
     fields = lr.PRIZE_FIELDS_BY_TYPE[key]
     counts = result.get("prizeWinnerCounts", {})
-    if set(counts) != {lr.PRIZE_RESULT_KEYS[field] for field in fields} or any(type(v) is not int or v < 0 for v in counts.values()):
+    if not {lr.PRIZE_RESULT_KEYS[field] for field in fields}.issubset(counts) or any(type(v) is not int or v < 0 for v in counts.values()):
         raise ValueError(f"Missing or invalid source winner counts: {key} #{result['ky']}")
     hits = [label for field, label in zip(fields, lr.PRIZE_HIT_LABELS[key]) if counts[lr.PRIZE_RESULT_KEYS[field]] > 0]
     expected = "Jackpot 1, 2" if len(hits) == 2 else (hits[0] if hits else "")

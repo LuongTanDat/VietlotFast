@@ -13,7 +13,7 @@ from typing import Any, Callable, Iterable
 from ai.configs import data_paths as dp
 from ai.evaluation.metrics import brier_score, lift, log_loss
 from ai.evaluation.probability import scores_to_probabilities
-from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_tickets, prize_counts
+from ai.prizes import RULE_VERSION as PRIZE_RULE_VERSION, PRIZE_SCOPE, classify_ticket, classify_tickets, prize_counts, prize_statistics
 
 DEFAULT_DB_PATH = dp.RUNTIME_DIR / "lotto_web.db"
 SCORING_VERSION = "ledger_scoring_v2"
@@ -30,6 +30,15 @@ def canonical_json(payload: Any) -> str:
 
 def payload_checksum(payload: Any) -> str:
     return hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def canonical_payload_json(metadata: dict, tickets_json: str) -> str:
+    """Canonical payload bytes with an already serialized, validated portfolio."""
+    if any(not isinstance(key, str) for key in metadata):
+        raise ValueError("Prepared prediction metadata requires string keys")
+    return "{" + ",".join(canonical_json(key) + ":" +
+                           (tickets_json if key == "tickets" else canonical_json(metadata[key]))
+                           for key in sorted(set(metadata) | {"tickets"})) + "}"
 
 
 def connect(db_path: str | Path | None = None) -> sqlite3.Connection:
@@ -205,6 +214,8 @@ def lock_prediction(
     random_seed: int = 20260403,
     status: str = "locked",
     connection: sqlite3.Connection | None = None,
+    serialized_tickets: str | None = None,
+    expected_checksum: str | None = None,
 ) -> dict[str, Any]:
     game_type = str(payload.get("type") or payload.get("game_type") or "").strip().upper()
     if not game_type:
@@ -234,7 +245,14 @@ def lock_prediction(
         or payload.get("calibrated_probability")
         or {}
     )
-    checksum = payload_checksum(payload)
+    tickets_json = serialized_tickets if serialized_tickets is not None else canonical_json(tickets)
+    if serialized_tickets is not None or (len(tickets) > 10000 and isinstance(payload.get("tickets"), list)):
+        payload_json = canonical_payload_json(payload, tickets_json)
+    else:
+        payload_json = canonical_json(payload)
+    checksum = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    if expected_checksum is not None and checksum != expected_checksum:
+        raise ValueError("Prepared prediction checksum does not match")
     prediction_id = str(uuid.uuid4())
     created_at = now_iso()
     model_id = str(model_id or payload.get("modelId") or payload.get("model_id") or "")
@@ -270,8 +288,8 @@ def lock_prediction(
                     str(payload.get("engine") or ""),
                     str(status or "locked"),
                     canonical_json(probabilities),
-                    canonical_json(tickets),
-                    canonical_json(payload),
+                    tickets_json,
+                    payload_json,
                     checksum,
                     canonical_json(payload.get("error") or payload.get("fallback_error") or {}),
                 ),
@@ -403,6 +421,7 @@ def score_prediction_payload(
     universe_size: int,
     draw_size: int,
     prediction_size: int,
+    compact: bool = False,
 ) -> dict[str, Any]:
     tickets = list(prediction_payload.get("tickets") or [])
     inferred_prediction_size = int(prediction_payload.get("pickSize") or prediction_payload.get("pick_size") or 0)
@@ -416,7 +435,11 @@ def score_prediction_payload(
     best_hit = 0
     special_hit = 0
     per_ticket = []
-    prize_results = classify_tickets(str(prediction_payload.get("type") or prediction_payload.get("game_type") or ""), tickets, actual_draw)
+    game = str(prediction_payload.get("type") or prediction_payload.get("game_type") or "")
+    prize_results = [] if compact else classify_tickets(game, tickets, actual_draw)
+    histogram, counts = {}, {}
+    statistics = prize_statistics([])
+    total_hits, total_expected = 0, 0.0
     for ticket_index, ticket in enumerate(tickets):
         main = _ticket_main(ticket)
         hit = len(set(main) & actual_set)
@@ -427,6 +450,19 @@ def score_prediction_payload(
             special_hit = 1
         size = len(set(main))
         expected = size * draw_size / float(universe_size)
+        total_hits += hit
+        total_expected += expected
+        prize = classify_ticket(game, ticket, actual_draw) if compact else prize_results[ticket_index]
+        if compact:
+            histogram[str(hit)] = histogram.get(str(hit), 0) + 1
+            counts[prize["prizeCode"]] = counts.get(prize["prizeCode"], 0) + 1
+            statistics["ticketCount"] += 1
+            statistics["classifiedTicketCount"] += prize["status"] in ("won", "lost")
+            statistics["winningTicketCount"] += prize["status"] == "won"
+            statistics["unknownTicketCount"] += prize["status"] == "unknown"
+            statistics["pendingTicketCount"] += prize["status"] == "pending"
+            statistics["invalidTicketCount"] += prize["status"] in ("invalid", "unsupported")
+            continue
         per_ticket.append({"hit_count": hit, "special_hit": int(matched_special),
                            "prediction_size": size, "expected_random_hits": expected,
                            "lift": hit / expected - 1.0 if expected else 0.0,
@@ -448,17 +484,20 @@ def score_prediction_payload(
         probabilities = scores_to_probabilities(ranked, draw_size, 1, universe_size)
     metric_brier = brier_score([probabilities], [actual_main], universe_size)
     metric_log_loss = log_loss([probabilities], [actual_main], universe_size)
-    mean_hits = sum(item["hit_count"] for item in per_ticket) / max(1, len(per_ticket))
-    expected_mean = sum(item["expected_random_hits"] for item in per_ticket) / max(1, len(per_ticket))
-    portfolio_baseline = _portfolio_random_best(tuple(tuple(sorted(set(_ticket_main(ticket)))) for ticket in tickets), universe_size, draw_size)
-    return {
+    mean_hits = total_hits / max(1, len(tickets))
+    expected_mean = total_expected / max(1, len(tickets))
+    # Large portfolios are scored once; do not retain millions of tuple keys in
+    # the process-wide LRU while scoring the other methods/levels.
+    baseline = _portfolio_random_best.__wrapped__ if len(tickets) > 10000 else _portfolio_random_best
+    portfolio_baseline = baseline(tuple(tuple(sorted(set(_ticket_main(ticket)))) for ticket in tickets), universe_size, draw_size)
+    result = {
         "hit_count": best_hit,
         "special_hit": special_hit,
         "brier_score": metric_brier,
         "log_loss": metric_log_loss,
         "lift": mean_hits / expected_mean - 1.0 if expected_mean else 0.0,
         "lift_basis": "mean_hits_per_ticket_same_budget",
-        "ticket_count": len(per_ticket),
+        "ticket_count": len(tickets),
         "per_ticket": per_ticket,
         "mean_hits_per_ticket": mean_hits,
         "expected_random_hits_per_ticket": expected_mean,
@@ -470,10 +509,22 @@ def score_prediction_payload(
         "actual_main": actual_main,
         "actual_special": actual_special,
         "prize_results": prize_results,
-        "prize_counts": prize_counts(prize_results),
+        "prize_counts": dict(sorted(counts.items())) if compact else prize_counts(prize_results),
         "prize_rule_version": PRIZE_RULE_VERSION,
         "prize_scope": PRIZE_SCOPE,
     }
+    if compact:
+        classified = statistics["classifiedTicketCount"]
+        statistics["winningTicketRate"] = statistics["winningTicketCount"] / classified if classified else None
+        histogram = {str(h): histogram.get(str(h), 0) for h in range(prediction_size + 1)}
+        result.pop("per_ticket")
+        result.pop("prize_results")
+        result.update({"report_summary": {
+            "rate3": sum(count for hit, count in histogram.items() if int(hit) >= 3) / max(1, len(tickets)),
+            "rate4": sum(count for hit, count in histogram.items() if int(hit) >= 4) / max(1, len(tickets)),
+            "hitHistogram": histogram, "prizeCounts": result["prize_counts"], "prizeStatistics": statistics},
+            "per_ticket_storage": "derive_from_immutable_tickets_and_recorded_actual"})
+    return result
 
 
 def score_pending_predictions(

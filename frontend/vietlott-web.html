@@ -6,11 +6,13 @@
   <title>DVLF</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <!-- ---abc--- Shared Styles --- -->
-  <link rel="stylesheet" href="/vietlott-web.css" />
-  <link rel="stylesheet" href="/vietlott-web-extra.css?v=notifications-20261011" />
+  <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
+  <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
+  <link rel="stylesheet" href="/vietlott-web-extra.css?v=timeline-scale-button-20261017" />
+  <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
-  <link rel="preload" href="/vietlott-web-data.js" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js?v=notifications-20261011" as="script" />
+  <link rel="preload" href="/vietlott-web-data.js?v=power-filter-reset-20261018" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=power-filter-reset-20261018" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -70,60 +72,58 @@
     <div class="auth-card">
       <div class="auth-layout">
         <div class="auth-left">
-          <div>
-            <h2 title="Deep Vietlott Fast">DVLF</h2>
-            <p>Đăng nhập để giữ dữ liệu riêng theo từng tài khoản.</p>
-            <div class="auth-badges">
-              <span class="auth-badge">Lưu dữ liệu riêng</span>
-              <span class="auth-badge">Tra cứu nhanh</span>
-              <span class="auth-badge">Dự đoán kỳ tới</span>
-            </div>
+          <div class="auth-brand"><span class="auth-brand-icon" aria-hidden="true">DV</span><div><strong>DVLF</strong><small>Deep Vietlott Fast</small></div></div>
+          <div class="auth-story"><span class="auth-eyebrow">KHÔNG GIAN CỦA BẠN</span><h2>Theo dõi kỳ quay.<br>Lưu dấu lựa chọn.</h2><p>Tra cứu kết quả, lưu dự đoán và giữ dữ liệu riêng trong tài khoản của bạn.</p>
+            <div class="auth-feature"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 4 16 4 16 0V5M4 12v7c0 4 16 4 16 0v-7"/></svg><span>Dữ liệu riêng theo tài khoản</span></div>
+            <div class="auth-feature"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><span>Tra cứu kết quả nhanh chóng</span></div>
+            <div class="auth-feature"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18h17M7 15l5-5 4 3 5-7"/></svg><span>Lưu lại các kỳ dự đoán</span></div>
           </div>
-          <p>An toàn hơn khi nhiều người cùng dùng một máy.</p>
+          <div class="auth-preview" aria-hidden="true"><span>LỰA CHỌN CỦA BẠN</span><div class="auth-preview-balls"><b>05</b><b>12</b><b>18</b><b>28</b><b>34</b></div><div class="auth-preview-line"></div><small>Mỗi tài khoản, một không gian riêng.</small></div>
+          <p class="auth-brand-note">Đăng nhập một lần. Tiếp tục hành trình của bạn.</p>
         </div>
         <div class="auth-right">
-          <div class="auth-title">Tài khoản</div>
-          <p class="auth-sub">Đăng nhập hoặc tạo tài khoản mới để bắt đầu.</p>
-          <div class="auth-switch">
+          <h1 id="authHeading" class="auth-title">Chào mừng trở lại</h1>
+          <p id="authSubtitle" class="auth-sub">Đăng nhập để mở không gian của bạn.</p>
+          <div class="auth-switch" role="group" aria-label="Đăng nhập hoặc đăng ký">
             <button id="showLoginBtn">Đăng nhập</button>
             <button id="showRegisterBtn" class="inactive">Đăng ký</button>
           </div>
           <div id="loginForm">
             <div class="row">
-              <label>Tên đăng nhập</label>
-              <input id="loginUser" placeholder="Nhập tên đăng nhập" />
+              <label for="loginUser">Tên đăng nhập</label>
+              <div class="auth-input"><svg class="auth-field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><input id="loginUser" placeholder="Nhập tên đăng nhập" autocomplete="username" /></div>
             </div>
             <div class="row">
-              <label>Mật khẩu</label>
+              <label for="loginPass">Mật khẩu</label>
               <div class="password-wrap">
-                <input id="loginPass" type="password" placeholder="Nhập mật khẩu" />
-                <button type="button" id="toggleLoginPass" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+                <input id="loginPass" type="password" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+                <button type="button" id="toggleLoginPass" class="pw-toggle" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
               </div>
             </div>
             <label class="check-row">
               <input id="rememberCreds" type="checkbox" />
-              <span>Ghi nhớ tên tài khoản trên máy này</span>
+              <span>Ghi nhớ tên tài khoản</span>
             </label>
             <button id="loginBtn">Đăng nhập</button>
-            <button id="recoverAdminBtn" type="button" class="secondary" style="margin-top:8px;">Quên mật khẩu admin (khôi phục cục bộ)</button>
+            <button id="recoverAdminBtn" type="button" class="auth-recover">Khôi phục tài khoản admin</button>
           </div>
           <div id="registerForm" style="display:none;">
             <div class="row">
-              <label>Tên đăng nhập</label>
-              <input id="regUser" placeholder="Tạo tên đăng nhập" />
+              <label for="regUser">Tên đăng nhập</label>
+              <input id="regUser" placeholder="Tạo tên đăng nhập" autocomplete="username" />
             </div>
             <div class="row">
-              <label>Mật khẩu</label>
+              <label for="regPass">Mật khẩu</label>
               <div class="password-wrap">
-                <input id="regPass" type="password" placeholder="Tạo mật khẩu" />
-                <button type="button" id="toggleRegPass" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+                <input id="regPass" type="password" placeholder="Tạo mật khẩu" autocomplete="new-password" />
+                <button type="button" id="toggleRegPass" class="pw-toggle" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
               </div>
             </div>
             <div class="row">
-              <label>Nhập lại mật khẩu</label>
+              <label for="regPass2">Nhập lại mật khẩu</label>
               <div class="password-wrap">
-                <input id="regPass2" type="password" placeholder="Nhập lại mật khẩu" />
-                <button type="button" id="toggleRegPass2" class="pw-toggle" title="Ẩn/hiện mật khẩu">👁</button>
+                <input id="regPass2" type="password" placeholder="Nhập lại mật khẩu" autocomplete="new-password" />
+                <button type="button" id="toggleRegPass2" class="pw-toggle" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
               </div>
             </div>
             <label class="check-row">
@@ -132,7 +132,14 @@
             </label>
             <button id="registerBtn">Tạo tài khoản</button>
           </div>
-          <div id="authMsg" class="auth-msg muted">Đăng nhập để tiếp tục.</div>
+          <div class="auth-divider"><span>hoặc tiếp tục với</span></div>
+          <div class="auth-social" aria-label="Đăng nhập bằng tài khoản mạng xã hội">
+            <button id="socialGoogleBtn" class="auth-social-google" type="button" data-social-provider="google" aria-disabled="true"><img src="/auth-google-logo.png" width="18" height="18" alt="" /><span>Tiếp tục với Google</span></button>
+            <button id="socialFacebookBtn" type="button" data-social-provider="facebook" aria-disabled="true"><span class="auth-social-facebook-mark" aria-hidden="true">f</span><span>Facebook</span></button>
+            <button id="socialZaloBtn" type="button" data-social-provider="zalo" aria-disabled="true"><span class="auth-social-zalo-mark" aria-hidden="true">Zalo</span><span>Zalo</span></button>
+          </div>
+          <p id="socialAuthStatus" class="auth-social-status">Đăng nhập mạng xã hội chưa được kích hoạt.</p>
+          <div id="authMsg" class="auth-msg muted" role="status" aria-live="polite">Đăng nhập để tiếp tục.</div>
         </div>
       </div>
     </div>
@@ -262,6 +269,22 @@
                 </div>
               </div>
             </div>
+            <button id="settingsAdminBtn" class="header-panel-command settings-code-button" type="button" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z" /><path d="m8 12 3 3 5-6" /></svg>
+              <span>Admin</span><span class="settings-code-chevron" aria-hidden="true">›</span>
+            </button>
+            <button id="settingsCodeBtn" class="header-panel-command settings-code-button" type="button" aria-expanded="false" aria-controls="settingsCodeForm">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Z" /><path d="M9 5v2m0 4v2m0 4v2m4-9h3m-3 4h3" /></svg>
+              <span>Nhập Code</span><span class="settings-code-chevron" aria-hidden="true">›</span>
+            </button>
+            <form id="settingsCodeForm" class="settings-code-form" hidden>
+              <label class="settings-code-label" for="settingsCodeInput">Code của bạn</label>
+              <div class="settings-code-entry">
+                <input id="settingsCodeInput" type="text" placeholder="Nhập code…" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="64" required aria-describedby="settingsCodeMessage" />
+                <button type="submit">Xác nhận</button>
+              </div>
+              <p id="settingsCodeMessage" class="settings-code-message" role="status" aria-live="polite">Điều kiện nhận quà theo từng code.</p>
+            </form>
             <button id="settingsReloadBtn" class="header-panel-command" type="button"><span aria-hidden="true">↻</span><span>Cập nhật lại trang</span></button>
             <button id="logoutBtn" class="header-panel-command header-panel-command-danger" type="button"><span aria-hidden="true">↪</span><span>Đăng xuất</span></button>
           </div>
@@ -299,6 +322,91 @@
   </aside>
 
   <div class="wrap">
+    <section id="adminPanelSection" class="admin-shell" hidden aria-label="Admin Panel">
+      <aside class="admin-sidebar">
+        <div class="admin-brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg><strong>Admin Panel</strong></div>
+        <p class="admin-nav-label">MENU QUẢN TRỊ</p>
+        <nav class="admin-nav" aria-label="Menu quản trị">
+          <button type="button" data-admin-view="overview"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Tổng quan</button>
+          <button type="button" data-admin-view="codes" class="is-active"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="16" cy="8" r="5"/><path d="m12 12-9 9v-4l3-3h3l3-3"/><path d="m16 6 2 2"/></svg></span>Quản lý Code</button>
+          <button type="button" data-admin-view="users"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m1 3a6 6 0 0 1 4 6v1"/></svg></span>Người dùng</button>
+          <button type="button" data-admin-view="stats"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="10" y="7" width="5" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></span>Thống kê</button>
+          <button type="button" data-admin-view="settings"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3L7 4Z" transform="translate(0 2)"/><circle cx="12" cy="12" r="3"/></svg></span>Cài đặt</button>
+        </nav>
+        <div class="admin-sidebar-footer"><button id="adminBackBtn" type="button" class="admin-back" title="Quay lại trang web"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m11 5-7 7 7 7"/><path d="M4 12h16"/></svg><span>Về trang web</span></button></div>
+      </aside>
+      <div class="admin-main">
+        <header class="admin-page-head"><div><h1 id="adminPageTitle">Quản lý Code</h1><p id="adminPageSubtitle">Tạo và quản lý mã trên hệ thống</p></div><span class="admin-role-badge">✓ Quản trị viên</span></header>
+        <div class="admin-metrics">
+          <article class="admin-metric"><span class="admin-metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H5v20h14V7Z"/><path d="M14 2v5h5m-9 5-3 3 3 3m4-6 3 3-3 3"/></svg></span><div><span>Tổng mã đã tạo</span><strong id="adminTotalCodes">—</strong></div></article>
+          <article class="admin-metric"><span class="admin-metric-icon is-green" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19v-5m7 5V9m7 10V4" stroke-width="4"/></svg></span><div><span>Mã đang hoạt động</span><strong id="adminActiveCodes">—</strong></div></article>
+        </div>
+        <p id="adminPageMessage" class="admin-message" role="status" aria-live="polite" hidden></p>
+        <section id="adminCodesPane" data-admin-pane="codes">
+          <div class="admin-tabs" role="tablist" aria-label="Quản lý Code">
+            <button id="adminCreateTab" type="button" role="tab" aria-selected="true" aria-controls="adminCreatePane">Tạo Code</button>
+            <button id="adminListTab" type="button" role="tab" aria-selected="false" aria-controls="adminListPane">Danh sách Code</button>
+          </div>
+          <div id="adminCreatePane" class="admin-card" role="tabpanel" aria-labelledby="adminCreateTab">
+            <h2>Tạo mã mới</h2>
+            <form id="settingsCreateCodeForm" class="admin-code-form">
+              <section class="admin-form-section" aria-label="Thông tin Code">
+              <div class="admin-code-basics">
+              <label class="admin-field admin-code-type">Loại Code<select id="adminCodeKind"><option value="promotion">Mã khuyến mãi</option><option value="vip">Mã VIP</option><option value="gift">Mã quà tặng</option><option value="custom">Khác…</option></select></label>
+              <label class="admin-field admin-code-input">Code<div class="admin-prefix-control"><input id="settingsNewCode" type="text" placeholder="Ví dụ: ADMIN-8K2JH9XQ" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" /><button id="adminQuickCodeBtn" type="button">ϟ Tạo code nhanh</button></div></label>
+              <label class="admin-field admin-code-expiry"><span class="admin-field-caption">Ngày hết hạn<small>Không bắt buộc</small></span><div class="admin-date-control"><input id="settingsCodeExpiry" type="datetime-local" aria-label="Ngày hết hạn, để trống nếu không hết hạn" /><button id="adminClearExpiryBtn" type="button" title="Bỏ ngày hết hạn" aria-label="Bỏ ngày hết hạn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div></label>
+              <div class="admin-code-status"><fieldset class="admin-activation"><legend>Trạng thái ban đầu</legend><div class="admin-activation-options"><label><input type="radio" name="adminCodeActive" value="1" checked /> Kích hoạt</label><label><input type="radio" name="adminCodeActive" value="0" /> Chưa kích hoạt</label></div></fieldset></div>
+                <div id="adminActivationField" class="admin-activation-schedule" hidden><label class="admin-field"><span class="admin-field-caption">Ngày giờ kích hoạt<small>Giờ Việt Nam</small></span><div class="admin-date-control"><input id="settingsCodeActivation" type="datetime-local" aria-label="Ngày giờ kích hoạt theo giờ Việt Nam" disabled /><button id="adminClearActivationBtn" type="button" title="Bỏ lịch kích hoạt" aria-label="Bỏ lịch kích hoạt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div></label></div>
+              </div>
+              <label id="adminCustomKindField" class="admin-field" hidden>Tên loại Code<input id="adminCustomKindName" type="text" maxlength="60" placeholder="Nhập tên loại Code" autocomplete="off" /></label>
+              </section>
+              <section class="admin-form-section admin-rules-section" aria-label="Điều kiện nhận quà">
+              <div class="admin-form-grid admin-code-options">
+                <label class="admin-field">Số lượng phần quà<input id="settingsCodeMaxUses" data-grouped-integer type="text" inputmode="numeric" min="1" max="1000000" step="1" value="10" required /></label>
+                <label class="admin-field">Độ dài mã<select id="adminCodeLength"><option value="8">8 ký tự</option><option value="12">12 ký tự</option><option value="16">16 ký tự</option></select></label>
+                <label class="admin-field">Giới Hạn / ID<select id="adminClaimLimit"><option value="once">Có</option><option value="repeat">Không</option></select></label>
+                <div class="admin-field"><label for="adminClaimMode">Nhận lại từ mã</label><div class="admin-claim-control"><select id="adminClaimMode" aria-label="Quy tắc nhận lại" disabled><option value="count">Số lần</option><option value="hours">Theo Thời Gian</option></select><input id="adminClaimValue" data-grouped-integer type="text" inputmode="numeric" min="1" max="1000000" step="1" value="1" aria-label="Số lần nhận tối đa hoặc số giờ chờ" disabled /><span id="adminClaimUnit">lần</span><select id="adminClaimTimeUnit" aria-label="Đơn vị thời gian chờ" hidden disabled><option value="seconds">Giây</option><option value="minutes">Phút</option><option value="hours" selected>Giờ</option><option value="days">Ngày</option></select></div></div>
+              </div>
+              <div class="admin-policy-row">
+              <p id="adminClaimPolicyHint" class="admin-claim-hint">Mỗi ID nhận duy nhất 1 lần từ mã này.</p>
+              </div>
+              </section>
+              <section class="admin-form-section admin-reward-section" aria-label="Phần quà">
+              <div class="admin-reward-head"><h3>Giá trị mỗi phần quà</h3><span>Có thể chọn nhiều loại quà</span></div>
+              <div class="admin-form-grid admin-rewards">
+                <label class="admin-field">PayPal<input id="settingsCodePaypal" data-empty-zero class="acc-paypal" type="text" inputmode="numeric" value="0" required /></label>
+                <label class="admin-field">Kim cương<input id="settingsCodeDiamond" data-empty-zero class="acc-diamond" type="text" inputmode="numeric" value="0" required /></label>
+                <label class="admin-field">Ngày VIP<input id="settingsCodeVipDays" data-empty-zero data-grouped-integer type="text" inputmode="numeric" min="0" max="3660" step="1" value="0" required /></label>
+                <label class="admin-field">Lượt quay<input id="settingsCodeSpins" data-empty-zero data-grouped-integer type="text" inputmode="numeric" min="0" max="60" step="1" value="0" required /></label>
+              </div>
+              </section>
+              <div class="admin-submit-row">
+                <p id="settingsCreateCodeMessage" class="admin-message" role="status" aria-live="polite">Chọn giá trị phần quà và quy tắc nhận code.</p>
+                <button type="submit" class="admin-primary">＋ Tạo Code ngay</button>
+              </div>
+            </form>
+          </div>
+          <div id="adminListPane" class="admin-card" role="tabpanel" aria-labelledby="adminListTab" hidden>
+            <div class="admin-list-head"><h2>Danh sách Code</h2><div class="admin-list-actions"><button id="adminRefreshCodesBtn" type="button">↻ Làm mới</button><button id="adminDeleteCodesBtn" type="button" aria-controls="adminCodeRows">Chỉnh Sửa</button><button id="adminFinishEditCodesBtn" type="button" hidden>Xong</button></div></div>
+            <form id="adminCodeSearchForm" class="admin-search"><input id="adminCodeSearch" type="search" placeholder="Tìm code…" maxlength="64" aria-label="Tìm code" /><button type="submit">Tìm</button></form>
+            <div class="admin-table-scroll"><table class="admin-table admin-code-table"><thead><tr><th scope="col"><div class="admin-code-heading"><input id="adminSelectAllCodes" type="checkbox" hidden aria-label="Chọn tất cả Code trên trang này" />Code</div></th><th scope="col">Loại Code</th><th scope="col">Phần quà</th><th scope="col">Giới Hạn</th><th scope="col">Đã dùng</th><th scope="col">Hạn code</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody id="adminCodeRows"></tbody></table></div>
+            <div class="admin-pagination"><span id="adminCodePageLabel">—</span><div><button id="adminPrevCodesBtn" type="button" aria-label="Trang code trước">‹</button><button id="adminNextCodesBtn" type="button" aria-label="Trang code tiếp">›</button></div></div>
+          </div>
+        </section>
+        <section data-admin-pane="overview" class="admin-card" hidden><h2>Tổng quan hệ thống</h2><div id="adminOverviewStats" class="admin-summary-grid"></div><button type="button" class="admin-primary" data-admin-view="codes">Quản lý Code →</button></section>
+        <section data-admin-pane="users" class="admin-card" hidden><div class="admin-list-head"><h2>Người dùng</h2><button id="adminManageUsersBtn" type="button">Quản lý tài khoản</button></div><div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Truy cập</th><th>Kim cương</th><th>PayPal</th></tr></thead><tbody id="adminUserRows"></tbody></table></div></section>
+        <section data-admin-pane="stats" class="admin-card" hidden><h2>Thống kê Code</h2><div id="adminCodeStats" class="admin-summary-grid"></div><p class="admin-note">Mã đang hoạt động: đã kích hoạt, còn hạn và còn lượt dùng.</p></section>
+        <section data-admin-pane="settings" class="admin-card" hidden><h2>Cài đặt</h2><div class="admin-settings-row"><div><strong>Giao diện</strong><p>Sáng | Tối</p></div><button id="adminThemeBtn" type="button">Đổi giao diện</button></div><div class="admin-settings-row"><div><strong>Cài đặt web</strong><p>Âm lượng, nhạc nền và tài khoản</p></div><button id="adminWebSettingsBtn" type="button">Mở cài đặt</button></div></section>
+      </div>
+    </section>
+    <dialog id="adminReclaimDialog" class="admin-reclaim-dialog" aria-labelledby="adminReclaimTitle" aria-describedby="adminReclaimDescription">
+      <button id="adminReclaimCancelBtn" class="admin-reclaim-close" type="button" aria-label="Hủy xóa">×</button>
+      <h2 id="adminReclaimTitle">Có Thu Hồi Vật Phẩm Không?</h2>
+      <p id="adminReclaimDescription"></p>
+      <p class="admin-reclaim-note">Có: xóa mã và thu hồi quà đã nhận, kể cả số dư âm.<br>Không: chỉ xóa mã, giữ nguyên quà.</p>
+      <div class="admin-reclaim-actions"><button id="adminReclaimYesBtn" type="button">Có</button><button id="adminReclaimNoBtn" type="button" autofocus>Không</button></div>
+    </dialog>
+    <div id="adminCodeSuccess" class="admin-code-success" role="status" aria-live="polite" aria-atomic="true" hidden><div class="admin-code-success-card"><span class="admin-code-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></span><strong>Đã Tạo</strong></div></div>
     <section id="dataTableSection" class="data-table-board" hidden>
       <div class="data-table-head">
         <div>
@@ -540,124 +648,43 @@
         </div>
       </div>
     </section>
-    <section id="paypalDepositSection" class="deposit-board" hidden>
+    <section id="paypalDepositSection" class="deposit-board" aria-labelledby="depositTitle" hidden>
       <div class="deposit-head">
-        <div>
-          <p class="live-board-eyebrow">PAYPAL TOPUP</p>
-          <h2 class="live-board-title">Nạp Tiền PayPal</h2>
-          <p class="live-board-subtitle">
-            Chọn gói nạp, điền thông tin giao dịch và lưu yêu cầu ngay trong tài khoản của bạn.
-            Tỷ giá hiện tại: <b>1 tiền thật = 1.25 PayPal</b>.
-          </p>
+        <div class="deposit-heading">
+          <span class="deposit-wallet-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v11H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13v2M20 10h-5v5h5M16 12.5h1" /></svg></span>
+          <div><h2 id="depositTitle">Nạp tiền PayPal</h2><p>Nạp PayPal tự động qua thanh toán ngân hàng.</p></div>
         </div>
-        <div class="deposit-balance-box">
-          <span class="deposit-balance-label">Số dư PayPal</span>
-          <strong id="depositPaypalBalance">0</strong>
-        </div>
+        <div class="deposit-balance-box"><span class="deposit-balance-label">Số dư hiện tại</span><div><strong id="depositPaypalBalance">0</strong><span>PayPal</span></div></div>
       </div>
       <div class="deposit-grid">
-        <div class="deposit-left">
-          <div class="deposit-summary-card">
-            <div class="deposit-summary-top">
-              <div>
-                <div class="deposit-summary-title">Tài khoản nhận thanh toán</div>
-                <div class="deposit-summary-sub">Dùng làm giao diện tiếp nhận yêu cầu nạp và theo dõi lịch sử của từng người dùng.</div>
-              </div>
-              <span class="deposit-summary-pill">PayPal</span>
-            </div>
-            <div class="deposit-merchant">
-              <div class="deposit-merchant-label">Email nhận</div>
-              <div class="deposit-merchant-value">paypal.vietlott.demo@service.local</div>
-            </div>
-            <div class="deposit-merchant-grid">
-              <div class="deposit-merchant-item">
-                <span>Phương thức</span>
-                <strong>PayPal Transfer</strong>
-              </div>
-              <div class="deposit-merchant-item">
-                <span>Xử lý</span>
-                <strong>Trong app</strong>
-              </div>
-              <div class="deposit-merchant-item">
-                <span>Ưu tiên</span>
-                <strong>Theo mã giao dịch</strong>
-              </div>
-            </div>
-          </div>
-          <div class="deposit-package-card">
-            <div class="deposit-section-title">Chọn gói nạp nhanh</div>
-            <div id="depositPackageGrid" class="deposit-package-grid"></div>
-          </div>
-          <div class="deposit-guide-card">
-            <div class="deposit-section-title">Hướng dẫn</div>
-            <div class="deposit-guide-list">
-              <div>1. Chọn một gói hoặc tự nhập số tiền.</div>
-              <div>2. Hệ thống quy đổi theo tỉ giá <b>1 = 1.25 PayPal</b>.</div>
-              <div>3. Bonus theo mốc: <b>50k +1%</b>, <b>100k +1,5%</b>, <b>200k +2%</b>, <b>500k +2,5%</b>.</div>
-              <div>4. Ghi đúng email PayPal và mã giao dịch để dễ đối soát.</div>
-              <div>5. Bấm <b>Tạo yêu cầu nạp</b> để lưu lịch sử trong tài khoản hiện tại.</div>
-            </div>
-          </div>
+        <div class="deposit-package-card">
+          <div class="deposit-card-heading"><h3><span class="deposit-step">1</span>Chọn số tiền</h3><span class="deposit-bonus-hint">Thưởng đến 2,5%</span></div>
+          <div class="deposit-rate-caption">Tỷ lệ quy đổi <strong>1 VNĐ = 1,25 PayPal</strong></div>
+          <div id="depositPackageGrid" class="deposit-package-grid" role="group" aria-label="Chọn gói nạp nhanh"></div>
+          <label class="deposit-field deposit-custom-amount" for="depositAmount"><span>Hoặc nhập số tiền <small>VNĐ</small></span><input id="depositAmount" form="paypalDepositForm" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" placeholder="Ví dụ: 50.000" aria-describedby="depositAmountHint" /><small id="depositAmountHint">Tối thiểu 10.000 VNĐ, bội số 1.000 VNĐ.</small></label>
+          <div class="deposit-selection-meta"><span>Lựa chọn hiện tại</span><output id="depositSelectedPackage">Chưa chọn gói</output></div>
+          <div id="depositRatePreview" class="deposit-rate-preview" aria-live="polite" aria-atomic="true"></div>
         </div>
-        <div class="deposit-right">
-          <div class="deposit-form-card">
-            <div class="deposit-section-title">Tạo yêu cầu nạp</div>
-            <div class="row two">
-              <div>
-                <label>Gói đã chọn</label>
-                <input id="depositSelectedPackage" value="Chưa chọn gói" readonly />
-              </div>
-              <div>
-                <label>Số tiền (VNĐ)</label>
-                <input id="depositAmount" type="number" min="10000" step="1000" placeholder="50000" />
-              </div>
-            </div>
-            <div class="row two">
-              <div>
-                <label>Email PayPal của bạn</label>
-                <input id="depositPaypalEmail" placeholder="ban@email.com" />
-              </div>
-              <div>
-                <label>Mã giao dịch</label>
-                <input id="depositTxnCode" placeholder="PP-20260311-001" />
-              </div>
-            </div>
-            <div class="row two">
-              <div>
-                <label>Người chuyển</label>
-                <input id="depositSenderName" placeholder="Luong Tan Dat" />
-              </div>
-              <div>
-                <label>Thời gian giao dịch</label>
-                <input id="depositTxnTime" placeholder="11/03/2026 20:30" />
-              </div>
-            </div>
-            <div class="row">
-              <label>Ghi chú</label>
-              <textarea id="depositNote" placeholder="Nội dung mô tả thêm nếu cần"></textarea>
-            </div>
-            <div id="depositRatePreview" class="deposit-rate-preview"></div>
-            <div class="deposit-form-actions">
-              <button id="depositCreateBtn" type="button">Tạo yêu cầu nạp</button>
-              <button id="depositClearBtn" type="button" class="secondary">Làm mới form</button>
-            </div>
-            <div id="depositMsg" class="result-box muted">Chưa có thao tác.</div>
-          </div>
-          <div class="deposit-history-card">
-            <div class="deposit-history-head">
-              <span>Lịch sử yêu cầu nạp</span>
-              <span id="depositHistoryCount" class="deposit-history-count">0 yêu cầu</span>
-            </div>
-            <div id="depositHistoryList" class="deposit-history-list"></div>
-          </div>
-        </div>
+        <form id="paypalDepositForm" class="deposit-form-card" novalidate>
+          <div class="deposit-card-heading"><h3><span class="deposit-step">2</span>Thanh toán VNPAY-QR</h3><span id="depositGatewayBadge" class="deposit-required-hint">Đang kiểm tra kết nối…</span></div>
+          <div class="deposit-vnpay-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M4 16V4h12M32 4h12v12M44 32v12H32M16 44H4V32M10 10h8v8h-8zM30 10h8v8h-8zM10 30h8v8h-8zM26 26h6v6h-6zM36 26v12M26 38h5" /></svg><strong>VNPAY<span>-QR</span></strong></div>
+          <ol class="deposit-payment-steps"><li>Chọn gói nạp hoặc nhập số tiền.</li><li>Mở VNPAY-QR và quét mã bằng ứng dụng ngân hàng.</li><li>Số dư và thưởng tự cập nhật khi giao dịch được xác nhận.</li></ol>
+          <div id="depositGatewayNotice" class="deposit-request-note" role="status">Đang kiểm tra dịch vụ thanh toán…</div>
+          <div class="deposit-form-actions"><button id="depositCreateBtn" type="submit" disabled>Tiếp tục với VNPAY-QR <span aria-hidden="true">→</span></button><button id="depositClearBtn" type="button" class="secondary">Chọn lại</button></div>
+          <div id="depositPaymentPanel" class="deposit-payment-panel" hidden></div>
+          <div id="depositMsg" class="deposit-message" role="status" aria-live="polite" hidden></div>
+        </form>
+      </div>
+      <div class="deposit-history-card">
+        <div class="deposit-history-head"><h3>Lịch sử nạp tiền</h3><span id="depositHistoryCount" class="deposit-history-count">0 yêu cầu</span></div>
+        <div id="depositHistoryList" class="deposit-history-list"></div>
       </div>
     </section>
     <section id="liveBoardSection" class="live-board">
       <div class="live-board-head">
         <div>
           <!-- ---abc--- Live Results --- -->
-          <h2 class="live-board-title"><span class="live-title-kicker">LIVE RESULTS</span><span class="live-title-main">Kết Quả 6 Loại Vé</span></h2>
+          <h2 class="live-board-title"><span class="live-title-main">Kết Quả Trực Tiếp</span></h2>
         </div>
         <div class="live-board-actions">
           <div id="liveSyncStatus" class="result-box muted live-status-box">
@@ -675,8 +702,7 @@
         <div class="prize-card-head">
           <div class="prize-card-title-block">
             <div class="prize-title-row">
-              <span class="prize-kicker">Prize Matrix</span>
-              <h2>Phần Thưởng Vietlott</h2>
+              <h2>Phần Thưởng</h2>
             </div>
           </div>
           <div class="prize-toolbar">
@@ -711,15 +737,13 @@
           <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu đồ</button>
           <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard</button>
           <button id="predictModeAnalysisTab" type="button" class="predict-tab-btn" data-predict-mode-tab="analysis">Phân tích</button>
-          <button id="predictModeEffectivenessTab" type="button" class="predict-tab-btn" data-predict-mode-tab="effectiveness">Hiệu quả dự đoán</button>
+          <button id="predictModeEffectivenessTab" type="button" class="predict-tab-btn" data-predict-mode-tab="effectiveness"><span>Hiệu Quả Dự Đoán</span> <span>&amp; Thực Tế</span></button>
         </div>
       </section>
       <section id="predictRootEffectiveness" class="card predict-card predict-root effectiveness-board" aria-labelledby="effectivenessTitle" hidden>
         <div class="effectiveness-overview">
           <div class="effectiveness-head">
-            <span class="effectiveness-eyebrow">ĐỐI CHIẾU TỪNG KỲ THỰC TẾ</span>
-            <h2 id="effectivenessTitle">Hiệu quả dự đoán</h2>
-            <p class="effectiveness-intro">Khóa trước quay · So sánh số chính cùng ngân sách.</p>
+            <h2 id="effectivenessTitle">Hiệu Quả Dự Đoán &amp; Thực Tế</h2>
           </div>
           <div class="effectiveness-toolbar">
             <label>Loại xổ số
@@ -747,35 +771,37 @@
               </select>
             </label>
             <div id="effectivenessSummary" class="effectiveness-summary" aria-label="Tóm tắt hiệu quả dự đoán"></div>
-            <div class="effectiveness-toolbar-actions">
-              <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
-              <button id="effectivenessSettings" type="button" class="secondary" title="Cấu hình theo dõi" aria-label="Cấu hình theo dõi" aria-expanded="false" aria-controls="effectivenessAdmin" hidden><span aria-hidden="true">⚙</span></button>
-              <button id="effectivenessHelpButton" type="button" class="secondary" title="Cách đọc kết quả" aria-label="Cách đọc kết quả" aria-haspopup="dialog" aria-expanded="false" aria-controls="effectivenessHelpPanel"><span aria-hidden="true">?</span></button>
-              <details id="effectivenessAdmin" class="effectiveness-admin effectiveness-settings-panel" role="dialog" aria-labelledby="effectivenessSettingsTitle" hidden>
-                <summary><strong id="effectivenessSettingsTitle">Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>
-                <div class="effectiveness-admin-body">
-                  <div class="effectiveness-admin-controls">
-                    <label class="effectiveness-enable"><span>Theo Dõi Cấu Hình</span><span class="effectiveness-tracking-switch"><input id="effectivenessEnabled" type="checkbox" role="switch" aria-label="Theo Dõi Cấu Hình" /><span class="effectiveness-tracking-state" aria-hidden="true"></span></span></label>
-                    <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 10.000</small></span><input id="effectivenessTicketCount" type="number" min="1" max="10000" step="1" value="1" placeholder="Max 10.000" aria-describedby="effectivenessTicketMax effectivenessTicketHint" /></label>
-                    <div class="effectiveness-admin-actions">
-                      <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
-                      <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
+            <div class="effectiveness-action-group">
+              <div id="effectivenessActivity" class="effectiveness-activity" role="status" aria-live="polite" aria-label="Trạng thái tiến trình" tabindex="0" data-phase="updating"><span class="effectiveness-activity-dot" aria-hidden="true"></span><strong id="effectivenessPhase">Đang cập nhật</strong><small id="effectivenessEta" aria-live="off">Đang tải…</small><span id="effectivenessStatus" class="effectiveness-status" hidden>Đăng nhập để xem báo cáo.</span></div>
+              <div class="effectiveness-toolbar-actions">
+                <button id="effectivenessRefresh" type="button" class="secondary" title="Chỉ tải lại báo cáo, không tạo dự đoán mới">↻ Làm mới</button>
+                <button id="effectivenessSettings" type="button" class="secondary" title="Cấu hình theo dõi" aria-label="Cấu hình theo dõi" aria-expanded="false" aria-controls="effectivenessAdmin" hidden><span aria-hidden="true">⚙</span></button>
+                <button id="effectivenessHelpButton" type="button" class="secondary" title="Cách đọc kết quả" aria-label="Cách đọc kết quả" aria-haspopup="dialog" aria-expanded="false" aria-controls="effectivenessHelpPanel"><span aria-hidden="true">?</span></button>
+                <details id="effectivenessAdmin" class="effectiveness-admin effectiveness-settings-panel" role="dialog" aria-labelledby="effectivenessSettingsTitle" hidden>
+                  <summary><strong id="effectivenessSettingsTitle">Cấu hình theo dõi</strong><span id="effectivenessAdminSummary"></span></summary>
+                  <div class="effectiveness-admin-body">
+                    <div class="effectiveness-admin-controls">
+                      <label class="effectiveness-enable"><span>Theo Dõi Cấu Hình</span><span class="effectiveness-tracking-switch"><input id="effectivenessEnabled" type="checkbox" role="switch" aria-label="Theo Dõi Cấu Hình" /><span class="effectiveness-tracking-state" aria-hidden="true"></span></span></label>
+                      <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 1.000.000</small></span><input id="effectivenessTicketCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" max="1000000" value="1" placeholder="Max 1.000.000" aria-describedby="effectivenessTicketMax effectivenessTicketHint" /></label>
+                      <div class="effectiveness-admin-actions">
+                        <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
+                        <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
+                      </div>
                     </div>
+                    <p id="effectivenessTicketHint" class="effectiveness-admin-copy">Tự khóa khi server chạy · Cấu hình mới áp dụng từ kỳ chưa khóa.</p>
                   </div>
-                  <p id="effectivenessTicketHint" class="effectiveness-admin-copy">Tự khóa khi server chạy · Cấu hình mới áp dụng từ kỳ chưa khóa.</p>
-                </div>
-              </details>
-              <details id="effectivenessHelpPanel" class="effectiveness-help effectiveness-help-panel" role="dialog" aria-labelledby="effectivenessHelpTitle" tabindex="-1">
-                <summary><strong id="effectivenessHelpTitle">Cách đọc kết quả</strong><span>Số chính · Khoảng bất định · Phạm vi so sánh</span></summary>
-                <div class="effectiveness-help-body">
-                  <p id="effectivenessExplainer" class="effectiveness-explainer">Mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký. Số trùng và tỷ lệ ≥3 / ≥4 xét từng vé, chỉ tính số chính. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.</p>
-                  <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
-                </div>
-              </details>
+                </details>
+                <details id="effectivenessHelpPanel" class="effectiveness-help effectiveness-help-panel" role="dialog" aria-labelledby="effectivenessHelpTitle" tabindex="-1">
+                  <summary><strong id="effectivenessHelpTitle">Cách đọc kết quả</strong><span>Số chính · Khoảng bất định · Phạm vi so sánh</span></summary>
+                  <div class="effectiveness-help-body">
+                    <p id="effectivenessExplainer" class="effectiveness-explainer">Mỗi kỳ có trọng số như nhau. Bảng so sánh dùng tất cả các kỳ đã chấm; lựa chọn 30 / 100 / 300 chỉ giới hạn nhật ký. Số trùng và tỷ lệ ≥3 / ≥4 xét từng vé, chỉ tính số chính. Đây chưa phải xác suất trúng ĐB hoặc Jackpot.</p>
+                    <div id="effectivenessReportNotes" class="effectiveness-report-notes"></div>
+                  </div>
+                </details>
+              </div>
             </div>
           </div>
           <div class="effectiveness-feedback">
-            <div id="effectivenessStatus" class="effectiveness-status" role="status" aria-live="polite">Đăng nhập để xem báo cáo.</div>
             <span id="effectivenessUpdated" class="muted"></span>
           </div>
         </div>
@@ -783,8 +809,8 @@
         <div id="effectivenessKenoOverview" hidden></div>
         <div id="effectivenessComparison"></div>
         <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
-        <details id="effectivenessLab" class="effectiveness-lab">
-          <summary><strong>Phòng thử thuật toán</strong><span>Thử cấu hình · Theo dõi kỳ mới</span></summary>
+        <details id="effectivenessLab" class="effectiveness-lab effectiveness-fold">
+          <summary title="Thử cấu hình · Theo dõi kỳ mới"><strong>Phòng thử thuật toán</strong><span class="effectiveness-fold-toggle" aria-hidden="true"><span class="when-closed">Mở rộng</span><span class="when-open">Thu gọn</span></span></summary>
           <div class="effectiveness-lab-body">
             <p class="effectiveness-lab-intro">So sánh 6 cấu hình cùng 4 đối chứng, chọn ứng viên bằng các kỳ đầu rồi kiểm tra ở các kỳ phía sau. Tiếp tục theo dõi ứng viên bằng bộ số khóa trước kỳ quay mới.</p>
             <div id="effectivenessLabAdmin" class="effectiveness-lab-controls" hidden>
@@ -804,7 +830,7 @@
           </div>
         </details>
         <div class="effectiveness-history-head">
-          <h3>Đối chiếu từng kỳ</h3>
+          <h3>Dự Đoán &amp; Thực Tế</h3>
           <nav id="effectivenessKenoLevels" class="effectiveness-keno-levels" aria-label="Chọn bậc Keno cho đối chiếu từng kỳ" hidden>
             <button type="button" class="secondary" data-keno-level="1" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 1</button>
             <button type="button" class="secondary" data-keno-level="2" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 2</button>
@@ -817,7 +843,6 @@
             <button type="button" class="secondary" data-keno-level="9" aria-pressed="false" aria-controls="effectivenessCycles">Bậc 9</button>
             <button type="button" class="secondary" data-keno-level="10" aria-pressed="true" aria-controls="effectivenessCycles">Bậc 10</button>
           </nav>
-          <span class="muted">Số xanh là số chính trùng.</span>
         </div>
         <div id="effectivenessCycles" class="effectiveness-cycles"></div>
         <nav id="effectivenessKenoPager" class="effectiveness-keno-pager" aria-label="Trang đối chiếu từng kỳ" hidden>
@@ -1524,11 +1549,11 @@
   <div id="accountOverlay" class="account-overlay">
     <div class="account-card">
       <div class="account-head">
-        <h3>Quản lý tài khoản đã đăng ký</h3>
-        <div style="display:flex; gap:8px;">
+        <h3>Quản lý tài khoản</h3>
+        <div class="account-head-actions">
           <button id="toggleAccountEditBtn" class="btn-ghost" type="button" style="width:auto;">Sửa</button>
           <button id="saveAccountEditBtn" type="button" style="width:auto;">Lưu</button>
-          <button id="closeAccountBtn" class="secondary" style="width:auto;">Đóng</button>
+          <button id="closeAccountBtn" type="button" class="secondary" style="width:auto;">Đóng</button>
         </div>
       </div>
       <div class="account-table-wrap">
@@ -1597,9 +1622,13 @@
   <!-- ------ App Scripts --- -->
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
   <script defer src="/vietlott-web-stats.js"></script>
-  <script defer src="/vietlott-web-data.js"></script>
-  <script defer src="/vietlott-web-effectiveness.js?v=prize-ticket-total-20261011"></script>
-  <script defer src="/vietlott-web-core.js?v=notifications-20261011"></script>
+  <script defer src="/vietlott-web-data.js?v=power-filter-reset-20261018"></script>
+  <script defer src="/vietlott-web-numeric.js?v=ime-unified-20261016"></script>
+  <script defer src="/vietlott-web-effectiveness.js?v=timeline-scale-toggle-20261017"></script>
+  <script defer src="/vietlott-web-payments.js?v=vnpay-automatic-20261017"></script>
+  <script defer src="/vietlott-web-core.js?v=power-filter-reset-20261018"></script>
+  <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
+  <script defer src="/vietlott-web-admin.js?v=code-edit-mode-20261014"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>
 
 </body>

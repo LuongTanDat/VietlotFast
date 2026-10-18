@@ -75,7 +75,17 @@ class EffectivenessWebTests(unittest.TestCase):
         cls.server.terminate()
         cls.server.wait(timeout=10)
         cls.log.close()
-        cls.temp.cleanup()
+        cleanup_error = None
+        for _ in range(30):
+            try:
+                cls.temp.cleanup()
+                cleanup_error = None
+                break
+            except OSError as error:
+                cleanup_error = error
+                time.sleep(.1)
+        if cleanup_error is not None:
+            raise cleanup_error
 
     @classmethod
     def request(cls, path, form=None, cookie=None, method=None, origin=None):
@@ -468,6 +478,51 @@ class EffectivenessWebTests(unittest.TestCase):
         self.assertEqual(self.request(route, {}, self.admin)[0], 405)
         self.assertEqual(self.request(route, cookie=self.admin)[0], 400)
         self.assertEqual(self.request(route + '&page=0', cookie=self.admin)[0], 400)
+        self.assertEqual(self.request(route + '&prizeCode=FIRST')[0], 401)
+        self.assertEqual(self.request(route + '&prizeCode=FIRST', cookie=self.member)[0], 400)
+        self.assertEqual(self.request(route + '&prizeCode=bad%3Bcode', cookie=self.member)[0], 400)
+        for cursor in ('0', '-1', '1.5', '1000001', 'bad'):
+            self.assertEqual(self.request(route + '&prizeCode=FIRST&afterTicketIndex=' + cursor, cookie=self.member)[0], 400)
+        self.assertEqual(self.request(route + '&afterTicketIndex=1', cookie=self.member)[0], 400)
+
+    def test_highest_prize_ticket_lookup_through_authenticated_bridge(self):
+        from tests.test_prediction_effectiveness import PredictionEffectivenessTests
+        from ai import prediction_effectiveness as pe
+        from ai.prizes import classify_tickets
+        fixture = PredictionEffectivenessTests('test_10000_tickets_are_all_scored_with_bounded_read_only_pages')
+        fixture.setUp()
+        fixture.db = self.work / 'runtime/lotto_web.db'
+        try:
+            pe.configure(fixture.GAME, True, 100, 'fixture', fixture.db)
+            pe.cycle(fixture.GAME, fixture.db)
+            pe.configure(fixture.GAME, False, 100, 'fixture', fixture.db)
+            fixture._actual()
+            pe.score_cycles(fixture.GAME, fixture.db)
+            entry = pe.report(fixture.GAME, db_path=fixture.db)['cycles'][0]['methods']['random']
+            with closing(pe._connect(fixture.db)) as connection:
+                full = json.loads(connection.execute('SELECT tickets_json FROM prediction_runs WHERE prediction_id=?', (entry['predictionId'],)).fetchone()[0])
+            expected = next(row for row in classify_tickets(fixture.GAME, full, {'main':[1,2,3,4,5],'special':2}) if row['status']=='won')
+            before = fixture._stored_scores()
+            route = '/api/ml/effectiveness-tickets?type=LOTO_5_35&predictionId=' + entry['predictionId'] + '&prizeCode=' + expected['prizeCode']
+            code, result, _ = self.request(route, cookie=self.member)
+            self.assertEqual(code, 200, result)
+            self.assertEqual(result['jumpTicketIndex'], expected['ticketIndex'])
+            self.assertEqual(result['ticketPagination']['page'], (expected['ticketIndex']-1)//10+1)
+            self.assertIn(expected, result['ticketResults'])
+            winners = [row for row in classify_tickets(fixture.GAME, full, {'main':[1,2,3,4,5],'special':2})
+                       if row['status']=='won' and row['prizeCode']==expected['prizeCode']]
+            self.assertGreater(len(winners), 1)
+            for cursor, target in ((winners[0]['ticketIndex'], winners[1]), (winners[-1]['ticketIndex'], winners[0])):
+                code, result, _ = self.request(route + '&afterTicketIndex=' + str(cursor), cookie=self.member)
+                self.assertEqual(code, 200, result)
+                self.assertEqual(result['jumpTicketIndex'], target['ticketIndex'])
+                self.assertEqual(result['ticketPagination']['page'], (target['ticketIndex']-1)//10+1)
+                self.assertIn(target, result['ticketResults'])
+            self.assertEqual(self.request(route + '&afterTicketIndex=101', cookie=self.member)[0], 400)
+            self.assertEqual(before, fixture._stored_scores())
+            self.assertEqual(self.request(route.replace('LOTO_5_35','LOTO_6_45'), cookie=self.member)[0], 400)
+        finally:
+            fixture.doCleanups()
 
     def test_keno_report_level_pagination_and_admin_settings(self):
         self.assertEqual(401, self.request('/api/ml/effectiveness?type=KENO&level=3')[0])
@@ -792,6 +847,18 @@ print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'hi
                                                            'returnByValue': True}, page=True)
                 self.assertNotIn('exceptionDetails', result, result)
                 return result['result'].get('value')
+            artifact_dir = os.environ.get('LOTTO_DATA_TOOLBAR_ARTIFACT_DIR')
+            def capture_filter_artifact(name):
+                if not artifact_dir:
+                    return
+                import base64
+                output = Path(artifact_dir)
+                output.mkdir(parents=True, exist_ok=True)
+                browser.call('Emulation.setDeviceMetricsOverride', {'width': 1440, 'height': 900,
+                                                                     'deviceScaleFactor': 1, 'mobile': False}, page=True)
+                wait_for('window.innerWidth === 1440')
+                capture = browser.call('Page.captureScreenshot', {'format':'png'}, page=True)
+                (output / name).write_bytes(base64.b64decode(capture['data']))
             wait_for("typeof applyLiveResultsProgressSnapshot === 'function' && !!document.getElementById('loginBtn')")
             browser.value("document.getElementById('loginUser').value='owner_fixture';document.getElementById('loginPass').value='fixture_password';document.getElementById('loginBtn').click()")
             wait_for("document.getElementById('whoami').textContent.includes('owner_fixture')")
@@ -807,10 +874,12 @@ print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'hi
                 wait_for(f"!dataTableLoading && dataTableSelectedType === '{key}' && document.querySelectorAll('#dataTableBody tr').length === 2")
                 headers = browser.value("document.getElementById('dataTableHead').textContent")
                 self.assertEqual(key in lr.PRIZE_FIELDS_BY_TYPE, 'Nổ' in headers)
-                self.assertEqual(key != 'LOTO_5_35', browser.value("document.getElementById('dataTableShareFilterBtn').disabled"))
+                self.assertEqual(key != 'LOTO_5_35', browser.value("document.getElementById('dataTableShareFilterBtn').hidden"))
+                self.assertEqual(key not in lr.PRIZE_FIELDS_BY_TYPE, browser.value("document.getElementById('dataTableHitFilterBtn').hidden"))
                 if key == 'LOTO_5_35':
                     self.assertTrue(browser.value("document.getElementById('dataTableHitFilterBtn').nextElementSibling.id === 'dataTableShareFilterBtn'"))
-                    artifact_dir = os.environ.get('LOTTO_DATA_TOOLBAR_ARTIFACT_DIR')
+                    browser.value("document.getElementById('dataTableLimit').value='all';document.getElementById('dataTableLimit').dispatchEvent(new Event('change',{bubbles:true}))")
+                    wait_for("!dataTableLoading && document.querySelector('#dataTableLimit').parentElement.querySelector('.select-label').textContent === 'Tất Cả'")
                     for theme in ('dark', 'light'):
                         browser.value(f"document.body.classList.toggle('light-theme', {str(theme == 'light').lower()})")
                         for width in (320, 390, 768, 1024, 1180, 1200, 1280, 1440, 1680):
@@ -826,13 +895,16 @@ print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'hi
                                 const heading=document.querySelector('.data-table-head h2').getBoundingClientRect();
                                 const toolbar=document.querySelector('.data-table-toolbar').getBoundingClientRect();
                                 return {sameRow:Math.abs(a.y-b.y)<1,adjacent:b.x>=a.right,inside:all.every(r=>r.x>=0&&r.right<=innerWidth+1),
-                                    uniformHeight:all.every(r=>Math.abs(r.height-34)<1),fieldsSameRow:inputs.every(r=>Math.abs(r.y-inputs[0].y)<1),
+                                    fullCountLabel:(()=>{const select=document.getElementById('dataTableLimit'),label=select.parentElement.querySelector('.select-label'),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');ctx.font=getComputedStyle(label).font;return label.scrollWidth<=label.clientWidth && [...select.options].every(option=>ctx.measureText(option.text).width<=label.clientWidth+1)})(),
+                                    compactWidths:inputs[0].width<=137 && inputs[1].width>=88 && inputs[1].width<=89,
+                                    uniformHeight:all.every(r=>Math.abs(r.height-32)<1),fieldsSameRow:inputs.every(r=>Math.abs(r.y-inputs[0].y)<1),
                                     allSameRow:all.every(r=>Math.abs(r.y-inputs[0].y)<1),clearRow:Math.abs(a.y-c.y)<1,
                                     besideHeading:toolbar.x>=heading.right && toolbar.y<=heading.bottom && toolbar.bottom>=heading.y,
                                     inputY:inputs.map(r=>r.y),buttonY:actions.map(r=>r.y)};
                             })()""")
-                            self.assertTrue(all(layout[name] for name in ('sameRow', 'adjacent', 'inside', 'uniformHeight')), (theme,width,layout))
+                            self.assertTrue(all(layout[name] for name in ('sameRow', 'adjacent', 'inside', 'uniformHeight', 'fullCountLabel')), (theme,width,layout))
                             if width > 1180:
+                                self.assertTrue(layout['compactWidths'], (theme,width,layout))
                                 self.assertTrue(layout['fieldsSameRow'] and layout['clearRow'], (theme,width,layout))
                                 self.assertTrue(layout['allSameRow'] and layout['besideHeading'], (theme,width,layout))
                             if artifact_dir:
@@ -854,6 +926,28 @@ print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'hi
                     browser.value("document.getElementById('dataTableClearFilterBtn').click()")
                     wait_for("!dataTableLoading && document.querySelectorAll('#dataTableBody tr').length === 2")
                     self.assertTrue(browser.value("['dataTableHitFilterBtn','dataTableShareFilterBtn'].every(id => document.getElementById(id).getAttribute('aria-pressed') === 'false')"))
+                elif key == 'LOTO_6_45':
+                    self.assertEqual('Jackpot', browser.value("document.getElementById('dataTableHitFilterBtn').textContent"))
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    wait_for("!dataTableLoading && document.querySelectorAll('#dataTableBody tr').length === 1 && document.querySelector('#dataTableBody tr').lastElementChild.textContent === 'Jackpot'")
+                    capture_filter_artifact('mega_jackpot_active_dark_1440.png')
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    wait_for("!dataTableLoading && document.querySelectorAll('#dataTableBody tr').length === 2")
+                elif key == 'LOTO_6_55':
+                    self.assertEqual('Jackpot 1, 2', browser.value("document.getElementById('dataTableHitFilterBtn').textContent"))
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    wait_for("!dataTableLoading && document.querySelectorAll('#dataTableBody tr').length === 1 && document.querySelector('#dataTableBody tr').lastElementChild.textContent === 'Jackpot 1, 2'")
+                    capture_filter_artifact('power_jackpot_1_2_active_dark_1440.png')
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    self.assertEqual('Jackpot 1', browser.value("document.getElementById('dataTableHitFilterBtn').textContent"))
+                    capture_filter_artifact('power_jackpot_1_active_dark_1440.png')
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    self.assertEqual('Jackpot 2', browser.value("document.getElementById('dataTableHitFilterBtn').textContent"))
+                    capture_filter_artifact('power_jackpot_2_active_dark_1440.png')
+                    browser.value("document.getElementById('dataTableHitFilterBtn').click()")
+                    wait_for("!dataTableLoading && document.querySelectorAll('#dataTableBody tr').length === 2")
+                    self.assertEqual('Jackpot 1, 2', browser.value("document.getElementById('dataTableHitFilterBtn').textContent"))
+                    self.assertEqual('false', browser.value("document.getElementById('dataTableHitFilterBtn').getAttribute('aria-pressed')"))
             for button, section in (('homeMenuBtn', 'liveBoardSection'), ('paypalDepositMenuBtn', 'paypalDepositSection'),
                                     ('luckyWheelMenuBtn', 'luckyWheelSection'), ('homeMenuBtn', 'liveBoardSection')):
                 browser.value(f"document.getElementById('{button}').click()")
@@ -965,15 +1059,15 @@ print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'hi
                 code, report, _ = self.request(f'/api/ml/effectiveness?type=KENO&level={level}', cookie=self.member)
                 self.assertEqual(200, code, report)
                 self.assertEqual(report['counts'], {'scored': 0, 'locked': 1, 'total': 1})
-                self.assertEqual(sum(len(m['tickets']) for m in report['cycles'][0]['methods'].values()), 80)
+                self.assertEqual(sum(len(m['tickets']) for m in report['cycles'][0]['methods'].values()), 40)
                 self.assertTrue(all(len(t['main']) == level for m in report['cycles'][0]['methods'].values() for t in m['tickets']))
                 expected_total = 80 if level == 1 else 10000
                 self.assertTrue(all(m['ticketPagination']['total'] == expected_total for m in report['cycles'][0]['methods'].values()))
             entry = report['cycles'][0]['methods']['web']
-            code, ticket_page, _ = self.request('/api/ml/effectiveness-tickets?type=KENO&predictionId=' + entry['predictionId'] + '&page=500', cookie=self.member)
+            code, ticket_page, _ = self.request('/api/ml/effectiveness-tickets?type=KENO&predictionId=' + entry['predictionId'] + '&page=1000', cookie=self.member)
             self.assertEqual(code, 200, ticket_page)
             self.assertEqual(ticket_page['ticketResults'][-1]['ticketIndex'], 10000)
-            self.assertEqual(len(ticket_page['tickets']), 20)
+            self.assertEqual(len(ticket_page['tickets']), 10)
             with closing(sqlite3.connect(self.work / 'runtime/lotto_web.db')) as connection:
                 self.assertEqual(40, connection.execute("SELECT COUNT(*) FROM prediction_runs WHERE game_type='KENO'").fetchone()[0])
                 self.assertEqual(10, connection.execute('SELECT COUNT(DISTINCT level) FROM keno_effectiveness_predictions').fetchone()[0])

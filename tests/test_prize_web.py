@@ -85,7 +85,8 @@ public class PrizeHistoryHarness {
         for name in ("emptyLiveHistoryFeed", "getDrawPrizeAmount", "getDrawPrizeFields", "getDrawPrizeHit", "formatDrawPrizeAmount", "formatDrawPrizes", "cloneDraw", "kySortValue", "normalizeLiveHistoryKy", "mergeLiveHistoryDraw", "normalizeLiveHistoryRepairErrors", "buildLiveHistoryFeedFromResponse", "getDataTableHeaders", "isDataTableDrawInPrizeFilter", "getDataTableMatchingKeys", "getDataTableSelectedKeys", "buildDataTableRows", "renderDataTableRows", "renderLiveResultsBoard", "getExcelColumnName", "buildXlsxSheetXml"):
             code += js_function(source, name) + "\n"
         code += js_function(core, "getLiveResultSignature")
-        for name in ("parseDataTableDateParts", "normalizeDataTableFilterNumber", "normalizeDataTableWeekdayFilter", "getDataTableDateFilters", "hasDataTableDateFilter", "isDataTableDrawInDateFilter", "setDataTableFilterSelectValue", "syncDataTableDateFilterControls", "resetDataTableDateFilters", "syncDataTableHitFilterControl"):
+        code += js_function(core, "formatCompactBalance")
+        for name in ("parseDataTableDateParts", "normalizeDataTableFilterNumber", "normalizeDataTableWeekdayFilter", "getDataTableDateFilters", "hasDataTableDateFilter", "isDataTableDrawInDateFilter", "setDataTableFilterSelectValue", "syncDataTableDateFilterControls", "resetDataTableDateFilters", "getDataTablePrimaryPrizeFilterLabel", "getDataTableActivePrizeFilters", "getDataTablePrizeFilterFileSuffix", "syncDataTableHitFilterControl"):
             code += js_function(source, name) + "\n"
         bindings_start = core.index('    {\n      const dataTableHitFilterBtn =')
         bindings_end = core.index('    {\n      const dataTableRefreshBtn =', bindings_start)
@@ -95,10 +96,13 @@ const TYPES = {LOTO_5_35: {hasSpecial:true}, LOTO_6_45:{}, LOTO_6_55:{hasSpecial
 const LIVE_HISTORY_TYPES = Object.keys(TYPES).map(key => ({key,label:key}));
 const LIVE_RESULT_TYPES = LIVE_HISTORY_TYPES;
 const liveSingleRefreshBusy = new Set();
+const IS_LOCAL_MODE = false;
+let currentUser = null;
 let liveResultsState = {};
 let dataTableSelectedType = 'LOTO_5_35';
 let dataTableHitOnly = false;
 let dataTableShareOnly = false;
+let dataTableJackpotMode = 'both';
 let dataTableDateFilters = {weekday:'all',day:'all',month:'all',year:'all'};
 let tableLoadCalls = 0;
 async function loadDataTableRows() { tableLoadCalls++; }
@@ -133,19 +137,24 @@ try {
     check(getLiveResultSignature(row) !== getLiveResultSignature({...row,prizeHit:''}),'hit refresh missed');
     columns.forEach(({key},index) => {
       check(feed.results['2'][key] === money[key],'feed lost amount');
-      check(rows[0][headers.length-columns.length-1+index] === money[key],'export lost amount');
-      check(rows[1][headers.length-columns.length-1+index] === '','missing export must be blank');
+      const moneyStart = headers.length - columns.length - DRAW_WINNER_COLUMNS[type].length - 1;
+      check(rows[0][moneyStart+index] === money[key],'export lost amount');
+      check(rows[1][moneyStart+index] === '','missing export must be blank');
       check(getLiveResultSignature(row) !== getLiveResultSignature({...row,[key]:money[key]+1}),'amount refresh missed');
     });
     renderDataTableRows(type,feed,{});
-    check(document.getElementById('dataTableBody').textContent.includes('178.900.548.500'),'table money formatting');
-    check(document.getElementById('dataTableBody').textContent.includes('Chưa có dữ liệu'),'missing table money');
+    check(document.querySelector('#dataTableBody .data-table-prize').textContent === '178,9T','compact table money formatting');
+    check(document.querySelector('#dataTableBody .data-table-prize').title.includes('178.900.548.500'),'full table money tooltip');
+    check(document.querySelectorAll('#dataTableBody tr')[1].querySelector('.data-table-prize').textContent === '—','missing table money');
+    check(document.querySelectorAll('#dataTableBody tr')[1].querySelector('.data-table-prize').title === 'Chưa công bố giá trị giải','missing money explanation');
     const rendered = document.querySelectorAll('#dataTableBody tr');
     check(rendered[0].lastElementChild.textContent === marker, 'hit table cell');
     check(rendered[1].lastElementChild.textContent === '', 'nonhit table cell must be empty');
     check(!document.getElementById('dataTableBody').textContent.includes('NaN'),'hit incorrectly formatted as money');
     check(formatDrawPrizes(type,row).includes('178.900.548.500 VNĐ'),'history money formatting');
     const xml = buildXlsxSheetXml(headers,rows);
+    check(xml.includes(`<autoFilter ref="A1:${getExcelColumnName(headers.length)}${rows.length+1}"/>`),'Excel filters must cover all data columns and rows');
+    check(xml.includes('state="frozen"'),'Excel header remains frozen');
     check(xml.includes('t="n" s="1"><v>178900548500</v>'),'Excel money must be numeric');
     check(xml.includes('>Nổ</t>') && xml.includes('>'+marker+'</t>'),'Excel lost hit column');
     liveResultsState[type] = {...row,key:type};
@@ -168,47 +177,75 @@ try {
     check(document.querySelector('#dataTableBody tr').lastElementChild.textContent === marker,'Power marker rendering');
   }
   const hitButton = document.getElementById('dataTableHitFilterBtn');
+  const shareButton = document.getElementById('dataTableShareFilterBtn');
   const clearButton = document.getElementById('dataTableClearFilterBtn');
-  for (const type of Object.keys(DRAW_PRIZE_COLUMNS)) {
+  const allDates = {weekday:'all',day:'all',month:'all',year:'all'};
+  for (const type of ['LOTO_5_35','LOTO_6_45']) {
     dataTableSelectedType = type;
+    dataTableHitOnly = false;
+    dataTableShareOnly = false;
+    dataTableJackpotMode = 'both';
     syncDataTableHitFilterControl();
-    check(!hitButton.disabled && hitButton.getAttribute('aria-pressed') === 'false','available hit toggle');
-    const markers = type === 'LOTO_6_55' ? ['Jackpot 1','Jackpot 2','Jackpot 1, 2'] : [type === 'LOTO_5_35' ? 'ĐB' : 'Jackpot'];
+    const expectedLabel = type === 'LOTO_5_35' ? 'Nổ' : 'Jackpot';
+    check(!hitButton.hidden && !hitButton.disabled && hitButton.textContent === expectedLabel,'game-specific primary filter');
+    check(shareButton.hidden === (type !== 'LOTO_5_35'),'sharing only visible for 5/35');
+    const marker = type === 'LOTO_5_35' ? 'ĐB' : 'Jackpot';
     const hitFeed = buildLiveHistoryFeedFromResponse(type,[
       {ky:'9',date:'03/10/2026',main:[1,2,3,4,5,6],prizeHit:''},
-      ...markers.map((prizeHit,i) => ({ky:String(8-i),date:i ? '01/09/2026' : '01/10/2026',main:[1,2,3,4,5,6],prizeHit})),
+      {ky:'8',date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit:marker},
       {ky:'1',date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit:'   '},
     ]);
-    const allDates = {weekday:'all',day:'all',month:'all',year:'all'};
     hitButton.click();
     check(dataTableHitOnly && hitButton.getAttribute('aria-pressed') === 'true','click activates hit toggle');
     const filteredRows = buildDataTableRows(type,hitFeed,'all',allDates);
-    check(filteredRows.length === markers.length && filteredRows.every(row => markers.includes(row.at(-1))),'only verified hits, all Power variants');
+    check(filteredRows.length === 1 && filteredRows[0].at(-1) === marker,'primary filter selects exact marker');
     check(buildDataTableRows(type,hitFeed,'1',allDates)[0][0] === '8','filter hits before row limit');
     const october = {...allDates,month:'10',year:'2026',weekday:'4'};
     check(buildDataTableRows(type,hitFeed,'all',october).length === 1,'combine hit and date filters');
     const xml = buildXlsxSheetXml(getDataTableHeaders(type),filteredRows);
-    check((xml.match(/<row r=/g) || []).length === markers.length+1,'Excel includes only filtered rows');
+    check((xml.match(/<row r=/g) || []).length === 2,'Excel includes only filtered row');
     renderDataTableRows(type,hitFeed,{...allDates,year:'2025'});
-    check(document.getElementById('dataTableBody').textContent.includes('Không có kỳ nổ'),'empty hit filter message');
+    check(document.getElementById('dataTableBody').textContent.includes('Không có kỳ'),'empty prize filter message');
     hitButton.click();
-    check(!dataTableHitOnly && buildDataTableRows(type,hitFeed,'all',allDates).length === markers.length+2,'click restores all rows');
+    check(!dataTableHitOnly && buildDataTableRows(type,hitFeed,'all',allDates).length === 3,'click restores all rows');
   }
+
+  dataTableSelectedType = 'LOTO_6_55';
+  dataTableHitOnly = false;
+  dataTableShareOnly = false;
+  dataTableJackpotMode = 'both';
+  syncDataTableHitFilterControl();
+  check(!hitButton.hidden && shareButton.hidden && hitButton.textContent === 'Jackpot 1, 2' && hitButton.classList.contains('is-cycle'),'Power uses one cycling button');
+  const powerFeed = buildLiveHistoryFeedFromResponse('LOTO_6_55',[
+    ['9',''],['8','Jackpot 1, 2'],['7','Jackpot 1'],['6','Jackpot 2']
+  ].map(([ky,prizeHit]) => ({ky,date:'01/10/2026',main:[1,2,3,4,5,6],prizeHit})));
+  const powerMarkers = () => buildDataTableRows('LOTO_6_55',powerFeed,'all',allDates).map(row => row.at(-1)).join('|');
   hitButton.click();
+  check(dataTableHitOnly && dataTableJackpotMode === 'both' && powerMarkers() === 'Jackpot 1, 2','Power first state filters joint Jackpot marker');
+  hitButton.click();
+  check(dataTableJackpotMode === 'jackpot1' && hitButton.textContent === 'Jackpot 1' && powerMarkers() === 'Jackpot 1','Power second state filters Jackpot 1');
+  hitButton.click();
+  check(dataTableJackpotMode === 'jackpot2' && hitButton.textContent === 'Jackpot 2' && powerMarkers() === 'Jackpot 2','Power third state filters Jackpot 2');
+  hitButton.click();
+  check(!dataTableHitOnly && dataTableJackpotMode === 'both' && hitButton.textContent === 'Jackpot 1, 2' && hitButton.getAttribute('aria-pressed') === 'false','Power fourth click returns to initial state');
+  check(buildDataTableRows('LOTO_6_55',powerFeed,'all',allDates).length === 4,'Power initial state restores all rows');
+  check(getDataTablePrizeFilterFileSuffix('LOTO_6_55') === '','Power initial state removes Excel suffix');
   document.getElementById('dataTableMonth').value = '10';
   getDataTableDateFilters();
   clearButton.click();
-  check(!dataTableHitOnly && !hasDataTableDateFilter() && hitButton.getAttribute('aria-pressed') === 'false','clear resets hit and date filters');
+  check(!dataTableHitOnly && dataTableJackpotMode === 'both' && !hasDataTableDateFilter() && hitButton.getAttribute('aria-pressed') === 'false','clear resets Power and date filters');
   for (const type of ['KENO','MAX_3D','MAX_3D_PRO']) {
     dataTableHitOnly = true;
     syncDataTableHitFilterControl(type);
-    check(!dataTableHitOnly && hitButton.disabled && hitButton.getAttribute('aria-pressed') === 'false','unsupported game resets toggle');
+    check(!dataTableHitOnly && hitButton.hidden && shareButton.hidden && document.querySelector('.data-table-prize-filters').hidden,'unsupported game hides prize filters');
     hitButton.click();
     check(!dataTableHitOnly,'disabled button cannot filter');
   }
-  check(tableLoadCalls === 8,'toggle and clear must reload table');
-  const shareButton = document.getElementById('dataTableShareFilterBtn');
+  check(buildXlsxSheetXml(['Header'],[]).includes('<autoFilter ref="A1:A1"/>'),'empty sheet has a valid header filter');
+  check(buildXlsxSheetXml(Array.from({length:28},(_,i)=>String(i)),[Array(28).fill(0),Array(28).fill(1)]).includes('<autoFilter ref="A1:AB3"/>'),'wide sheet filter includes columns after Z');
   dataTableSelectedType = 'LOTO_5_35';
+  dataTableHitOnly = false;
+  dataTableShareOnly = false;
   syncDataTableHitFilterControl();
   check(!shareButton.disabled && shareButton.getAttribute('aria-pressed') === 'false','sharing filter available for Lotto');
   const prizeFeed = buildLiveHistoryFeedFromResponse('LOTO_5_35',[
@@ -250,12 +287,16 @@ try {
     dataTableSelectedType = type;
     dataTableHitOnly = true;
     dataTableShareOnly = true;
+    dataTableJackpotMode = 'both';
     syncDataTableHitFilterControl();
-    check(!dataTableShareOnly && shareButton.disabled && shareButton.getAttribute('aria-pressed') === 'false','changing type resets unsupported sharing filter');
+    check(!dataTableShareOnly && shareButton.hidden && shareButton.disabled && shareButton.getAttribute('aria-pressed') === 'false','Chia giải is hidden outside 5/35');
     const beforeCalls = tableLoadCalls;
     shareButton.click();
     check(!dataTableShareOnly && tableLoadCalls === beforeCalls,'unsupported sharing cannot load or filter');
     check(dataTableHitOnly === !!DRAW_PRIZE_COLUMNS[type]?.length,'Mega/Power hit filter remains supported');
+    if (type === 'LOTO_6_45') check(!hitButton.hidden && hitButton.textContent === 'Jackpot','Mega shows Jackpot button');
+    if (type === 'LOTO_6_55') check(!hitButton.hidden && hitButton.textContent === 'Jackpot 1, 2','Power shows joint Jackpot state');
+    if (!DRAW_PRIZE_COLUMNS[type]?.length) check(hitButton.hidden,'other games hide primary prize button');
   }
   for (const value of [null,'',0,-1,'bad',Number.MAX_SAFE_INTEGER+1]) check(getDrawPrizeAmount({jackpot:value},'jackpot') === null,'invalid money');
   document.getElementById('result').textContent = 'PASS';
@@ -264,7 +305,7 @@ try {
         with tempfile.TemporaryDirectory(prefix="lotto-prize-browser-", dir=TEST_TMP) as folder:
             work = Path(folder)
             page = work / "test.html"
-            page.write_text('<!doctype html><meta charset="utf-8"><button id="dataTableHitFilterBtn" aria-pressed="false">Nổ</button><button id="dataTableShareFilterBtn" aria-pressed="false">Chia giải</button><button id="dataTableClearFilterBtn">Xóa lọc</button><select id="dataTableMonth"><option value="all">Tất Cả</option><option value="10">10</option></select><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
+            page.write_text('<!doctype html><meta charset="utf-8"><div class="data-table-prize-filters"><button id="dataTableHitFilterBtn" aria-pressed="false">Nổ</button><button id="dataTableShareFilterBtn" aria-pressed="false">Chia giải</button></div><button id="dataTableClearFilterBtn">Xóa lọc</button><select id="dataTableMonth"><option value="all">Tất Cả</option><option value="10">10</option></select><table><thead id="dataTableHead"></thead><tbody id="dataTableBody"></tbody></table><div id="liveResultGrid"></div><pre id="result">PENDING</pre><script>' + script + '</script>', encoding="utf-8")
             output = subprocess.run([CHROME,"--headless","--disable-gpu","--no-sandbox","--no-first-run","--no-default-browser-check","--user-data-dir="+str(work / "profile"),"--dump-dom",page.as_uri()], capture_output=True, timeout=30, creationflags=0x08000000 if os.name == "nt" else 0)
             dom = output.stdout.decode("utf-8", errors="replace")
             result = re.search(r'<pre id="result">(.*?)</pre>', dom, re.DOTALL)

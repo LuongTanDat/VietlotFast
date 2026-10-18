@@ -4,8 +4,12 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -37,6 +42,8 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import javax.crypto.SecretKeyFactory;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LottoWebServer {
@@ -93,10 +100,12 @@ public class LottoWebServer {
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
+    private final Map<String, SocialAttempt> socialAttempts = new ConcurrentHashMap<>();
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
     private final Map<String, Long> sessionExpiry = new ConcurrentHashMap<>();
     private final Map<String, String> sessionPasswordHash = new ConcurrentHashMap<>();
     private final Map<String, long[]> loginAttempts = new ConcurrentHashMap<>();
+    private final Map<String, long[]> codeAttempts = new ConcurrentHashMap<>();
     private static final int MAX_REQUEST_BYTES = 8 * 1024 * 1024;
     private static final long SESSION_TTL_MS = 12 * 60 * 60 * 1000L;
     private final Map<Path, StaticAsset> staticAssetCache = new ConcurrentHashMap<>();
@@ -193,6 +202,7 @@ public class LottoWebServer {
         String sourceDate = "";
         String prizeHit = "";
         Map<String, Long> prizes = new LinkedHashMap<>();
+        Map<String, Long> prizeWinnerCounts = new LinkedHashMap<>();
         LocalDate parsedDate = null;
     }
 
@@ -226,6 +236,27 @@ public class LottoWebServer {
 
         boolean isEnd() {
             return index >= text.length();
+        }
+
+        Map<String, String> readObjectMembers() {
+            Map<String, String> members = new LinkedHashMap<>();
+            expect('{');
+            if (consumeIf('}')) return members;
+            while (true) {
+                skipWhitespace();
+                int keyStart = index;
+                parseString();
+                String key = text.substring(keyStart + 1, index - 1);
+                expect(':');
+                skipWhitespace();
+                int valueStart = index;
+                parseValue();
+                if (members.put(key, text.substring(valueStart, index)) != null) {
+                    throw new IllegalArgumentException("Metadata chứa khóa trùng.");
+                }
+                if (consumeIf('}')) return members;
+                expect(',');
+            }
         }
 
         void parseValue() {
@@ -428,14 +459,25 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-data.js", ex -> serveStaticTextFile(ex, dataJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-chatbot.js", ex -> serveStaticTextFile(ex, chatbotJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-effectiveness.js", ex -> serveStaticTextFile(ex, effectivenessJsFile, "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-numeric.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-numeric.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-music.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-music.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-admin.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-admin.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-admin.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-admin.css"), "text/css; charset=UTF-8"));
         server.createContext("/Music_V1.mp3", this::serveBackgroundMusic);
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
         server.createContext("/api/register", this::handleRegister);
         server.createContext("/api/login", this::handleLogin);
+        server.createContext("/api/auth/social/providers", this::handleSocialProviders);
+        server.createContext("/api/auth/social/start", this::handleSocialStart);
+        server.createContext("/api/auth/social/callback/", this::handleSocialCallback);
+        server.createContext("/vietlott-web-auth.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-auth.css"), "text/css; charset=UTF-8"));
+        server.createContext("/vietlott-web-auth.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-auth.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/auth-google-logo.png", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/auth-google-logo.png"), "image/png"));
         server.createContext("/api/logout", this::handleLogout);
         server.createContext("/api/store", this::handleStore);
+        server.createContext("/api/payments/vnpay", this::handleVnpay);
+        server.createContext("/vietlott-web-payments.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-payments.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/api/wheel", this::handleWheel);
         server.createContext("/api/admin/vip", this::handleAdminVip);
         server.createContext("/api/time", this::handleServerTime);
@@ -453,9 +495,11 @@ public class LottoWebServer {
         server.createContext("/api/ml/promote", this::handleMlPromote);
         server.createContext("/api/ml/rollback", this::handleMlRollback);
         server.createContext("/api/ml/effectiveness", this::handleMlEffectiveness);
+        server.createContext("/api/ml/effectiveness-progress", this::handleMlEffectivenessProgress);
         server.createContext("/api/ml/effectiveness-settings", this::handleMlEffectivenessSettings);
         server.createContext("/api/ml/effectiveness-cycle", this::handleMlEffectivenessCycle);
         server.createContext("/api/ml/effectiveness-tickets", this::handleMlEffectivenessTickets);
+        server.createContext("/api/ml/effectiveness-export", this::handleMlEffectivenessExport);
         server.createContext("/api/ml/algorithm-lab", this::handleAlgorithmLab);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
@@ -465,6 +509,8 @@ public class LottoWebServer {
         server.createContext("/api/admin/users", this::handleAdminUsers);
         server.createContext("/api/admin/update-user", this::handleAdminUpdateUser);
         server.createContext("/api/admin/update-assets", this::handleAdminUpdateAssets);
+        server.createContext("/api/admin/gift-codes", this::handleAdminGiftCodes);
+        server.createContext("/api/gift-codes/redeem", this::handleRedeemGiftCode);
         server.createContext("/api/admin/rename-user", this::handleAdminRenameUser);
         server.createContext("/api/admin/reset-password", this::handleAdminResetPassword);
         server.createContext("/api/admin/delete-user", this::handleAdminDeleteUser);
@@ -493,6 +539,7 @@ public class LottoWebServer {
                 && !"/nap-tien".equals(path)
                 && !"/nap-tien.html".equals(path)
                 && !"/bang-du-lieu".equals(path)
+                && !"/admin".equals(path)
                 && !"/bang-du-lieu.html".equals(path)) {
             sendNotFound(ex);
             return;
@@ -736,6 +783,178 @@ public class LottoWebServer {
         } catch (RuntimeException e) {
             sendJson(ex, 500, "{\"ok\":false,\"message\":\"Lỗi DB khi đăng nhập: " + esc(rootCauseMsg(e)) + "\"}");
         }
+    }
+
+    // OAuth secrets stay on the server; endpoints never come from request parameters.
+    private Properties readSocialSettings() {
+        Properties settings = new Properties();
+        Path file = rootDir.resolve("runtime/social-login.properties");
+        if (Files.isRegularFile(file)) {
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) { settings.load(reader); }
+            catch (IOException invalid) { return new Properties(); }
+        }
+        return settings;
+    }
+    private String socialSetting(Properties settings, String key, String env) {
+        String value = System.getenv(env);
+        return nvl(isBlank(value) ? settings.getProperty(key) : value).trim();
+    }
+    private String socialPublicBase(Properties settings) {
+        String value = socialSetting(settings,"publicBaseUrl","LOTTO_PUBLIC_BASE_URL");
+        try {
+            java.net.URI uri = java.net.URI.create(value);
+            String host = uri.getHost(), path = uri.getPath();
+            boolean local = "localhost".equals(host) || "127.0.0.1".equals(host);
+            if (host == null || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null || !(isBlank(path) || "/".equals(path))) return "";
+            if (!"https".equals(uri.getScheme()) && !(local && "http".equals(uri.getScheme()))) return "";
+            return value.endsWith("/") ? value.substring(0,value.length()-1) : value;
+        } catch (IllegalArgumentException invalid) { return ""; }
+    }
+    private static class SocialProvider {
+        String name,id,secret,base,version;
+        boolean enabled() { return !isBlank(id) && !isBlank(secret) && !isBlank(base) && (!"facebook".equals(name) || version.matches("v[0-9]+[.][0-9]+")); }
+        String callback() { return base+"/api/auth/social/callback/"+name; }
+    }
+    private static class SocialAttempt {
+        SocialProvider provider; String browser,verifier; long expires;
+    }
+    private SocialProvider socialProvider(String name) {
+        if (!Arrays.asList("google","facebook","zalo").contains(name)) return null;
+        Properties settings = readSocialSettings();
+        SocialProvider p = new SocialProvider(); p.name=name; p.base=socialPublicBase(settings);
+        String prefix="LOTTO_OAUTH_"+name.toUpperCase(Locale.ROOT);
+        p.id=socialSetting(settings,name+".clientId",prefix+"_CLIENT_ID");
+        p.secret=socialSetting(settings,name+".clientSecret",prefix+"_CLIENT_SECRET");
+        p.version=socialSetting(settings,"facebook.graphVersion","LOTTO_OAUTH_FACEBOOK_GRAPH_VERSION");
+        return p;
+    }
+    private String socialRandom() { byte[] bytes=new byte[32];random.nextBytes(bytes);return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes); }
+    private String socialEncode(Map<String,String> fields) {
+        StringBuilder text=new StringBuilder();
+        try {
+            for (Map.Entry<String,String> e:fields.entrySet()) {
+                if (text.length()>0) text.append('&');
+                text.append(URLEncoder.encode(e.getKey(),"UTF-8")).append('=').append(URLEncoder.encode(e.getValue(),"UTF-8"));
+            }
+        } catch (UnsupportedEncodingException impossible) { throw new IllegalStateException("UTF-8 unavailable"); }
+        return text.toString();
+    }
+    private void socialCookie(HttpExchange ex, String browser, boolean clear, boolean secure) {
+        ex.getResponseHeaders().add("Set-Cookie","LOTTO_OAUTH="+browser+"; Path=/api/auth/social/; HttpOnly; SameSite=Lax; Max-Age="+(clear?0:600)+(secure?"; Secure":""));
+    }
+    private void socialRedirect(HttpExchange ex, String error) throws IOException {
+        ex.getResponseHeaders().set("Location",isBlank(error)?"/":"/?auth_error="+error);
+        ex.getResponseHeaders().set("Cache-Control","no-store");ex.getResponseHeaders().set("Referrer-Policy","no-referrer");
+        ex.sendResponseHeaders(303,-1);ex.close();
+    }
+    private void handleSocialProviders(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        if (!"GET".equals(ex.getRequestMethod()) || !"/api/auth/social/providers".equals(ex.getRequestURI().getPath())) { sendNotFound(ex);return; }
+        StringBuilder result=new StringBuilder("{\"ok\":true,\"providers\":{");
+        for (String name:Arrays.asList("google","facebook","zalo")) {
+            if (result.length()>24) result.append(',');
+            result.append(quoteJson(name)).append(":{\"enabled\":").append(socialProvider(name).enabled()).append('}');
+        }
+        ex.getResponseHeaders().set("Cache-Control","no-store");sendJson(ex,200,result.append("}}").toString());
+    }
+    private void handleSocialStart(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod()) || !"/api/auth/social/start".equals(ex.getRequestURI().getPath())) { sendJson(ex,405,"{\"ok\":false}");return; }
+        SocialProvider p=socialProvider(nvl(parseForm(ex).get("provider")));
+        if (p==null) { sendJson(ex,400,"{\"ok\":false,\"message\":\"Phương thức đăng nhập không hợp lệ.\"}");return; }
+        if (!p.enabled()) { sendJson(ex,503,"{\"ok\":false,\"message\":\"Đăng nhập mạng xã hội chưa được kích hoạt.\"}");return; }
+        long now=System.currentTimeMillis();socialAttempts.entrySet().removeIf(e->e.getValue().expires<now);
+        if (socialAttempts.size()>=1024) { sendJson(ex,429,"{\"ok\":false,\"message\":\"Hãy thử lại sau.\"}");return; }
+        SocialAttempt attempt=new SocialAttempt();attempt.provider=p;attempt.browser=socialRandom();attempt.verifier=socialRandom();attempt.expires=now+600000;
+        String state=socialRandom();socialAttempts.put(state,attempt);
+        Map<String,String> params=new LinkedHashMap<>();params.put("state",state);params.put("redirect_uri",p.callback());
+        String destination;
+        if ("zalo".equals(p.name)) { params.put("app_id",p.id);destination="https://oauth.zaloapp.com/v4/permission"; }
+        else { params.put("client_id",p.id);params.put("response_type","code");params.put("scope","google".equals(p.name)?"openid profile":"public_profile");destination="google".equals(p.name)?"https://accounts.google.com/o/oauth2/v2/auth":"https://www.facebook.com/"+p.version+"/dialog/oauth"; }
+        if (!"facebook".equals(p.name)) {
+            try { params.put("code_challenge",Base64.getUrlEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(attempt.verifier.getBytes(StandardCharsets.US_ASCII)))); }
+            catch (Exception impossible) { throw new IllegalStateException(impossible); }
+            if ("google".equals(p.name)) { params.put("code_challenge_method","S256");params.put("prompt","select_account"); }
+        }
+        socialCookie(ex,attempt.browser,false,p.base.startsWith("https://"));
+        ex.getResponseHeaders().set("Cache-Control","no-store");
+        sendJson(ex,200,"{\"ok\":true,\"url\":"+quoteJson(destination+"?"+socialEncode(params))+"}");
+    }
+    private Map<String,String> socialHttp(String url, Map<String,String> body, Map<String,String> headers) throws IOException {
+        HttpURLConnection connection=(HttpURLConnection)new URL(url).openConnection();
+        connection.setInstanceFollowRedirects(false);connection.setConnectTimeout(8000);connection.setReadTimeout(8000);
+        connection.setRequestProperty("Accept","application/json");
+        for (Map.Entry<String,String> h:headers.entrySet()) connection.setRequestProperty(h.getKey(),h.getValue());
+        try {
+            if (body!=null) {
+                connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
+                byte[] bytes=socialEncode(body).getBytes(StandardCharsets.UTF_8);
+                try(OutputStream stream=connection.getOutputStream()){stream.write(bytes);}
+            }
+            int status=connection.getResponseCode();if(status<200||status>=300) throw new IOException("Provider rejected request");
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+            try(InputStream stream=connection.getInputStream()) {
+                byte[] buffer=new byte[4096];int count;
+                while((count=stream.read(buffer))!=-1){if(bytes.size()+count>65536)throw new IOException("Provider response too large");bytes.write(buffer,0,count);}
+            }
+            return jsonFields(requireValidJsonObjectText(new String(bytes.toByteArray(),StandardCharsets.UTF_8)));
+        } finally { connection.disconnect(); }
+    }
+    private String socialProof(String token,String secret) {
+        try {
+            javax.crypto.Mac mac=javax.crypto.Mac.getInstance("HmacSHA256");mac.init(new javax.crypto.spec.SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8),"HmacSHA256"));
+            StringBuilder hex=new StringBuilder();for(byte b:mac.doFinal(token.getBytes(StandardCharsets.UTF_8)))hex.append(String.format(Locale.ROOT,"%02x",b&255));return hex.toString();
+        } catch(Exception impossible){throw new IllegalStateException(impossible);}
+    }
+    private String socialIdentityText(String raw) {
+        if (raw == null) return "";
+        if (raw.startsWith("\"")) return jsonString(raw);
+        return raw.matches("[0-9]+") ? raw : "";
+    }
+    private String[] socialProfile(SocialAttempt attempt,String code) throws IOException {
+        SocialProvider p=attempt.provider;Map<String,String> fields=new LinkedHashMap<>(),headers=new LinkedHashMap<>();
+        fields.put("code",code);fields.put("grant_type","authorization_code");
+        String tokenUrl;
+        if("zalo".equals(p.name)){fields.put("app_id",p.id);fields.put("code_verifier",attempt.verifier);headers.put("secret_key",p.secret);tokenUrl="https://oauth.zaloapp.com/v4/access_token";}
+        else{fields.put("client_id",p.id);fields.put("client_secret",p.secret);fields.put("redirect_uri",p.callback());tokenUrl="google".equals(p.name)?"https://oauth2.googleapis.com/token":"https://graph.facebook.com/"+p.version+"/oauth/access_token";if("google".equals(p.name))fields.put("code_verifier",attempt.verifier);}
+        Map<String,String> response="facebook".equals(p.name)?socialHttp(tokenUrl+"?"+socialEncode(fields),null,headers):socialHttp(tokenUrl,fields,headers);
+        String token=jsonString(response.get("access_token"));if(isBlank(token)||token.length()>8192)throw new IOException("No access token");
+        headers.clear();headers.put("Authorization","Bearer "+token);String profileUrl;
+        if("google".equals(p.name))profileUrl="https://openidconnect.googleapis.com/v1/userinfo";
+        else if("zalo".equals(p.name)){headers.clear();headers.put("access_token",token);profileUrl="https://graph.zaloapp.com/v2.0/me?fields=id,name&appsecret_proof="+socialProof(token,p.secret);}
+        else profileUrl="https://graph.facebook.com/"+p.version+"/me?fields=id,name&appsecret_proof="+socialProof(token,p.secret);
+        Map<String,String> profile=socialHttp(profileUrl,null,headers);
+        String subject=socialIdentityText(profile.get("google".equals(p.name)?"sub":"id"));
+        if(isBlank(subject)||!subject.matches("[A-Za-z0-9._:-]{1,256}"))throw new IOException("No verified identity");
+        if("facebook".equals(p.name)){
+            Map<String,String> auth=Collections.singletonMap("Authorization","Bearer "+p.id+"|"+p.secret);
+            Map<String,String> debug=socialHttp("https://graph.facebook.com/"+p.version+"/debug_token?"+socialEncode(Collections.singletonMap("input_token",token)),null,auth);
+            Map<String,String> metadata=jsonFields(debug.get("data"));
+            if(!"true".equals(metadata.get("is_valid"))||!p.id.equals(socialIdentityText(metadata.get("app_id")))||!subject.equals(socialIdentityText(metadata.get("user_id"))))throw new IOException("Token identity mismatch");
+        }
+        String name=nvl(jsonString(profile.get("name"))).replaceAll("[\\p{Cntrl}]","");if(name.length()>128)name=name.substring(0,128);
+        return new String[]{subject,name};
+    }
+    private void handleSocialCallback(HttpExchange ex) throws IOException {
+        if(!"GET".equals(ex.getRequestMethod())){sendJson(ex,405,"{\"ok\":false}");return;}
+        String prefix="/api/auth/social/callback/",provider=ex.getRequestURI().getPath().substring(prefix.length());
+        Map<String,String> query=parseQuery(ex.getRequestURI().getRawQuery());String state=nvl(query.get("state"));
+        SocialAttempt attempt=socialAttempts.get(state);
+        if(attempt==null||attempt.expires<System.currentTimeMillis()||!provider.equals(attempt.provider.name)||!attempt.browser.equals(getCookie(ex,"LOTTO_OAUTH"))||!socialAttempts.remove(state,attempt)){socialRedirect(ex,"state");return;}
+        socialCookie(ex,"",true,attempt.provider.base.startsWith("https://"));
+        if(query.containsKey("error")){socialRedirect(ex,"cancelled");return;}
+        String code=nvl(query.get("code"));if(isBlank(code)||code.length()>4096){socialRedirect(ex,"failed");return;}
+        try {
+            String[] profile=socialProfile(attempt,code);Account account=repo.socialAccount(provider,attempt.provider.id,profile[0],profile[1]);
+            if(account==null||!account.enabled){socialRedirect(ex,"disabled");return;}
+            long now=System.currentTimeMillis();
+            for(String old:new ArrayList<>(sessions.keySet()))if(sessionExpiry.getOrDefault(old,0L)<=now){sessions.remove(old);sessionExpiry.remove(old);sessionPasswordHash.remove(old);}
+            if(sessions.size()>=4096){socialRedirect(ex,"failed");return;}
+            String old=getCookie(ex,COOKIE_NAME);if(old!=null){sessions.remove(old);sessionExpiry.remove(old);sessionPasswordHash.remove(old);}
+            String token=socialRandom();sessions.put(token,account.username);sessionExpiry.put(token,now+SESSION_TTL_MS);sessionPasswordHash.put(token,account.passwordHash);
+            setCookie(ex,COOKIE_NAME,token,false);socialRedirect(ex,"");
+        } catch(IllegalStateException unavailable){socialRedirect(ex,"disabled");}
+        catch(Exception failure){socialRedirect(ex,"failed");}
     }
 
     private void handleLogout(HttpExchange ex) throws IOException {
@@ -1305,6 +1524,12 @@ public class LottoWebServer {
         for (Map.Entry<String, Long> prize : row.prizes.entrySet()) {
             prizesJson.append(",\"").append(prize.getKey()).append("\":").append(prize.getValue());
         }
+        StringBuilder countsJson = new StringBuilder("{");
+        for (Map.Entry<String, Long> entry : row.prizeWinnerCounts.entrySet()) {
+            if (countsJson.length() > 1) countsJson.append(',');
+            countsJson.append('"').append(entry.getKey()).append("\":").append(entry.getValue());
+        }
+        countsJson.append('}');
         return "{"
                 + "\"ky\":\"" + esc(row.ky) + "\","
                 + "\"date\":\"" + esc(row.date) + "\","
@@ -1316,6 +1541,7 @@ public class LottoWebServer {
                 + "\"sourceUrl\":\"" + esc(row.sourceUrl) + "\","
                 + "\"sourceDate\":\"" + esc(row.sourceDate) + "\""
                 + ",\"prizeHit\":\"" + esc(row.prizeHit) + "\""
+                + ",\"prizeWinnerCounts\":" + countsJson
                 + prizesJson
                 + "}";
     }
@@ -1367,6 +1593,58 @@ public class LottoWebServer {
             if (drawIds.size() >= 240) break;
         }
         return drawIds;
+    }
+
+    private Map<String, String> canonicalJsonMembers(String raw) {
+        JsonCursor cursor = new JsonCursor(raw);
+        Map<String, String> values = cursor.readObjectMembers();
+        cursor.skipWhitespace();
+        if (!cursor.isEnd()) throw new IllegalArgumentException("Metadata có nội dung thừa.");
+        return values;
+    }
+
+    private void readCanonicalWinnerCounts(String type, Path csvFile, List<CanonicalHistoryRow> rows) {
+        List<String> keys;
+        if ("LOTO_5_35".equals(type)) keys = Arrays.asList("specialPrize", "first", "second", "third", "fourth", "fifth", "consolation");
+        else if ("LOTO_6_45".equals(type)) keys = Arrays.asList("jackpot", "first", "second", "third");
+        else if ("LOTO_6_55".equals(type)) keys = Arrays.asList("jackpot1", "jackpot2", "first", "second", "third");
+        else return;
+        Path metaFile = csvFile.resolveSibling(csvFile.getFileName().toString().replaceFirst("\\.csv$", ".meta.json"));
+        if (!Files.exists(metaFile)) return;
+        try {
+            if (Files.size(metaFile) > 20 * 1024 * 1024) return;
+            Map<String, String> metadata = canonicalJsonMembers(new String(Files.readAllBytes(metaFile), StandardCharsets.UTF_8).replaceFirst("^\\uFEFF", ""));
+            String winners = metadata.get("prizeWinners");
+            if (winners == null) return;
+            String evidenceRaw = canonicalJsonMembers(winners).get("countsByDraw");
+            if (evidenceRaw == null) return;
+            Map<String, String> evidence = canonicalJsonMembers(evidenceRaw);
+            for (CanonicalHistoryRow row : rows) {
+                String itemRaw = evidence.get(row.ky);
+                if (itemRaw == null) continue;
+                Map<String, String> item = canonicalJsonMembers(itemRaw);
+                StringBuilder main = new StringBuilder();
+                for (Integer ball : row.main) {
+                    if (main.length() > 0) main.append(',');
+                    main.append(ball);
+                }
+                String identity = row.date + "|" + row.time + "|" + main + "|" + (row.special == null ? "" : row.special);
+                if (!("\"" + esc(identity) + "\"").equals(item.get("identity"))) continue;
+                String countsRaw = item.get("counts");
+                if (countsRaw == null) continue;
+                Map<String, String> counts = canonicalJsonMembers(countsRaw);
+                for (String key : keys) {
+                    String countRaw = counts.get(key);
+                    if (countRaw == null || !countRaw.matches("[0-9]+")) continue;
+                    try {
+                        long count = Long.parseLong(countRaw);
+                        if (count >= 0 && count <= 9007199254740991L) row.prizeWinnerCounts.put(key, count);
+                    } catch (NumberFormatException ignored) { }
+                }
+            }
+        } catch (IOException | IllegalArgumentException invalidMetadata) {
+            System.err.println("Winner statistics unavailable for " + type + ": " + invalidMetadata.getMessage());
+        }
     }
 
     private String buildCanonicalHistoryPayload(String type, String count, Set<String> selectedDrawIds) throws IOException {
@@ -1440,6 +1718,7 @@ public class LottoWebServer {
         }
 
         if (allRows.isEmpty()) return null;
+        readCanonicalWinnerCounts(type, csvFile, allRows);
         LocalDate today = LocalDate.now();
         long todayCount = allRows.stream().filter(row -> today.equals(row.parsedDate)).count();
         List<CanonicalHistoryRow> selectedRows = new ArrayList<>();
@@ -1941,7 +2220,7 @@ public class LottoWebServer {
         Process process = null;
         try {
             process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
-            ProcessOutput output = waitForProcessOutput(process, AI_PREDICT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            ProcessOutput output = waitForProcessOutput(process, command.contains("cycle") ? AI_ML_TIMEOUT_SECONDS : AI_PREDICT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!output.finished) {
                 sendJson(ex, 504, "{\"ok\":false,\"message\":\"Đánh giá dự đoán quá thời gian chờ.\"}"); return;
             }
@@ -1990,6 +2269,35 @@ public class LottoWebServer {
         sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
     }
 
+    private void handleMlEffectivenessProgress(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        if (requireAuth(ex, true) == null) return;
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        String type = normalizeLiveType(parseQuery(ex.getRequestURI().getRawQuery()).get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        long now = System.currentTimeMillis();
+        String progress = "{\"phase\":\"idle\",\"error\":\"\"}";
+        Path file = rootDir.resolve("runtime").resolve("effectiveness_progress_" + type.toLowerCase(Locale.ROOT) + ".json");
+        if (Files.isRegularFile(file)) {
+            try {
+                if (Files.size(file) > 8192) throw new IOException("Progress too large");
+                String value = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+                String phase = extractJsonStringField(value, "phase");
+                if (!type.equals(extractJsonStringField(value, "type")) || !Arrays.asList("idle", "updating", "creating", "scoring").contains(phase)) throw new IOException("Invalid progress");
+                long updated = extractJsonLongField(value, "updatedAtMs", 0L);
+                if (!"idle".equals(phase) && (updated <= 0 || now - updated > 20000 || updated - now > 5000)) {
+                    progress = "{\"phase\":\"idle\",\"error\":\"Tiến trình bị gián đoạn. Đang chờ lượt chạy tiếp theo.\"}";
+                } else progress = value;
+            } catch (IOException | RuntimeException invalid) {
+                progress = "{\"phase\":\"idle\",\"error\":\"Chưa đọc được trạng thái tiến trình.\"}";
+            }
+        }
+        sendJson(ex, 200, "{\"ok\":true,\"type\":\"" + type + "\",\"serverTimeMs\":" + now + ",\"progress\":" + progress + "}");
+    }
+
     private void handleMlEffectivenessSettings(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         boolean read = "GET".equalsIgnoreCase(ex.getRequestMethod());
@@ -2005,8 +2313,8 @@ public class LottoWebServer {
         if (!read) {
             String enabled = nvl(values.get("enabled"));
             int count = parseStrictPositiveInt(values.get("ticketCount"));
-            if (!("true".equals(enabled) || "false".equals(enabled)) || count < 1 || count > 10000) {
-                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn trạng thái tự động và từ 1 đến 10.000 vé.\"}"); return;
+            if (!("true".equals(enabled) || "false".equals(enabled)) || count < 1 || count > 1000000) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn trạng thái tự động và từ 1 đến 1.000.000 vé.\"}"); return;
             }
             command.add("--enabled=" + enabled);
             command.add("--ticket-count=" + count);
@@ -2033,7 +2341,94 @@ public class LottoWebServer {
         List<String> command = effectivenessCommand("tickets", type);
         command.add("--prediction-id=" + predictionId);
         command.add("--page=" + page);
+        String prizeCode = query.get("prizeCode");
+        if (prizeCode != null) {
+            if (!prizeCode.matches("[A-Z][A-Z0-9_]{0,39}")) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã giải thưởng không hợp lệ.\"}"); return;
+            }
+            command.add("--prize-code=" + prizeCode);
+        }
+        String afterTicketIndex = query.get("afterTicketIndex");
+        if (afterTicketIndex != null) {
+            int cursor = parseStrictPositiveInt(afterTicketIndex);
+            if (prizeCode == null || cursor < 1 || cursor > 1000000) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Vị trí vé đã xem không hợp lệ.\"}"); return;
+            }
+            command.add("--after-ticket-index=" + cursor);
+        }
         sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+    }
+
+    private void handleMlEffectivenessExport(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        String type = normalizeLiveType(query.get("type"));
+        if (!validateEffectivenessType(ex, type)) return;
+        String cycleId = nvl(query.get("cycleId"));
+        int level = isBlank(query.get("level")) ? 10 : parseStrictPositiveInt(query.get("level"));
+        if (!validLabId(cycleId) || level < 1 || level > 10) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã kỳ dự đoán hoặc bậc Keno không hợp lệ.\"}"); return;
+        }
+        List<String> command = effectivenessCommand("export", type);
+        command.add("--cycle-id=" + cycleId);
+        command.add("--level=" + level);
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        String format = query.get("format");
+        if (format != null && !"xlsx".equals(format)) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Định dạng xuất không hợp lệ.\"}"); return;
+        }
+        if ("xlsx".equals(format)) {
+            sendEffectivenessWorkbook(ex, type, cycleId, level);
+            return;
+        }
+        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+    }
+
+    private void sendEffectivenessWorkbook(HttpExchange ex, String type, String cycleId, int level) throws IOException {
+        if (!effectivenessJobRunning.compareAndSet(false, true)) {
+            sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang xử lý dự đoán hoặc Excel. Vui lòng thử lại sau.\"}"); return;
+        }
+        Process process = null;
+        Path directory = null;
+        Path file = null;
+        try {
+            Path runtime = rootDir.resolve("runtime");
+            Files.createDirectories(runtime);
+            directory = Files.createTempDirectory(runtime, "effectiveness_export_");
+            file = directory.resolve("portfolio.xlsx");
+            List<String> command = effectivenessCommand("export-file", type);
+            command.add("--cycle-id=" + cycleId);
+            command.add("--level=" + level);
+            command.add("--output=" + file.toAbsolutePath());
+            process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
+            ProcessOutput output = waitForProcessOutput(process, AI_ML_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!output.finished) {
+                sendJson(ex, 504, "{\"ok\":false,\"message\":\"Xuất Excel quá thời gian chờ.\"}"); return;
+            }
+            if (output.exitCode != 0 || !Files.isRegularFile(file)) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Không xuất được Excel của kỳ đã chọn. Vui lòng thử lại.\"}"); return;
+            }
+            ex.getResponseHeaders().set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"du_doan_thuc_te_" + type.toLowerCase(Locale.ROOT) + "_" + cycleId + ".xlsx\"");
+            ex.sendResponseHeaders(200, Files.size(file));
+            try (OutputStream response = ex.getResponseBody()) { Files.copy(file, response); }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Xuất Excel bị gián đoạn.\"}");
+        } finally {
+            if (process != null) process.destroy();
+            try {
+                if (file != null) Files.deleteIfExists(file);
+                if (directory != null) Files.deleteIfExists(directory);
+            } finally {
+                effectivenessJobRunning.set(false);
+            }
+        }
     }
 
     private void handleMlEffectivenessCycle(HttpExchange ex) throws IOException {
@@ -2564,6 +2959,58 @@ public class LottoWebServer {
         }
     }
 
+    private void handleAdminGiftCodes(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAdmin(ex);
+        if (su == null) return;
+        try {
+            if ("GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                sendJson(ex, 200, repo.listGiftCodes(parseQuery(ex.getRequestURI().getRawQuery())));
+            } else if ("POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                Map<String, String> form = parseForm(ex);
+                sendJson(ex, 200, "set-active".equals(form.get("action"))
+                        ? repo.setGiftCodeActive(form, su.username) : "delete".equals(form.get("action"))
+                        ? repo.deleteGiftCodes(form, su.username) : repo.createGiftCode(form, su.username));
+            } else { sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); }
+        } catch (IllegalStateException e) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(e.getMessage()) + "}");
+        }
+    }
+
+    private void handleRedeemGiftCode(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        long now = System.currentTimeMillis();
+        codeAttempts.entrySet().removeIf(entry -> entry.getValue()[0] < now - 60000);
+        long[] attempts = codeAttempts.computeIfAbsent(su.username, key -> new long[]{now, 0});
+        synchronized (attempts) {
+            if (++attempts[1] > 20) {
+                sendJson(ex, 429, "{\"ok\":false,\"message\":\"Bạn đã thử quá nhiều code. Vui lòng chờ 1 phút.\"}"); return;
+            }
+        }
+        try {
+            sendJson(ex, 200, repo.redeemGiftCode(su.username, parseForm(ex).get("code")));
+        } catch (IllegalStateException e) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(e.getMessage()) + "}");
+        }
+    }
+
+    private static String normalizeGiftCode(String raw) {
+        String code = nvl(raw).trim().toUpperCase(Locale.ROOT);
+        if (!code.matches("[A-Z0-9_-]{4,64}")) throw new IllegalStateException("Code cần 4–64 ký tự: chữ, số, dấu - hoặc _.");
+        return code;
+    }
+
+    private static long giftReward(Map<String, String> form, String key, long limit) {
+        long value = parseAccountBalance(form.containsKey(key) ? form.get(key) : "0", key);
+        if (value > limit) throw new IllegalStateException(key + " vượt giới hạn " + limit + ".");
+        return value;
+    }
+
     private void handleAdminUpdateAssets(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         SessionUser su = requireAdmin(ex);
@@ -2575,9 +3022,9 @@ public class LottoWebServer {
         }
         Map<String, String> f = parseForm(ex);
         String user = normalizeUser(f.get("username"));
-        int diamond = parseNonNegativeInt(f.get("diamond"));
-        int paypal = parseNonNegativeInt(f.get("paypal"));
         try {
+            long diamond = parseAccountBalance(f.get("diamond"), "Kim cương");
+            long paypal = parseAccountBalance(f.get("paypal"), "PayPal");
             repo.updateAssets(user, diamond, paypal, su.username);
             sendJson(ex, 200, "{\"ok\":true}");
         } catch (IllegalStateException e) {
@@ -2659,6 +3106,7 @@ public class LottoWebServer {
 
     private void setCookie(HttpExchange ex, String name, String value, boolean expired) {
         String cookie = name + "=" + value + "; Path=/; HttpOnly; SameSite=Lax";
+        if (socialPublicBase(readSocialSettings()).startsWith("https://") || readVnpayConfig().base.startsWith("https://")) cookie += "; Secure";
         if (expired) cookie += "; Max-Age=0";
         ex.getResponseHeaders().add("Set-Cookie", cookie);
     }
@@ -2966,7 +3414,7 @@ public class LottoWebServer {
             if (uri.getRawUserInfo() != null || !isBlank(uri.getRawQuery()) || !isBlank(uri.getRawFragment())
                     || (uri.getPath() != null && !uri.getPath().isEmpty())) return false;
             if (uri.getPort() == PORT && ("localhost".equals(host) || "127.0.0.1".equals(host))) return true;
-            return Arrays.asList(System.getProperty("lotto.allowedOrigins", "").split(",")).contains(origin);
+            return origin.equals(socialPublicBase(readSocialSettings())) || origin.equals(readVnpayConfig().base) || Arrays.asList(System.getProperty("lotto.allowedOrigins", "").split(",")).contains(origin);
         } catch (IllegalArgumentException invalid) { return false; }
     }
 
@@ -3002,11 +3450,17 @@ public class LottoWebServer {
         return nvl(u).trim().toLowerCase(Locale.ROOT);
     }
 
-    private static int parseNonNegativeInt(String s) {
+    private static long parseAccountBalance(String raw, String label) {
+        String value = nvl(raw).trim();
+        if (!value.matches("[0-9]+")) {
+            throw new IllegalStateException(label + " phải là số nguyên không âm.");
+        }
         try {
-            return Math.max(0, Integer.parseInt(nvl(s).trim()));
-        } catch (Exception e) {
-            return 0;
+            long amount = Long.parseLong(value);
+            if (amount > 9007199254740991L) throw new NumberFormatException();
+            return amount;
+        } catch (NumberFormatException invalid) {
+            throw new IllegalStateException(label + " vượt giới hạn 9.007.199.254.740.991.");
         }
     }
 
@@ -3146,7 +3600,7 @@ public class LottoWebServer {
     }
 
     private static boolean protectedStoreField(String key) {
-        return key.equals("diamondBalance") || key.equals("paypalBalance") || key.startsWith("vip")
+        return key.equals("paymentOrders") || key.equals("diamondBalance") || key.equals("paypalBalance") || key.startsWith("vip")
                 || key.startsWith("luckyWheel") || key.equals("walletVersion");
     }
 
@@ -3166,6 +3620,153 @@ public class LottoWebServer {
             }
         } catch (IllegalArgumentException ignored) { /* Keep the validated new event. */ }
         return "[" + String.join(",", entries) + "]";
+    }
+
+    // VNPAY 2.1.0: browser return never settles an order; only verified IPN does.
+    private static class VnpayConfig {
+        boolean enabled; String mode, tmn, secret, base; long maximum = 10000000L;
+        boolean ready() { return ("sandbox".equals(mode) || "production".equals(mode)) && tmn.matches("[A-Za-z0-9]{8}") && secret.length() >= 16 && !base.isEmpty(); }
+        String endpoint() { return "production".equals(mode) ? "https://pay.vnpay.vn/vpcpay.html" : "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"; }
+    }
+
+    private VnpayConfig readVnpayConfig() {
+        Properties p = new Properties();
+        Path file = rootDir.resolve("runtime/vnpay.properties");
+        if (Files.isRegularFile(file)) try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) { p.load(reader); }
+        catch (IOException invalid) { p.clear(); }
+        VnpayConfig cfg = new VnpayConfig();
+        cfg.enabled = "true".equals(socialSetting(p, "enabled", "LOTTO_VNPAY_ENABLED"));
+        cfg.mode = socialSetting(p, "environment", "LOTTO_VNPAY_ENVIRONMENT");
+        if (cfg.mode.isEmpty()) cfg.mode = "sandbox";
+        cfg.tmn = socialSetting(p, "tmnCode", "LOTTO_VNPAY_TMN_CODE");
+        cfg.secret = socialSetting(p, "hashSecret", "LOTTO_VNPAY_HASH_SECRET");
+        cfg.base = socialSetting(p, "publicBaseUrl", "LOTTO_VNPAY_PUBLIC_BASE_URL");
+        try {
+            java.net.URI uri = java.net.URI.create(cfg.base);
+            boolean local = "localhost".equals(uri.getHost()) || "127.0.0.1".equals(uri.getHost());
+            if (uri.getHost() == null || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
+                    || !(isBlank(uri.getPath()) || "/".equals(uri.getPath()))
+                    || !("https".equals(uri.getScheme()) || (local && "sandbox".equals(cfg.mode) && "http".equals(uri.getScheme())))
+                    || (local && "production".equals(cfg.mode))) cfg.base = "";
+            else if (cfg.base.endsWith("/")) cfg.base = cfg.base.substring(0, cfg.base.length() - 1);
+        } catch (IllegalArgumentException invalid) { cfg.base = ""; }
+        try { long max = Long.parseLong(socialSetting(p, "maxAmount", "LOTTO_VNPAY_MAX_AMOUNT")); if (max >= 10000 && max <= 100000000) cfg.maximum = max; }
+        catch (NumberFormatException ignored) { }
+        return cfg;
+    }
+
+    private static String vnpayQuery(Map<String, String> input) {
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<String, String> item : new TreeMap<>(input).entrySet()) {
+            if (item.getKey().equals("vnp_SecureHash") || item.getKey().equals("vnp_SecureHashType") || isBlank(item.getValue())) continue;
+            try { parts.add(URLEncoder.encode(item.getKey(), "UTF-8") + "=" + URLEncoder.encode(item.getValue(), "UTF-8")); }
+            catch (UnsupportedEncodingException impossible) { throw new IllegalStateException(impossible); }
+        }
+        return String.join("&", parts);
+    }
+
+    private static String vnpayHash(String secret, Map<String, String> fields) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA512");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
+            StringBuilder result = new StringBuilder();
+            for (byte value : mac.doFinal(vnpayQuery(fields).getBytes(StandardCharsets.UTF_8))) result.append(String.format("%02x", value & 255));
+            return result.toString();
+        } catch (Exception invalid) { throw new IllegalStateException("Không tạo được chữ ký VNPAY", invalid); }
+    }
+
+    private static Map<String, String> vnpayFields(String query) {
+        if (query == null || query.length() > 16384) throw new IllegalArgumentException("Invalid callback");
+        Map<String, String> fields = new TreeMap<>();
+        for (String part : query.split("&")) {
+            int equals = part.indexOf('=');
+            if (equals < 1 || fields.size() >= 40) throw new IllegalArgumentException("Invalid callback");
+            try {
+                String key = URLDecoder.decode(part.substring(0, equals), "UTF-8");
+                String value = URLDecoder.decode(part.substring(equals + 1), "UTF-8");
+                if (!key.matches("vnp_[A-Za-z0-9_]+") || fields.put(key, value) != null) throw new IllegalArgumentException("Duplicate or invalid parameter");
+            } catch (UnsupportedEncodingException impossible) { throw new IllegalStateException(impossible); }
+        }
+        return fields;
+    }
+
+    private static String vnpayAck(String code) {
+        String message = "00".equals(code) ? "Confirm Success" : "02".equals(code) ? "Order already confirmed" : "01".equals(code) ? "Order not found" : "04".equals(code) ? "Invalid amount" : "97".equals(code) ? "Invalid signature" : "Processing error";
+        return "{\"RspCode\":" + quoteJson(code) + ",\"Message\":" + quoteJson(message) + "}";
+    }
+
+    private String vnpayPaymentUrl(Map<String, String> order, VnpayConfig cfg, String ip) {
+        Map<String, String> p = new TreeMap<>();
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
+        p.put("vnp_Version", "2.1.0"); p.put("vnp_Command", "pay"); p.put("vnp_TmnCode", cfg.tmn);
+        p.put("vnp_Amount", Long.toString(Long.parseLong(order.get("amount")) * 100)); p.put("vnp_CurrCode", "VND");
+        p.put("vnp_BankCode", "VNPAYQR"); p.put("vnp_Locale", "vn"); p.put("vnp_OrderType", "other");
+        p.put("vnp_TxnRef", order.get("id")); p.put("vnp_OrderInfo", "Nap PayPal " + order.get("id"));
+        p.put("vnp_ReturnUrl", cfg.base + "/api/payments/vnpay/return"); p.put("vnp_IpAddr", ip);
+        p.put("vnp_CreateDate", format.format(Instant.parse(order.get("createdAt"))));
+        p.put("vnp_ExpireDate", format.format(Instant.parse(order.get("expiresAt"))));
+        return cfg.endpoint() + "?" + vnpayQuery(p) + "&vnp_SecureHash=" + vnpayHash(cfg.secret, p);
+    }
+
+    private void handleVnpay(HttpExchange ex) throws IOException {
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        String path = ex.getRequestURI().getPath(), method = ex.getRequestMethod();
+        VnpayConfig cfg = readVnpayConfig();
+        if (path.equals("/api/payments/vnpay/ipn")) {
+            if (!"GET".equals(method)) { sendJson(ex, 405, vnpayAck("99")); return; }
+            try {
+                Map<String, String> p = vnpayFields(ex.getRequestURI().getRawQuery());
+                String signature = p.getOrDefault("vnp_SecureHash", "");
+                if (!cfg.ready() || !signature.matches("[a-fA-F0-9]{128}") || !cfg.tmn.equals(p.get("vnp_TmnCode"))
+                        || !MessageDigest.isEqual(signature.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII), vnpayHash(cfg.secret, p).getBytes(StandardCharsets.US_ASCII))) {
+                    sendJson(ex, 200, vnpayAck("97")); return;
+                }
+                sendJson(ex, 200, vnpayAck(repo.settleVnpay(p, cfg)));
+            } catch (IllegalArgumentException invalid) { sendJson(ex, 200, vnpayAck("97")); }
+            catch (RuntimeException failed) { sendJson(ex, 200, vnpayAck("99")); }
+            return;
+        }
+        if (path.equals("/api/payments/vnpay/return")) {
+            if (!"GET".equals(method)) { sendJson(ex, 405, "{\"ok\":false}"); return; }
+            String id = "";
+            try { id = vnpayFields(ex.getRequestURI().getRawQuery()).getOrDefault("vnp_TxnRef", ""); } catch (IllegalArgumentException ignored) { }
+            ex.getResponseHeaders().set("Location", "/nap-tien" + (id.matches("[a-f0-9]{32}") ? "?payment=" + id : ""));
+            ex.getResponseHeaders().set("Referrer-Policy", "no-referrer");
+            ex.sendResponseHeaders(303, -1); ex.close(); return;
+        }
+        if (handleOptions(ex)) return;
+        SessionUser user = requireAuth(ex, true);
+        if (user == null) return;
+        if ("GET".equals(method) && path.equals("/api/payments/vnpay/config")) {
+            sendJson(ex, 200, "{\"ok\":true,\"configured\":" + (cfg.enabled && cfg.ready()) + ",\"environment\":" + quoteJson(cfg.mode) + ",\"minimum\":10000,\"step\":1000,\"maximum\":" + cfg.maximum + "}"); return;
+        }
+        try {
+            if ("GET".equals(method) && path.equals("/api/payments/vnpay/orders")) {
+                sendJson(ex, 200, "{\"ok\":true,\"orders\":" + repo.listVnpay(user.username) + ",\"store\":" + repo.publicWallet(user.username) + "}"); return;
+            }
+            if ("POST".equals(method) && path.equals("/api/payments/vnpay/orders")) {
+                if (!cfg.enabled || !cfg.ready()) { sendJson(ex, 503, "{\"ok\":false,\"message\":\"VNPAY chưa được cấu hình. Vui lòng liên hệ quản trị viên.\"}"); return; }
+                Map<String, String> form = parseForm(ex);
+                String raw = form.getOrDefault("amount", ""), request = form.getOrDefault("requestId", "");
+                if (!raw.matches("[0-9]{1,9}") || !request.matches("[A-Za-z0-9_-]{16,64}")) throw new IllegalArgumentException("Số tiền hoặc mã yêu cầu không hợp lệ.");
+                long amount = Long.parseLong(raw);
+                if (amount < 10000 || amount > cfg.maximum || amount % 1000 != 0) throw new IllegalArgumentException("Số tiền phải từ 10.000 VNĐ, là bội số 1.000 VNĐ và trong giới hạn cho phép.");
+                Map<String, String> order = repo.createVnpay(user.username, request, amount, cfg);
+                String checkout = "";
+                if (order.get("status").equals("PENDING") && Instant.parse(order.get("expiresAt")).isAfter(Instant.now())) checkout = vnpayPaymentUrl(order, cfg, ex.getRemoteAddress().getAddress().getHostAddress());
+                sendJson(ex, 200, "{\"ok\":true,\"order\":" + paymentOrderJson(order) + ",\"paymentUrl\":" + quoteJson(checkout) + "}"); return;
+            }
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Thao tác không được hỗ trợ\"}");
+        } catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        catch (RuntimeException failed) { sendJson(ex, 500, "{\"ok\":false,\"message\":\"Chưa xử lý được giao dịch. Hãy thử lại với cùng yêu cầu.\"}"); }
+    }
+
+    private static String paymentOrderJson(Map<String, String> p) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String key : Arrays.asList("id", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo")) result.put(key, quoteJson(p.getOrDefault(key, "")));
+        if ("PENDING".equals(p.get("status")) && !Instant.parse(p.get("expiresAt")).isAfter(Instant.now())) result.put("status", quoteJson("EXPIRED"));
+        for (String key : Arrays.asList("amount", "baseCredit", "bonusCredit", "credit")) result.put(key, p.get(key));
+        return fieldsJson(result);
     }
 
     private void handleWheel(HttpExchange ex) throws IOException {
@@ -3461,6 +4062,7 @@ public class LottoWebServer {
                         "role TEXT NOT NULL," +
                         "enabled INTEGER NOT NULL DEFAULT 1" +
                         ")");
+                st.execute("CREATE TABLE IF NOT EXISTS social_identities (provider TEXT NOT NULL, client_id TEXT NOT NULL, subject TEXT NOT NULL, username TEXT NOT NULL, display_name TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(provider,client_id,subject), FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE)");
                 st.execute("CREATE TABLE IF NOT EXISTS stores (" +
                         "username TEXT PRIMARY KEY," +
                         "store_json TEXT NOT NULL DEFAULT '{}'," +
@@ -3469,6 +4071,25 @@ public class LottoWebServer {
                 st.execute("CREATE TABLE IF NOT EXISTS account_entitlements (username TEXT PRIMARY KEY, vip_expires_at TEXT NOT NULL, updated_at TEXT NOT NULL)");
                 st.execute("CREATE TABLE IF NOT EXISTS wallet_events (username TEXT NOT NULL, request_id TEXT NOT NULL, action TEXT NOT NULL, response_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(username,request_id))");
                 st.execute("CREATE TABLE IF NOT EXISTS account_audit (event_id TEXT PRIMARY KEY, actor TEXT NOT NULL, target TEXT NOT NULL, action TEXT NOT NULL, details_json TEXT NOT NULL, created_at TEXT NOT NULL)");
+                st.execute("CREATE TABLE IF NOT EXISTS payment_orders (id TEXT PRIMARY KEY,username TEXT NOT NULL,request_id TEXT NOT NULL,environment TEXT NOT NULL,tmn_code TEXT NOT NULL,amount INTEGER NOT NULL,base_credit INTEGER NOT NULL,bonus_credit INTEGER NOT NULL,credit INTEGER NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,paid_at TEXT NOT NULL DEFAULT '',transaction_no TEXT,UNIQUE(username,request_id))");
+                st.execute("CREATE UNIQUE INDEX IF NOT EXISTS payment_transaction_unique ON payment_orders(environment,tmn_code,transaction_no) WHERE transaction_no IS NOT NULL");
+                st.execute("CREATE TABLE IF NOT EXISTS gift_codes (code TEXT PRIMARY KEY, diamond INTEGER NOT NULL, paypal INTEGER NOT NULL, vip_days INTEGER NOT NULL, bonus_spins INTEGER NOT NULL, max_uses INTEGER NOT NULL, used_count INTEGER NOT NULL DEFAULT 0, expires_at TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL)");
+                st.execute("CREATE TABLE IF NOT EXISTS gift_code_redemptions (code TEXT NOT NULL, username TEXT NOT NULL, redeemed_at TEXT NOT NULL, PRIMARY KEY(code,username))");
+                Set<String> codeColumns = new HashSet<>();
+                try (ResultSet columns = st.executeQuery("PRAGMA table_info(gift_codes)")) {
+                    while (columns.next()) codeColumns.add(columns.getString("name"));
+                }
+                if (!codeColumns.contains("active")) st.execute("ALTER TABLE gift_codes ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+                if (!codeColumns.contains("kind")) st.execute("ALTER TABLE gift_codes ADD COLUMN kind TEXT NOT NULL DEFAULT 'promotion'");
+                if (!codeColumns.contains("max_per_user")) st.execute("ALTER TABLE gift_codes ADD COLUMN max_per_user INTEGER NOT NULL DEFAULT 1");
+                if (!codeColumns.contains("cooldown_seconds")) st.execute("ALTER TABLE gift_codes ADD COLUMN cooldown_seconds INTEGER NOT NULL DEFAULT 0");
+                if (!codeColumns.contains("activates_at")) st.execute("ALTER TABLE gift_codes ADD COLUMN activates_at TEXT NOT NULL DEFAULT ''");
+                if (!codeColumns.contains("deleted_at")) st.execute("ALTER TABLE gift_codes ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''");
+                Set<String> redemptionColumns = new HashSet<>();
+                try (ResultSet columns = st.executeQuery("PRAGMA table_info(gift_code_redemptions)")) {
+                    while (columns.next()) redemptionColumns.add(columns.getString("name"));
+                }
+                if (!redemptionColumns.contains("received_count")) st.execute("ALTER TABLE gift_code_redemptions ADD COLUMN received_count INTEGER NOT NULL DEFAULT 1");
             } catch (SQLException e) {
                 throw new RuntimeException("Không thể khởi tạo schema SQLite: " + e.getMessage(), e);
             }
@@ -3491,6 +4112,32 @@ public class LottoWebServer {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        synchronized Account socialAccount(String provider,String clientId,String subject,String displayName) {
+            try(Connection c=conn()) {
+                c.setAutoCommit(false);
+                try {
+                    String user=null;
+                    try(PreparedStatement ps=c.prepareStatement("SELECT username FROM social_identities WHERE provider=? AND client_id=? AND subject=?")) {
+                        ps.setString(1,provider);ps.setString(2,clientId);ps.setString(3,subject);
+                        try(ResultSet rs=ps.executeQuery()){if(rs.next())user=rs.getString(1);}
+                    }
+                    if(user!=null){c.commit();return getUser(user);}
+                    if(countAdminUsers()==0)throw new IllegalStateException("Set up a local admin first");
+                    do {user=provider+"_"+UUID.randomUUID().toString().replace("-","").substring(0,12);} while(getUser(user)!=null);
+                    byte[] salt=new byte[16];random.nextBytes(salt);
+                    String password=hashPassword(socialRandom(),salt);
+                    try(PreparedStatement ps=c.prepareStatement("INSERT INTO users(username,salt,password_hash,role,enabled) VALUES(?,?,?,'user',1)")) {
+                        ps.setString(1,user);ps.setString(2,Base64.getEncoder().encodeToString(salt));ps.setString(3,password);ps.executeUpdate();
+                    }
+                    try(PreparedStatement ps=c.prepareStatement("INSERT INTO social_identities VALUES(?,?,?,?,?,?)")) {
+                        ps.setString(1,provider);ps.setString(2,clientId);ps.setString(3,subject);ps.setString(4,user);ps.setString(5,displayName);ps.setString(6,Instant.now().toString());ps.executeUpdate();
+                    }
+                    auditAccount(c,user,user,"social_register","{\"provider\":"+quoteJson(provider)+"}");
+                    c.commit();return getUser(user);
+                } catch(SQLException|RuntimeException failure){c.rollback();throw failure;}
+            } catch(SQLException failure){throw new RuntimeException(failure);}
         }
 
         synchronized void register(String user, String password) {
@@ -3573,6 +4220,100 @@ public class LottoWebServer {
             } catch (SQLException e) {
                 throw new RuntimeException("Không thể lưu store cho tài khoản " + user, e);
             }
+        }
+
+        private Map<String, String> paymentRow(ResultSet rs) throws SQLException {
+            Map<String, String> p = new LinkedHashMap<>();
+            String[] columns = {"id", "environment", "status", "created_at", "expires_at", "paid_at", "transaction_no", "amount", "base_credit", "bonus_credit", "credit"};
+            String[] keys = {"id", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo", "amount", "baseCredit", "bonusCredit", "credit"};
+            for (int i = 0; i < columns.length; i++) p.put(keys[i], nvl(rs.getString(columns[i])));
+            return p;
+        }
+
+        synchronized Map<String, String> createVnpay(String user, String request, long amount, VnpayConfig cfg) {
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE username=? AND request_id=?")) {
+                        ps.setString(1, user); ps.setString(2, request);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                if (rs.getLong("amount") != amount || !cfg.mode.equals(rs.getString("environment")) || !cfg.tmn.equals(rs.getString("tmn_code"))) throw new IllegalArgumentException("Mã yêu cầu đã dùng cho giao dịch khác.");
+                                Map<String, String> found = paymentRow(rs); c.commit(); return found;
+                            }
+                        }
+                    }
+                    Instant now = Instant.now();
+                    try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM payment_orders WHERE username=? AND (created_at>? OR (status='PENDING' AND expires_at>?))")) {
+                        ps.setString(1, user); ps.setString(2, now.minusSeconds(60).toString()); ps.setString(3, now.toString());
+                        try (ResultSet rs = ps.executeQuery()) { if (rs.next() && rs.getInt(1) >= 5) throw new IllegalArgumentException("Bạn đang có nhiều yêu cầu thanh toán. Hãy hoàn tất hoặc chờ đơn cũ hết hạn."); }
+                    }
+                    long base = amount * 5 / 4;
+                    long bonus = amount == 50000 ? 625 : amount == 100000 ? 1875 : amount == 200000 ? 5000 : amount == 500000 ? 15625 : 0;
+                    String id = UUID.randomUUID().toString().replace("-", "");
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,'PENDING',?,?)")) {
+                        ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setString(4, cfg.mode); ps.setString(5, cfg.tmn);
+                        ps.setLong(6, amount); ps.setLong(7, base); ps.setLong(8, bonus); ps.setLong(9, base + bonus); ps.setString(10, now.toString()); ps.setString(11, now.plusSeconds(900).toString()); ps.executeUpdate();
+                    }
+                    auditAccount(c, user, user, "vnpay_order_created", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + ",\"environment\":" + quoteJson(cfg.mode) + "}");
+                    Map<String, String> p;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE id=?")) { ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { rs.next(); p = paymentRow(rs); } }
+                    c.commit(); return p;
+                } catch (Exception invalid) { c.rollback(); if (invalid instanceof IllegalArgumentException) throw (IllegalArgumentException) invalid; throw new RuntimeException(invalid); }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String listVnpay(String user) {
+            List<String> orders = new ArrayList<>();
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE username=? ORDER BY created_at DESC,id DESC LIMIT 100")) {
+                ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { while (rs.next()) orders.add(paymentOrderJson(paymentRow(rs))); }
+                return "[" + String.join(",", orders) + "]";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String settleVnpay(Map<String, String> p, VnpayConfig cfg) {
+            String id = p.getOrDefault("vnp_TxnRef", "");
+            if (!id.matches("[a-f0-9]{32}")) return "01";
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    String user, status; long amount, credit;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE id=? AND environment=? AND tmn_code=?")) {
+                        ps.setString(1, id); ps.setString(2, cfg.mode); ps.setString(3, cfg.tmn);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (!rs.next()) { c.rollback(); return "01"; }
+                            user = rs.getString("username"); status = rs.getString("status"); amount = rs.getLong("amount"); credit = rs.getLong("credit");
+                        }
+                    }
+                    String rawAmount = p.getOrDefault("vnp_Amount", "");
+                    if (!rawAmount.matches("[0-9]{1,12}") || Long.parseLong(rawAmount) != amount * 100 || !p.getOrDefault("vnp_CurrCode", "VND").equals("VND")) { c.rollback(); return "04"; }
+                    if (!p.getOrDefault("vnp_OrderInfo", "").equals("Nap PayPal " + id)) { c.rollback(); return "97"; }
+                    if (!"PENDING".equals(status)) { c.rollback(); return "02"; }
+                    boolean success = "00".equals(p.get("vnp_ResponseCode")) && "00".equals(p.get("vnp_TransactionStatus"));
+                    if (!p.getOrDefault("vnp_ResponseCode", "").matches("[0-9]{2}") || !p.getOrDefault("vnp_TransactionStatus", "").matches("[0-9]{2}")) { c.rollback(); return "99"; }
+                    String transaction = p.getOrDefault("vnp_TransactionNo", "");
+                    if (success && (!transaction.matches("[0-9]{1,30}") || transaction.matches("0+"))) { c.rollback(); return "99"; }
+                    if (getUser(user) == null) { c.rollback(); return "01"; }
+                    String outcome = success ? ("production".equals(cfg.mode) ? "PAID" : "TEST_PAID") : "FAILED";
+                    if (outcome.equals("PAID")) {
+                        Map<String, String> fields;
+                        try (PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                            ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { fields = jsonFields(rs.next() ? rs.getString(1) : "{}"); }
+                        }
+                        long balance = Math.addExact(fieldLong(fields, "paypalBalance", 0), credit);
+                        if (balance > 9007199254740991L || balance < -9007199254740991L) throw new IllegalStateException("Wallet limit");
+                        fields.put("paypalBalance", Long.toString(balance));
+                        fields.put("walletVersion", Long.toString(Math.addExact(fieldLong(fields, "walletVersion", 0), 1)));
+                        try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) { ps.setString(1, user); ps.setString(2, fieldsJson(fields)); ps.executeUpdate(); }
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE payment_orders SET status=?,paid_at=?,transaction_no=? WHERE id=? AND status='PENDING'")) {
+                        ps.setString(1, outcome); ps.setString(2, success ? Instant.now().toString() : ""); ps.setString(3, success ? transaction : null); ps.setString(4, id);
+                        if (ps.executeUpdate() != 1) throw new IllegalStateException("Order changed");
+                    }
+                    auditAccount(c, "vnpay_ipn", user, outcome.equals("PAID") ? "vnpay_credit" : "vnpay_" + outcome.toLowerCase(Locale.ROOT), "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + ",\"credit\":" + (outcome.equals("PAID") ? credit : 0) + ",\"transactionNo\":" + quoteJson(success ? transaction : "") + "}");
+                    c.commit(); return "00";
+                } catch (Exception failure) { c.rollback(); throw new RuntimeException(failure); }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
         synchronized String publicStore(String user) {
@@ -3661,12 +4402,12 @@ public class LottoWebServer {
                     try { regen = Instant.parse(jsonString(fields.get("luckyWheelLastRegenAt"))).toEpochMilli(); }
                     catch (Exception invalid) { regen = now; }
                     regen = Math.min(now, regen);
-                    long spins = Math.max(0, Math.min(60, fieldLong(fields, "luckyWheelStoredSpins", 60)));
+                    long spins = Math.min(60, fieldLong(fields, "luckyWheelStoredSpins", 60));
                     long gained = (now - regen) / 600000;
                     spins = Math.min(60, spins + gained);
                     regen = spins == 60 ? now : regen + gained * 600000;
-                    long paypal = Math.max(0, fieldLong(fields, "paypalBalance", 0));
-                    long diamond = Math.max(0, fieldLong(fields, "diamondBalance", 0));
+                    long paypal = fieldLong(fields, "paypalBalance", 0);
+                    long diamond = fieldLong(fields, "diamondBalance", 0);
                     long exchanged = today.equals(jsonString(fields.get("luckyWheelExchangeDayKey"))) ? fieldLong(fields, "luckyWheelDailyExchangeSpins", 0) : 0;
                     long dailySpins = today.equals(jsonString(fields.get("luckyWheelMilestoneDayKey"))) ? fieldLong(fields, "luckyWheelDailySpinCount", 0) : 0;
                     int index = -1;
@@ -3727,13 +4468,369 @@ public class LottoWebServer {
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
-        synchronized void updateAssets(String user, int diamond, int paypal, String actor) {
+        private boolean giftCodeActivated(ResultSet row, Instant now) throws SQLException {
+            if (row.getInt("active") == 1) return true;
+            String activation = nvl(row.getString("activates_at"));
+            if (activation.isEmpty()) return false;
+            try { return !Instant.parse(activation).isAfter(now); }
+            catch (DateTimeParseException invalid) { return false; }
+        }
+
+        synchronized String listGiftCodes(Map<String, String> query) {
+            long page = query.containsKey("page") ? giftReward(query, "page", 1000000) : 1;
+            if (page < 1) throw new IllegalStateException("Trang cần lớn hơn 0.");
+            String search = nvl(query.get("q")).trim().toUpperCase(Locale.ROOT);
+            if (search.length() > 64) throw new IllegalStateException("Tìm kiếm tối đa 64 ký tự.");
+            String enabled = "(active=1 OR (activates_at<>'' AND julianday(activates_at)<=julianday('now')))";
+            String ready = enabled + " AND (expires_at='' OR julianday(expires_at)>julianday('now')) AND used_count<max_uses";
+            try (Connection c = conn()) {
+                String stats;
+                try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery("SELECT COUNT(*) total, COALESCE(SUM(CASE WHEN " + ready + " THEN 1 ELSE 0 END),0) active, (SELECT COALESCE(SUM(used_count),0) FROM gift_codes) redemptions, COALESCE(SUM(CASE WHEN NOT " + enabled + " THEN 1 ELSE 0 END),0) inactive, COALESCE(SUM(CASE WHEN kind='promotion' THEN 1 ELSE 0 END),0) promotion, COALESCE(SUM(CASE WHEN kind='vip' THEN 1 ELSE 0 END),0) vip, COALESCE(SUM(CASE WHEN kind='gift' THEN 1 ELSE 0 END),0) gift, COALESCE(SUM(CASE WHEN substr(kind,1,7)='custom:' THEN 1 ELSE 0 END),0) custom, (SELECT COUNT(*) FROM users) users FROM gift_codes WHERE deleted_at=''")) {
+                    rs.next();
+                    stats = "{\"total\":" + rs.getLong("total") + ",\"active\":" + rs.getLong("active") + ",\"redemptions\":" + rs.getLong("redemptions") + ",\"inactive\":" + rs.getLong("inactive") + ",\"users\":" + rs.getLong("users") + ",\"promotion\":" + rs.getLong("promotion") + ",\"vip\":" + rs.getLong("vip") + ",\"gift\":" + rs.getLong("gift") + ",\"custom\":" + rs.getLong("custom") + "}";
+                }
+                long total;
+                try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM gift_codes WHERE deleted_at='' AND instr(code,?)>0")) {
+                    ps.setString(1, search);
+                    try (ResultSet rs = ps.executeQuery()) { rs.next(); total = rs.getLong(1); }
+                }
+                StringBuilder rows = new StringBuilder("[");
+                try (PreparedStatement ps = c.prepareStatement("SELECT * FROM gift_codes WHERE deleted_at='' AND instr(code,?)>0 ORDER BY created_at DESC,code ASC LIMIT 20 OFFSET ?")) {
+                    ps.setString(1, search); ps.setLong(2, (page - 1) * 20);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            if (rows.length() > 1) rows.append(',');
+                            rows.append("{\"code\":").append(quoteJson(rs.getString("code")))
+                                .append(",\"kind\":").append(quoteJson(rs.getString("kind")))
+                                .append(",\"active\":").append(giftCodeActivated(rs, Instant.now()))
+                                .append(",\"activatesAt\":").append(quoteJson(rs.getString("activates_at")))
+                                .append(",\"diamond\":").append(rs.getLong("diamond"))
+                                .append(",\"paypal\":").append(rs.getLong("paypal"))
+                                .append(",\"vipDays\":").append(rs.getLong("vip_days"))
+                                .append(",\"bonusSpins\":").append(rs.getLong("bonus_spins"))
+                                .append(",\"maxUses\":").append(rs.getLong("max_uses"))
+                                .append(",\"maxPerUser\":").append(rs.getLong("max_per_user"))
+                                .append(",\"cooldownSeconds\":").append(rs.getLong("cooldown_seconds"))
+                                .append(",\"usedCount\":").append(rs.getLong("used_count"))
+                                .append(",\"expiresAt\":").append(quoteJson(rs.getString("expires_at")))
+                                .append(",\"createdAt\":").append(quoteJson(rs.getString("created_at"))).append('}');
+                        }
+                    }
+                }
+                return "{\"ok\":true,\"codes\":" + rows.append(']') + ",\"total\":" + total + ",\"page\":" + page + ",\"pageSize\":20,\"stats\":" + stats + "}";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String deleteGiftCodes(Map<String, String> form, String actor) {
+            String reclaimValue = form.containsKey("reclaimRewards") ? form.get("reclaimRewards") : "0";
+            if (!"0".equals(reclaimValue) && !"1".equals(reclaimValue)) throw new IllegalStateException("Lựa chọn thu hồi không hợp lệ.");
+            boolean reclaim = "1".equals(reclaimValue);
+            String raw = nvl(form.get("codes"));
+            if (raw.isEmpty() || raw.length() > 1300) throw new IllegalStateException("Chọn từ 1 đến 20 Code cần xóa.");
+            String[] items = raw.split("\\r?\\n", -1);
+            if (items.length > 20) throw new IllegalStateException("Chỉ xóa tối đa 20 Code mỗi lần.");
+            Set<String> codes = new LinkedHashSet<>();
+            for (String item : items) codes.add(normalizeGiftCode(item));
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    String at = Instant.now().toString();
+                    StringBuilder detail = new StringBuilder("{\"codes\":[");
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE gift_codes SET deleted_at=? WHERE code=? AND deleted_at=''")) {
+                        for (String code : codes) {
+                            ps.setString(1, at); ps.setString(2, code);
+                            if (ps.executeUpdate() != 1) throw new IllegalStateException("Code không tồn tại hoặc đã bị xóa. Hãy làm mới danh sách.");
+                            if (detail.length() > 10) detail.append(',');
+                            detail.append(quoteJson(code));
+                        }
+                    }
+                    int affectedUsers = reclaim ? reclaimGiftRewards(c, codes, actor) : 0;
+                    auditAccount(c, actor, actor, "delete_gift_codes", detail.append("],\"reclaimRewards\":").append(reclaim).append('}').toString());
+                    c.commit(); return "{\"ok\":true,\"deletedCount\":" + codes.size() + ",\"reclaimed\":" + reclaim + ",\"affectedUsers\":" + affectedUsers + "}";
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        private long checkedReclaimedBalance(long previous, BigInteger reward) {
+            BigInteger result = BigInteger.valueOf(previous).subtract(reward);
+            if (result.abs().compareTo(BigInteger.valueOf(9007199254740991L)) > 0) {
+                throw new IllegalStateException("Số dư sau thu hồi vượt giới hạn số nguyên chính xác. Chưa xóa Code hoặc thu hồi quà.");
+            }
+            return result.longValue();
+        }
+
+        private int reclaimGiftRewards(Connection c, Set<String> codes, String actor) throws SQLException {
+            Map<String, BigInteger[]> rewards = new LinkedHashMap<>();
+            try (PreparedStatement ps = c.prepareStatement("SELECT r.username,r.received_count,g.diamond,g.paypal,g.vip_days,g.bonus_spins FROM gift_code_redemptions r JOIN gift_codes g ON g.code=r.code JOIN users u ON u.username=r.username WHERE r.code=?")) {
+                for (String code : codes) {
+                    ps.setString(1, code);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            String user = rs.getString("username");
+                            BigInteger[] amounts = rewards.computeIfAbsent(user, ignored -> new BigInteger[] {BigInteger.ZERO,BigInteger.ZERO,BigInteger.ZERO,BigInteger.ZERO});
+                            BigInteger count = BigInteger.valueOf(rs.getLong("received_count"));
+                            String[] keys = {"diamond", "paypal", "vip_days", "bonus_spins"};
+                            for (int i = 0; i < keys.length; i++) amounts[i] = amounts[i].add(BigInteger.valueOf(rs.getLong(keys[i])).multiply(count));
+                        }
+                    }
+                }
+            }
+            Instant now = Instant.now();
+            for (Map.Entry<String, BigInteger[]> entry : rewards.entrySet()) {
+                String user = entry.getKey(); BigInteger[] amounts = entry.getValue();
+                Map<String, String> fields = new LinkedHashMap<>();
+                try (PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                    ps.setString(1, user);
+                    try (ResultSet rs = ps.executeQuery()) { if (rs.next()) fields = jsonFields(rs.getString(1)); }
+                }
+                long diamond = checkedReclaimedBalance(fieldLong(fields, "diamondBalance", 0), amounts[0]);
+                long paypal = checkedReclaimedBalance(fieldLong(fields, "paypalBalance", 0), amounts[1]);
+                fields.put("diamondBalance", Long.toString(diamond)); fields.put("paypalBalance", Long.toString(paypal));
+                if (amounts[3].signum() > 0) {
+                    long regen = now.toEpochMilli();
+                    try { regen = Math.min(regen, Instant.parse(jsonString(fields.get("luckyWheelLastRegenAt"))).toEpochMilli()); }
+                    catch (Exception invalid) { /* Missing timestamp starts at the current server time. */ }
+                    long gained = (now.toEpochMilli() - regen) / 600000;
+                    long spins = Math.min(60, fieldLong(fields, "luckyWheelStoredSpins", 60) + gained);
+                    regen = spins == 60 ? now.toEpochMilli() : regen + gained * 600000;
+                    spins = checkedReclaimedBalance(spins, amounts[3]);
+                    fields.put("luckyWheelStoredSpins", Long.toString(spins));
+                    fields.put("luckyWheelLastRegenAt", quoteJson(Instant.ofEpochMilli(regen).toString()));
+                }
+                if (amounts[2].signum() > 0) {
+                    Instant expiry = now;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT vip_expires_at FROM account_entitlements WHERE username=?")) {
+                        ps.setString(1, user);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) { try { expiry = Instant.parse(rs.getString(1)); } catch (DateTimeParseException invalid) { /* No valid membership. */ } }
+                        }
+                    }
+                    expiry = expiry.minus(Duration.ofDays(amounts[2].longValueExact()));
+                    try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO account_entitlements VALUES(?,?,?)")) {
+                        ps.setString(1,user); ps.setString(2,expiry.toString()); ps.setString(3,now.toString()); ps.executeUpdate();
+                    }
+                }
+                fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
+                try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
+                    ps.setString(1,user); ps.setString(2,fieldsJson(fields)); ps.executeUpdate();
+                }
+                auditAccount(c,actor,user,"reclaim_gift_code_rewards","{\"diamond\":"+amounts[0]+",\"paypal\":"+amounts[1]+",\"vipDays\":"+amounts[2]+",\"bonusSpins\":"+amounts[3]+",\"diamondAfter\":"+diamond+",\"paypalAfter\":"+paypal+"}");
+            }
+            return rewards.size();
+        }
+
+        synchronized String setGiftCodeActive(Map<String, String> form, String actor) {
+            String code = normalizeGiftCode(form.get("code")), active = nvl(form.get("active"));
+            if (!"0".equals(active) && !"1".equals(active)) throw new IllegalStateException("Trạng thái kích hoạt không hợp lệ.");
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE gift_codes SET active=?,activates_at='' WHERE code=? AND deleted_at=''")) {
+                        ps.setInt(1, Integer.parseInt(active)); ps.setString(2, code);
+                        if (ps.executeUpdate() != 1) throw new IllegalStateException("Code không tồn tại.");
+                    }
+                    auditAccount(c, actor, actor, "set_gift_code_active", "{\"code\":" + quoteJson(code) + ",\"active\":" + active + "}");
+                    c.commit(); return "{\"ok\":true}";
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String createGiftCode(Map<String, String> form, String actor) {
+            int quantity = (int)giftReward(form, "quantity", 100);
+            if (!form.containsKey("quantity")) quantity = 1;
+            if (quantity < 1) throw new IllegalStateException("Số lượng mã cần từ 1 đến 100.");
+            String manualCode = nvl(form.get("code")).trim();
+            if (!manualCode.isEmpty() && quantity != 1) throw new IllegalStateException("Code tùy chọn chỉ tạo một mã mỗi lần.");
+            String prefix = nvl(form.get("prefix")).trim().toUpperCase(Locale.ROOT);
+            if (!prefix.matches("[A-Z0-9_-]{0,20}")) throw new IllegalStateException("Tiền tố tối đa 20 ký tự: chữ, số, - hoặc _.");
+            int length = form.containsKey("length") ? (int)giftReward(form, "length", 16) : 16;
+            if (length != 8 && length != 12 && length != 16) throw new IllegalStateException("Độ dài mã cần là 8, 12 hoặc 16.");
+            String active = nvl(form.get("active"));
+            if (active.isEmpty()) active = "1";
+            if (!"0".equals(active) && !"1".equals(active)) throw new IllegalStateException("Trạng thái kích hoạt không hợp lệ.");
+            String kind = nvl(form.get("kind"));
+            if (kind.isEmpty()) kind = "promotion";
+            if ("custom".equals(kind)) {
+                String name = nvl(form.get("kindName")).trim();
+                if (name.isEmpty() || name.length() > 60 || name.matches("(?s).*\\p{Cntrl}.*")) {
+                    throw new IllegalStateException("Tên loại Code cần từ 1 đến 60 ký tự và không chứa ký tự điều khiển.");
+                }
+                kind = "custom:" + name;
+            } else if (!Arrays.asList("promotion", "vip", "gift").contains(kind)) {
+                throw new IllegalStateException("Loại Code không hợp lệ.");
+            }
+            long diamond = giftReward(form, "diamond", 9007199254740991L);
+            long paypal = giftReward(form, "paypal", 9007199254740991L);
+            long vipDays = giftReward(form, "vipDays", 3660);
+            long spins = giftReward(form, "bonusSpins", 60);
+            long maxUses = giftReward(form, "maxUses", 1000000);
+            if (maxUses < 1) throw new IllegalStateException("Số lượt sử dụng cần từ 1 đến 1.000.000.");
+            long maxPerUser = form.containsKey("maxPerUser") ? giftReward(form, "maxPerUser", 1000000) : 1;
+            if (form.containsKey("cooldownSeconds") && form.containsKey("cooldownHours")) {
+                throw new IllegalStateException("Chỉ chọn một đơn vị thời gian chờ.");
+            }
+            long cooldownSeconds = form.containsKey("cooldownSeconds")
+                    ? giftReward(form, "cooldownSeconds", 31536000)
+                    : giftReward(form, "cooldownHours", 8760) * 3600;
+            if ((maxPerUser == 0 && cooldownSeconds == 0) || (maxPerUser > 0 && cooldownSeconds > 0)) {
+                throw new IllegalStateException("Chọn số lần nhận từ 1 đến 1.000.000 hoặc thời gian chờ từ 1 giây đến 365 ngày.");
+            }
+            if (diamond == 0 && paypal == 0 && vipDays == 0 && spins == 0) throw new IllegalStateException("Chọn ít nhất một phần quà lớn hơn 0.");
+            String expiry = nvl(form.get("expiresAt")).trim();
+            if (!expiry.isEmpty()) {
+                try {
+                    Instant time = OffsetDateTime.parse(expiry).toInstant();
+                    if (!time.isAfter(Instant.now())) throw new DateTimeParseException("Expired", expiry, 0);
+                    expiry = time.toString();
+                } catch (DateTimeParseException invalid) { throw new IllegalStateException("Hạn code phải là thời gian tương lai hợp lệ."); }
+            }
+            String activation = nvl(form.get("activatesAt")).trim();
+            if (!activation.isEmpty()) {
+                if (!"0".equals(active)) throw new IllegalStateException("Code kích hoạt ngay không được kèm lịch kích hoạt.");
+                try {
+                    Instant time = OffsetDateTime.parse(activation).toInstant();
+                    if (!time.isAfter(Instant.now())) throw new DateTimeParseException("Past activation", activation, 0);
+                    if (!expiry.isEmpty() && !time.isBefore(Instant.parse(expiry))) {
+                        throw new IllegalStateException("Ngày giờ kích hoạt phải trước ngày hết hạn.");
+                    }
+                    activation = time.toString();
+                } catch (DateTimeParseException invalid) { throw new IllegalStateException("Ngày giờ kích hoạt phải là thời gian tương lai hợp lệ."); }
+            }
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    List<String> codes = new ArrayList<>();
+                    for (int i = 0; i < quantity; i++) {
+                    String code = manualCode.isEmpty() ? (prefix.isEmpty() ? "" : prefix + "-") + UUID.randomUUID().toString().replace("-", "").substring(0, length).toUpperCase(Locale.ROOT) : normalizeGiftCode(manualCode);
+                    try (PreparedStatement check = c.prepareStatement("SELECT code FROM gift_codes WHERE code=?")) {
+                        check.setString(1, code);
+                        try (ResultSet rs = check.executeQuery()) {
+                            if (rs.next()) throw new IllegalStateException("Code này đã tồn tại. Hãy chọn code khác.");
+                        }
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO gift_codes(code,diamond,paypal,vip_days,bonus_spins,max_uses,expires_at,created_by,created_at,active,kind,max_per_user,cooldown_seconds,activates_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                        ps.setString(1, code); ps.setLong(2, diamond); ps.setLong(3, paypal); ps.setLong(4, vipDays);
+                        ps.setLong(5, spins); ps.setLong(6, maxUses); ps.setString(7, expiry); ps.setString(8, actor); ps.setString(9, Instant.now().toString()); ps.setInt(10, Integer.parseInt(active)); ps.setString(11, kind); ps.setLong(12, maxPerUser); ps.setLong(13, cooldownSeconds); ps.setString(14, activation); ps.executeUpdate();
+                    }
+                    auditAccount(c, actor, actor, "create_gift_code", "{\"code\":" + quoteJson(code) + "}");
+                    codes.add(code);
+                    }
+                    c.commit();
+                    StringBuilder codeJson = new StringBuilder("[");
+                    for (String value : codes) { if (codeJson.length() > 1) codeJson.append(','); codeJson.append(quoteJson(value)); }
+                    return "{\"ok\":true,\"code\":" + quoteJson(codes.get(0)) + ",\"codes\":" + codeJson.append(']') + ",\"maxUses\":" + maxUses + ",\"expiresAt\":" + quoteJson(expiry) + ",\"activatesAt\":" + quoteJson(activation) + "}";
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String redeemGiftCode(String user, String rawCode) {
+            String code = normalizeGiftCode(rawCode);
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    long diamond, paypal, vipDays, spins, maxPerUser, cooldownSeconds, remainingGifts;
+                    long receivedCount = 0;
+                    Instant redeemedAt = Instant.now();
+                    try (PreparedStatement ps = c.prepareStatement("SELECT * FROM gift_codes WHERE code=?")) {
+                        ps.setString(1, code);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (!rs.next()) throw new IllegalStateException("Code không tồn tại.");
+                            if (!nvl(rs.getString("deleted_at")).isEmpty()) throw new IllegalStateException("Code đã bị xóa.");
+                            if (!giftCodeActivated(rs, redeemedAt)) throw new IllegalStateException("Code chưa được kích hoạt.");
+                            String expiry = rs.getString("expires_at");
+                            if (!expiry.isEmpty() && !Instant.parse(expiry).isAfter(Instant.now())) throw new IllegalStateException("Code đã hết hạn.");
+                            if (rs.getLong("used_count") >= rs.getLong("max_uses")) throw new IllegalStateException("Code đã hết lượt sử dụng.");
+                            diamond = rs.getLong("diamond"); paypal = rs.getLong("paypal"); vipDays = rs.getLong("vip_days"); spins = rs.getLong("bonus_spins");
+                            maxPerUser = rs.getLong("max_per_user"); cooldownSeconds = rs.getLong("cooldown_seconds");
+                            remainingGifts = rs.getLong("max_uses") - rs.getLong("used_count") - 1;
+                        }
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("SELECT received_count,redeemed_at FROM gift_code_redemptions WHERE code=? AND username=?")) {
+                        ps.setString(1, code); ps.setString(2, user);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                receivedCount = rs.getLong("received_count");
+                                if (maxPerUser > 0 && receivedCount >= maxPerUser) {
+                                    throw new IllegalStateException(maxPerUser == 1 ? "Bạn đã sử dụng code này rồi." : "Bạn đã nhận đủ " + maxPerUser + " phần quà từ code này.");
+                                }
+                                if (cooldownSeconds > 0) {
+                                    Instant next = Instant.parse(rs.getString("redeemed_at")).plusSeconds(cooldownSeconds);
+                                    if (redeemedAt.isBefore(next)) {
+                                        String time = next.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+                                        throw new IllegalStateException("Chưa đủ thời gian chờ. Bạn có thể nhận lại lúc " + time + ".");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Map<String, String> fields = new LinkedHashMap<>();
+                    try (PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                        ps.setString(1, user);
+                        try (ResultSet rs = ps.executeQuery()) { if (rs.next()) fields = jsonFields(rs.getString(1)); }
+                    }
+                    long oldDiamond = fieldLong(fields, "diamondBalance", 0), oldPaypal = fieldLong(fields, "paypalBalance", 0);
+                    if (oldDiamond > 9007199254740991L - diamond || oldPaypal > 9007199254740991L - paypal) throw new IllegalStateException("Số dư sau nhận quà vượt giới hạn. Code chưa được sử dụng.");
+                    long storedSpins = fieldLong(fields, "luckyWheelStoredSpins", 60);
+                    long spinRegen = System.currentTimeMillis();
+                    if (spins > 0) {
+                        long now = spinRegen;
+                        try { spinRegen = Math.min(now, Instant.parse(jsonString(fields.get("luckyWheelLastRegenAt"))).toEpochMilli()); }
+                        catch (Exception invalid) { spinRegen = now; }
+                        long gained = (now - spinRegen) / 600000;
+                        storedSpins = Math.min(60, storedSpins + gained);
+                        spinRegen = storedSpins == 60 ? now : spinRegen + gained * 600000;
+                    }
+                    if (spins > 0 && storedSpins > 60 - spins) throw new IllegalStateException("Kho lượt quay tối đa 60. Hãy dùng bớt lượt trước khi nhận code này.");
+                    fields.put("diamondBalance", Long.toString(oldDiamond + diamond));
+                    fields.put("paypalBalance", Long.toString(oldPaypal + paypal));
+                    if (spins > 0) {
+                        fields.put("luckyWheelStoredSpins", Long.toString(storedSpins + spins));
+                        fields.put("luckyWheelLastRegenAt", quoteJson(Instant.ofEpochMilli(storedSpins + spins == 60 ? System.currentTimeMillis() : spinRegen).toString()));
+                    }
+                    fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
+                    String expiry = "";
+                    try (PreparedStatement ps = c.prepareStatement("SELECT vip_expires_at FROM account_entitlements WHERE username=?")) {
+                        ps.setString(1, user);
+                        try (ResultSet rs = ps.executeQuery()) { if (rs.next()) expiry = rs.getString(1); }
+                    }
+                    if (vipDays > 0) {
+                        Instant start = Instant.now();
+                        try { Instant old = Instant.parse(expiry); if (old.isAfter(start)) start = old; }
+                        catch (DateTimeParseException invalid) { /* Expired/missing membership starts today. */ }
+                        expiry = start.plus(Duration.ofDays(vipDays)).toString();
+                        try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO account_entitlements VALUES(?,?,?)")) {
+                            ps.setString(1, user); ps.setString(2, expiry); ps.setString(3, Instant.now().toString()); ps.executeUpdate();
+                        }
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
+                        ps.setString(1, user); ps.setString(2, fieldsJson(fields)); ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO gift_code_redemptions(code,username,redeemed_at,received_count) VALUES(?,?,?,?) ON CONFLICT(code,username) DO UPDATE SET redeemed_at=excluded.redeemed_at,received_count=excluded.received_count")) {
+                        ps.setString(1, code); ps.setString(2, user); ps.setString(3, redeemedAt.toString()); ps.setLong(4, receivedCount + 1); ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE gift_codes SET used_count=used_count+1 WHERE code=? AND used_count<max_uses")) {
+                        ps.setString(1, code);
+                        if (ps.executeUpdate() != 1) throw new IllegalStateException("Code đã hết lượt sử dụng.");
+                    }
+                    String reward = "{\"diamond\":" + diamond + ",\"paypal\":" + paypal + ",\"vipDays\":" + vipDays + ",\"bonusSpins\":" + spins + "}";
+                    auditAccount(c, user, user, "redeem_gift_code", "{\"code\":" + quoteJson(code) + ",\"reward\":" + reward + "}");
+                    c.commit();
+                    fields.keySet().removeIf(key -> !protectedStoreField(key));
+                    fields.put("vipExpiresAt", quoteJson(expiry));
+                    String nextEligibleAt = cooldownSeconds > 0 && remainingGifts > 0 ? redeemedAt.plusSeconds(cooldownSeconds).toString() : "";
+                    String claim = "{\"receivedCount\":" + (receivedCount + 1) + ",\"maxPerUser\":" + maxPerUser + ",\"cooldownSeconds\":" + cooldownSeconds + ",\"nextEligibleAt\":" + quoteJson(nextEligibleAt) + ",\"remainingGifts\":" + remainingGifts + "}";
+                    return "{\"ok\":true,\"reward\":" + reward + ",\"claim\":" + claim + ",\"store\":" + fieldsJson(fields) + "}";
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized void updateAssets(String user, long diamond, long paypal, String actor) {
             if (getUser(user) == null) throw new IllegalStateException("Không tìm thấy tài khoản");
             String store = getStore(user);
             if (store == null || isBlank(store)) store = "{}";
             Map<String, String> fields = jsonFields(store);
-            fields.put("diamondBalance", Integer.toString(Math.max(0, diamond)));
-            fields.put("paypalBalance", Integer.toString(Math.max(0, paypal)));
+            fields.put("diamondBalance", Long.toString(diamond));
+            fields.put("paypalBalance", Long.toString(paypal));
             fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
             try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
                 c.setAutoCommit(false);
@@ -3772,8 +4869,8 @@ public class LottoWebServer {
                     uv.enabled = rs.getInt("enabled") == 1;
                     String sj = rs.getString("store_json");
                     uv.hasData = sj != null && !isBlank(sj) && !"{}".equals(sj.trim());
-                    uv.diamondBalance = readIntFromJson(sj, "diamondBalance");
-                    uv.paypalBalance = readIntFromJson(sj, "paypalBalance");
+                    uv.diamondBalance = readBalanceFromJson(sj, "diamondBalance");
+                    uv.paypalBalance = readBalanceFromJson(sj, "paypalBalance");
                     out.add(uv);
                 }
             } catch (SQLException e) {
@@ -3782,9 +4879,9 @@ public class LottoWebServer {
             return out;
         }
 
-        private int readIntFromJson(String json, String key) {
+        private long readBalanceFromJson(String json, String key) {
             try {
-                return (int)Math.max(0, Math.min(Integer.MAX_VALUE, fieldLong(jsonFields(json), key, 0)));
+                return fieldLong(jsonFields(json), key, 0);
             } catch (IllegalArgumentException ex) {
                 return 0;
             }
@@ -3828,7 +4925,7 @@ public class LottoWebServer {
                     p2.setString(1, newUser);
                     p2.setString(2, user);
                     p2.executeUpdate();
-                    for (String table : Arrays.asList("account_entitlements", "wallet_events")) {
+                    for (String table : Arrays.asList("account_entitlements", "wallet_events", "gift_code_redemptions", "social_identities", "payment_orders")) {
                         try (PreparedStatement linked = c.prepareStatement("UPDATE " + table + " SET username=? WHERE username=?")) {
                             linked.setString(1, newUser); linked.setString(2, user); linked.executeUpdate();
                         }
@@ -3868,7 +4965,10 @@ public class LottoWebServer {
                  PreparedStatement p1 = c.prepareStatement("DELETE FROM stores WHERE username=?");
                  PreparedStatement p2 = c.prepareStatement("DELETE FROM users WHERE username=?")) {
                 c.setAutoCommit(false);
-                for (String table : Arrays.asList("account_entitlements", "wallet_events")) {
+                try (PreparedStatement payments = c.prepareStatement("UPDATE payment_orders SET username=?,status=CASE WHEN status='PENDING' THEN 'OWNER_DELETED' ELSE status END WHERE username=?")) {
+                    payments.setString(1, "deleted:" + UUID.randomUUID().toString()); payments.setString(2, user); payments.executeUpdate();
+                }
+                for (String table : Arrays.asList("account_entitlements", "wallet_events", "gift_code_redemptions", "social_identities")) {
                     try (PreparedStatement linked = c.prepareStatement("DELETE FROM " + table + " WHERE username=?")) {
                         linked.setString(1, user); linked.executeUpdate();
                     }
@@ -3955,8 +5055,8 @@ public class LottoWebServer {
         String role;
         boolean enabled;
         boolean hasData;
-        int diamondBalance;
-        int paypalBalance;
+        long diamondBalance;
+        long paypalBalance;
     }
 
     static class Account {

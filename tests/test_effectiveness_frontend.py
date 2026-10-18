@@ -36,7 +36,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
         section = html[html.index('      <section id="predictRootEffectiveness"'):html.index('      <section id="predictRootManual"')]
         page = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
                 "<link rel=stylesheet href=/vietlott-web.css><link rel=stylesheet href=/vietlott-web-extra.css>"
-                + section + "<script src=/vietlott-web-effectiveness.js></script>")
+                + section + "<script src=/vietlott-web-numeric.js></script><script src=/vietlott-web-effectiveness.js></script>")
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args):
@@ -57,11 +57,18 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     requests.append(("GET", self.path, ""))
                     params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                     ticket_page = int(params.get("page", [1])[0])
-                    offset = (ticket_page - 1) * 20
-                    tickets = [{"main": [1, 2, 3, 4, 5, 6]} for _ in range(20)]
+                    prize_code = params.get('prizeCode', [None])[0]
+                    winners = {'prize_summary_fixture':[37],'method_random_fixture':[73,75,88],'method_bayesian_fixture':[95],'method_ewma_fixture':[9994]}.get(params['predictionId'][0], [1])
+                    cursor = int(params.get('afterTicketIndex', [0])[0])
+                    jump_index = next((index for index in winners if index > cursor), winners[0]) if prize_code else None
+                    if jump_index:
+                        ticket_page = (jump_index - 1) // 10 + 1
+                    offset = (ticket_page - 1) * 10
+                    tickets = [{"main": [1, 2, 3, 4, 5, 6]} for _ in range(10)]
                     return self.respond(json.dumps({"ok": True, "type": report["type"], "predictionId": params["predictionId"][0],
-                        "tickets": tickets, "ticketResults": [{"ticketIndex": offset + index + 1, "status": "pending", "prizeLabel": "Chờ kết quả"} for index in range(20)],
-                        "ticketPagination": {"page": ticket_page, "pageSize": 20, "offset": offset, "total": 10000, "totalPages": 500}}).encode(), "application/json")
+                        "tickets": tickets, "ticketResults": [{"ticketIndex": offset + index + 1, "status": "won" if offset+index+1==jump_index else "pending", "prizeCode":prize_code if offset+index+1==jump_index else "PENDING", "prizeLabel":prize_code if offset+index+1==jump_index else "Chờ kết quả"} for index in range(10)],
+                        **({'jumpTicketIndex':jump_index} if jump_index else {}),
+                        "ticketPagination": {"page": ticket_page, "pageSize": 10, "offset": offset, "total": 10000, "totalPages": 1000}}).encode(), "application/json")
                 if self.path.startswith("/api/ml/effectiveness?"):
                     requests.append(("GET", self.path, ""))
                     payload = json.loads(json.dumps(report))
@@ -131,7 +138,19 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertTrue(browser.value("document.getElementById('effectivenessAdmin').hidden"))
                 self.assertTrue(browser.value("document.getElementById('effectivenessSettings').hidden"))
                 self.assertTrue(browser.value("document.getElementById('effectivenessKenoLevels').hidden"))
-                self.assertEqual(browser.value("document.querySelectorAll('#effectivenessComparison > .effectiveness-table-wrap tbody tr').length"), 4)
+                self.assertEqual(browser.value("document.querySelectorAll('#effectivenessComparison .effectiveness-comparison-table tbody tr').length"), 4)
+                comparison = "#effectivenessComparison > .effectiveness-comparison-panel"
+                self.assertFalse(browser.value(f"document.querySelector('{comparison}').open"))
+                self.assertEqual(browser.value(f"document.querySelector('{comparison} .effectiveness-table-wrap').getBoundingClientRect().height"), 0)
+                browser.value(f"document.querySelector('{comparison} > summary').click()")
+                self.assertTrue(browser.value(f"document.querySelector('{comparison}').open"))
+                self.assertGreater(browser.value(f"document.querySelector('{comparison} .effectiveness-table-wrap').getBoundingClientRect().height"), 0)
+                browser.value(f"document.querySelector('{comparison} > summary').focus()")
+                browser.call('Input.dispatchKeyEvent', {'type':'keyDown','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'text':'\r'}, page=True)
+                browser.call('Input.dispatchKeyEvent', {'type':'keyUp','key':'Enter','code':'Enter','windowsVirtualKeyCode':13}, page=True)
+                wait(f"!document.querySelector('{comparison}').open")
+                self.assertFalse(browser.value(f"document.querySelector('{comparison}').open"))
+                browser.value(f"document.querySelector('{comparison} > summary').click()")
                 self.assertNotIn("NaN", browser.value("document.getElementById('effectivenessComparison').textContent"))
                 self.assertTrue(all(item[0] == "GET" for item in requests))
                 self.assertFalse(browser.value("document.getElementById('effectivenessHelpButton').hidden"))
@@ -168,7 +187,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                         "createdAt": "2026-10-04T05:00:00Z", "deadline": "2026-10-04T11:00:00Z",
                         "status": "scored" if scored else "locked", "actualMain": [1, 2, 3, 4, 5, 6] if scored else [],
                         "methods": {key: {"tickets": [{"main": [1, 2, 10, 11, 12, 13], "special": None}, {"main": [2, 20, 21, 22, 23, 24]}],
-                            "meanHits": 1.5 if scored else None, "bestHits": 2 if scored else None,
+                            "meanHits": 2.35 + keys.index(key) * .2 + (draw - 103) * .05 if scored else None, "bestHits": 3 if scored else None,
                             "engine": key, "modelId": "fixture_model"} for key in keys}})
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("document.querySelectorAll('.effectiveness-cycle').length===3")
@@ -183,7 +202,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertTrue(browser.value("document.getElementById('effectivenessAdmin').open"))
                 self.assertEqual(browser.value("document.getElementById('effectivenessSettings').getAttribute('aria-expanded')"), "true")
                 self.assertEqual(browser.value("document.activeElement.id"), "effectivenessEnabled")
-                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').max"), "10000")
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').max"), "1000000")
                 self.assertEqual(browser.value("document.getElementById('effectivenessEnabled').getAttribute('role')"), "switch")
                 browser.value("document.getElementById('effectivenessEnabled').checked=true")
                 self.assertEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-tracking-state'),'::after').content"), '"Bật"')
@@ -192,15 +211,39 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-tracking-state'),'::after').content"), '"Tắt"')
                 self.assertEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-tracking-state')).backgroundColor"), 'rgb(77, 29, 39)')
                 browser.value("document.getElementById('effectivenessTicketCount').value='';document.getElementById('effectivenessTicketCount').dispatchEvent(new Event('input'))")
-                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').placeholder"), 'Max 10.000')
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').placeholder"), 'Max 1.000.000')
                 self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '')
                 browser.value("document.getElementById('effectivenessTicketCount').focus()")
-                browser.call("Input.insertText", {"text": "10001"}, page=True)
-                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '10000')
+                for composing in ('2', '20', '200', '2000', '20000', '200000'):
+                    browser.call('Input.imeSetComposition', {'text': composing, 'selectionStart': len(composing), 'selectionEnd': len(composing)}, page=True)
+                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), f'{int(composing):,}'.replace(',', '.'))
+                browser.call('Input.insertText', {'text': '200000'}, page=True)
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '200.000')
+                browser.value("document.getElementById('effectivenessTicketCount').value='';document.getElementById('effectivenessTicketCount').dispatchEvent(new Event('input'))")
+                for digit, expected in zip('500000', ('5', '50', '500', '5.000', '50.000', '500.000')):
+                    browser.call("Input.insertText", {"text": digit}, page=True)
+                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), expected)
+                browser.value("document.getElementById('effectivenessTicketCount').setSelectionRange(4,4)")
+                for expected in ('500.000', '50.000'):
+                    for event_type in ('keyDown', 'keyUp'):
+                        browser.call('Input.dispatchKeyEvent', {'type': event_type, 'key': 'Backspace', 'code': 'Backspace', 'windowsVirtualKeyCode': 8, 'nativeVirtualKeyCode': 8}, page=True)
+                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), expected)
+                browser.value("document.getElementById('effectivenessTicketCount').select()")
+                browser.call("Input.insertText", {"text": '500000'}, page=True)
+                browser.value("document.getElementById('effectivenessTicketCount').setSelectionRange(1,2)")
+                browser.call("Input.insertText", {"text": '1'}, page=True)
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '510.000')
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').selectionStart"), 2)
+                browser.value("document.getElementById('effectivenessTicketCount').select()")
+                browser.call("Input.insertText", {"text": '0500.000'}, page=True)
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '500.000')
+                browser.value("document.getElementById('effectivenessTicketCount').select()")
+                browser.call("Input.insertText", {"text": "1000001"}, page=True)
+                self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '1.000.000')
                 self.assertEqual(sum(method == "POST" for method, _, _ in requests), mutations_before)
                 browser.value("document.getElementById('effectivenessSave').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
-                self.assertTrue(any(method == 'POST' and 'ticketCount=10000' in body and 'enabled=false' in body for method, _, body in requests))
+                self.assertTrue(any(method == 'POST' and 'ticketCount=1000000' in body and 'enabled=false' in body for method, _, body in requests))
                 mutations_before = sum(method == 'POST' for method, _, _ in requests)
                 browser.value("document.getElementById('effectivenessTicketCount').value='4';document.getElementById('effectivenessEnabled').checked=true;document.getElementById('effectivenessRefresh').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
@@ -227,19 +270,94 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .is-hit').length"), 12)
                 self.assertIn("fixture_model", browser.value("document.querySelector('.effectiveness-cycle').textContent"))
                 self.assertEqual(browser.value("document.querySelectorAll('#effectivenessCycles .effectiveness-cycle[open]').length"), 0)
-                browser.value("document.querySelector('.effectiveness-cycle > summary').click()")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle-toggle .when-closed').innerText"), "Mở rộng")
+                browser.value("document.querySelector('.effectiveness-cycle-toggle').click()")
                 self.assertTrue(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertNotEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-cycle-toggle .when-open')).display"), "none")
+                self.assertEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-cycle-toggle .when-closed')).display"), "none")
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
                 self.assertTrue(browser.value("document.querySelector('.effectiveness-cycle').open"))
                 cycle_requests = len(requests)
-                browser.value("document.querySelector('.effectiveness-cycle > summary').click()")
+                browser.value("document.querySelector('.effectiveness-cycle-toggle').click()")
                 self.assertFalse(browser.value("document.querySelector('.effectiveness-cycle').open"))
+                self.assertNotEqual(browser.value("getComputedStyle(document.querySelector('.effectiveness-cycle-toggle .when-closed')).display"), "none")
                 self.assertEqual(len(requests), cycle_requests)
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle .effectiveness-ticket-hits').textContent"), "—")
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits').textContent"), "2/6")
                 self.assertFalse(browser.value("document.querySelector('.effectiveness-provenance').open"))
                 self.assertFalse(browser.value("document.querySelector('.effectiveness-help').open"))
+                timeline_scale = browser.value("(()=>{const svg=document.querySelector('#effectivenessTimeline svg');return {min:Number(svg.dataset.axisMin),max:Number(svg.dataset.axisMax),step:Number(svg.dataset.axisStep),label:document.querySelector('.effectiveness-chart-range').textContent,points:[...svg.querySelectorAll('circle')].map(node=>Number(node.getAttribute('cy')))}})()")
+                self.assertGreater(timeline_scale["min"], 0)
+                self.assertLess(timeline_scale["max"], 6)
+                self.assertLess(timeline_scale["step"], 1)
+                self.assertEqual(timeline_scale["label"].strip(), "Trạng thái: Hiện tại")
+                self.assertGreater(max(timeline_scale["points"]) - min(timeline_scale["points"]), 30)
+                scale_button_style = browser.value("(()=>{const b=document.querySelector('[data-effectiveness-scale-toggle]'),r=b.getBoundingClientRect(),s=getComputedStyle(b),p=getComputedStyle(b,'::before');return {width:r.width,height:r.height,radius:parseFloat(s.borderRadius),display:s.display,dotWidth:parseFloat(p.width),dotColor:p.backgroundColor}})()")
+                self.assertLess(scale_button_style["width"], 130)
+                self.assertLessEqual(scale_button_style["height"], 30)
+                self.assertGreater(scale_button_style["radius"], 12)
+                self.assertEqual(scale_button_style["display"], "flex")
+                self.assertEqual(scale_button_style["dotWidth"], 6)
+                browser.value("document.querySelector('[data-effectiveness-scale-toggle]').click()")
+                self.assertEqual(browser.value("document.querySelector('#effectivenessTimeline svg').dataset.axisMin"), "0")
+                self.assertEqual(browser.value("document.querySelector('#effectivenessTimeline svg').dataset.axisMax"), "6")
+                self.assertEqual(browser.value("document.querySelector('[data-effectiveness-scale-toggle]').textContent.trim()"), "Trạng thái: Tất cả")
+                self.assertEqual(browser.value("document.querySelector('[data-effectiveness-scale-toggle]').getAttribute('aria-pressed')"), "true")
+                self.assertNotEqual(browser.value("getComputedStyle(document.querySelector('[data-effectiveness-scale-toggle]'),'::before').backgroundColor"), scale_button_style["dotColor"])
+                browser.value("document.querySelector('[data-effectiveness-scale-toggle]').click()")
+                self.assertGreater(browser.value("Number(document.querySelector('#effectivenessTimeline svg').dataset.axisMin)"), 0)
+                self.assertLess(browser.value("Number(document.querySelector('#effectivenessTimeline svg').dataset.axisMax)"), 6)
+                self.assertEqual(browser.value("document.querySelector('[data-effectiveness-scale-toggle]').textContent.trim()"), "Trạng thái: Hiện tại")
+                self.assertEqual(browser.value("document.querySelector('[data-effectiveness-scale-toggle]').getAttribute('aria-pressed')"), "false")
+                browser.value("['web','random','bayesian','ewma'].forEach(key=>document.querySelector(`[data-effectiveness-line=${key}]`).click())")
+                self.assertEqual(browser.value("document.querySelector('#effectivenessTimeline svg').dataset.axisMin"), "0")
+                self.assertEqual(browser.value("document.querySelector('#effectivenessTimeline svg').dataset.axisMax"), "6")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-chart-range').textContent.trim()"), "Trạng thái: Hiện tại")
+                browser.value("['web','random','bayesian','ewma'].forEach(key=>document.querySelector(`[data-effectiveness-line=${key}]`).click())")
+                timeline_artifact_dir = os.environ.get("LOTTO_TIMELINE_ZOOM_ARTIFACT_DIR")
+                if timeline_artifact_dir:
+                    output = Path(timeline_artifact_dir).resolve()
+                    self.assertTrue(output.is_relative_to(ROOT.resolve()))
+                    output.mkdir(parents=True, exist_ok=True)
+                    browser.value("document.querySelector('#effectivenessTimeline details').open=true")
+                    for theme, width in (("dark", 1440), ("light", 390)):
+                        browser.value(f"document.body.classList.toggle('light-theme',{str(theme == 'light').lower()})")
+                        browser.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 500}, page=True)
+                        clip = browser.value("(()=>{const r=document.getElementById('effectivenessTimeline').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1}})()")
+                        screenshot = browser.call("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": True}, page=True)
+                        (output / f"timeline_zoom_{theme}_{width}.png").write_bytes(base64.b64decode(screenshot["data"]))
+                    browser.value("document.body.classList.remove('light-theme')")
+                    browser.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, page=True)
+                    browser.value("document.querySelector('#effectivenessTimeline details').open=false")
+                fold_selectors = ['#effectivenessComparison > details', '#effectivenessTimeline > details', '#effectivenessLab']
+                self.assertTrue(browser.value("!document.querySelector('#effectivenessTimeline > details').open && !document.getElementById('effectivenessLab').open"))
+                for selector in fold_selectors:
+                    browser.value(f"document.querySelector('{selector}').open=false")
+                    browser.value(f"document.querySelector('{selector} > summary').click()")
+                    self.assertTrue(browser.value(f"document.querySelector('{selector}').open"))
+                    self.assertIn('Thu gọn', browser.value(f"document.querySelector('{selector} > summary').innerText"))
+                    browser.value(f"document.querySelector('{selector} > summary').click()")
+                    self.assertFalse(browser.value(f"document.querySelector('{selector}').open"))
+                    self.assertIn('Mở rộng', browser.value(f"document.querySelector('{selector} > summary').innerText"))
+                for theme in ('dark', 'light'):
+                    browser.value(f"document.body.classList.toggle('light-theme',{str(theme=='light').lower()})")
+                    for width in (320, 1440):
+                        browser.call('Emulation.setDeviceMetricsOverride', {'width':width,'height':1000,'deviceScaleFactor':1,'mobile':False}, page=True)
+                        measurements = browser.value("[...document.querySelectorAll('.effectiveness-fold > summary')].map(s=>{const r=s.getBoundingClientRect(),b=s.querySelector('.effectiveness-fold-toggle').getBoundingClientRect();return {height:r.height,width:b.width,right:b.right,title:s.querySelector('strong').getBoundingClientRect().right,left:b.left,buttonVisible:!!b.height}})")
+                        self.assertEqual(len(measurements), 3)
+                        self.assertLess(max(m['height'] for m in measurements)-min(m['height'] for m in measurements), 1)
+                        self.assertLess(max(m['width'] for m in measurements)-min(m['width'] for m in measurements), 1)
+                        self.assertLess(max(m['right'] for m in measurements)-min(m['right'] for m in measurements), 1)
+                        self.assertTrue(all(m['buttonVisible'] and m['title']<=m['left'] for m in measurements))
+                        artifact_dir = os.environ.get('LOTTO_FOLD_HEADERS_ARTIFACT_DIR')
+                        if artifact_dir:
+                            output=Path(artifact_dir).resolve(); self.assertTrue(output.is_relative_to(ROOT.resolve())); output.mkdir(parents=True,exist_ok=True)
+                            clip=browser.value("(()=>{let a=document.querySelector('#effectivenessComparison').getBoundingClientRect(),b=document.getElementById('effectivenessLab').getBoundingClientRect();return {x:a.left+scrollX,y:a.top+scrollY,width:a.width,height:b.bottom-a.top,scale:1}})()")
+                            screenshot=browser.call('Page.captureScreenshot', {'format':'png','clip':clip,'captureBeyondViewport':True}, page=True)
+                            (output/f'fold_headers_{theme}_{width}.png').write_bytes(base64.b64decode(screenshot['data']))
+                browser.value("document.body.classList.remove('light-theme')")
+                browser.call('Emulation.setDeviceMetricsOverride', {'width':1440,'height':1000,'deviceScaleFactor':1,'mobile':False}, page=True)
                 browser.value("document.querySelector('#effectivenessTimeline details').open=true;document.querySelector('[data-effectiveness-line=web]').click()")
                 self.assertEqual(browser.value("document.querySelector('[data-effectiveness-line=web]').getAttribute('aria-pressed')"), "false")
                 self.assertTrue(browser.value("document.querySelector('#effectivenessTimeline details').open"))
@@ -298,11 +416,42 @@ class EffectivenessFrontendTests(unittest.TestCase):
                             "specialMatched": cycle["status"] == "scored"}]
                 browser.value("document.getElementById('effectivenessType').value='LOTO_5_35';document.getElementById('effectivenessType').dispatchEvent(new Event('change'))")
                 wait("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits')?.textContent==='0/5'")
+                actual_selector = '.effectiveness-cycle:nth-child(2) > summary .effectiveness-actual-numbers'
+                self.assertEqual(browser.value(f"document.querySelector('{actual_selector} .effectiveness-actual-separator').textContent"), '|')
+                self.assertEqual(browser.value(f"document.querySelector('{actual_selector} .effectiveness-actual-special-ball').getAttribute('aria-label')"), 'ĐB 01')
+                for theme in ('dark', 'light'):
+                    browser.value(f"document.body.classList.toggle('light-theme',{str(theme=='light').lower()})")
+                    for width in (320, 1440):
+                        browser.call('Emulation.setDeviceMetricsOverride', {'width':width,'height':1000,'deviceScaleFactor':1,'mobile':False}, page=True)
+                        positions = browser.value(f"[...document.querySelectorAll('{actual_selector} .effectiveness-ball')].map(e=>{{const r=e.getBoundingClientRect();return {{y:r.top+r.height/2,width:r.width,height:r.height}}}})")
+                        self.assertEqual(len(positions), 6)
+                        self.assertLess(max(p['y'] for p in positions)-min(p['y'] for p in positions), 1)
+                        self.assertTrue(all(p['width']==p['height']==26 for p in positions))
+                        colors = browser.value(f"[...document.querySelectorAll('{actual_selector} .effectiveness-ball')].map(e=>getComputedStyle(e).backgroundColor)")
+                        self.assertEqual(colors[:5], ["rgb(156, 231, 187)" if theme == "dark" else "rgb(198, 234, 211)"] * 5)
+                        self.assertEqual(colors[5], "rgb(255, 215, 106)")
+                        if width == 1440:
+                            layout = browser.value("(()=>{let s=document.querySelector('.effectiveness-cycle:nth-child(2) > summary'),i=s.querySelector('.effectiveness-cycle-identity').getBoundingClientRect(),p=s.querySelector('.effectiveness-cycle-preview').getBoundingClientRect(),c=s.querySelector('.effectiveness-cycle-toggle').getBoundingClientRect();return {gap:p.left-i.right,centerGap:Math.abs((i.top+i.height/2)-(p.top+p.height/2)),arrowGap:c.left-p.right}})()")
+                            self.assertAlmostEqual(layout["gap"], 15, delta=1)
+                            self.assertLess(layout["centerGap"], 1)
+                            self.assertGreater(layout["arrowGap"], 15)
+                        self.assertTrue(browser.value('document.documentElement.scrollWidth<=innerWidth+2'))
+                        artifact_dir=os.environ.get('LOTTO_ACTUAL_SPECIAL_ARTIFACT_DIR')
+                        if artifact_dir:
+                            output=Path(artifact_dir).resolve(); self.assertTrue(output.is_relative_to(ROOT.resolve())); output.mkdir(parents=True,exist_ok=True)
+                            clip=browser.value("(()=>{let r=document.querySelector('.effectiveness-cycle:nth-child(2) > summary').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1}})()")
+                            shot=browser.call('Page.captureScreenshot', {'format':'png','clip':clip,'captureBeyondViewport':True}, page=True)
+                            (output/f'actual_special_{theme}_{width}.png').write_bytes(base64.b64decode(shot['data']))
+                browser.value("document.body.classList.remove('light-theme')")
+                browser.call('Emulation.setDeviceMetricsOverride', {'width':1440,'height':1000,'deviceScaleFactor':1,'mobile':False}, page=True)
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .is-hit').length"), 0)
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:first-child .effectiveness-ticket-hits').textContent"), "—")
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-prize').textContent"), "Giải Khuyến Khích")
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-prize').dataset.prizeStatus"), "won")
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .effectiveness-special.is-matched').length"), 4)
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-special-separator').textContent"), "|")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-special').textContent"), "01")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-special').getAttribute('aria-label')"), "ĐB 01 trùng")
                 for cycle in report["cycles"]:
                     cycle["actualSpecial"] = None
                     for entry in cycle["methods"].values():
@@ -310,17 +459,20 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-prize').dataset.prizeStatus==='unknown'")
                 self.assertIn("chưa có dữ liệu", browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-cycle-preview').textContent"))
+                self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .effectiveness-special.is-matched').length"), 0)
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle img').length"), 0)
-                # A large journal loads 20 tickets, preserves absolute ticket
+                # A large journal loads 10 tickets, preserves absolute ticket
                 # numbers across pages/refresh and never creates forecasts.
                 large_entry = report['cycles'][0]['methods']['web']
                 large_entry.update({'predictionId': 'page_fixture', 'ticketCount': 10000,
-                    'tickets': [{'main': [1, 2, 3, 4, 5]} for _ in range(20)],
-                    'ticketPagination': {'page': 1, 'pageSize': 20, 'offset': 0, 'total': 10000, 'totalPages': 500}})
+                    'tickets': [{'main': [1, 2, 3, 4, 5]} for _ in range(10)],
+                    'ticketPagination': {'page': 1, 'pageSize': 10, 'offset': 0, 'total': 10000, 'totalPages': 1000}})
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("!!document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]')")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
                 post_count = sum(method == 'POST' for method, _, _ in requests)
+                self.assertEqual(browser.value("document.querySelectorAll('[data-prediction-id=page_fixture] .effectiveness-ticket-row').length"), 10)
+                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-range').textContent"), 'Vé 1–10 / 10.000')
                 ticket_gets = lambda: sum('/api/ml/effectiveness-tickets?' in path for method, path, _ in requests if method == 'GET')
                 before_gets = ticket_gets()
                 self.assertTrue(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-page=\"0\"]').disabled"))
@@ -329,23 +481,23 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '1')
                 self.assertEqual(ticket_gets(), before_gets)
                 browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-page=\"2\"]').click()")
-                wait("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-label')?.textContent==='Vé 21'")
-                browser.value("{const jump=document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]');jump.value=499.9;jump.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}")
-                wait("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-label')?.textContent==='Vé 9961'")
-                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '499')
-                browser.value("{const jump=document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]');jump.value=900;jump.dispatchEvent(new Event('change',{bubbles:true}))}")
+                wait("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-label')?.textContent==='Vé 11'")
+                browser.value("{const jump=document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]');jump.value=999.9;jump.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}")
                 wait("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-label')?.textContent==='Vé 9981'")
-                self.assertTrue(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-page=\"501\"]').disabled"))
-                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-range').textContent"), 'Vé 9.981–10.000 / 10.000')
+                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '999')
+                browser.value("{const jump=document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]');jump.value=1001;jump.dispatchEvent(new Event('change',{bubbles:true}))}")
+                wait("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-label')?.textContent==='Vé 9991'")
+                self.assertTrue(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-page=\"1001\"]').disabled"))
+                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] .effectiveness-ticket-range').textContent"), 'Vé 9.991–10.000 / 10.000')
                 before_gets = ticket_gets()
-                for value in ('', '500', '9999'):
+                for value in ('', '1000', '9999'):
                     browser.value(f"{{const jump=document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]');jump.value={json.dumps(value)};jump.dispatchEvent(new KeyboardEvent('keydown',{{key:'Enter',bubbles:true}}));jump.dispatchEvent(new Event('change',{{bubbles:true}}))}}")
-                    self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '500')
+                    self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '1000')
                 self.assertEqual(ticket_gets(), before_gets)
-                self.assertEqual(browser.value("document.querySelectorAll('[data-prediction-id=page_fixture] .effectiveness-ticket-row').length"), 20)
+                self.assertEqual(browser.value("document.querySelectorAll('[data-prediction-id=page_fixture] .effectiveness-ticket-row').length"), 10)
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
-                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '500')
+                self.assertEqual(browser.value("document.querySelector('[data-prediction-id=page_fixture] [data-ticket-jump]').value"), '1000')
                 self.assertEqual(sum(method == 'POST' for method, _, _ in requests), post_count)
                 large_entry.pop('ticketPagination')
                 large_entry.pop('predictionId')
@@ -361,15 +513,31 @@ class EffectivenessFrontendTests(unittest.TestCase):
                                                   {"ticketIndex": 2, "status": "won", "prizeLabel": "Giải Nhất", "specialMatched": False}]
                 browser.value("document.getElementById('effectivenessType').value='LOTO_6_55';document.getElementById('effectivenessType').dispatchEvent(new Event('change'))")
                 wait("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-hits')?.textContent==='5/6'")
-                self.assertIn("Bóng thứ 7", browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-cycle-preview').textContent"))
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) > summary .effectiveness-actual-special-ball').getAttribute('aria-label')"), 'Bóng thứ 7 07')
+                self.assertIn("Bóng thứ 7", browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-actual-special').getAttribute('title')"))
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-row:first-child .effectiveness-ticket-prize').textContent"), "Jackpot 2")
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-row:nth-child(2) .effectiveness-ticket-prize').textContent"), "Giải Nhất")
-                self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .effectiveness-special.is-matched').length"), 0)
-                self.assertIn("Phụ 55", browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-row').textContent"))
+                self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:nth-child(2) .effectiveness-special.is-matched').length"), 4)
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-special').getAttribute('aria-label')"), "Phụ 55")
+                self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle:nth-child(2) .effectiveness-ticket-row:nth-child(2) .effectiveness-special').getAttribute('aria-label')"), "Phụ 07 trùng")
                 browser.value("document.querySelector('.effectiveness-cycle:nth-child(2)').open=true")
                 for width in (320, 390, 1440):
                     browser.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 500}, page=True)
                     self.assertTrue(browser.value("document.documentElement.scrollWidth<=window.innerWidth+2"), f"Prize row overflows at {width}px")
+                    for theme in ("dark", "light"):
+                        browser.value(f"document.body.classList.toggle('light-theme',{str(theme == 'light').lower()})")
+                        balls = browser.value("(()=>{let rows=[...document.querySelectorAll('.effectiveness-cycle:nth-child(2) [data-method=web] .effectiveness-ticket-row')];return rows.map(row=>{let main=row.querySelector('.effectiveness-ball'),special=row.querySelector('.effectiveness-special'),r=main.getBoundingClientRect(),s=special.getBoundingClientRect();return {mainWidth:r.width,mainHeight:r.height,width:s.width,height:s.height,background:getComputedStyle(special).backgroundColor}})})()")
+                        self.assertEqual(len(balls), 2)
+                        self.assertTrue(all(ball["width"] == ball["height"] == ball["mainWidth"] == ball["mainHeight"] for ball in balls))
+                        self.assertEqual(balls[1]["background"], "rgb(255, 215, 106)")
+                        self.assertNotEqual(balls[0]["background"], balls[1]["background"])
+                        artifact_dir = os.environ.get("LOTTO_PREDICTED_SPECIAL_ARTIFACT_DIR")
+                        if artifact_dir and width in (320, 1440):
+                            output = Path(artifact_dir).resolve(); self.assertTrue(output.is_relative_to(ROOT.resolve())); output.mkdir(parents=True, exist_ok=True)
+                            clip = browser.value("(()=>{let r=document.querySelector('.effectiveness-cycle:nth-child(2) [data-method=web] .effectiveness-ticket-list').getBoundingClientRect();return {x:r.left+scrollX,y:r.top+scrollY,width:r.width,height:r.height,scale:1}})()")
+                            shot = browser.call("Page.captureScreenshot", {"format":"png","clip":clip,"captureBeyondViewport":True}, page=True)
+                            (output/f"predicted_special_{theme}_{width}.png").write_bytes(base64.b64decode(shot["data"]))
+                browser.value("document.body.classList.remove('light-theme')")
                 self.assertEqual(browser.value("uiErrors"), [])
                 saved_report = json.loads(json.dumps(report))
                 # Each draw shows one pair. Switching uses the locked report,
@@ -409,7 +577,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(selected_method(), 'web')
                 self.assertEqual(selected_method(2), 'web')
                 # Whole-prediction winning summary: the highest prize can be
-                # outside the visible 20-ticket page; counts sort independently
+                # outside the visible 10-ticket page; counts sort independently
                 # of prize rank and remain stable through paging and refresh.
                 original_report = json.loads(json.dumps(report))
                 original_keno_level = browser.value("document.getElementById('effectivenessKenoLevel').value")
@@ -418,17 +586,19 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 summary_entry = summary_cycle['methods']['web']
                 summary_entry.update({
                     'predictionId': 'prize_summary_fixture', 'ticketCount': 10000,
-                    'tickets': [{'main': [1, 2, 3, 4, 5, 7]} for _ in range(20)],
-                    'ticketPagination': {'page': 1, 'pageSize': 20, 'offset': 0, 'total': 10000, 'totalPages': 500},
+                    'tickets': [{'main': [1, 2, 3, 4, 5, 7]} for _ in range(10)],
+                    'ticketPagination': {'page': 1, 'pageSize': 10, 'offset': 0, 'total': 10000, 'totalPages': 1000},
                     'prizeCounts': {'POWER_JACKPOT_1': 1, 'POWER_JACKPOT_2': 2, 'FIRST': 7,
                                     'SECOND': 9, 'THIRD': 9, 'NONE': 9969, 'UNKNOWN': 3},
                 })
                 summary_cycle['methods']['random'].update({
                     'predictionId': 'method_random_fixture', 'ticketCount': 10000,
-                    'tickets': [{'main': [1, 2, 3, 4, 5, 6]} for _ in range(20)],
-                    'ticketPagination': {'page': 1, 'pageSize': 20, 'offset': 0, 'total': 10000, 'totalPages': 500},
+                    'tickets': [{'main': [1, 2, 3, 4, 5, 6]} for _ in range(10)],
+                    'ticketPagination': {'page': 1, 'pageSize': 10, 'offset': 0, 'total': 10000, 'totalPages': 1000},
                     'prizeCounts': {'FIRST': 10, 'SECOND': 20, 'NONE': 9970},
                 })
+                for key in ('bayesian','ewma'):
+                    summary_cycle['methods'][key].update(json.loads(json.dumps(summary_entry)), predictionId=f'method_{key}_fixture')
                 selector = '[data-prediction-id=prize_summary_fixture]'
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait(f"document.querySelector('{selector} .effectiveness-prize-best strong')?.textContent==='Jackpot 1'")
@@ -442,9 +612,101 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(browser.value("document.querySelector('[data-prediction-id=method_random_fixture] [data-prize-reward]').dataset.prizeReward"), '410000000')
                 random_summary_text = browser.value("document.querySelector('[data-prediction-id=method_random_fixture] .effectiveness-prize-summary').textContent")
                 summary_text = browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent")
+                # Reward help is shared across methods, works above scrolling
+                # sections, and does not change the full-portfolio amounts.
+                self.assertEqual(browser.value("document.querySelectorAll('[data-prize-reward-help]').length"), browser.value("document.querySelectorAll('[data-prize-reward]').length"))
+                self.assertGreaterEqual(browser.value("document.querySelectorAll('[data-prize-reward-help]').length"), 2)
+                self.assertFalse(browser.value("document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')"))
+                help_selector = f"{selector} [data-prize-reward-help]"
+                select_method('web')
+                for width in (320, 1440):
+                    browser.call('Emulation.setDeviceMetricsOverride', {'width':width,'height':900,'deviceScaleFactor':1,'mobile':width<500}, page=True)
+                    for theme in ('dark', 'light'):
+                        browser.value(f"document.body.classList.toggle('light-theme',{str(theme=='light').lower()});document.querySelector({json.dumps(help_selector)}).scrollIntoView({{block:'center'}})")
+                        point = browser.value(f"(()=>{{let r=document.querySelector({json.dumps(help_selector)}).getBoundingClientRect();return {{x:r.left+r.width/2,y:r.top+r.height/2}}}})()")
+                        browser.call('Input.dispatchMouseEvent', {'type':'mouseMoved',**point}, page=True)
+                        wait("document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                        wait(f"document.querySelector({json.dumps(help_selector)}).getAttribute('aria-expanded')==='true'")
+                        self.assertIn('20.000.000 ₫', browser.value("document.getElementById('effectivenessPrizeRewardHelp').textContent"))
+                        self.assertIn('100 triệu ₫ → thuế 8 triệu ₫', browser.value("document.getElementById('effectivenessPrizeRewardHelp').textContent"))
+                        self.assertIn('docid=218684', browser.value("document.querySelector('#effectivenessPrizeRewardHelp a').href"))
+                        box = browser.value("(()=>{let r=document.getElementById('effectivenessPrizeRewardHelp').getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom}})()")
+                        self.assertGreaterEqual(box['left'], 11)
+                        self.assertGreaterEqual(box['top'], 11)
+                        self.assertLessEqual(box['right'], width-11)
+                        self.assertLessEqual(box['bottom'], 889)
+                        self.assertTrue(browser.value('document.documentElement.scrollWidth<=innerWidth+2'))
+                        artifact_dir = os.environ.get('LOTTO_REWARD_TAX_HELP_ARTIFACT_DIR')
+                        if artifact_dir:
+                            output = Path(artifact_dir).resolve(); self.assertTrue(output.is_relative_to(ROOT.resolve())); output.mkdir(parents=True,exist_ok=True)
+                            shot = browser.call('Page.captureScreenshot', {'format':'png','captureBeyondViewport':False}, page=True)
+                            (output/f'reward_help_{theme}_{width}.png').write_bytes(base64.b64decode(shot['data']))
+                        browser.call('Input.dispatchMouseEvent', {'type':'mouseMoved','x':box['left']+20,'y':box['top']+20}, page=True)
+                        time.sleep(.22)
+                        self.assertTrue(browser.value("document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')"))
+                        browser.call('Input.dispatchMouseEvent', {'type':'mouseMoved','x':1,'y':1}, page=True)
+                        wait("!document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                browser.value(f"{{let b=document.querySelector({json.dumps(help_selector)}),s=document.createElement('span');s.tabIndex=0;s.id='rewardHelpFocus';b.before(s);s.focus()}}")
+                browser.call('Input.dispatchKeyEvent', {'type':'keyDown','key':'Tab','code':'Tab','windowsVirtualKeyCode':9}, page=True)
+                browser.call('Input.dispatchKeyEvent', {'type':'keyUp','key':'Tab','code':'Tab','windowsVirtualKeyCode':9}, page=True)
+                wait("document.activeElement.matches('[data-prize-reward-help]')&&document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                browser.call('Input.dispatchKeyEvent', {'type':'keyDown','key':'Escape','code':'Escape','windowsVirtualKeyCode':27}, page=True)
+                browser.call('Input.dispatchKeyEvent', {'type':'keyUp','key':'Escape','code':'Escape','windowsVirtualKeyCode':27}, page=True)
+                wait("!document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                browser.value("document.activeElement.blur();document.getElementById('rewardHelpFocus').remove()")
+                browser.call('Emulation.setDeviceMetricsOverride', {'width':390,'height':900,'deviceScaleFactor':1,'mobile':True}, page=True)
+                browser.call('Emulation.setTouchEmulationEnabled', {'enabled':True}, page=True)
+                browser.value(f"document.querySelector({json.dumps(help_selector)}).scrollIntoView({{block:'center'}})")
+                point = browser.value(f"(()=>{{let r=document.querySelector({json.dumps(help_selector)}).getBoundingClientRect();return {{x:r.left+r.width/2,y:r.top+r.height/2}}}})()")
+                browser.call('Input.dispatchTouchEvent', {'type':'touchStart','touchPoints':[point]}, page=True)
+                browser.call('Input.dispatchTouchEvent', {'type':'touchEnd','touchPoints':[]}, page=True)
+                wait("document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                browser.call('Input.dispatchTouchEvent', {'type':'touchStart','touchPoints':[{'x':5,'y':5}]}, page=True)
+                browser.call('Input.dispatchTouchEvent', {'type':'touchEnd','touchPoints':[]}, page=True)
+                wait("!document.getElementById('effectivenessPrizeRewardHelp').matches(':popover-open')")
+                browser.call('Emulation.setTouchEmulationEnabled', {'enabled':False}, page=True)
+                browser.call('Emulation.setDeviceMetricsOverride', {'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False}, page=True)
+                browser.value("document.body.classList.remove('light-theme')")
+                self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 summary_posts = sum(method == 'POST' for method, _, _ in requests)
+                for key, ticket_index, prize_code in [('web',37,'POWER_JACKPOT_1'),('random',73,'FIRST'),('bayesian',95,'POWER_JACKPOT_1'),('ewma',9994,'POWER_JACKPOT_1')]:
+                    select_method(key)
+                    method_selector = f'[data-method={key}]'
+                    before_pages = browser.value("[...document.querySelectorAll('[data-method] [data-ticket-jump]')].map(e=>e.value)")
+                    browser.value(f"document.querySelector('{method_selector} [data-prize-jump]').click()")
+                    wait(f"document.querySelector('{method_selector} .is-prize-target')?.dataset.ticketIndex==='{ticket_index}'")
+                    self.assertEqual(browser.value(f"document.querySelector('{method_selector} .is-prize-target').dataset.ticketPrizeCode"), prize_code)
+                    self.assertEqual(browser.value(f"document.querySelector('{method_selector} [data-ticket-jump]').value"), str((ticket_index-1)//10+1))
+                    self.assertEqual(browser.value('document.activeElement.dataset.ticketIndex'), str(ticket_index))
+                    after_pages = browser.value("[...document.querySelectorAll('[data-method] [data-ticket-jump]')].map(e=>e.value)")
+                    for index in range(4):
+                        if index != keys.index(key): self.assertEqual(after_pages[index], before_pages[index])
+                    self.assertTrue(any(f'predictionId={summary_cycle["methods"][key]["predictionId"]}' in path and f'prizeCode={prize_code}' in path for method,path,_ in requests if method=='GET'))
+                    self.assertEqual(sum(method == 'POST' for method,_,_ in requests), summary_posts)
+                    # Multiple winners: same page, next page, then wrap. A sole
+                    # winning ticket wraps to itself; other methods stay put.
+                    next_indices = [75,88,73] if key == 'random' else [ticket_index]
+                    cursor = ticket_index
+                    for next_index in next_indices:
+                        ticket_requests = sum('/api/ml/effectiveness-tickets?' in path for _,path,_ in requests)
+                        browser.value(f"document.querySelector('{method_selector} [data-prize-jump]').click()")
+                        wait(f"document.querySelector('{method_selector} .is-prize-target')?.dataset.ticketIndex==='{next_index}' && !document.querySelector('{method_selector} [data-prize-jump]').disabled")
+                        self.assertGreater(sum('/api/ml/effectiveness-tickets?' in path for _,path,_ in requests), ticket_requests)
+                        self.assertIn(f'afterTicketIndex={cursor}', [path for _,path,_ in requests if '/api/ml/effectiveness-tickets?' in path][-1])
+                        self.assertEqual(browser.value(f"document.querySelector('{method_selector} .is-prize-target').dataset.ticketPrizeCode"), prize_code)
+                        self.assertEqual(browser.value(f"document.querySelector('{method_selector} [data-ticket-jump]').value"), str((next_index-1)//10+1))
+                        self.assertEqual(browser.value('document.activeElement.dataset.ticketIndex'), str(next_index))
+                        pages = browser.value("[...document.querySelectorAll('[data-method] [data-ticket-jump]')].map(e=>e.value)")
+                        for index in range(4):
+                            if index != keys.index(key): self.assertEqual(pages[index], before_pages[index])
+                        self.assertEqual(sum(method == 'POST' for method,_,_ in requests), summary_posts)
+                        cursor = next_index
+                for key in keys:
+                    browser.value(f"{{let jump=document.querySelector('[data-method={key}] [data-ticket-jump]');jump.value=1;jump.dispatchEvent(new Event('change',{{bubbles:true}}))}}")
+                    wait(f"document.querySelector('[data-method={key}] .effectiveness-ticket-label')?.textContent==='Vé 01'")
+                select_method('web')
                 browser.value(f"document.querySelector('{selector} [data-ticket-page=\"2\"]').click()")
-                wait(f"document.querySelector('{selector} .effectiveness-ticket-label')?.textContent==='Vé 21'")
+                wait(f"document.querySelector('{selector} .effectiveness-ticket-label')?.textContent==='Vé 11'")
                 self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
@@ -455,7 +717,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 random_selector = '[data-prediction-id=method_random_fixture]'
                 self.assertEqual(browser.value(f"document.querySelector('{random_selector} [data-ticket-jump]').value"), '1')
                 browser.value(f"document.querySelector('{random_selector} [data-ticket-jump]').value='3';document.querySelector('{random_selector} [data-ticket-jump]').dispatchEvent(new Event('change',{{bubbles:true}}))")
-                wait(f"document.querySelector('{random_selector} .effectiveness-ticket-label')?.textContent==='Vé 41'")
+                wait(f"document.querySelector('{random_selector} .effectiveness-ticket-label')?.textContent==='Vé 21'")
                 self.assertEqual(browser.value(f"document.querySelector('{random_selector} .effectiveness-prize-summary').textContent"), random_summary_text)
                 select_method('bayesian')
                 select_method('web')
@@ -757,6 +1019,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 # Legacy complete arrays are usable; an incomplete page or
                 # duplicate ticket indices cannot produce a portfolio count.
                 summary_entry.pop('prizeCounts')
+                summary_entry['tickets'] = [{'main': [1, 2, 3, 4, 5, 6]} for _ in range(20)]
                 summary_entry['ticketResults'] = [
                     {'ticketIndex': index + 1, 'prizeCode': 'MEGA_JACKPOT' if index == 0 else 'NONE',
                      'status': 'won' if index == 0 else 'lost'} for index in range(20)
@@ -921,14 +1184,14 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 wait("!document.getElementById('effectivenessSettings').hidden&&!document.getElementById('effectivenessSettings').disabled")
                 input_posts = sum(method == 'POST' for method, _, _ in requests)
                 browser.value("document.getElementById('effectivenessSettings').click()")
-                for level, maximum, hint in ((1, 80, 'Max 80'), (2, 3160, 'Max 3.160'), (3, 10000, 'Max 10.000'), (10, 10000, 'Max 10.000')):
+                for level, maximum, hint in ((1, 80, 'Max 80'), (2, 3160, 'Max 3.160'), (3, 82160, 'Max 82.160'), (10, 100000, 'Max 100.000')):
                     browser.value(f"document.getElementById('effectivenessKenoLevel').value='{level}';document.getElementById('effectivenessKenoLevel').dispatchEvent(new Event('change'))")
                     wait(f"document.querySelector('.effectiveness-cycle .effectiveness-ticket-hits')?.textContent==='{level}/{level}'&&!document.getElementById('effectivenessTicketCount').disabled")
                     self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').max"), str(maximum))
                     self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').placeholder"), hint)
                     browser.value("document.getElementById('effectivenessTicketCount').value='';document.getElementById('effectivenessTicketCount').focus()")
                     browser.call('Input.insertText', {'text': str(maximum + 250)}, page=True)
-                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), str(maximum))
+                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), f'{maximum:,}'.replace(',', '.'))
                     browser.value("document.getElementById('effectivenessTicketCount').value='';document.getElementById('effectivenessTicketCount').dispatchEvent(new Event('input'))")
                     self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '')
                     browser.value("document.getElementById('effectivenessTicketCount').blur()")
@@ -951,14 +1214,14 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     (ROOT / f"runtime/keno_effectiveness_2026-10-08/level_buttons_{width}.png").write_bytes(base64.b64decode(cropped))
                     browser.value("document.getElementById('effectivenessSettings').click()")
                     self.assertTrue(browser.value("document.getElementById('effectivenessAdmin').open"))
-                    self.assertTrue(browser.value("(()=>{const panel=document.getElementById('effectivenessAdmin').getBoundingClientRect();const gear=document.getElementById('effectivenessSettings').getBoundingClientRect();const refresh=document.getElementById('effectivenessRefresh').getBoundingClientRect();return panel.width>0&&panel.left>=0&&panel.right<=innerWidth&&Math.abs(gear.top-refresh.top)<1&&Math.abs(gear.height-36)<1&&gear.left>=refresh.right})()"))
+                    self.assertTrue(browser.value("(()=>{const panel=document.getElementById('effectivenessAdmin').getBoundingClientRect();const gear=document.getElementById('effectivenessSettings').getBoundingClientRect();const refresh=document.getElementById('effectivenessRefresh').getBoundingClientRect();return panel.width>0&&panel.left>=0&&panel.right<=innerWidth&&Math.abs(gear.top-refresh.top)<1&&Math.abs(gear.height-40)<1&&gear.left>=refresh.right})()"))
                     for theme in ("dark", "light"):
                         browser.value("document.body.classList.toggle('light-theme'," + str(theme == "light").lower() + ");window.scrollTo({top:0,behavior:'instant'})")
                         shot = browser.call("Page.captureScreenshot", {"captureBeyondViewport": True}, page=True)["data"]
                         (ROOT / f"runtime/keno_effectiveness_2026-10-08/settings_{theme}_{width}.png").write_bytes(base64.b64decode(shot))
                         browser.value("document.getElementById('effectivenessHelpButton').click()")
                         self.assertFalse(browser.value("document.getElementById('effectivenessAdmin').open"))
-                        self.assertTrue(browser.value("(()=>{const help=document.getElementById('effectivenessHelpButton').getBoundingClientRect();const gear=document.getElementById('effectivenessSettings').getBoundingClientRect();const panel=document.getElementById('effectivenessHelpPanel').getBoundingClientRect();return panel.width>0&&panel.left>=0&&panel.right<=innerWidth&&help.left>=gear.right&&Math.abs(help.top-gear.top)<1&&Math.abs(help.width-36)<1&&Math.abs(help.height-gear.height)<1})()"))
+                        self.assertTrue(browser.value("(()=>{const help=document.getElementById('effectivenessHelpButton').getBoundingClientRect();const gear=document.getElementById('effectivenessSettings').getBoundingClientRect();const panel=document.getElementById('effectivenessHelpPanel').getBoundingClientRect();return panel.width>0&&panel.left>=0&&panel.right<=innerWidth&&help.left>=gear.right&&Math.abs(help.top-gear.top)<1&&Math.abs(help.width-40)<1&&Math.abs(help.height-gear.height)<1})()"))
                         self.assertTrue(browser.value('document.documentElement.scrollWidth <= innerWidth + 2'))
                         help_artifacts = os.environ.get('LOTTO_HELP_BUTTON_ARTIFACT_DIR')
                         if help_artifacts:
@@ -973,6 +1236,27 @@ class EffectivenessFrontendTests(unittest.TestCase):
                         browser.value("document.getElementById('effectivenessHelpButton').click();document.getElementById('effectivenessSettings').click()")
                     browser.value("document.body.classList.remove('light-theme');document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
                 self.assertFalse(any(method == "POST" and "type=KENO" in body for method, path, body in requests))
+                # Complete legacy arrays cycle locally without requesting a page.
+                local_cycle = json.loads(json.dumps(summary_cycle))
+                local_cycle.update(status='scored', actualMain=[1,2,3,4,5,6], actualSpecial=None)
+                for key in keys:
+                    local_cycle['methods'][key].update(predictionId=f'local_{key}', ticketCount=3,
+                        tickets=[{'main':[1,2,3,4,5,7]} for _ in range(3)],
+                        ticketResults=[{'ticketIndex':index, 'prizeCode':'FIRST' if index!=2 else 'NONE',
+                            'prizeLabel':'Giải Nhất' if index!=2 else 'Không trúng giải',
+                            'status':'won' if index!=2 else 'lost'} for index in (1,2,3)],
+                        prizeCounts={'FIRST':2,'NONE':1})
+                    local_cycle['methods'][key].pop('ticketPagination', None)
+                report.update(type='LOTO_6_45', cycles=[local_cycle])
+                browser.value("document.getElementById('effectivenessType').value='LOTO_6_45';document.getElementById('effectivenessType').dispatchEvent(new Event('change'))")
+                wait("document.querySelector('[data-prediction-id=local_web] [data-prize-jump]')?.textContent==='Giải Nhất'")
+                ticket_requests = sum('/api/ml/effectiveness-tickets?' in path for _,path,_ in requests)
+                for key in keys:
+                    select_method(key)
+                    for target in (1,3,1):
+                        browser.value(f"document.querySelector('[data-prediction-id=local_{key}] [data-prize-jump]').click()")
+                        self.assertEqual(browser.value(f"document.querySelector('[data-prediction-id=local_{key}] .is-prize-target').dataset.ticketIndex"), str(target))
+                self.assertEqual(sum('/api/ml/effectiveness-tickets?' in path for _,path,_ in requests), ticket_requests)
                 self.assertEqual(browser.value("uiErrors"), [])
                 self.assertTrue(any("type=KENO" in path and "level=2" in path and "page=2" in path for method, path, body in requests if method == "GET"))
                 for name in ("vietlott-web-effectiveness.js", "vietlott-web-core.js"):

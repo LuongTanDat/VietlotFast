@@ -8,16 +8,21 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import random
+import sqlite3
+import tempfile
 import uuid
 from collections import defaultdict
 from contextlib import closing
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from statistics import mean
 
 from ai import ml_pipeline, prediction_effectiveness as pe, prediction_ledger as ledger
 from ai import tracking_portfolio as portfolio
+from ai import tracking_progress as progress
 from ai.configs import data_paths as dp
 from ai.prizes import classify_tickets, prize_counts, prize_statistics, PRIZE_SCOPE, RULE_VERSION
 from backend.file_guard import resource_lock, version
@@ -146,7 +151,7 @@ def _manifest(db_path=None):
     paths = [Path(__file__), dp.PROJECT_ROOT / "ai/prediction_effectiveness.py",
              dp.PROJECT_ROOT / "ai/prediction_ledger.py", dp.PROJECT_ROOT / "ai/prizes.py",
              dp.PROJECT_ROOT / "ai/predictors/ai_predict.py", dp.PROJECT_ROOT / "ai/adaptive_coverage.py",
-             dp.PROJECT_ROOT / "ai/controlled_models.py", Path(portfolio.__file__)]
+             dp.PROJECT_ROOT / "ai/controlled_models.py", Path(portfolio.__file__), dp.PROJECT_ROOT / "ai/tracking_capacity.py", dp.PROJECT_ROOT / "ai/tracking_storage.py"]
     models = ledger.list_models(GAME, "champion", db_path)
     for model in models:
         artifact = (model.get("artifact_paths") or {}).get("model")
@@ -257,7 +262,8 @@ def _baseline(method, level, count, snapshot, probabilities):
         else:
             raise ValueError("Không tạo đủ các vé Keno khác nhau.")
         tickets.append({"main": main, "special": None})
-        seen.add(tuple(main))
+        if large_mains is None:
+            seen.add(tuple(main))
     return {"ok": True, "ready": True, "type": GAME, "engine": method,
             "latestKy": snapshot["cutoff"], "nextKy": snapshot["target"], "pickSize": level,
             "tickets": tickets, "probabilities": {str(n): p for n, p in probabilities.items()},
@@ -296,9 +302,86 @@ def _recorded_payload(payload):
     return {key: payload[key] for key in keys if key in payload}
 
 
+def _portfolio_payload(task):
+    level, method, count, web, probabilities, snapshot, path = task
+    actual_count = portfolio.effective_count(count, 80, level)
+    payload = (portfolio.expand_web(dict(web), actual_count, 80, level, snapshot)
+               if method == "web" else _baseline(method, level, count, snapshot, probabilities))
+    _validate(payload, level, actual_count, snapshot)
+    if method == "web" and not payload.get("trackingPortfolio"):
+        payload["randomSeed"] = int((payload.get("adaptiveCoverage") or {}).get("seed", payload.get("randomSeed", 0)))
+    return payload
+
+
+def _stage_portfolio(task):
+    """Pure seeded generation in a bounded worker; no canonical/DB writes."""
+    payload = _portfolio_payload(task)
+    path = task[-1]
+    Path(path).write_text(ledger.canonical_json(_recorded_payload(payload)), encoding="utf-8")
+    return payload.get("engine"), payload.get("modelId", payload.get("modelVersion", "classic"))
+
+
+def _stage_prepared_portfolio(arguments):
+    task, context = arguments
+    payload = _recorded_payload(_portfolio_payload(task))
+    engine, model = payload.get("engine"), payload.get("modelId", payload.get("modelVersion", "classic"))
+    payload.update({"predictionDeadline": context["deadline"], "dataHash": context["dataHash"],
+                    "modelId": payload.get("modelId") or context["fallbackModel"], "effectivenessLevel": task[0]})
+    tickets = payload.pop("tickets")
+    serialized = ledger.canonical_json(tickets)
+    Path(task[-1]).write_text(serialized, encoding="utf-8")
+    checksum = hashlib.sha256(ledger.canonical_payload_json(payload, serialized).encode("utf-8")).hexdigest()
+    chunk_hash = hashlib.sha256()
+    with Path(task[-1]).with_suffix('.chunks.jsonl').open('wb') as stream:
+        for start in range(0, len(tickets), 1000):
+            line = (ledger.canonical_json(tickets[start:start + 1000]) + '\n').encode('utf-8')
+            stream.write(line)
+            chunk_hash.update(line)
+    return {"engine": engine, "model": model, "metadata": payload, "ticketCount": len(tickets),
+            "ticketsHash": hashlib.sha256(serialized.encode('utf-8')).hexdigest(),
+            "payloadChecksum": checksum, "chunksHash": chunk_hash.hexdigest()}
+
+
+def _worker_count():
+    return min(4, max(1, (os.cpu_count() or 2) // 2))
+
+
+def _insert_prepared_index(connection, prediction_id, path, prepared):
+    connection.execute("INSERT INTO effectiveness_ticket_index VALUES(?,?,?,?)",
+                       (prediction_id, prepared['ticketCount'], str(prepared['metadata'].get('probabilityCalibrationStatus') or 'uncalibrated'), 1000))
+    checksum, count = hashlib.sha256(), 0
+    with path.with_suffix('.chunks.jsonl').open('rb') as stream:
+        for count, line in enumerate(stream, 1):
+            checksum.update(line)
+            connection.execute("INSERT INTO effectiveness_ticket_chunks VALUES(?,?,?)", (prediction_id, count - 1, line.decode('utf-8').rstrip('\n')))
+    if count != math.ceil(prepared['ticketCount'] / 1000) or checksum.hexdigest() != prepared['chunksHash']:
+        raise ValueError("Dữ liệu trang vé chuẩn bị không khớp checksum.")
+
+
+def _score_portfolio(arguments):
+    database, prediction_id, actual, level, count, snapshot = arguments
+    with closing(sqlite3.connect(Path(database).resolve().as_uri() + '?mode=ro', uri=True)) as connection:
+        connection.row_factory = sqlite3.Row
+        prediction = connection.execute('SELECT payload_json,payload_checksum,username,status,created_at FROM prediction_runs WHERE prediction_id=?', (prediction_id,)).fetchone()
+    raw = prediction['payload_json']
+    if prediction['username'] != pe.ACTOR or prediction['status'] != 'locked' or hashlib.sha256(raw.encode('utf-8')).hexdigest() != prediction['payload_checksum']:
+        raise ValueError("Dự đoán Keno đã khóa không còn hợp lệ.")
+    payload = json.loads(raw)
+    _validate(payload, level, count, snapshot)
+    if datetime.fromisoformat(prediction['created_at']) >= draw_at(actual):
+        raise ValueError("Bộ số Keno không được khóa trước giờ quay.")
+    metrics = ledger.score_prediction_payload(payload, actual, 80, 20, level, compact=True)
+    summary = metrics['report_summary']
+    compact = {key: summary[key] for key in ('hitHistogram','prizeCounts','prizeStatistics')}
+    return (metrics, compact, compact['prizeStatistics']['winningTicketCount'] / metrics['ticket_count'],
+            compact['hitHistogram'][str(level)] / metrics['ticket_count'])
+
+
+@progress.track
 def cycle(db_path=None, force=True):
-    database = Path(db_path or ledger.DEFAULT_DB_PATH)
-    with resource_lock(database.parent / "effectiveness_keno", timeout=15), closing(_connect(db_path)) as connection:
+    database = pe.database_path(db_path)
+    with resource_lock(database.parent / "effectiveness_keno", timeout=15), closing(_connect(db_path)) as connection, \
+            tempfile.TemporaryDirectory(prefix="keno_portfolio_", dir=database.parent) as staging:
         settings = pe._settings(connection.execute("SELECT * FROM effectiveness_settings WHERE game_type=?", (GAME,)).fetchone())
         if not settings["enabled"] and not force:
             return {"ok": True, "type": GAME, "status": "disabled"}
@@ -313,29 +396,59 @@ def cycle(db_path=None, force=True):
             return {"ok": True, "type": GAME, "status": "already_locked", "cycleId": existing[0], "targetDrawId": snapshot["target"]}
         pe._guard(snapshot)
         manifest = _manifest(db_path)
-        count = settings["ticketCount"]
+        count = min(settings["ticketCount"], pe.ticket_limit(GAME))
         counts_by_level = {str(level): portfolio.effective_count(count, 80, level) for level in LEVELS}
-        web = _web_predictions(snapshot, count, db_path)
+        from ai.tracking_capacity import ensure_storage
+        if count > 10000:
+            ensure_storage(database, [(level, 4 * counts_by_level[str(level)]) for level in LEVELS])
+        total_tickets = 4 * sum(counts_by_level.values())
+        progress.start("creating", 2 * total_tickets, total_tickets)
+        # Keep only small web seeds resident; stage one expanded portfolio at a
+        # time, then lock all 40 atomically after checking the source again.
+        web = _web_predictions(snapshot, min(count, 8), db_path)
         probabilities = _probabilities(snapshot)
-        payloads = {(level, method): dict(web[level]) if method == "web" else
-                    _baseline(method, level, count, snapshot, probabilities[method])
-                    for level in LEVELS for method in pe.METHODS}
-        for (level, method), payload in payloads.items():
-            _validate(payload, level, counts_by_level[str(level)], snapshot)
-            if method == "web" and not payload.get("trackingPortfolio"):
-                payload["randomSeed"] = int((payload.get("adaptiveCoverage") or {}).get("seed", payload.get("randomSeed", 0)))
-        payloads = {key: _recorded_payload(payload) for key, payload in payloads.items()}
+        payloads, web_engines, web_models, prepared_files = {}, {}, {}, {}
+        seed_snapshot = {key: snapshot[key] for key in ("cutoff", "target", "dataHash")}
+        tasks = [(level, method, count, web[level], probabilities.get(method), seed_snapshot,
+                  str(Path(staging) / f"{level}_{method}.json")) for level in LEVELS for method in pe.METHODS]
+        def record(task, result):
+            level, method = task[:2]
+            payloads[level, method] = Path(task[-1])
+            progress.advance(counts_by_level[str(level)])
+            if isinstance(result, dict):
+                prepared_files[level, method] = result
+                result = result['engine'], result['model']
+            if method == "web":
+                web_engines[str(level)], web_models[str(level)] = result
+        if count > 10000:
+            workers = _worker_count()
+            context = {'deadline': snapshot['deadline'].isoformat(), 'dataHash': snapshot['dataHash'],
+                       'fallbackModel': f"web_{pe._digest(manifest)[:20]}"}
+            with ProcessPoolExecutor(max_workers=workers) as pool:
+                for start in range(0, len(tasks), workers):
+                    pe._guard(snapshot)
+                    batch = tasks[start:start + workers]
+                    futures = [pool.submit(_stage_prepared_portfolio, (task, context)) for task in batch]
+                    for task, future in zip(batch, futures):
+                        record(task, future.result())
+                        pe._guard(snapshot)
+        else:
+            for task in tasks:
+                pe._guard(snapshot)
+                record(task, _stage_portfolio(task))
+                pe._guard(snapshot)
         config = {**settings, "pipeline": PIPELINE, "levels": list(LEVELS), "sourceManifest": manifest,
                   "ticketCountsByLevel": counts_by_level, "allocationPolicy": portfolio.VERSION if count > 8 else "legacy",
                   "historyScheduleMismatchCount": snapshot["historyScheduleMismatchCount"],
-                  "actualWebEngines": {str(k): web[k].get("engine") for k in LEVELS},
-                  "actualWebModels": {str(k): web[k].get("modelId", web[k].get("modelVersion", "classic")) for k in LEVELS}}
+                  "actualWebEngines": web_engines, "actualWebModels": web_models}
         cycle_id = str(uuid.uuid4())
         with resource_lock(snapshot["path"]):
             fresh = _snapshot()
             if fresh["version"] != snapshot["version"] or fresh["dataHash"] != snapshot["dataHash"] or _manifest(db_path) != manifest:
                 raise RuntimeError("Dữ liệu/mã/model Keno thay đổi; hủy toàn bộ lần khóa.")
             pe._guard(fresh)
+            if count > 10000:
+                ensure_storage(database, [(level, 4 * counts_by_level[str(level)]) for level in LEVELS])
             connection.execute("BEGIN IMMEDIATE")
             try:
                 current = pe._settings(connection.execute("SELECT * FROM effectiveness_settings WHERE game_type=?", (GAME,)).fetchone())
@@ -343,12 +456,33 @@ def cycle(db_path=None, force=True):
                     raise RuntimeError("Cấu hình Keno thay đổi khi tạo vé; thử lại sau.")
                 connection.execute("INSERT INTO keno_effectiveness_cycles(cycle_id,target_draw_id,target_number,cutoff_draw_id,created_at,deadline,data_hash,config_json) VALUES(?,?,?,?,?,?,?,?)",
                                    (cycle_id, snapshot["target"], int(snapshot["target"]), snapshot["cutoff"], ledger.now_iso(), snapshot["deadline"].isoformat(), snapshot["dataHash"], ledger.canonical_json(config)))
-                for (level, method), payload in payloads.items():
+                for (level, method), path in payloads.items():
+                    prepared = prepared_files.get((level, method))
+                    if prepared:
+                        serialized = path.read_text(encoding='utf-8')
+                        if hashlib.sha256(serialized.encode('utf-8')).hexdigest() != prepared['ticketsHash']:
+                            raise ValueError("Danh mục chuẩn bị không khớp checksum.")
+                        payload = prepared['metadata']
+                        saved = ledger.lock_prediction(payload, username=pe.ACTOR, connection=connection,
+                                                       config_hash=pe._digest(config), random_seed=payload.get('randomSeed', 0),
+                                                       feature_version=PIPELINE, serialized_tickets=serialized,
+                                                       expected_checksum=prepared['payloadChecksum'])
+                        connection.execute("INSERT INTO keno_effectiveness_predictions VALUES(?,?,?,?)", (cycle_id, level, method, saved['prediction_id']))
+                        _insert_prepared_index(connection, saved['prediction_id'], path, prepared)
+                        progress.advance(counts_by_level[str(level)])
+                        del serialized, payload
+                        pe._guard(fresh)
+                        continue
+                    with path.open(encoding="utf-8") as handle:
+                        payload = json.load(handle)
                     payload.update({"predictionDeadline": snapshot["deadline"].isoformat(), "dataHash": snapshot["dataHash"],
                                     "modelId": payload.get("modelId") or f"web_{pe._digest(manifest)[:20]}", "effectivenessLevel": level})
                     saved = ledger.lock_prediction(payload, username=pe.ACTOR, connection=connection,
                                                    config_hash=pe._digest(config), random_seed=payload.get("randomSeed", 0), feature_version=PIPELINE)
                     connection.execute("INSERT INTO keno_effectiveness_predictions VALUES(?,?,?,?)", (cycle_id, level, method, saved["prediction_id"]))
+                    pe._index_tickets(connection, saved["prediction_id"], payload)
+                    progress.advance(counts_by_level[str(level)])
+                    del payload
                 pe._guard(fresh)
                 if version(snapshot["path"]) != snapshot["version"]:
                     raise RuntimeError("Canonical thay đổi trước khi ghi chu kỳ Keno.")
@@ -362,6 +496,7 @@ def cycle(db_path=None, force=True):
                 "message": f"Đã khóa đủ 10 bậc Keno cho kỳ {snapshot['target']} · {4 * sum(counts_by_level.values()):,} vé."}
 
 
+@progress.track
 def score_cycles(db_path=None):
     scored, errors = [], []
     with closing(_connect(db_path)) as connection:
@@ -383,7 +518,7 @@ def score_cycles(db_path=None):
                 at = draw_at(row)
                 if at > pe._now() or at != datetime.fromisoformat(cycle_row["deadline"]):
                     raise ValueError("Ngày/giờ kết quả không khớp mã kỳ Keno đã khóa.")
-                predictions = connection.execute("SELECT kp.level,kp.method,pr.* FROM keno_effectiveness_predictions kp JOIN prediction_runs pr ON pr.prediction_id=kp.prediction_id WHERE kp.cycle_id=?", (cycle_row["cycle_id"],)).fetchall()
+                predictions = connection.execute("SELECT kp.level,kp.method,pr.prediction_id,pr.username,pr.status,pr.created_at,pr.payload_checksum FROM keno_effectiveness_predictions kp JOIN prediction_runs pr ON pr.prediction_id=kp.prediction_id WHERE kp.cycle_id=?", (cycle_row["cycle_id"],)).fetchall()
                 if {(p["level"], p["method"]) for p in predictions} != {(k, m) for k in LEVELS for m in pe.METHODS}:
                     raise ValueError("Chu kỳ Keno không đủ 10 bậc và bốn phương pháp.")
                 # Heavy calculations outside the write transaction; keep other
@@ -391,20 +526,23 @@ def score_cycles(db_path=None):
                 computed = []
                 snapshot = {"cutoff": cycle_row["cutoff_draw_id"], "target": target}
                 config = json.loads(cycle_row["config_json"])
-                for prediction in predictions:
-                    payload = json.loads(prediction["payload_json"])
-                    if prediction["username"] != pe.ACTOR or prediction["status"] != "locked" or ledger.payload_checksum(payload) != prediction["payload_checksum"]:
-                        raise ValueError("Dự đoán Keno đã khóa không còn hợp lệ.")
-                    count = config.get("ticketCountsByLevel", {}).get(str(prediction["level"]), config["ticketCount"])
-                    _validate(payload, prediction["level"], count, snapshot)
-                    if datetime.fromisoformat(prediction["created_at"]) >= at:
-                        raise ValueError("Bộ số Keno không được khóa trước giờ quay.")
-                    metrics = ledger.score_prediction_payload(payload, row, 80, 20, prediction["level"])
-                    prizes = metrics["prize_results"]
-                    hits = [item["hit_count"] for item in metrics["per_ticket"]]
-                    compact = {"hitHistogram": {str(h): hits.count(h) for h in range(prediction["level"] + 1)},
-                               "prizeCounts": prize_counts(prizes), "prizeStatistics": prize_statistics(prizes)}
-                    computed.append((prediction, pe._score_storage(metrics), compact, sum(p["isWinning"] is True for p in prizes) / len(prizes), sum(h == prediction["level"] for h in hits) / len(hits)))
+                tasks = [(str(pe.database_path(db_path).resolve()), p['prediction_id'], row, p['level'],
+                          config.get('ticketCountsByLevel', {}).get(str(p['level']), config['ticketCount']), snapshot)
+                         for p in predictions]
+                progress.start("scoring", 2 * len(tasks), sum(task[4] for task in tasks))
+                if config['ticketCount'] > 10000:
+                    workers = _worker_count()
+                    with ProcessPoolExecutor(max_workers=workers) as pool:
+                        for start in range(0, len(tasks), workers):
+                            batch = tasks[start:start + workers]
+                            futures = [pool.submit(_score_portfolio, task) for task in batch]
+                            for prediction, future in zip(predictions[start:start + workers], futures):
+                                computed.append((prediction, *future.result()))
+                                progress.advance(1)
+                else:
+                    for prediction, task in zip(predictions, tasks):
+                        computed.append((prediction, *_score_portfolio(task)))
+                        progress.advance(1)
                 stamp = ledger.now_iso()
                 connection.execute("BEGIN IMMEDIATE")
                 if connection.execute("SELECT status FROM keno_effectiveness_cycles WHERE cycle_id=?", (cycle_row["cycle_id"],)).fetchone()[0] != "locked":
@@ -416,6 +554,7 @@ def score_cycles(db_path=None):
                     connection.execute("UPDATE prediction_runs SET status='scored' WHERE prediction_id=? AND status='locked'", (prediction["prediction_id"],))
                     connection.execute("INSERT INTO keno_effectiveness_metrics VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                                        (cycle_row["cycle_id"], prediction["level"], prediction["method"], at.date().isoformat(), metrics["mean_hits_per_ticket"], metrics["hit_count"], winning, full, metrics["brier_score"], metrics["log_loss"], metrics["ticket_count"], ledger.canonical_json(compact)))
+                progress.advance(len(computed))
                 connection.execute("UPDATE keno_effectiveness_cycles SET status='scored',scored_at=?,actual_json=? WHERE cycle_id=?", (stamp, ledger.canonical_json({"main": row["main"], "special": None, "drawAt": at.isoformat()}), cycle_row["cycle_id"]))
                 connection.commit()
                 scored.append(target)
@@ -512,7 +651,7 @@ def report(level=10, page=1, db_path=None):
                 "scope": "main_numbers_only", "metricWeighting": "equal_weight_per_draw", "prizeScope": PRIZE_SCOPE, "prizeRuleVersion": RULE_VERSION,
                 "automation": {"lastError": settings_row["last_error"], "lastTick": settings_row["last_tick"], "nextTargetDrawId": settings_row["next_target"], "sourceSync": source_sync},
                 "notes": ["Mỗi kỳ khóa đồng thời 10 bậc × 4 phương pháp. Đổi bậc hoặc trang chỉ đổi phần xem, không tạo lại vé.",
-                          "Tối đa 10.000 vé khác nhau/phương pháp/bậc; bậc 1 tối đa 80 và bậc 2 tối đa 3.160. Mỗi trang vé hiển thị 20; thống kê chấm toàn bộ danh mục.",
+                          "Kỳ mới tối đa 100.000 vé/phương pháp/bậc; bậc 1/2/3 tối đa 80 / 3.160 / 82.160 bộ không trùng. Kỳ đã khóa giữ nguyên và chấm toàn bộ danh mục.",
                           f"Bậc {level}: số trùng kỳ vọng ngẫu nhiên là {level / 4:g} số/vé; chỉ so các vé cùng bậc và ngân sách.",
                           "Tỷ lệ có giải gồm cả trùng 0 ở bậc 8–10; trùng đủ và có giải là hai chỉ số riêng. Không tính tiền lĩnh thưởng.",
                           "Chấm theo mã kỳ và giờ quay canonical. Kết quả trễ giữ kỳ đã khóa; không cộng 8 phút từ thời điểm nhận dữ liệu.",
@@ -523,6 +662,7 @@ def report(level=10, page=1, db_path=None):
                           "Xác suất biên chưa hiệu chỉnh; nhiều kỳ trong một ngày không bảo đảm dự đoán trúng kỳ sau."]}
 
 
+@progress.track
 def _sync_source(db_path=None):
     """Poll only tracking data; no bootstrap, model fitting or scoring exports."""
     database = Path(db_path or ledger.DEFAULT_DB_PATH)
@@ -543,6 +683,7 @@ def _sync_source(db_path=None):
         stamp = now.isoformat(timespec="seconds")
         try:
             from backend import keno_live_sync
+            progress.start("updating")
             refreshed = keno_live_sync.refresh(now=now, pending=pending)
             state = {**state, **refreshed, "lastAttempt": stamp, "lastSuccess": stamp, "error": ""}
         except Exception as exc:

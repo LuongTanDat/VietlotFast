@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import time
+from email.utils import parsedate_to_datetime
 import unicodedata
 import uuid
 from collections import defaultdict
@@ -79,6 +80,19 @@ PRIZE_HIT_FIELD = "PrizeHit"
 PRIZE_HIT_HEADER = "Nổ"
 LOTO535_SHARED_PRIZE_LABEL = "Chia Giải"
 SPECIAL_WINNER_COUNT_FIELD = "_SpecialPrizeWinnerCount"
+PRIZE_WINNER_COUNTS_FIELD = "_PrizeWinnerCounts"
+OFFICIAL_PRIZE_COUNTS_COOLDOWN_FILE = RUNTIME_LOG_DIR / "official_prize_counts_cooldown.json"
+PRIZE_WINNER_KEYS_BY_TYPE = {
+    "LOTO_5_35": ("specialPrize", "first", "second", "third", "fourth", "fifth", "consolation"),
+    "LOTO_6_45": ("jackpot", "first", "second", "third"),
+    "LOTO_6_55": ("jackpot1", "jackpot2", "first", "second", "third"),
+}
+PRIZE_WINNER_ROW_LABELS = {
+    "doc dac": "specialPrize", "dac biet": "specialPrize", "jackpot": "jackpot",
+    "jackpot 1": "jackpot1", "jackpot 2": "jackpot2", "nhat": "first",
+    "nhi": "second", "ba": "third", "tu": "fourth", "nam": "fifth",
+    "khuyen khich": "consolation", "kk": "consolation",
+}
 PRIZE_HIT_LABELS = {
     "LOTO_5_35": ("ĐB",),
     "LOTO_6_45": ("Jackpot",),
@@ -98,6 +112,35 @@ def valid_prize_hit(type_key, value):
 
 def loto535_draw_identity(row):
     return "|".join(str(row.get(field, "")) for field in ("Ngay", "Time", "Main", "Special"))
+
+
+def valid_prize_winner_counts(type_key, counts):
+    if not isinstance(counts, dict):
+        return {}
+    return {key: value for key, value in counts.items()
+            if key in PRIZE_WINNER_KEYS_BY_TYPE.get(type_key, ()) and type(value) is int and value >= 0}
+
+
+def restore_prize_winner_counts(type_key, rows_by_ky, meta):
+    evidence = (meta.get("prizeWinners") or {}).get("countsByDraw", {})
+    for ky, row in rows_by_ky.items():
+        item = evidence.get(ky, {})
+        counts = valid_prize_winner_counts(type_key, item.get("counts"))
+        if counts and item.get("identity") == loto535_draw_identity(row):
+            row[PRIZE_WINNER_COUNTS_FIELD] = counts
+            row["_PrizeWinnerCountsSource"] = str(item.get("sourceUrl") or "")
+            row["_PrizeWinnerCountsCheckedAt"] = str(item.get("checkedAt") or "")
+
+
+def build_prize_winner_meta(type_key, rows_by_ky):
+    evidence = {}
+    for ky, row in rows_by_ky.items():
+        counts = valid_prize_winner_counts(type_key, row.get(PRIZE_WINNER_COUNTS_FIELD))
+        if counts:
+            evidence[ky] = {"identity": loto535_draw_identity(row), "counts": counts,
+                            "sourceUrl": row.get("_PrizeWinnerCountsSource") or row.get("SourceUrl", ""),
+                            "checkedAt": row.get("_PrizeWinnerCountsCheckedAt") or ""}
+    return {"updatedAt": now_iso(), "countsByDraw": evidence}
 
 
 def restore_loto535_winner_evidence(rows_by_ky, meta):
@@ -915,6 +958,17 @@ def read_canonical_meta(type_key):
 
 def write_canonical_meta(type_key, meta):
     payload = dict(meta or {})
+    # A sync that started before a count backfill must not erase its evidence.
+    previous_counts = (read_canonical_meta(type_key).get("prizeWinners") or {}).get("countsByDraw", {})
+    if previous_counts:
+        incoming = payload.get("prizeWinners") or {}
+        combined = dict(previous_counts)
+        for ky, item in incoming.get("countsByDraw", {}).items():
+            previous = combined.get(ky, {})
+            if previous.get("identity") == item.get("identity"):
+                item = {**item, "counts": {**previous.get("counts", {}), **item.get("counts", {})}}
+            combined[ky] = item
+        payload["prizeWinners"] = {**incoming, "countsByDraw": combined}
     payload["type"] = type_key
     if not payload.get("requestedStartMode"):
         payload["requestedStartMode"] = FULL_HISTORY_REQUESTED_START_MODE
@@ -1331,6 +1385,7 @@ def load_canonical_rows(type_key, rewrite_if_needed=True):
             info["issues"].append(f"type_filter_removed:{removed_rows}")
 
     meta = read_canonical_meta(type_key)
+    restore_prize_winner_counts(type_key, rows_by_ky, meta)
     if type_key == "LOTO_5_35":
         restore_loto535_winner_evidence(rows_by_ky, meta)
     normalized_meta, meta_changed = normalize_meta_from_rows(type_key, meta, rows_by_ky)
@@ -1370,6 +1425,7 @@ def result_to_csv_row(result):
     winner_evidence = ({SPECIAL_WINNER_COUNT_FIELD: winner_count}
                        if result.get("key") == "LOTO_5_35" and result.get("prizeHitKnown")
                        and type(winner_count) is int and winner_count >= 0 else {})
+    counts = valid_prize_winner_counts(result.get("key"), result.get("prizeWinnerCounts"))
     return {
         "Ky": str(result.get("ky", "")).strip(),
         "Thu": format_csv_weekday(result.get("date")),
@@ -1384,6 +1440,9 @@ def result_to_csv_row(result):
         **{field: str(result.get(key) or "") for field, key in PRIZE_RESULT_KEYS.items()},
         PRIZE_HIT_FIELD: str(result.get("prizeHit") or ""),
         **winner_evidence,
+        **({PRIZE_WINNER_COUNTS_FIELD: counts,
+            "_PrizeWinnerCountsSource": result.get("prizeWinnerCountsSourceUrl") or result.get("sourceUrl", ""),
+            "_PrizeWinnerCountsCheckedAt": result.get("prizeWinnerCountsCheckedAt") or ""} if counts else {}),
     }
 
 
@@ -1497,6 +1556,8 @@ def sync_result_to_canonical_csv(result):
         canonical_meta["sourceLimited"] = sort_key_from_ky(earliest_ky) > 1
     if type_key == "LOTO_5_35":
         canonical_meta["prizeSharing"] = build_loto535_prize_sharing_meta(rows_by_ky)
+    if type_key in PRIZE_WINNER_KEYS_BY_TYPE:
+        canonical_meta["prizeWinners"] = build_prize_winner_meta(type_key, rows_by_ky)
     write_canonical_meta(type_key, canonical_meta)
 
     return {
@@ -1556,6 +1617,7 @@ def csv_row_to_history_item(row):
         "sourceUrl": source_url,
         "sourceDate": str(row.get("SourceDate", "")).strip(),
         "prizeHit": str(row.get(PRIZE_HIT_FIELD, "")).strip(),
+        "prizeWinnerCounts": dict(row.get(PRIZE_WINNER_COUNTS_FIELD) or {}),
         **{key: int(str(row[field]).strip()) for field, key in PRIZE_RESULT_KEYS.items()
            if str(row.get(field, "")).strip().isdigit() and int(str(row[field]).strip()) > 0},
     }
@@ -1696,6 +1758,7 @@ def history_item_to_live_result(type_key, item):
            for field in PRIZE_FIELDS_BY_TYPE.get(type_key, ())
            if item.get(PRIZE_RESULT_KEYS[field])},
         "prizeHit": str(item.get("prizeHit") or ""),
+        "prizeWinnerCounts": valid_prize_winner_counts(type_key, item.get("prizeWinnerCounts")),
     }
 
 
@@ -2222,6 +2285,12 @@ def merge_result_rows(rows_by_ky, results):
         # A fallback source may omit amounts; retain previously verified prizes.
         if previous and all(previous.get(field, "") == row.get(field, "")
                             for field in ("Ngay", "Time", "Main", "Special")):
+            old_counts = previous.get(PRIZE_WINNER_COUNTS_FIELD) or {}
+            if old_counts:
+                row[PRIZE_WINNER_COUNTS_FIELD] = {**old_counts, **row.get(PRIZE_WINNER_COUNTS_FIELD, {})}
+                for field in ("_PrizeWinnerCountsSource", "_PrizeWinnerCountsCheckedAt"):
+                    if not row.get(field):
+                        row[field] = previous.get(field, "")
             if not result.get("prizeHitKnown"):
                 row[PRIZE_HIT_FIELD] = previous.get(PRIZE_HIT_FIELD, "")
             if SPECIAL_WINNER_COUNT_FIELD not in row and SPECIAL_WINNER_COUNT_FIELD in previous:
@@ -2556,30 +2625,100 @@ def parse_numeric_prize_hits(cfg, lines):
                         if normalized[index:index + 4] == ["giai", "trung khop", "so luong", "gia tri"]), None)
     if table_start is None:
         return {}
-    row_labels = {
-        "doc dac": "SpecialPrize", "dac biet": "SpecialPrize",
-        "jackpot": "Jackpot", "jackpot 1": "Jackpot1", "jackpot 2": "Jackpot2",
-    }
+    row_labels = PRIZE_WINNER_ROW_LABELS
     counts = {}
     for index in range(table_start, len(lines) - 2):
-        field = row_labels.get(normalized[index])
-        if field not in fields:
+        field = row_labels.get(re.sub(r"^giai ", "", normalized[index]))
+        if field not in PRIZE_WINNER_KEYS_BY_TYPE[cfg.key]:
             continue
-        count, amount = lines[index + 1].strip(), lines[index + 2].strip()
+        count = lines[index + 1].strip()
         if not re.fullmatch(r"\d+|\d{1,3}(?:[.,]\d{3})+", count):
             continue
-        if not re.fullmatch(r"\d{7,}|\d{1,3}(?:[.,]\d{3})+", amount):
-            continue
+        # Counts are published independently of the pool amount. MinhChinh
+        # sometimes leaves the Jackpot amount as ',,,' while counts are final.
         value = int(re.sub(r"\D", "", count))
         if field in counts and counts[field] != value:
             return {}
         counts[field] = value
-    if set(counts) != set(fields):
+    top_keys = [PRIZE_RESULT_KEYS[field] for field in fields]
+    if not set(top_keys).issubset(counts):
         return {}
-    hits = [label for field, label in zip(fields, PRIZE_HIT_LABELS[cfg.key]) if counts[field] > 0]
+    hits = [label for key, label in zip(top_keys, PRIZE_HIT_LABELS[cfg.key]) if counts[key] > 0]
     marker = "Jackpot 1, 2" if len(hits) == 2 else (hits[0] if hits else "")
     return {"prizeHit": marker, "prizeHitKnown": True,
-            "prizeWinnerCounts": {PRIZE_RESULT_KEYS[field]: counts[field] for field in fields}}
+            "prizeWinnerCounts": counts}
+
+
+def official_prize_counts_url(type_key, ky):
+    game = {"LOTO_5_35": "535", "LOTO_6_45": "645", "LOTO_6_55": "655"}[type_key]
+    return f"https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/{game}?id={int(ky):05d}&nocatche=1"
+
+
+def fetch_official_counts_html(session, url):
+    try:
+        cooldown = json.loads(OFFICIAL_PRIZE_COUNTS_COOLDOWN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cooldown = {}
+    if cooldown.get("blockedUntil", 0) > time.time():
+        raise requests.HTTPError("Vietlott đang giới hạn truy cập thống kê; thử lại sau.")
+    response = session.get(url, timeout=(5, 20))
+    if response.status_code == 429:
+        retry = str(response.headers.get("Retry-After", ""))
+        if retry.isdigit():
+            delay = max(60, int(retry))
+        else:
+            try:
+                delay = max(60, parsedate_to_datetime(retry).timestamp() - time.time())
+            except (TypeError, ValueError, OverflowError):
+                delay = 600
+        write_json_file(OFFICIAL_PRIZE_COUNTS_COOLDOWN_FILE,
+                        {"blockedUntil": time.time() + delay, "status": 429, "checkedAt": now_iso()})
+    response.raise_for_status()
+    response.encoding = "utf-8"
+    return response.text
+
+
+def parse_official_prize_winner_counts(type_key, html, row):
+    """Accept published counts only when game, draw, date and every ball match."""
+    soup = BeautifulSoup(html, "html.parser")
+    section = soup.select_one(".chitietketqua")
+    if section is None:
+        raise ValueError("Không có bảng kết quả Vietlott.")
+    title = section.select_one("h4")
+    expected_game = {"LOTO_5_35": "5/35", "LOTO_6_45": "6/45", "LOTO_6_55": "6/55"}[type_key]
+    if title is None or expected_game not in title.get_text():
+        raise ValueError("Loại vé nguồn không khớp.")
+    heading = section.select_one("h5")
+    text = heading.get_text(" ", strip=True) if heading else ""
+    ky, day = re.search(r"#(\d+)", text), re.search(r"\d{2}/\d{2}/\d{4}", text)
+    if not ky or not day or int(ky.group(1)) != int(row["Ky"]) or day.group() != row["Ngay"]:
+        raise ValueError("Kỳ/ngày nguồn không khớp.")
+    balls = [int(ball.get_text(strip=True)) for ball in section.select(".day_so_ket_qua .bong_tron")]
+    cfg = LIVE_TYPES[type_key]
+    main = [int(value) for value in str(row.get("Main", "")).split(",") if value]
+    special = str(row.get("Special", "")).strip()
+    if (len(balls) != cfg.main_count + int(cfg.has_special) or sorted(balls[:cfg.main_count]) != sorted(main)
+            or (cfg.has_special and (not special.isdigit() or balls[-1] != int(special)))):
+        raise ValueError("Bộ số nguồn không khớp.")
+    counts = {}
+    for table_row in section.select(".chitietketqua_table table tbody tr"):
+        cells = table_row.find_all("td", recursive=False)
+        if len(cells) != 4:
+            continue
+        label = re.sub(r"^giai ", "", normalize_header_label(cells[0].get_text(" ", strip=True)).strip(" :"))
+        key = PRIZE_WINNER_ROW_LABELS.get(label)
+        if key not in PRIZE_WINNER_KEYS_BY_TYPE[type_key]:
+            continue
+        count_text = cells[2].get_text(strip=True)
+        if not re.fullmatch(r"\d+|\d{1,3}(?:[.,]\d{3})+", count_text):
+            continue
+        value = int(re.sub(r"\D", "", count_text))
+        if key in counts and counts[key] != value:
+            raise ValueError("Số lượng giải nguồn mâu thuẫn.")
+        counts[key] = value
+    if not counts:
+        raise ValueError("Nguồn chưa công bố số lượng giải.")
+    return counts
 
 
 def build_numeric_result(cfg, ky, date_value, time_value, balls, source_url):
@@ -3024,6 +3163,24 @@ def fetch_live_result(session, cache, type_key):
                     break
         except requests.RequestException:
             pass
+    expected_counts = PRIZE_WINNER_KEYS_BY_TYPE.get(type_key, ())
+    if expected_counts and not set(expected_counts).issubset(result.get("prizeWinnerCounts") or {}) and hasattr(session, "request"):
+        try:
+            row = result_to_csv_row(result)
+            url = official_prize_counts_url(type_key, result["ky"])
+            cache_key = "official_counts:" + url + ":" + loto535_draw_identity(row)
+            if cache_key not in cache:
+                cache[cache_key] = parse_official_prize_winner_counts(type_key, fetch_official_counts_html(session, url), row)
+            result["prizeWinnerCounts"] = {**result.get("prizeWinnerCounts", {}), **cache[cache_key]}
+            result["prizeWinnerCountsSourceUrl"] = url
+            result["prizeWinnerCountsCheckedAt"] = now_iso()
+            top_keys = [PRIZE_RESULT_KEYS[field] for field in PRIZE_FIELDS_BY_TYPE[type_key]]
+            if set(top_keys).issubset(result["prizeWinnerCounts"]):
+                hits = [label for key, label in zip(top_keys, PRIZE_HIT_LABELS[type_key]) if result["prizeWinnerCounts"][key] > 0]
+                result["prizeHit"] = "Jackpot 1, 2" if len(hits) == 2 else (hits[0] if hits else "")
+                result["prizeHitKnown"] = True
+        except (requests.RequestException, ValueError):
+            pass  # Published statistics may arrive later; never guess a zero.
     return result
 
 
@@ -3409,6 +3566,7 @@ def sync_all_numeric_type(session, cache, type_key, allow_bootstrap=True, progre
     meta["sourceLimited"] = source_limited
     if type_key in PRIZE_FIELDS_BY_TYPE:
         meta["prizeAmounts"] = build_prize_amount_meta(type_key, rows_by_ky, meta.get("prizeAmounts"))
+        meta["prizeWinners"] = build_prize_winner_meta(type_key, rows_by_ky)
     if type_key == "LOTO_5_35":
         meta["prizeSharing"] = build_loto535_prize_sharing_meta(rows_by_ky)
     write_canonical_meta(type_key, meta)

@@ -1,0 +1,10 @@
+# Copy to runtime/vnpay.properties on the server. Never put the secret in frontend files.
+# Configuration is read per request; no restart is needed after editing this file.
+enabled=false
+environment=sandbox
+tmnCode=
+hashSecret=
+# Sandbox on localhost can build URLs, but IPN requires a reachable endpoint.
+# Use your HTTPS origin for a complete test. Production requires public HTTPS.
+publicBaseUrl=http://127.0.0.1:8080
+maxAmount=10000000

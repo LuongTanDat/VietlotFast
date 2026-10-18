@@ -1,0 +1,15 @@
+# Copy to runtime/social-login.properties (ignored by Git, never served to browsers).
+# Use your HTTPS origin without a path or trailing slash.
+# Google loopback development may use http://127.0.0.1:8080.
+publicBaseUrl=
+
+google.clientId=
+google.clientSecret=
+
+facebook.clientId=
+facebook.clientSecret=
+# The supported Graph API version selected in your Meta application, e.g. vNN.0.
+facebook.graphVersion=
+
+zalo.clientId=
+zalo.clientSecret=

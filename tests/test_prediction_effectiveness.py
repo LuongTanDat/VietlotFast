@@ -76,7 +76,7 @@ class PredictionEffectivenessTests(unittest.TestCase):
 
     def test_configure_validates_settings_and_audits_actor(self):
         for enabled, count, actor in (("true", 3, "admin"), (True, 0, "admin"),
-                                      (True, 10001, "admin"), (True, 2.5, "admin"), (True, 3, "")):
+                                      (True, 1000001, "admin"), (True, 2.5, "admin"), (True, 3, "")):
             with self.assertRaises(ValueError):
                 effectiveness.configure(self.GAME, enabled, count, actor, self.db)
         result = effectiveness.configure(self.GAME, True, 4, "owner", self.db)
@@ -91,8 +91,12 @@ class PredictionEffectivenessTests(unittest.TestCase):
         effectiveness.configure(self.GAME, True, 10000, "admin_fixture", self.db)
         first = effectiveness.cycle(self.GAME, self.db)
         pending = effectiveness.report(self.GAME, db_path=self.db)["cycles"][0]
+        with self.assertRaises(ValueError):
+            effectiveness.ticket_page(self.GAME, pending["methods"]["web"]["predictionId"], db_path=self.db, prize_code="FIRST")
         for entry in pending["methods"].values():
-            self.assertEqual(len(entry["tickets"]), 20)
+            self.assertEqual(len(entry["tickets"]), 10)
+            self.assertEqual(entry["ticketPagination"]["pageSize"], 10)
+            self.assertEqual(entry["ticketPagination"]["totalPages"], 1000)
             self.assertEqual(entry["ticketPagination"]["total"], 10000)
             self.assertEqual(entry["prizeCounts"], {"PENDING": 10000})
             self.assertEqual(entry["prizeStatistics"]["pendingTicketCount"], 10000)
@@ -104,11 +108,38 @@ class PredictionEffectivenessTests(unittest.TestCase):
             self.assertEqual(summary["prizeStatistics"]["ticketCount"], 10000)
         entry = report["cycles"][0]["methods"]["web"]
         scores = self._stored_scores()
-        last = effectiveness.ticket_page(self.GAME, entry["predictionId"], 500, self.db)
-        self.assertEqual(last["ticketPagination"]["offset"], 9980)
-        self.assertEqual([result["ticketIndex"] for result in last["ticketResults"]], list(range(9981, 10001)))
-        self.assertEqual(last["ticketResults"], [{**result, "ticketIndex": result["ticketIndex"] + 9980} for result in classify_tickets(self.GAME, last["tickets"], {"main": [1, 2, 3, 4, 5], "special": 2})])
+        last = effectiveness.ticket_page(self.GAME, entry["predictionId"], 1000, self.db)
+        self.assertEqual(last["ticketPagination"]["offset"], 9990)
+        self.assertEqual([result["ticketIndex"] for result in last["ticketResults"]], list(range(9991, 10001)))
+        self.assertEqual(last["ticketResults"], [{**result, "ticketIndex": result["ticketIndex"] + 9990} for result in classify_tickets(self.GAME, last["tickets"], {"main": [1, 2, 3, 4, 5], "special": 2})])
         self.assertEqual(self._stored_scores(), scores)
+        for method in report["cycles"][0]["methods"].values():
+            with closing(effectiveness._connect(self.db)) as connection:
+                full = json.loads(connection.execute("SELECT tickets_json FROM prediction_runs WHERE prediction_id=?", (method["predictionId"],)).fetchone()[0])
+            prizes = classify_tickets(self.GAME, full, {"main": [1, 2, 3, 4, 5], "special": 2})
+            first_winner = next(result for result in prizes if result["status"] == "won")
+            found = effectiveness.ticket_page(self.GAME, method["predictionId"], db_path=self.db, prize_code=first_winner["prizeCode"])
+            self.assertEqual(found["jumpTicketIndex"], first_winner["ticketIndex"])
+            self.assertEqual(found["ticketPagination"]["page"], (first_winner["ticketIndex"] - 1) // 10 + 1)
+            self.assertEqual(len(found["tickets"]), 10)
+            self.assertTrue(any(result == first_winner for result in found["ticketResults"]))
+            winners = [result for result in prizes if result["status"] == "won" and result["prizeCode"] == first_winner["prizeCode"]]
+            self.assertGreater(len(winners), 1)
+            for cursor, expected in ((winners[0]["ticketIndex"], winners[1]), (winners[-1]["ticketIndex"], winners[0])):
+                found = effectiveness.ticket_page(self.GAME, method["predictionId"], db_path=self.db,
+                                                  prize_code=first_winner["prizeCode"], after_ticket_index=cursor)
+                self.assertEqual(found["jumpTicketIndex"], expected["ticketIndex"])
+                self.assertEqual(found["ticketPagination"]["page"], (expected["ticketIndex"] - 1) // 10 + 1)
+                self.assertIn(expected, found["ticketResults"])
+        self.assertEqual(self._stored_scores(), scores)
+        for code in ("NONE", "UNKNOWN", "not_a_code", "FIRST;bad"):
+            with self.assertRaises(ValueError):
+                effectiveness.ticket_page(self.GAME, entry["predictionId"], db_path=self.db, prize_code=code)
+        for cursor in (-1, True, 1.5, 10001, 1000001):
+            with self.assertRaises(ValueError):
+                effectiveness.ticket_page(self.GAME, entry["predictionId"], db_path=self.db, prize_code="FIRST", after_ticket_index=cursor)
+        with self.assertRaises(ValueError):
+            effectiveness.ticket_page(self.GAME, entry["predictionId"], db_path=self.db, after_ticket_index=1)
         with self.assertRaises(ValueError):
             effectiveness.ticket_page(self.GAME, "missing", 1, self.db)
 

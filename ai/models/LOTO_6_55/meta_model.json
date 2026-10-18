@@ -2,27 +2,27 @@
   "type": "LOTO_6_55",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "power_6_55_all_day.csv",
-  "historyCount": 1405,
-  "latestKy": "1409",
-  "latestDate": "10/10/2026",
+  "historyCount": 1408,
+  "latestKy": "1412",
+  "latestDate": "17/10/2026",
   "latestTime": "",
-  "lastLearnedKy": "1409",
-  "lastLearnedAt": "2026-10-10T21:29:21",
+  "lastLearnedKy": "1412",
+  "lastLearnedAt": "2026-10-17T21:32:27",
   "metaState": "volatile",
-  "stabilityScore": 0.564606,
-  "driftScore": 0.473254,
+  "stabilityScore": 0.586444,
+  "driftScore": 0.449518,
   "rankingOverlap": 0.0,
   "preferredEngine": "gen_local",
   "weights": {
-    "gen_local": 0.447255,
-    "luan_so": 0.238164,
-    "both_combo": 0.314581
+    "gen_local": 0.449526,
+    "luan_so": 0.236454,
+    "both_combo": 0.314019
   },
-  "weightShift": 0.000636,
+  "weightShift": 0.000917,
   "rewards": {
-    "gen_local": 0.279395,
+    "gen_local": 0.28813,
     "luan_so": 0.0,
-    "both_combo": 0.123381
+    "both_combo": 0.127238
   },
   "rewardHistory": [
     {
@@ -1144,43 +1144,91 @@
         "both_combo": 0.314581
       },
       "weightShift": 0.000636
+    },
+    {
+      "ky": "1410",
+      "learnedAt": "2026-10-13T19:44:44",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.283533,
+        "luan_so": 0.0,
+        "both_combo": 0.125208
+      },
+      "weights": {
+        "gen_local": 0.448073,
+        "luan_so": 0.237547,
+        "both_combo": 0.31438
+      },
+      "weightShift": 0.000818
+    },
+    {
+      "ky": "1411",
+      "learnedAt": "2026-10-15T18:58:28",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.281328,
+        "luan_so": 0.0,
+        "both_combo": 0.124234
+      },
+      "weights": {
+        "gen_local": 0.448609,
+        "luan_so": 0.237144,
+        "both_combo": 0.314247
+      },
+      "weightShift": 0.000536
+    },
+    {
+      "ky": "1412",
+      "learnedAt": "2026-10-17T21:32:27",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.28813,
+        "luan_so": 0.0,
+        "both_combo": 0.127238
+      },
+      "weights": {
+        "gen_local": 0.449526,
+        "luan_so": 0.236454,
+        "both_combo": 0.314019
+      },
+      "weightShift": 0.000917
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.369365,
+      "confidence": 0.377122,
       "backtest": {
-        "avgHits": 0.625,
-        "avgHitRate": 0.104167,
+        "avgHits": 0.6458,
+        "avgHitRate": 0.107639,
         "veryRecentAvgHitRate": 0.1,
-        "recentAvgHitRate": 0.097222,
-        "mediumRecentAvgHitRate": 0.089286,
+        "recentAvgHitRate": 0.104167,
+        "mediumRecentAvgHitRate": 0.098214,
         "samples": 96,
-        "stability": 0.773054,
-        "recentConsistency": 0.935714,
-        "agreementScore": 0.576923,
+        "stability": 0.754772,
+        "recentConsistency": 0.989286,
+        "agreementScore": 0.58547,
         "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.993143,
-        "adaptiveScore": 0.385152
+        "shortSpikePenalty": 0.998857,
+        "adaptiveScore": 0.398383
       },
       "champion": {
-        "key": "hybrid_ai_lite",
-        "label": "Hybrid AI-lite",
+        "key": "gap_recovery",
+        "label": "Gap recovery",
         "samples": 96,
-        "avgHits": 0.625,
-        "avgHitRate": 0.104167,
+        "avgHits": 0.6458,
+        "avgHitRate": 0.107639,
         "veryRecentAvgHitRate": 0.1,
-        "recentAvgHitRate": 0.097222,
-        "mediumRecentAvgHitRate": 0.089286,
-        "stability": 0.773054,
-        "recentConsistency": 0.935714,
-        "agreementScore": 0.576923,
+        "recentAvgHitRate": 0.104167,
+        "mediumRecentAvgHitRate": 0.098214,
+        "stability": 0.754772,
+        "recentConsistency": 0.989286,
+        "agreementScore": 0.58547,
         "sampleFactor": 1.0,
         "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.993143,
-        "adaptiveScore": 0.385152,
-        "learnedWeight": 0.265059,
-        "rawScore": 0.385152
+        "shortSpikePenalty": 0.998857,
+        "adaptiveScore": 0.398383,
+        "learnedWeight": 0.269706,
+        "rawScore": 0.398383
       }
     },
     "luan_so": {

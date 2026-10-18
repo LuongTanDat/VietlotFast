@@ -7,14 +7,14 @@ import itertools
 import math
 import random
 
-MAX_TICKETS = 10000
-TICKET_PAGE_SIZE = 20
+MAX_TICKETS = 1_000_000
+TICKET_PAGE_SIZE = 10
 VERSION = "tracking_unique_portfolio_v1"
 
 
 def effective_count(requested, universe, pick_size):
     if type(requested) is not int or not 1 <= requested <= MAX_TICKETS:
-        raise ValueError("Số vé phải là số nguyên từ 1 đến 10.000.")
+        raise ValueError("Số vé phải là số nguyên từ 1 đến 1.000.000.")
     return min(requested, math.comb(universe, pick_size))
 
 
@@ -29,6 +29,32 @@ def _unrank(rank, universe, pick_size):
                 break
             rank -= block
     return tuple(result)
+
+
+def _unrank_many(ranks, universe, pick_size):
+    """Same lexicographic unranking, vectorized for new million-ticket budgets."""
+    if len(ranks) <= 10000:
+        return [_unrank(rank, universe, pick_size) for rank in ranks]
+    try:
+        import numpy as np
+    except ImportError:
+        return [_unrank(rank, universe, pick_size) for rank in ranks]
+    remaining_rank = np.asarray(ranks, dtype=np.int64).copy()
+    left = np.full(len(ranks), pick_size, dtype=np.int8)
+    output = np.empty((len(ranks), pick_size), dtype=np.uint8)
+    for number in range(1, universe + 1):
+        rows = np.flatnonzero(left)
+        if not len(rows):
+            break
+        blocks = np.asarray([0] + [math.comb(universe - number, k - 1) for k in range(1, pick_size + 1)], dtype=np.int64)
+        capacity = blocks[left[rows]]
+        choose = remaining_rank[rows] < capacity
+        selected = rows[choose]
+        output[selected, pick_size - left[selected]] = number
+        left[selected] -= 1
+        rejected = rows[~choose]
+        remaining_rank[rejected] -= capacity[~choose]
+    return [tuple(row) for row in output.tolist()]
 
 
 def unique_mains(probabilities, pick_size, count, seed, prefix=()):
@@ -50,7 +76,7 @@ def unique_mains(probabilities, pick_size, count, seed, prefix=()):
     uniform = max(weights) - min(weights) < 1e-14
     if count == len(mains):
         return mains
-    if space <= 50000 and count > space // 4:
+    if count == space or (space <= 2_000_000 and count > space // 4):
         candidates = [main for main in itertools.combinations(range(1, universe + 1), pick_size) if main not in seen]
         if uniform:
             rng.shuffle(candidates)
@@ -61,8 +87,8 @@ def unique_mains(probabilities, pick_size, count, seed, prefix=()):
     if uniform:
         # Sparse spaces: sample extra unique ranks to compensate for the prefix.
         while len(mains) < count:
-            for rank in rng.sample(range(space), min(space, count - len(mains) + len(prefix) + 8)):
-                main = _unrank(rank, universe, pick_size)
+            ranks = rng.sample(range(space), min(space, count - len(mains) + len(prefix) + 8))
+            for main in _unrank_many(ranks, universe, pick_size):
                 if main not in seen:
                     mains.append(main)
                     seen.add(main)

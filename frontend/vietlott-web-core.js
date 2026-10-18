@@ -555,6 +555,7 @@
     let dataTableSelectedLimit = "500";
     let dataTableHitOnly = false;
     let dataTableShareOnly = false;
+    let dataTableJackpotMode = "both";
     let dataTableDateFilters = { weekday: "all", day: "all", month: "all", year: "all" };
     let dataTableLoading = false;
     let liveResultsFetchedAt = "";
@@ -788,7 +789,8 @@
       home: "/",
       wheel: "/vong-quay",
       deposit: "/nap-tien",
-      data: "/bang-du-lieu"
+      data: "/bang-du-lieu",
+      admin: "/admin"
     };
 
     function normalizeUser(u) {
@@ -800,6 +802,7 @@
       if (normalized === "/vong-quay" || normalized === "/vong-quay.html") return "wheel";
       if (normalized === "/nap-tien" || normalized === "/nap-tien.html") return "deposit";
       if (normalized === "/bang-du-lieu" || normalized === "/bang-du-lieu.html") return "data";
+      if (normalized === "/admin") return "admin";
       return "home";
     }
 
@@ -839,6 +842,10 @@
 
     function applyAppPageMetadata() {
       const mode = getCurrentAppPageMode();
+      if (mode === "admin") {
+        document.title = `Admin Panel | ${APP_SHORT_NAME}`;
+        return;
+      }
       if (mode === "wheel") {
         document.title = `Vòng Quay May Mắn | ${APP_SHORT_NAME}`;
         return;
@@ -1526,8 +1533,8 @@
       const parsed = storesObj[user];
       const base = emptyStore();
       if (!parsed || typeof parsed !== "object") return base;
-      base.diamondBalance = Math.max(0, Number(parsed.diamondBalance || 0));
-      base.paypalBalance = Math.max(0, Number(parsed.paypalBalance || 0));
+      base.diamondBalance = Number(parsed.diamondBalance || 0);
+      base.paypalBalance = Number(parsed.paypalBalance || 0);
       for (const t of TYPE_KEYS) {
         base.results[t] = parsed.results?.[t] || {};
         base.picks[t] = parsed.picks?.[t] || {};
@@ -1549,7 +1556,7 @@
       base.luckyWheelExchangeDayKey = String(parsed.luckyWheelExchangeDayKey || "");
       base.luckyWheelMilestoneDayKey = String(parsed.luckyWheelMilestoneDayKey || "");
       base.luckyWheelStoredSpins = Number.isFinite(Number(parsed.luckyWheelStoredSpins))
-        ? Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(parsed.luckyWheelStoredSpins))))
+        ? Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(parsed.luckyWheelStoredSpins)))
         : base.luckyWheelStoredSpins;
       base.luckyWheelLastRegenAt = String(parsed.luckyWheelLastRegenAt || "");
       base.luckyWheelBonusSpins = Math.max(0, Number(parsed.luckyWheelBonusSpins || 0));
@@ -1698,8 +1705,10 @@
         const user = normalizeUser(data?.username);
         if (!users[user]) throw new Error("Không tìm thấy tài khoản");
         const s = getLocalStoreForUser(user);
-        s.diamondBalance = Math.max(0, Number(data?.diamond || 0));
-        s.paypalBalance = Math.max(0, Number(data?.paypal || 0));
+        const diamond = parseAccountBalance(data?.diamond, "Kim cương");
+        const paypal = parseAccountBalance(data?.paypal, "PayPal");
+        s.diamondBalance = diamond;
+        s.paypalBalance = paypal;
         setLocalStoreForUser(user, s);
         return { ok: true };
       }
@@ -1894,6 +1903,8 @@
       if (accountManagerButton) {
         accountManagerButton.style.display = currentUserRole === "admin" ? "flex" : "none";
       }
+      document.getElementById("settingsAdminBtn").hidden = currentUserRole !== "admin";
+      if (currentUserRole !== "admin") window.adminPanel?.reset();
     }
 
     function getHeaderNotificationStorageKey(baseKey = HEADER_NOTIFICATION_READ_KEY) {
@@ -2119,6 +2130,8 @@
         if (panel) panel.hidden = true;
         if (button) button.setAttribute("aria-expanded", "false");
       }
+      document.getElementById("settingsCodeForm").hidden = true;
+      document.getElementById("settingsCodeBtn").setAttribute("aria-expanded", "false");
     }
 
     function toggleHeaderPopover(buttonId, panelId) {
@@ -2178,8 +2191,8 @@
       const parsed = res.store || {};
       const serverStoreSnapshotText = JSON.stringify(parsed);
       const base = emptyStore();
-      base.diamondBalance = Math.max(0, Number(parsed.diamondBalance || 0));
-      base.paypalBalance = Math.max(0, Number(parsed.paypalBalance || 0));
+      base.diamondBalance = Number(parsed.diamondBalance || 0);
+      base.paypalBalance = Number(parsed.paypalBalance || 0);
       base.vipStartedAt = String(parsed.vipStartedAt || "");
       base.vipExpiresAt = String(parsed.vipExpiresAt || "");
       for (const t of TYPE_KEYS) {
@@ -2203,7 +2216,7 @@
       base.luckyWheelExchangeDayKey = String(parsed.luckyWheelExchangeDayKey || "");
       base.luckyWheelMilestoneDayKey = String(parsed.luckyWheelMilestoneDayKey || "");
       base.luckyWheelStoredSpins = Number.isFinite(Number(parsed.luckyWheelStoredSpins))
-        ? Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(parsed.luckyWheelStoredSpins))))
+        ? Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(parsed.luckyWheelStoredSpins)))
         : base.luckyWheelStoredSpins;
       base.luckyWheelLastRegenAt = String(parsed.luckyWheelLastRegenAt || "");
       base.luckyWheelBonusSpins = Math.max(0, Number(parsed.luckyWheelBonusSpins || 0));
@@ -2422,15 +2435,41 @@
     window.hasActiveVipMembership = hasActiveVipMembership;
     // VIP expiry is issued and verified by the server.
 
+    function parseAccountBalance(value, label) {
+      const raw = String(value ?? "").trim();
+      // Dots separate Vietnamese thousands; decimals and malformed groups are rejected.
+      if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(raw)) {
+        throw new Error(`${label} phải là số nguyên không âm. Ví dụ: 9999999999 hoặc 9.999.999.999. Số dư chưa được thay đổi.`);
+      }
+      const amount = Number(raw.replace(/\./g, ""));
+      if (!Number.isSafeInteger(amount) || amount < 0) {
+        throw new Error(`${label} vượt giới hạn 9.007.199.254.740.991. Số dư chưa được thay đổi.`);
+      }
+      return amount;
+    }
+
+    function formatCompactBalance(value) {
+      const signed = Number(value) || 0, sign = signed < 0 ? "−" : "";
+      const amount = Math.abs(signed);
+      if (!Number.isFinite(amount)) return "0";
+      if (amount < 1000000) return sign + amount.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+      const billions = amount >= 1000000000 || Math.round(amount / 1000000 * 100) / 100 >= 1000;
+      return sign + (amount / (billions ? 1000000000 : 1000000)).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) + (billions ? "T" : "Tr");
+    }
+
     function renderCurrencyBar() {
       const d = document.getElementById("diamondBalance");
       const p = document.getElementById("paypalBalance");
-      if (d) d.textContent = String(Math.max(0, Number(store?.diamondBalance || 0)));
-      if (p) p.textContent = String(Math.max(0, Number(store?.paypalBalance || 0)));
+      for (const [element, amount, unit] of [[d, store?.diamondBalance, "kim cương"], [p, store?.paypalBalance, "PayPal"]]) {
+        if (!element) continue;
+        element.textContent = formatCompactBalance(amount);
+        element.title = `${formatLuckyWheelAmount(Number(amount || 0))} ${unit}`;
+        element.setAttribute("aria-label", element.title);
+      }
       const dp = document.getElementById("depositPaypalBalance");
-      if (dp) dp.textContent = formatLuckyWheelAmount(Math.max(0, Number(store?.paypalBalance || 0)));
+      if (dp) dp.textContent = formatLuckyWheelAmount(Number(store?.paypalBalance || 0));
       const ltb = document.getElementById("luckyWheelTopupBalance");
-      if (ltb) ltb.textContent = `${formatLuckyWheelAmount(Math.max(0, Number(store?.paypalBalance || 0)))} PP`;
+      if (ltb) ltb.textContent = `${formatLuckyWheelAmount(Number(store?.paypalBalance || 0))} PP`;
       renderVipMembership();
     }
 
@@ -2443,12 +2482,12 @@
     }
 
     function convertRealMoneyToPaypal(amount) {
-      const numeric = Math.max(0, Number(amount || 0));
+      const numeric = Number(amount || 0);
       return Math.round(numeric * PAYPAL_REAL_RATE * 100) / 100;
     }
 
     function getPaypalBonusPackage(amount, preferredPackageId = "") {
-      const numeric = Math.max(0, Number(amount || 0));
+      const numeric = Number(amount || 0);
       const preferred = getPaypalTopupPackageById(preferredPackageId);
       if (preferred && Number(preferred.amount || 0) === numeric) return preferred;
       return PAYPAL_TOPUP_PACKAGES.find(item => Number(item.amount || 0) === numeric) || null;
@@ -2479,48 +2518,41 @@
       });
     }
 
-    function formatPaypalPackagePart(value) {
-      const numeric = Math.max(0, Number(value || 0));
-      const hasDecimal = Math.abs(numeric - Math.round(numeric)) > 1e-9;
-      return numeric.toLocaleString("en-US", {
-        minimumFractionDigits: hasDecimal ? 2 : 0,
-        maximumFractionDigits: 2
-      });
-    }
-
-    function buildPaypalPackageSplitText(packageMeta) {
-      const credit = calculatePaypalCredit(packageMeta?.amount || 0, packageMeta?.id || "");
-      if (credit.bonusRate > 0) {
-        return `${formatPaypalPackagePart(credit.baseCredit)}+${formatPaypalPackagePart(credit.bonusCredit)}`;
-      }
-      return formatPaypalPackagePart(credit.totalCredit);
-    }
-
     function renderPaypalRatePreview(amountOverride = null) {
       const preview = document.getElementById("depositRatePreview");
       if (!preview) return;
-      const selectedPackage = getPaypalTopupPackageById(selectedPaypalTopupPackageId);
-      const rawAmount = amountOverride ?? document.getElementById("depositAmount")?.value ?? 0;
-      const amount = Math.max(0, Number(rawAmount || 0));
-      if (amount > 0) {
-        const credit = calculatePaypalCredit(amount, selectedPaypalTopupPackageId);
-        if (credit.bonusRate > 0) {
-          preview.innerHTML = `Bạn nạp <b>${formatLuckyWheelAmount(amount)}đ</b> -> <b>${formatPaypalCredit(credit.baseCredit)} PayPal</b> + thưởng <b>${formatPaypalCredit(credit.bonusCredit)} PayPal</b> (${formatPaypalPercent(credit.bonusRate * 100)}%) = <b>${formatPaypalCredit(credit.totalCredit)} PayPal</b>.`;
-          return;
-        }
-        preview.innerHTML = `Bạn nạp <b>${formatLuckyWheelAmount(amount)}đ</b> -> quy đổi <b>${formatPaypalCredit(credit.totalCredit)} PayPal</b>.`;
+      const amount = getPaypalDepositAmount(amountOverride);
+      const packageMeta = getPaypalBonusPackage(amount, selectedPaypalTopupPackageId);
+      selectedPaypalTopupPackageId = packageMeta?.id || "";
+      const selected = document.getElementById("depositSelectedPackage");
+      if (selected) selected.value = packageMeta?.title || (amount > 0 ? "Số tiền tự nhập" : "Chưa chọn gói");
+      document.querySelectorAll(".deposit-package-item").forEach(button => {
+        const active = button.dataset.packageId === selectedPaypalTopupPackageId;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      if (!Number.isFinite(amount) || amount <= 0) {
+        preview.innerHTML = '<div class="deposit-preview-empty">Nhập số tiền để xem PayPal dự kiến nhận.</div>';
         return;
       }
-      if (selectedPackage) {
-        const credit = calculatePaypalCredit(selectedPackage.amount, selectedPackage.id);
-        if (credit.bonusRate > 0) {
-          preview.innerHTML = `Gói <b>${escapeHtml(selectedPackage.title)}</b> nhận <b>${formatPaypalCredit(credit.totalCredit)} PayPal</b>, đã gồm thưởng <b>${formatPaypalCredit(credit.bonusCredit)} PayPal</b> (${formatPaypalPercent(credit.bonusRate * 100)}%).`;
-          return;
-        }
-        preview.innerHTML = `Gói <b>${escapeHtml(selectedPackage.title)}</b> quy đổi khoảng <b>${formatPaypalCredit(credit.totalCredit)} PayPal</b> theo tỷ giá hiện tại.`;
-        return;
-      }
-      preview.innerHTML = `Tỷ giá hiện tại: <b>1 tiền thật = ${PAYPAL_REAL_RATE} PayPal</b>.`;
+      const credit = calculatePaypalCredit(amount, selectedPaypalTopupPackageId);
+      preview.innerHTML = `<div class="deposit-preview-total"><span>Dự kiến nhận</span><strong>${formatPaypalCredit(credit.totalCredit)} <small>PayPal</small></strong></div><div class="deposit-preview-breakdown"><span>Quy đổi <b>${formatPaypalCredit(credit.baseCredit)}</b></span><span>Thưởng${credit.bonusRate > 0 ? ` ${formatPaypalPercent(credit.bonusRate * 100)}%` : ""} <b>+${formatPaypalCredit(credit.bonusCredit)}</b></span></div>`;
+    }
+
+    function getPaypalDepositAmount(rawValue = null) {
+      const raw = String(rawValue ?? document.getElementById("depositAmount")?.value ?? "").trim();
+      if (!raw) return 0;
+      if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(raw)) return NaN;
+      const amount = Number(raw.replace(/\./g, ""));
+      return Number.isSafeInteger(amount) ? amount : NaN;
+    }
+
+    function showPaypalDepositMessage(message, kind = "") {
+      const out = document.getElementById("depositMsg");
+      if (!out) return;
+      out.textContent = message;
+      out.dataset.kind = kind;
+      out.hidden = !message;
     }
 
     function setSelectedPaypalTopupPackage(packageId) {
@@ -2529,17 +2561,9 @@
       selectedPaypalTopupPackageId = found.id;
       const selectedInput = document.getElementById("depositSelectedPackage");
       const amountInput = document.getElementById("depositAmount");
-      const credit = calculatePaypalCredit(found.amount, found.id);
-      if (selectedInput) {
-        selectedInput.value = credit.bonusRate > 0
-          ? `${found.title} - nhận ${formatPaypalCredit(credit.totalCredit)} PayPal (+${formatPaypalPercent(credit.bonusRate * 100)}%)`
-          : `${found.title} - nhận ${formatPaypalCredit(credit.totalCredit)} PayPal`;
-      }
-      if (amountInput && !String(amountInput.value || "").trim()) amountInput.value = String(found.amount);
-      document.querySelectorAll(".deposit-package-item").forEach(button => {
-        button.classList.toggle("active", button.dataset.packageId === found.id);
-      });
-      renderPaypalRatePreview(amountInput?.value || found.amount);
+      if (selectedInput) selectedInput.value = found.title;
+      if (amountInput && !String(amountInput.value || "").trim()) amountInput.value = formatLuckyWheelAmount(found.amount);
+      renderPaypalRatePreview();
     }
 
     function resetPaypalDepositForm() {
@@ -2557,6 +2581,10 @@
       if (senderInput) senderInput.value = "";
       if (timeInput) timeInput.value = "";
       if (noteInput) noteInput.value = "";
+      const noteToggle = document.querySelector("#paypalDepositSection .deposit-note-toggle");
+      if (noteToggle) noteToggle.open = false;
+      document.querySelectorAll("#paypalDepositSection [aria-invalid]").forEach(input => input.removeAttribute("aria-invalid"));
+      showPaypalDepositMessage("");
       setSelectedPaypalTopupPackage(PAYPAL_TOPUP_PACKAGES[1]?.id || PAYPAL_TOPUP_PACKAGES[0]?.id || "");
     }
 
@@ -2565,9 +2593,9 @@
       if (!host) return;
       host.innerHTML = PAYPAL_TOPUP_PACKAGES.map(item => `
         <button type="button" class="deposit-package-item" data-package-id="${item.id}">
-          <span class="deposit-package-amount">${item.title}</span>
-          <span class="deposit-package-credit">Nhận ${formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit)} PayPal</span>
-          <span class="deposit-package-bonus">${buildPaypalPackageSplitText(item)}</span>
+          <span class="deposit-package-top"><span class="deposit-package-amount">${item.title}</span><span class="deposit-package-check" aria-hidden="true">✓</span></span>
+          <span class="deposit-package-credit">${formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit)} PayPal</span>
+          <span class="deposit-package-bonus">${item.bonusRate > 0 ? `Thưởng +${formatPaypalPercent(item.bonusRate * 100)}%` : "Quy đổi tiêu chuẩn"}</span>
         </button>
       `).join("");
       host.querySelectorAll(".deposit-package-item").forEach(button => {
@@ -2587,26 +2615,14 @@
       if (!host || !count) return;
       count.textContent = `${store.paypalTopups.length} yêu cầu`;
       if (!store.paypalTopups.length) {
-        host.innerHTML = `<div class="deposit-empty">Chưa có yêu cầu nạp nào được lưu trong tài khoản này.</div>`;
+        host.innerHTML = '<div class="deposit-empty"><strong>Chưa có yêu cầu nạp</strong><span>Các yêu cầu của bạn sẽ xuất hiện tại đây.</span></div>';
         return;
       }
       host.innerHTML = store.paypalTopups.map(entry => `
-        <div class="deposit-history-item">
-          <div class="deposit-history-top">
-            <strong>${escapeHtml(entry.packageTitle || "Tự nhập số tiền")}</strong>
-            <span class="deposit-status-pill">${escapeHtml(entry.status || "Chờ xử lý")}</span>
-          </div>
-          <div class="deposit-history-meta">
-            ${escapeHtml(entry.timeText || "")}<br>
-            ${escapeHtml(entry.email || "")} | Mã GD: ${escapeHtml(entry.txnCode || "")}
-          </div>
-          <div class="deposit-history-note">
-            Số tiền: <b>${escapeHtml(formatLuckyWheelAmount(entry.amount || 0))}đ</b><br>
-            Quy đổi: <b>${escapeHtml(formatPaypalCredit(entry.creditAmount ?? calculatePaypalCredit(entry.amount || 0, entry.packageId || "").totalCredit))} PayPal</b><br>
-            ${Number(entry.bonusRate || 0) > 0 ? `Bonus: <b>${escapeHtml(formatPaypalPercent((entry.bonusRate || 0) * 100))}% = ${escapeHtml(formatPaypalCredit(entry.bonusCredit || 0))} PayPal</b><br>` : ""}
-            ${entry.note ? escapeHtml(entry.note) : "Không có ghi chú thêm."}
-          </div>
-        </div>
+        <details class="deposit-history-item">
+          <summary><span class="deposit-history-amount"><strong>${escapeHtml(formatLuckyWheelAmount(entry.amount || 0))} VNĐ</strong><small>${escapeHtml(entry.timeText || "")}</small></span><span class="deposit-history-credit">Yêu cầu thủ công cũ</span><span class="deposit-status-pill">Chưa xác minh</span><span class="deposit-history-chevron" aria-hidden="true">⌄</span></summary>
+          <dl class="deposit-history-detail"><div><dt>Email PayPal</dt><dd>${escapeHtml(entry.email || "—")}</dd></div><div><dt>Mã giao dịch</dt><dd>${escapeHtml(entry.txnCode || "—")}</dd></div><div><dt>Người chuyển</dt><dd>${escapeHtml(entry.senderName || "—")}</dd></div><div><dt>Thời gian giao dịch</dt><dd>${escapeHtml(String(entry.txnTime || "—").replace("T", " "))}</dd></div>${entry.note ? `<div class="deposit-history-note"><dt>Ghi chú</dt><dd>${escapeHtml(entry.note)}</dd></div>` : ""}</dl>
+        </details>
       `).join("");
     }
 
@@ -2616,63 +2632,25 @@
       renderPaypalTopupHistory();
       renderCurrencyBar();
       renderPaypalRatePreview();
+      void window.VietlottBankTopup?.refresh();
     }
 
-    function submitPaypalTopupRequest() {
-      ensurePaypalTopupState();
-      const selectedPackage = getPaypalTopupPackageById(selectedPaypalTopupPackageId);
-      const amount = Math.max(0, Number(document.getElementById("depositAmount")?.value || 0));
-      const credit = calculatePaypalCredit(amount, selectedPaypalTopupPackageId);
-      const email = String(document.getElementById("depositPaypalEmail")?.value || "").trim();
-      const txnCode = String(document.getElementById("depositTxnCode")?.value || "").trim();
-      const senderName = String(document.getElementById("depositSenderName")?.value || "").trim();
-      const txnTime = String(document.getElementById("depositTxnTime")?.value || "").trim();
-      const note = String(document.getElementById("depositNote")?.value || "").trim();
-      const out = document.getElementById("depositMsg");
-
-      if (!Number.isFinite(amount) || amount < 10000) {
-        return line(out, "Số tiền nạp tối thiểu là 10.000 VNĐ.", "warn");
-      }
-      if (!email || !email.includes("@")) {
-        return line(out, "Email PayPal không hợp lệ.", "warn");
-      }
-      if (!txnCode || txnCode.length < 6) {
-        return line(out, "Mã giao dịch cần tối thiểu 6 ký tự.", "warn");
-      }
-      if (!senderName) {
-        return line(out, "Hãy nhập người chuyển.", "warn");
-      }
-
-      const createdAt = getSyncedNowDate();
-      const entry = {
-        id: `pp_${createdAt.getTime()}`,
-        packageId: selectedPackage?.id || "",
-        packageTitle: selectedPackage?.title || "Tự nhập số tiền",
-        amount,
-        creditAmount: credit.totalCredit,
-        baseCreditAmount: credit.baseCredit,
-        bonusRate: credit.bonusRate,
-        bonusCredit: credit.bonusCredit,
-        email,
-        txnCode,
-        senderName,
-        txnTime,
-        note,
-        status: "Chờ xử lý",
-        createdAt: createdAt.toISOString(),
-        timeText: createdAt.toLocaleString("vi-VN"),
-      };
-      store.paypalTopups.unshift(entry);
-      while (store.paypalTopups.length > MAX_PAYPAL_TOPUPS) store.paypalTopups.pop();
-      saveStore();
-      renderPaypalTopupHistory();
-      line(
-        out,
-        credit.bonusRate > 0
-          ? `Đã tạo yêu cầu nạp ${formatLuckyWheelAmount(amount)}đ cho ${email}. Nhận ${formatPaypalCredit(credit.totalCredit)} PayPal, gồm bonus ${formatPaypalCredit(credit.bonusCredit)} PayPal (${formatPaypalPercent(credit.bonusRate * 100)}%). Mã giao dịch: ${txnCode}.`
-          : `Đã tạo yêu cầu nạp ${formatLuckyWheelAmount(amount)}đ cho ${email}. Quy đổi ${formatPaypalCredit(credit.totalCredit)} PayPal. Mã giao dịch: ${txnCode}.`,
-        "ok"
-      );
+    function setupPaypalDepositForm() {
+      const form = document.getElementById("paypalDepositForm");
+      const amountInput = document.getElementById("depositAmount");
+      if (!form || !amountInput || form.dataset.bound) return;
+      form.dataset.bound = "true";
+      window.VietlottNumericInput.bind(amountInput);
+      amountInput.addEventListener("input", () => renderPaypalRatePreview());
+      window.VietlottBankTopup?.init({
+        user: () => currentUser,
+        amount: getPaypalDepositAmount,
+        wallet: wallet => { applyServerWallet(wallet); renderCurrencyBar(); },
+        legacy: () => store.paypalTopups || [],
+        message: showPaypalDepositMessage
+      });
+      form.onsubmit = event => { event.preventDefault(); void window.VietlottBankTopup?.create(); };
+      document.getElementById("depositClearBtn").onclick = resetPaypalDepositForm;
     }
 
     function formatLuckyWheelAmount(value) {
@@ -2925,7 +2903,7 @@
       const remainingDailyEl = document.getElementById("luckyWheelTopupRemainingDaily");
       const resetEl = document.getElementById("luckyWheelTopupResetCountdown");
 
-      balanceEl.textContent = `${formatLuckyWheelAmount(Math.max(0, Number(store.paypalBalance || 0)))} PP`;
+      balanceEl.textContent = `${formatLuckyWheelAmount(Number(store.paypalBalance || 0))} PP`;
       if (input && document.activeElement !== input) {
         input.value = String(state.spins);
       }
@@ -2958,7 +2936,7 @@
       if (!overlay || !balanceEl || !grid || !confirmBox || !confirmText || !confirmBtn) return;
 
       const state = getLuckyWheelTopupState(luckyWheelSelectedTopupSpins);
-      balanceEl.textContent = `${formatLuckyWheelAmount(Math.max(0, Number(store.paypalBalance || 0)))} PP`;
+      balanceEl.textContent = `${formatLuckyWheelAmount(Number(store.paypalBalance || 0))} PP`;
 
       grid.innerHTML = `
         <div class="spin-topup-slider-card">
@@ -3131,7 +3109,7 @@
           : LUCKY_WHEEL_MAX_SPINS;
         changed = true;
       } else {
-        store.luckyWheelStoredSpins = Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(parsedStoredSpins)));
+        store.luckyWheelStoredSpins = Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(parsedStoredSpins));
       }
       if (!String(store.luckyWheelLastRegenAt || "").trim()) {
         store.luckyWheelLastRegenAt = getSyncedIsoString();
@@ -3157,7 +3135,7 @@
       ensureLuckyWheelState();
       let changed = false;
       const now = getSyncedNowMs();
-      let storedSpins = Math.max(0, Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(store.luckyWheelStoredSpins || 0))));
+      let storedSpins = Math.min(LUCKY_WHEEL_MAX_SPINS, Math.floor(Number(store.luckyWheelStoredSpins || 0)));
       let lastRegenAt = parseLuckyWheelTimestamp(store.luckyWheelLastRegenAt);
       if (!Number.isFinite(lastRegenAt)) {
         lastRegenAt = now;
@@ -3807,7 +3785,7 @@
     }
 
     function setAuxiliarySectionsVisible(activeSectionId = "") {
-      ["luckyWheelSection", "paypalDepositSection", "dataTableSection"].forEach(sectionId => {
+      ["luckyWheelSection", "paypalDepositSection", "dataTableSection", "adminPanelSection"].forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (!section) return;
         section.hidden = sectionId !== activeSectionId;
@@ -3821,6 +3799,7 @@
 
     function navigateToAppPage(mode = "home") {
       const safeMode = APP_PAGE_PATHS[mode] ? mode : "home";
+      if (safeMode === "admin" && currentUserRole !== "admin") return;
       const targetPath = APP_PAGE_PATHS[safeMode];
       if (getCurrentAppPageMode() === safeMode) {
         applyAppPageLayout();
@@ -3841,6 +3820,18 @@
       const mode = getCurrentAppPageMode();
       applyAppPageMetadata();
       document.body.dataset.appPage = mode;
+      if (mode === "admin") {
+        if (currentUserRole !== "admin") {
+          window.history.replaceState({ appPageMode: "home" }, "", "/");
+          applyAppPageLayout();
+          return;
+        }
+        setPrimaryContentVisible(false);
+        setAuxiliarySectionsVisible("adminPanelSection");
+        setSideMenuActiveButton("");
+        window.adminPanel?.open();
+        return;
+      }
       if (mode === "wheel") {
         setPrimaryContentVisible(false);
         setAuxiliarySectionsVisible("luckyWheelSection");
@@ -4155,6 +4146,59 @@
       renderHeaderNotifications();
     };
     document.getElementById("settingsReloadBtn").onclick = () => window.location.reload();
+    document.getElementById("settingsAdminBtn").onclick = () => {
+      closeHeaderPopovers();
+      navigateToAppPage("admin");
+    };
+    document.getElementById("settingsCodeBtn").onclick = () => {
+      const form = document.getElementById("settingsCodeForm");
+      form.hidden = !form.hidden;
+      document.getElementById("settingsCodeBtn").setAttribute("aria-expanded", String(!form.hidden));
+      if (!form.hidden) document.getElementById("settingsCodeInput").focus();
+    };
+    document.getElementById("settingsCodeForm").onsubmit = async (event) => {
+      event.preventDefault();
+      const input = document.getElementById("settingsCodeInput");
+      if (!input.value.trim()) {
+        input.value = "";
+        input.reportValidity();
+        return;
+      }
+      const button = event.currentTarget.querySelector('button[type="submit"]');
+      if (button.disabled) return;
+      const message = document.getElementById("settingsCodeMessage");
+      const username = currentUser;
+      button.disabled = true;
+      message.textContent = "Đang kiểm tra code…";
+      message.classList.remove("is-success", "is-error");
+      try {
+        const response = await api("/api/gift-codes/redeem", "POST", { code: input.value.trim() });
+        if (currentUser !== username) return;
+        applyServerWallet(response.store);
+        renderLuckyWheelPanel();
+        const reward = response.reward || {};
+        const parts = [];
+        if (reward.paypal) parts.push(`${formatLuckyWheelAmount(reward.paypal)} PayPal`);
+        if (reward.diamond) parts.push(`${formatLuckyWheelAmount(reward.diamond)} kim cương`);
+        if (reward.vipDays) parts.push(`${reward.vipDays} ngày VIP`);
+        if (reward.bonusSpins) parts.push(`${reward.bonusSpins} lượt quay`);
+        message.textContent = `Đã nhận: ${parts.join(" · ")}.`;
+        const claim = response.claim;
+        if (claim?.remainingGifts === 0) message.textContent += " Code đã hết phần quà.";
+        else if (claim?.nextEligibleAt) {
+          const next = new Date(claim.nextEligibleAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" });
+          message.textContent += ` Có thể nhận lại từ ${next}, nếu mã còn quà và còn hiệu lực.`;
+        } else if (claim?.maxPerUser > 1) {
+          message.textContent += ` Đã nhận ${claim.receivedCount}/${claim.maxPerUser} lần từ mã này.`;
+        }
+        message.classList.add("is-success");
+        input.value = "";
+      } catch (error) {
+        if (currentUser !== username) return;
+        message.textContent = error.message;
+        message.classList.add("is-error");
+      } finally { button.disabled = false; }
+    };
     document.addEventListener("click", event => {
       if (!event.target.closest(".header-tool-wrap")) closeHeaderPopovers();
     });
@@ -4187,19 +4231,7 @@
     document.getElementById("dataTableMenuBtn").onclick = () => {
       navigateToAppPage("data");
     };
-    {
-      const depositAmountEl = document.getElementById("depositAmount");
-      if (depositAmountEl) {
-        depositAmountEl.addEventListener("input", (event) => {
-          renderPaypalRatePreview(event.target?.value || 0);
-        });
-      }
-    }
-    document.getElementById("depositCreateBtn").onclick = submitPaypalTopupRequest;
-    document.getElementById("depositClearBtn").onclick = () => {
-      resetPaypalDepositForm();
-      line(document.getElementById("depositMsg"), "Đã làm mới form nạp PayPal.", "muted");
-    };
+    setupPaypalDepositForm();
     document.querySelectorAll(".sp-multiplier-btn").forEach(button => {
       button.onclick = () => setLuckyWheelSpinMultiplier(button.dataset.multiplier || 1);
     });
@@ -4261,6 +4293,8 @@
       document.getElementById("registerForm").style.display = isLogin ? "none" : "block";
       document.getElementById("showLoginBtn").classList.toggle("inactive", !isLogin);
       document.getElementById("showRegisterBtn").classList.toggle("inactive", isLogin);
+      document.getElementById("authHeading").textContent = isLogin ? "Chào mừng trở lại" : "Tạo tài khoản mới";
+      document.getElementById("authSubtitle").textContent = isLogin ? "Đăng nhập để mở không gian của bạn." : "Tạo tài khoản để lưu dữ liệu của riêng bạn.";
       setAuthMsg(isLogin ? "Đăng nhập để tiếp tục." : "Tạo tài khoản mới.");
     }
 
@@ -5936,6 +5970,9 @@
       if (dataTableType) {
         dataTableType.addEventListener("change", async () => {
           dataTableSelectedType = dataTableType.value || "LOTO_5_35";
+          dataTableHitOnly = false;
+          dataTableShareOnly = false;
+          dataTableJackpotMode = "both";
           syncDataTableHitFilterControl();
           await loadDataTableRows();
         });
@@ -5963,7 +6000,17 @@
       if (dataTableHitFilterBtn) {
         dataTableHitFilterBtn.addEventListener("click", async () => {
           if (dataTableHitFilterBtn.disabled) return;
-          dataTableHitOnly = !dataTableHitOnly;
+          if (dataTableSelectedType === "LOTO_6_55") {
+            if (!dataTableHitOnly) dataTableHitOnly = true;
+            else if (dataTableJackpotMode === "both") dataTableJackpotMode = "jackpot1";
+            else if (dataTableJackpotMode === "jackpot1") dataTableJackpotMode = "jackpot2";
+            else {
+              dataTableHitOnly = false;
+              dataTableJackpotMode = "both";
+            }
+          } else {
+            dataTableHitOnly = !dataTableHitOnly;
+          }
           syncDataTableHitFilterControl();
           await loadDataTableRows();
         });
@@ -5986,6 +6033,7 @@
         dataTableClearFilterBtn.addEventListener("click", async () => {
           dataTableHitOnly = false;
           dataTableShareOnly = false;
+          dataTableJackpotMode = "both";
           syncDataTableHitFilterControl();
           resetDataTableDateFilters();
           await loadDataTableRows();
@@ -6068,7 +6116,8 @@
       btn.onclick = () => {
         const hidden = input.type === "password";
         input.type = hidden ? "text" : "password";
-        btn.textContent = hidden ? "🙈" : "👁";
+        btn.innerHTML = hidden ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10 5a10 10 0 0 1 12 7s-1 2-3 4M6 6a16 16 0 0 0-4 6s4 7 10 7a13 13 0 0 0 5-1"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+        btn.setAttribute("aria-pressed", String(hidden)); btn.setAttribute("aria-label", hidden ? "Ẩn mật khẩu" : "Hiện mật khẩu");
       };
     }
 
@@ -6096,20 +6145,20 @@
         `;
         return `
           <tr data-user="${escapeHtml(u)}" data-role="${escapeHtml(info.role)}" data-enabled="${info.enabled ? "1" : "0"}" data-diamond="${Number(info.diamondBalance || 0)}" data-paypal="${Number(info.paypalBalance || 0)}">
-            <td>
-              <input class="acc-username" value="${escapeHtml(u)}" ${editable ? "" : "disabled"} />
-              ${u === currentUser ? "<div class='muted'>(đang đăng nhập - không đổi tên tại đây)</div>" : ""}
+            <td data-label="Tài khoản" class="account-user-cell">
+              ${editable ? `<input class="acc-username" value="${escapeHtml(u)}" />` : `<strong class="account-username" title="${escapeHtml(u)}">${escapeHtml(u)}</strong>`}
+              ${u === currentUser ? '<span class="account-self" title="Tài khoản đang đăng nhập; không đổi tên tại đây">Bạn</span>' : ""}
             </td>
-            <td><select class="acc-role" ${editable ? "" : "disabled"}>${roleOptions}</select></td>
-            <td><select class="acc-access" ${editable ? "" : "disabled"}>${accessOptions}</select></td>
-            <td><input class="acc-diamond" type="number" min="0" value="${Number(info.diamondBalance || 0)}" ${editable ? "" : "disabled"} /></td>
-            <td><input class="acc-paypal" type="number" min="0" value="${Number(info.paypalBalance || 0)}" ${editable ? "" : "disabled"} /></td>
-            <td>${info.hasData ? "Có dữ liệu" : "Trống"}</td>
-            <td>
+            <td data-label="Vai trò">${editable ? `<select class="acc-role">${roleOptions}</select>` : `<span class="account-role">${info.role === "admin" ? "Admin" : "Người dùng"}</span>`}</td>
+            <td data-label="Truy cập">${editable ? `<select class="acc-access">${accessOptions}</select>` : `<span class="account-access ${info.enabled ? "is-enabled" : "is-locked"}">${info.enabled ? "Cho phép" : "Khóa"}</span>`}</td>
+            <td data-label="Kim cương" class="account-balance-cell">${editable ? `<input class="acc-diamond" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" title="Số nguyên đầy đủ; dấu chấm phân cách mỗi 3 chữ số. Ví dụ: 9.999.999.999" value="${formatLuckyWheelAmount(info.diamondBalance || 0)}" aria-label="Kim cương của ${escapeHtml(u)}" />` : `<span class="account-asset-value" title="${formatLuckyWheelAmount(info.diamondBalance || 0)} kim cương">${formatCompactBalance(info.diamondBalance)}</span>`}</td>
+            <td data-label="PayPal" class="account-balance-cell">${editable ? `<input class="acc-paypal" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" title="Số nguyên đầy đủ; dấu chấm phân cách mỗi 3 chữ số. Ví dụ: 9.999.999.999" value="${formatLuckyWheelAmount(info.paypalBalance || 0)}" aria-label="PayPal của ${escapeHtml(u)}" />` : `<span class="account-asset-value" title="${formatLuckyWheelAmount(info.paypalBalance || 0)} PayPal">${formatCompactBalance(info.paypalBalance)}</span>`}</td>
+            <td data-label="Dữ liệu" class="account-data-cell">${info.hasData ? "Có dữ liệu" : "Trống"}</td>
+            <td data-label="Hành động" class="account-action-cell">
               <div class="account-actions">
-                <button class="btn-ghost btn-reset">Đổi mật khẩu</button>
-                <button class="btn-ghost btn-vip">Cấp / thu hồi VIP</button>
-                <button class="btn-danger-sm btn-delete">Xóa</button>
+                <button type="button" class="btn-ghost btn-reset" title="Đổi mật khẩu" aria-label="Đổi mật khẩu cho ${escapeHtml(u)}">Mật khẩu</button>
+                <button type="button" class="btn-ghost btn-vip" title="Cấp / thu hồi VIP" aria-label="Cấp hoặc thu hồi VIP cho ${escapeHtml(u)}">VIP</button>
+                <button type="button" class="btn-danger-sm btn-delete" aria-label="Xóa tài khoản ${escapeHtml(u)}">Xóa</button>
               </div>
             </td>
           </tr>
@@ -6128,7 +6177,7 @@
         updateAccountMsg(e.message, "warn");
         return;
       }
-      updateAccountMsg("Bạn có thể sửa vai trò, khóa/mở truy cập, đổi tên, đổi mật khẩu hoặc xóa tài khoản.");
+      updateAccountMsg("Bấm Sửa để chỉnh tài khoản và số dư.");
       document.getElementById("accountOverlay").style.display = "block";
     }
 
@@ -6142,7 +6191,7 @@
       const b = document.getElementById("toggleAccountEditBtn");
       b.textContent = accountEditMode ? "Tắt sửa" : "Sửa";
       const s = document.getElementById("saveAccountEditBtn");
-      if (s) s.disabled = !accountEditMode;
+      if (s) { s.disabled = !accountEditMode; s.hidden = !accountEditMode; }
     }
 
     document.getElementById("openAccountBtn").onclick = () => {
@@ -6156,7 +6205,7 @@
       updateEditModeButton();
       await renderAccountRows();
       updateAccountMsg(accountEditMode
-        ? "Đang bật chế độ sửa: có thể sửa tên, vai trò, truy cập, tài sản. Riêng tài khoản đang đăng nhập sẽ không đổi tên tại đây."
+        ? "Nhập số nguyên đầy đủ, ví dụ 9999999999 hoặc 9.999.999.999. Tài khoản đang đăng nhập không thể đổi tên tại đây."
         : "Đã tắt chế độ sửa.");
     };
     document.getElementById("saveAccountEditBtn").onclick = async () => {
@@ -6174,9 +6223,9 @@
         const newUser = normalizeUser(tr.querySelector(".acc-username").value);
         const newRole = tr.querySelector(".acc-role").value;
         const access = tr.querySelector(".acc-access").value === "on";
-        const diamond = Math.max(0, Number(tr.querySelector(".acc-diamond").value || 0));
-        const paypal = Math.max(0, Number(tr.querySelector(".acc-paypal").value || 0));
         try {
+          const diamond = tr.querySelector(".acc-diamond").value === formatLuckyWheelAmount(oldDiamond) ? oldDiamond : parseAccountBalance(tr.querySelector(".acc-diamond").value, "Kim cương");
+          const paypal = tr.querySelector(".acc-paypal").value === formatLuckyWheelAmount(oldPaypal) ? oldPaypal : parseAccountBalance(tr.querySelector(".acc-paypal").value, "PayPal");
           if (!newUser || newUser.length < 3) throw new Error(`Tên tài khoản "${user}" không hợp lệ (tối thiểu 3 ký tự).`);
           if (user === currentUser && newUser !== user) throw new Error("Không đổi tên tài khoản đang đăng nhập trong phiên hiện tại.");
 
@@ -6215,6 +6264,15 @@
         updateAccountMsg(`Đã lưu thành công ${savedCount} dòng thay đổi.`, "ok");
       }
     };
+
+    document.getElementById("accountRows").addEventListener("focusin", (e) => {
+      const input = e.target;
+      if (input.matches(".acc-diamond, .acc-paypal") && input.value === "0") input.select();
+    });
+    function bindGroupedIntegerInputs(container) {
+      window.VietlottNumericInput.bind(container);
+    }
+    bindGroupedIntegerInputs(document.getElementById("accountRows"));
 
     document.getElementById("accountRows").onclick = async (e) => {
       const btn = e.target.closest("button");
@@ -6290,6 +6348,12 @@
         }
       } catch {}
       setAuthMode(true);
+      const socialError = new URLSearchParams(location.search).get("auth_error");
+      if (socialError) {
+        const errors = { cancelled: "Bạn đã hủy đăng nhập mạng xã hội.", state: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Hãy thử lại.", disabled: "Tài khoản này không thể đăng nhập.", unavailable: "Phương thức đăng nhập này chưa được kích hoạt.", failed: "Chưa đăng nhập được bằng mạng xã hội. Hãy thử lại." };
+        setAuthMsg(errors[socialError] || errors.failed, "warn");
+        const url = new URL(location.href); url.searchParams.delete("auth_error"); history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
     })().finally(() => {
       const elapsed = Date.now() - bootStartAt;
       const wait = Math.max(0, 250 - elapsed);

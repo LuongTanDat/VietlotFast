@@ -11,7 +11,7 @@ from unittest import mock
 
 from ai import keno_effectiveness as keno, prediction_effectiveness as pe
 from ai import prediction_ledger as ledger
-from ai.prizes import classify_ticket
+from ai.prizes import classify_ticket, classify_tickets
 
 
 class KenoEffectivenessTests(unittest.TestCase):
@@ -105,11 +105,29 @@ class KenoEffectivenessTests(unittest.TestCase):
         for level, total in ((1, 80), (2, 3160), (10, 10000)):
             report = keno.report(level, db_path=self.db)
             entry = report['cycles'][0]['methods']['web']
-            self.assertEqual(len(entry['tickets']), 20)
+            self.assertEqual(len(entry['tickets']), 10)
+            self.assertEqual(entry['ticketPagination']['pageSize'], 10)
+            self.assertEqual(entry['ticketPagination']['totalPages'], (total + 9) // 10)
             self.assertEqual(entry['ticketPagination']['total'], total)
             self.assertEqual(entry['prizeStatistics']['ticketCount'], total)
             last = pe.ticket_page('KENO', entry['predictionId'], entry['ticketPagination']['totalPages'], self.db)
             self.assertEqual(last['ticketResults'][-1]['ticketIndex'], total)
+            with closing(keno._connect(self.db)) as connection:
+                full = json.loads(connection.execute('SELECT tickets_json FROM prediction_runs WHERE prediction_id=?', (entry['predictionId'],)).fetchone()[0])
+            actual = {'main': report['cycles'][0]['actualMain'], 'special': None}
+            first = next(result for result in classify_tickets('KENO', full, actual) if result['status'] == 'won')
+            found = pe.ticket_page('KENO', entry['predictionId'], db_path=self.db, prize_code=first['prizeCode'])
+            self.assertEqual(found['jumpTicketIndex'], first['ticketIndex'])
+            self.assertEqual(found['ticketPagination']['page'], (first['ticketIndex'] - 1) // 10 + 1)
+            self.assertTrue(any(result == first for result in found['ticketResults']))
+            winners = [result for result in classify_tickets('KENO', full, actual)
+                       if result['status'] == 'won' and result['prizeCode'] == first['prizeCode']]
+            self.assertGreater(len(winners), 1)
+            for cursor, expected in ((first['ticketIndex'], winners[1]), (winners[-1]['ticketIndex'], first)):
+                found = pe.ticket_page('KENO', entry['predictionId'], db_path=self.db,
+                                      prize_code=first['prizeCode'], after_ticket_index=cursor)
+                self.assertEqual(found['jumpTicketIndex'], expected['ticketIndex'])
+                self.assertIn(expected, found['ticketResults'])
         self.assertEqual(keno.cycle(self.db, force=False)['status'], 'disabled')
 
     def test_late_result_scores_same_target_and_next_deadline_not_arrival(self):

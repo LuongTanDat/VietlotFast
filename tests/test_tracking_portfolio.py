@@ -31,7 +31,7 @@ class TrackingPortfolioTests(unittest.TestCase):
         mains = portfolio.unique_mains({n: 1 for n in range(1, 36)}, 5, 10000, 19, prefix)
         self.assertEqual(mains[:2], [tuple(main) for main in prefix])
         self.assertEqual(len(mains), len(set(mains)))
-        for invalid in (0, 10001, 3.5, True):
+        for invalid in (0, 1000001, 3.5, True):
             with self.assertRaises(ValueError):
                 portfolio.effective_count(invalid, 80, 1)
 
@@ -52,7 +52,7 @@ class TrackingPortfolioTests(unittest.TestCase):
             with closing(pe._connect(db)) as connection:
                 schema = connection.execute("SELECT sql FROM sqlite_master WHERE name='effectiveness_settings'").fetchone()[0]
                 connection.execute('DROP TABLE effectiveness_settings')
-                connection.execute(schema.replace('BETWEEN 1 AND 10000', 'BETWEEN 1 AND 10'))
+                connection.execute(schema.replace('BETWEEN 1 AND 1000000', 'BETWEEN 1 AND 10'))
                 connection.execute("INSERT INTO effectiveness_settings VALUES('KENO',1,5,'before','owner','tick','error','123')")
                 connection.execute("INSERT INTO effectiveness_config_audit VALUES('old','KENO','owner','before','{}')")
                 before = tuple(connection.execute("SELECT * FROM effectiveness_settings WHERE game_type='KENO'").fetchone())
@@ -65,7 +65,7 @@ class TrackingPortfolioTests(unittest.TestCase):
             with closing(pe._connect(db)) as connection:
                 self.assertEqual(connection.execute('PRAGMA quick_check').fetchone()[0], 'ok')
                 with self.assertRaises(sqlite3.IntegrityError):
-                    connection.execute("UPDATE effectiveness_settings SET ticket_count=10001 WHERE game_type='KENO'")
+                    connection.execute("UPDATE effectiveness_settings SET ticket_count=1000001 WHERE game_type='KENO'")
 
 
 if __name__ == '__main__':
