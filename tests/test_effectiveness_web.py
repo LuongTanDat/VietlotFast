@@ -14,7 +14,7 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import closing, contextmanager
+from contextlib import closing
 from pathlib import Path
 from datetime import date, datetime, timedelta, timezone
 
@@ -541,254 +541,19 @@ class EffectivenessWebTests(unittest.TestCase):
         self.assertEqual(result['settings']['ticketCount'], 3)
         self.request('/api/ml/effectiveness-settings', {**form, 'enabled': 'false'}, self.admin)
 
-    def test_keno_rejects_invalid_level_page_budget_and_lab_requests(self):
+    def test_keno_rejects_invalid_level_page_and_budget(self):
         for query in ('level=0', 'level=11', 'level=3.5', 'level=nope', 'page=0', 'page=-1', 'page=1.5', 'page=1000001'):
             self.assertEqual(400, self.request('/api/ml/effectiveness?type=KENO&' + query, cookie=self.admin)[0], query)
-        form = {'type': 'KENO', 'enabled': 'true', 'ticketCount': 10001}
+        form = {'type': 'KENO', 'enabled': 'true', 'ticketCount': 324633}
         self.assertEqual(400, self.request('/api/ml/effectiveness-settings', form, self.admin)[0])
-        self.assertEqual(400, self.request('/api/ml/algorithm-lab?type=KENO', cookie=self.admin)[0])
-        self.assertEqual(400, self.request('/api/ml/algorithm-lab', {'type': 'KENO'}, self.admin)[0])
 
-    @contextmanager
-    def lab_script(self, body):
-        """Exercise the real Java process bridge with a deterministic isolated CLI."""
-        path = self.work / 'ai/algorithm_lab.py'
-        previous = path.read_bytes() if path.exists() else None
-        path.write_text(body, encoding='utf-8')
-        try:
-            yield
-        finally:
-            if previous is None:
-                path.unlink(missing_ok=True)
-            else:
-                path.write_bytes(previous)
 
-    def wait_lab(self, job_id, states=('completed', 'failed')):
-        deadline = time.monotonic() + 120
-        while time.monotonic() < deadline:
-            code, result, _ = self.request('/api/ml/algorithm-lab?type=LOTO_6_45&jobId=' + job_id, cookie=self.admin)
-            self.assertEqual(200, code, result)
-            if result['job']['state'] in states:
-                return result['job']
-            time.sleep(.2)
-        self.fail('Algorithm lab did not finish')
 
-    def test_algorithm_lab_output_size_limit(self):
-        script = "import sys\nsys.stdout.write('x' * (9 * 1024 * 1024))\nsys.stdout.flush()\n"
-        with self.lab_script(script):
-            code, result, _ = self.request('/api/ml/algorithm-lab', {'type': 'LOTO_6_45'}, self.admin)
-            self.assertEqual(202, code, result)
-            job = self.wait_lab(result['job']['id'])
-            self.assertEqual('failed', job['state'])
-            self.assertIn('giới hạn dung lượng', job['error'])
-            self.assertIsNone(job['report'])
 
-    def test_algorithm_lab_streamed_progress_is_bounded_monotonic_and_nonblocking(self):
-        script = """import json,sys,time
-print(json.dumps({'completed':2,'total':10}),file=sys.stderr,flush=True)
-time.sleep(1)
-print(json.dumps({'completed':1,'total':10}),file=sys.stderr,flush=True)
-print(json.dumps({'completed':999,'total':10}),file=sys.stderr,flush=True)
-print(json.dumps({'completed':3,'total':99}),file=sys.stderr,flush=True)
-sys.stderr.write('z'*5000+'\\n')
-print(json.dumps({'completed':4,'total':10}),file=sys.stderr,flush=True)
-time.sleep(1)
-print(json.dumps({'ok':True,'status':'completed','scope':'historical_diagnostic','type':'LOTO_6_45'}))
-"""
-        with self.lab_script(script):
-            code, result, _ = self.request('/api/ml/algorithm-lab',
-                                           {'type': 'LOTO_6_45', 'validationCount': '5', 'testCount': '5'}, self.admin)
-            self.assertEqual(202, code, result)
-            job_id = result['job']['id']
-            seen = []
-            for _ in range(30):
-                code, value, _ = self.request('/api/ml/algorithm-lab?type=LOTO_6_45&jobId=' + job_id, cookie=self.admin)
-                self.assertEqual(200, code, value)
-                seen.append(value['job']['progress']['completed'])
-                self.assertEqual(10, value['job']['progress']['total'])
-                if value['job']['state'] == 'completed':
-                    break
-                self.assertEqual(200, self.request('/api/time')[0])
-                time.sleep(.1)
-            self.assertEqual(sorted(seen), seen)
-            self.assertIn(2, seen)
-            self.assertIn(4, seen)
-            self.assertLessEqual(max(seen), 10)
-            self.assertEqual('completed', self.wait_lab(job_id)['state'])
 
-    def test_algorithm_lab_auth_validation_and_empty_report(self):
-        route = '/api/ml/algorithm-lab'
-        self.assertEqual(401, self.request(route + '?type=LOTO_6_45')[0])
-        self.assertEqual(401, self.request(route, {'type': 'LOTO_6_45'})[0])
-        self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45'}, self.member)[0])
-        code, result, _ = self.request(route + '?type=LOTO_6_45', cookie=self.member)
-        self.assertEqual(200, code, result)
-        self.assertFalse(result['canManage'])
-        self.assertIsNone(result['job'])
-        self.assertEqual(400, self.request(route + '?type=KENO', cookie=self.admin)[0])
-        self.assertEqual(405, self.request(route + '?type=LOTO_6_45', {}, self.admin, method='PUT')[0])
-        for key, value in (('ticketCount', '11'), ('ticketCount', '0'), ('validationCount', '4'),
-                           ('testCount', '51'), ('testCount', '5.5'), ('action', 'promote')):
-            self.assertEqual(400, self.request(route, {'type': 'LOTO_6_45', key: value}, self.admin)[0])
-        self.assertEqual(400, self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel'}, self.admin)[0])
-        self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45'}, self.admin, origin='https://untrusted.invalid')[0])
 
-    def test_algorithm_lab_async_owner_isolation_and_single_job(self):
-        script = """import json,sys,time
-args=dict(argument[2:].split('=',1) for argument in sys.argv[1:])
-time.sleep(1.2)
-print(json.dumps({'ok':True,'status':'completed','type':args['game'],'scope':'historical_diagnostic',
-                 'config':{'ticketCount':int(args['ticket-count']),'validationCount':int(args['validation-count']),
-                           'testCount':int(args['test-count'])},'methods':[]}))
-"""
-        route = '/api/ml/algorithm-lab'
-        with self.lab_script(script):
-            started = time.monotonic()
-            code, result, _ = self.request(route, {'type': 'LOTO_6_45', 'ticketCount': '4',
-                                                  'validationCount': '5', 'testCount': '7'}, self.admin)
-            self.assertEqual(202, code, result)
-            self.assertLess(time.monotonic() - started, 1.0)
-            job_id = result['job']['id']
-            self.assertEqual(200, self.request('/api/time')[0])
-            self.assertEqual(409, self.request(route, {'type': 'LOTO_6_45'}, self.admin)[0])
-            query = route + '?type=LOTO_6_45&jobId=' + job_id
-            self.assertEqual(404, self.request(query, cookie=self.member)[0])
-            self.assertEqual(404, self.request(route + '?type=LOTO_5_35&jobId=' + job_id, cookie=self.admin)[0])
-            self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': job_id}, self.member)[0])
-            completed = self.wait_lab(job_id)
-            self.assertEqual('completed', completed['state'], completed)
-            self.assertEqual({'ticketCount': 4, 'validationCount': 5, 'testCount': 7}, completed['report']['config'])
-            self.assertTrue(completed['finishedAt'])
-            code, result, _ = self.request(route + '?type=LOTO_6_45', cookie=self.admin)
-            self.assertEqual(job_id, result['job']['id'])
-        with closing(sqlite3.connect(self.work / 'runtime/lotto_web.db')) as connection:
-            if connection.execute("SELECT 1 FROM sqlite_master WHERE name='prediction_runs'").fetchone():
-                self.assertEqual(0, connection.execute('SELECT COUNT(*) FROM prediction_runs').fetchone()[0])
 
-    def test_algorithm_lab_domain_error_and_cancel(self):
-        route = '/api/ml/algorithm-lab'
-        with self.lab_script("import json,sys\nprint(json.dumps({'ok':False,'message':'Unsafe model cutoff'}))\nsys.exit(1)\n"):
-            code, result, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
-            self.assertEqual(202, code, result)
-            failed = self.wait_lab(result['job']['id'])
-            self.assertEqual('failed', failed['state'])
-            self.assertEqual('Unsafe model cutoff', failed['error'])
-            self.assertIsNone(failed['report'])
-        with self.lab_script("import time\ntime.sleep(30)\n"):
-            code, result, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
-            self.assertEqual(202, code, result)
-            job_id = result['job']['id']
-            code, result, _ = self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': job_id}, self.admin)
-            self.assertEqual(200, code, result)
-            self.assertEqual('cancelled', result['job']['state'])
-            self.assertIsNone(result['job']['report'])
-            # Wait for the killed worker to release its global slot before changing the stub.
-            for _ in range(100):
-                code, next_job, _ = self.request(route, {'type': 'LOTO_6_45'}, self.admin)
-                if code == 202:
-                    self.request(route, {'type': 'LOTO_6_45', 'action': 'cancel', 'jobId': next_job['job']['id']}, self.admin)
-                    break
-                self.assertEqual(409, code, next_job)
-                time.sleep(.05)
-            else:
-                self.fail('Cancelled worker did not release the lab slot')
 
-    def test_algorithm_lab_real_pipeline_on_disposable_history(self):
-        """Real Java -> lab -> classic/Adaptive Coverage -> prize report, no ledger writes."""
-        predictor_dir = self.work / 'ai/predictors'
-        canonical_dir = self.work / 'data/canonical'
-        live_source = self.work / 'backend/live_results.py'
-        for target in (predictor_dir, canonical_dir, live_source):
-            self.assertTrue(target.resolve().is_relative_to(self.work.resolve()))
-            self.assertFalse(target.exists())
-        shutil.copytree(ROOT / 'ai/predictors', predictor_dir, ignore=shutil.ignore_patterns('__pycache__'))
-        shutil.copy2(ROOT / 'backend/live_results.py', live_source)
-        canonical_dir.mkdir(parents=True)
-        canonical = canonical_dir / 'mega_6_45_all_day.csv'
-        rng = random.Random(65045)
-        now_saigon = datetime.now(timezone(timedelta(hours=7)))
-        current_day = now_saigon.date()
-        draw_days = []
-        while len(draw_days) < 70:
-            if current_day.weekday() in (2, 4, 6) and datetime.combine(current_day, datetime.min.time(), now_saigon.tzinfo).replace(hour=18) < now_saigon:
-                draw_days.append(current_day)
-            current_day -= timedelta(days=1)
-        draw_days.reverse()
-        with canonical.open('w', encoding='utf-8', newline='') as stream:
-            writer = csv.writer(stream)
-            writer.writerow(['Kỳ', 'Ngày', 'Giờ', 'Bộ Số'])
-            for index, current_day in enumerate(draw_days):
-                writer.writerow([index + 1, current_day.strftime('%d/%m/%Y'), '18:00',
-                                 ','.join(str(number) for number in sorted(rng.sample(range(1, 46), 6)))])
-        original_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
-        try:
-            code, result, _ = self.request('/api/ml/algorithm-lab',
-                                          {'type': 'LOTO_6_45', 'ticketCount': '2',
-                                           'validationCount': '5', 'testCount': '5'}, self.admin)
-            self.assertEqual(202, code, result)
-            job = self.wait_lab(result['job']['id'])
-            self.assertEqual('completed', job['state'], job)
-            report = job['report']
-            self.assertEqual('historical_diagnostic', report['scope'])
-            self.assertTrue({'web', 'random', 'bayesian', 'ewma'} <= {method['key'] for method in report['methods']})
-            self.assertEqual(10, len(report['methods']))
-            self.assertEqual(6, len(report['profiles']))
-            self.assertTrue(report['conclusion']['canTrack'])
-            self.assertEqual(60, report['split']['training']['count'])
-            self.assertEqual('65', report['split']['validation']['lastDrawId'])
-            self.assertEqual('66', report['split']['test']['firstDrawId'])
-            self.assertTrue(report['selection']['validationOnly'])
-            self.assertEqual(10, len(report['folds']))
-            for fold in report['folds']:
-                self.assertLess(int(fold['cutoffDrawId']), int(fold['targetDrawId']))
-                self.assertEqual(2, len(fold['methods']['web']['tickets']))
-                self.assertTrue(all('prizeCode' in ticket['result'] for ticket in fold['methods']['web']['tickets']))
-            route = '/api/ml/algorithm-lab'
-            run_id = job['id']
-            code, overview, _ = self.request(route + '?type=LOTO_6_45&jobId=' + run_id, cookie=self.admin)
-            self.assertEqual(200, code, overview)
-            self.assertIn(run_id, {item['id'] for item in overview['history']})
-            code, member_report, _ = self.request(route + '?type=LOTO_6_45', cookie=self.member)
-            self.assertEqual(200, code, member_report)
-            self.assertEqual([], member_report['history'])
-            self.assertIsNone(member_report['tracking']['candidate'])
-            self.assertEqual(403, self.request(route, {'type': 'LOTO_6_45', 'action': 'start_tracking', 'jobId': run_id}, self.member)[0])
-            code, tracking, _ = self.request(route, {'type': 'LOTO_6_45', 'action': 'start_tracking', 'jobId': run_id}, self.admin)
-            self.assertEqual(200, code, tracking)
-            candidate = tracking['tracking']['candidate']
-            self.assertEqual('active', candidate['status'])
-            self.assertEqual(run_id, candidate['runId'])
-            self.assertEqual(1, tracking['tracking']['counts']['locked'])
-            self.assertEqual(0, tracking['tracking']['counts']['scored'])
-            self.assertEqual({'candidate', 'random', 'web'}, {item['key'] for item in tracking['tracking']['methods']})
-            self.assertEqual(1, len(tracking['tracking']['cycles']))
-            for prediction in tracking['tracking']['cycles'][0]['methods'].values():
-                self.assertEqual(2, len(prediction['tickets']))
-            # Starting again preserves the same candidate and already locked tickets.
-            code, again, _ = self.request(route, {'type': 'LOTO_6_45', 'action': 'start_tracking', 'jobId': run_id}, self.admin)
-            self.assertEqual(200, code, again)
-            self.assertEqual(candidate['id'], again['tracking']['candidate']['id'])
-            self.assertEqual(tracking['tracking']['cycles'], again['tracking']['cycles'])
-            old_cookie = self.admin
-            self.restart_server()
-            self.assertEqual(401, self.request(route + '?type=LOTO_6_45', cookie=old_cookie)[0])
-            code, restarted, _ = self.request(route + '?type=LOTO_6_45&jobId=' + run_id, cookie=self.admin)
-            self.assertEqual(200, code, restarted)
-            self.assertEqual(report, restarted['job']['report'])
-            self.assertEqual(candidate['id'], restarted['tracking']['candidate']['id'])
-            code, stopped, _ = self.request(route, {'type': 'LOTO_6_45', 'action': 'stop_tracking', 'candidateId': candidate['id']}, self.admin)
-            self.assertEqual(200, code, stopped)
-            self.assertEqual('stopped', stopped['tracking']['candidate']['status'])
-            self.assertEqual(tracking['tracking']['cycles'], stopped['tracking']['cycles'])
-            self.assertEqual(original_hash, hashlib.sha256(canonical.read_bytes()).hexdigest())
-            with closing(sqlite3.connect(self.work / 'runtime/lotto_web.db')) as connection:
-                if connection.execute("SELECT 1 FROM sqlite_master WHERE name='prediction_runs'").fetchone():
-                    self.assertEqual(0, connection.execute('SELECT COUNT(*) FROM prediction_runs').fetchone()[0])
-        finally:
-            for target in (predictor_dir, canonical_dir):
-                self.assertTrue(target.resolve().is_relative_to(self.work.resolve()))
-                shutil.rmtree(target)
-            live_source.unlink()
 
     @unittest.skipUnless(Path(CHROME).exists(), 'Chrome required')
     def test_frontend_navigation_and_canonical_data_without_csv_history_panel(self):

@@ -32,6 +32,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                          "decision": "insufficient_evidence"} for key in keys], "cycles": [],
         }
         requests = []
+        prize_history = []
         html = (ROOT / "frontend/vietlott-web.html").read_text(encoding="utf-8")
         section = html[html.index('      <section id="predictRootEffectiveness"'):html.index('      <section id="predictRootManual"')]
         page = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
@@ -53,6 +54,10 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     pass  # Superseded fetches deliberately abort their connections.
 
             def do_GET(self):
+                if self.path.startswith("/api/live-history?"):
+                    requests.append(("GET", self.path, ""))
+                    params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                    return self.respond(json.dumps({"ok": True, "type": params['type'][0], "history": prize_history}).encode(), "application/json")
                 if self.path.startswith("/api/ml/effectiveness-tickets?"):
                     requests.append(("GET", self.path, ""))
                     params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
@@ -216,8 +221,9 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 browser.value("document.getElementById('effectivenessTicketCount').focus()")
                 for composing in ('2', '20', '200', '2000', '20000', '200000'):
                     browser.call('Input.imeSetComposition', {'text': composing, 'selectionStart': len(composing), 'selectionEnd': len(composing)}, page=True)
-                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), f'{int(composing):,}'.replace(',', '.'))
+                    self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), composing)
                 browser.call('Input.insertText', {'text': '200000'}, page=True)
+                wait("document.getElementById('effectivenessTicketCount').value==='200.000'")
                 self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').value"), '200.000')
                 browser.value("document.getElementById('effectivenessTicketCount').value='';document.getElementById('effectivenessTicketCount').dispatchEvent(new Event('input'))")
                 for digit, expected in zip('500000', ('5', '50', '500', '5.000', '50.000', '500.000')):
@@ -330,8 +336,8 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     browser.value("document.body.classList.remove('light-theme')")
                     browser.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, page=True)
                     browser.value("document.querySelector('#effectivenessTimeline details').open=false")
-                fold_selectors = ['#effectivenessComparison > details', '#effectivenessTimeline > details', '#effectivenessLab']
-                self.assertTrue(browser.value("!document.querySelector('#effectivenessTimeline > details').open && !document.getElementById('effectivenessLab').open"))
+                fold_selectors = ['#effectivenessComparison > details', '#effectivenessTimeline > details']
+                self.assertTrue(browser.value("!document.querySelector('#effectivenessTimeline > details').open"))
                 for selector in fold_selectors:
                     browser.value(f"document.querySelector('{selector}').open=false")
                     browser.value(f"document.querySelector('{selector} > summary').click()")
@@ -345,7 +351,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     for width in (320, 1440):
                         browser.call('Emulation.setDeviceMetricsOverride', {'width':width,'height':1000,'deviceScaleFactor':1,'mobile':False}, page=True)
                         measurements = browser.value("[...document.querySelectorAll('.effectiveness-fold > summary')].map(s=>{const r=s.getBoundingClientRect(),b=s.querySelector('.effectiveness-fold-toggle').getBoundingClientRect();return {height:r.height,width:b.width,right:b.right,title:s.querySelector('strong').getBoundingClientRect().right,left:b.left,buttonVisible:!!b.height}})")
-                        self.assertEqual(len(measurements), 3)
+                        self.assertEqual(len(measurements), 2)
                         self.assertLess(max(m['height'] for m in measurements)-min(m['height'] for m in measurements), 1)
                         self.assertLess(max(m['width'] for m in measurements)-min(m['width'] for m in measurements), 1)
                         self.assertLess(max(m['right'] for m in measurements)-min(m['right'] for m in measurements), 1)
@@ -353,7 +359,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                         artifact_dir = os.environ.get('LOTTO_FOLD_HEADERS_ARTIFACT_DIR')
                         if artifact_dir:
                             output=Path(artifact_dir).resolve(); self.assertTrue(output.is_relative_to(ROOT.resolve())); output.mkdir(parents=True,exist_ok=True)
-                            clip=browser.value("(()=>{let a=document.querySelector('#effectivenessComparison').getBoundingClientRect(),b=document.getElementById('effectivenessLab').getBoundingClientRect();return {x:a.left+scrollX,y:a.top+scrollY,width:a.width,height:b.bottom-a.top,scale:1}})()")
+                            clip=browser.value("(()=>{let a=document.querySelector('#effectivenessComparison').getBoundingClientRect(),b=document.getElementById('effectivenessTimeline').getBoundingClientRect();return {x:a.left+scrollX,y:a.top+scrollY,width:a.width,height:b.bottom-a.top,scale:1}})()")
                             screenshot=browser.call('Page.captureScreenshot', {'format':'png','clip':clip,'captureBeyondViewport':True}, page=True)
                             (output/f'fold_headers_{theme}_{width}.png').write_bytes(base64.b64decode(screenshot['data']))
                 browser.value("document.body.classList.remove('light-theme')")
@@ -611,6 +617,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(browser.value("document.querySelectorAll('.effectiveness-cycle:first-child [data-method]:not([data-method=web]) .effectiveness-prize-summary').length"), 3)
                 self.assertEqual(browser.value("document.querySelector('[data-prediction-id=method_random_fixture] [data-prize-reward]').dataset.prizeReward"), '410000000')
                 random_summary_text = browser.value("document.querySelector('[data-prediction-id=method_random_fixture] .effectiveness-prize-summary').textContent")
+                wait(f"!document.querySelector('{selector} .effectiveness-prize-summary').textContent.includes('Đang đối chiếu')")
                 summary_text = browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent")
                 # Reward help is shared across methods, works above scrolling
                 # sections, and does not change the full-portfolio amounts.
@@ -990,6 +997,14 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     browser.value(f"document.getElementById('effectivenessKenoLevel').value='{level}';document.getElementById('effectivenessRefresh').click()")
                     wait(f"document.querySelector('{selector} [data-prize-code={code}]')!==null && !document.getElementById('effectivenessRefresh').disabled")
                     self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '')
+                    for actual in (0,50):
+                        summary_cycle['prizeContext']={'status':'ready','kenoWinnerCounts':{str(level):actual}}
+                        browser.value("document.getElementById('effectivenessRefresh').click()")
+                        threshold={8:50,9:12,10:5}[level]
+                        unit={8:200000000,9:800000000,10:2000000000}[level] if actual+20<=threshold else 10000000000//(actual+20)
+                        wait(f"document.querySelector('{selector} [data-prize-reward]')?.dataset.prizeReward==='{unit*20}'")
+                        self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"),str(unit*20-200000))
+                    summary_cycle.pop('prizeContext',None)
                 summary_entry['prizeCounts'] = {'KENO_10_5': 19, 'UNKNOWN': 1}
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait(f"document.querySelector('{selector} .effectiveness-prize-summary')?.textContent.includes('1 vé chưa xác định')")
@@ -1005,6 +1020,83 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     wait(f"document.querySelector('{selector} [data-prize-reward]')?.dataset.prizeReward==='{expected}'")
                     self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), str(expected-200000))
                 self.assertEqual(sum(method == 'POST' for method, _, _ in requests), money_posts)
+                # Verify all variable Jackpot tiers against identity-checked data.
+                for game, code, field in [('LOTO_5_35','LOTTO_JACKPOT','specialPrize'),
+                                           ('LOTO_6_45','MEGA_JACKPOT','jackpot'),
+                                           ('LOTO_6_55','POWER_JACKPOT_1','jackpot1'),
+                                           ('LOTO_6_55','POWER_JACKPOT_2','jackpot2')]:
+                    report['type'] = game
+                    summary_cycle.update(level=None, actualMain=[1,2,3,4,5] if game=='LOTO_5_35' else [1,2,3,4,5,6],
+                        actualSpecial=None if game=='LOTO_6_45' else 8,
+                        deadline='2026-10-04T06:00:00Z' if game=='LOTO_5_35' else '2026-10-04T11:00:00Z')
+                    draw = {'ky':str(summary_cycle['targetDrawId']), 'date':'04/10/2026',
+                            'time':'13:00' if game=='LOTO_5_35' else '', 'main':summary_cycle['actualMain'][:],
+                            'special':summary_cycle['actualSpecial'], field:6000000001,
+                            'prizeWinnerCounts':{field:2}}
+                    prize_history[:] = [draw]
+                    summary_entry.update(ticketCount=20, prizeCounts={code:2,'NONE':18})
+                    browser.value(f"document.getElementById('effectivenessType').value='{game}';document.getElementById('effectivenessType').dispatchEvent(new Event('change'))")
+                    wait(f"document.querySelector('{selector} [data-prize-reward]')?.dataset.prizeReward==='3000000000'")
+                    self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-code={code}]').dataset.prizeUnit"), '1500000000')
+                    self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '2999800000')
+                    self.assertIn('Tổng thưởng ước tính', browser.value(f"document.querySelector('{selector}').textContent"))
+                    self.assertIn('2 vé thực tế + 2 vé mô phỏng', browser.value(f"document.querySelector('{selector}').textContent"))
+                    # Explicit zero winners is valid; missing is never zero.
+                    draw['prizeWinnerCounts'][field] = 0
+                    browser.value("document.getElementById('effectivenessRefresh').click()")
+                    wait(f"document.querySelector('{selector} [data-prize-reward]')?.dataset.prizeReward==='6000000000'")
+                    del draw['prizeWinnerCounts'][field]
+                    browser.value("document.getElementById('effectivenessRefresh').click()")
+                    wait(f"document.querySelector('{selector}').textContent.includes('chưa có số vé trúng Jackpot')")
+                    self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '')
+                    draw['prizeWinnerCounts'][field] = 2
+                    draw['main'] = [1,2,3,4,35] if game=='LOTO_5_35' else [1,2,3,4,5,45]
+                    browser.value("document.getElementById('effectivenessRefresh').click()")
+                    wait(f"document.querySelector('{selector}').textContent.includes('chưa khớp kỳ')")
+                    self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '')
+                # The exact 200,000-ticket example must include the Jackpot in
+                # the total and net, while retaining all fixed-tier subtotals.
+                report['type'] = 'LOTO_5_35'
+                summary_cycle.update(actualMain=[1,2,3,4,5], actualSpecial=8, deadline='2026-10-04T06:00:00Z')
+                summary_entry.update(ticketCount=200000, prizeCounts={'CONSOLATION':16624,'FIFTH':2419,
+                    'FOURTH':214,'THIRD':80,'SECOND':4,'LOTTO_JACKPOT':1,'NONE':180658})
+                draw = {'ky':str(summary_cycle['targetDrawId']),'date':'04/10/2026','time':'13:00',
+                        'main':[1,2,3,4,5],'special':8,'specialPrize':6000000000,
+                        'prizeWinnerCounts':{'specialPrize':0}}
+                prize_history[:] = [draw]
+                browser.value("document.getElementById('effectivenessType').value='LOTO_5_35';document.getElementById('effectivenessType').dispatchEvent(new Event('change'))")
+                wait(f"document.querySelector('{selector} [data-prize-reward]')?.dataset.prizeReward==='6320210000'")
+                self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '4320210000')
+                self.assertEqual(browser.value(f"document.querySelector('{selector} [data-total-ticket-cost]').dataset.totalTicketCost"), '2000000000')
+                output_dir = os.environ.get('LOTTO_VARIABLE_PRIZE_ARTIFACT_DIR')
+                if output_dir:
+                    output = Path(output_dir).resolve()
+                    self.assertTrue(output.is_relative_to(ROOT.resolve()))
+                    output.mkdir(parents=True, exist_ok=True)
+                    browser.value("document.querySelectorAll('#effectivenessCycles details').forEach(el=>el.open=true)")
+                    for width in (390, 1440):
+                        browser.call('Emulation.setDeviceMetricsOverride', {'width':width,'height':1600,'deviceScaleFactor':1,'mobile':False}, page=True)
+                        for theme in ('dark','light'):
+                            browser.value(f"document.body.classList.toggle('light-theme',{str(theme=='light').lower()})")
+                            clip = browser.value(f"(()=>{{const box=document.querySelector('{selector} .effectiveness-prize-summary').getBoundingClientRect();return {{x:Math.max(0,box.left),y:Math.max(0,box.top+scrollY),width:box.width,height:box.height,scale:1}}}})()")
+                            screenshot = browser.call('Page.captureScreenshot', {'clip':clip,'captureBeyondViewport':True}, page=True)
+                            (output / f'jackpot_summary_{theme}_{width}.png').write_bytes(base64.b64decode(screenshot['data']))
+                    browser.value("document.body.classList.remove('light-theme')")
+                # Reject the correct numbers when any part of draw identity or
+                # payout metadata is missing/corrupt. No invented zero counts.
+                valid_draw = json.loads(json.dumps(draw))
+                for patch in ({'date':'03/10/2026'},{'time':'21:00'},{'special':9},
+                              {'ky':str(int(summary_cycle['targetDrawId'])+1)},
+                              {'specialPrize':True},{'prizeWinnerCounts':{'specialPrize':True}},
+                              {'prizeWinnerCounts':{'specialPrize':-1}}):
+                    prize_history[:] = [{**valid_draw, **patch}]
+                    browser.value("document.getElementById('effectivenessRefresh').click()")
+                    wait(f"!document.getElementById('effectivenessRefresh').disabled && !document.querySelector('{selector}').textContent.includes('Đang đối chiếu')")
+                    self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '', patch)
+                self.assertTrue(all('repair=' not in path and 'backfill=' not in path for _,path,_ in requests if path.startswith('/api/live-history?')))
+                prize_history.clear()
+                summary_entry['ticketCount'] = 20
+                summary_cycle.update(actualMain=actual_before_money, actualSpecial=None)
                 report['type'] = 'LOTO_6_45'
                 summary_cycle['level'] = None
                 for counts, expected in [({'NONE': 20}, 'Chưa có vé trúng'), ({'UNKNOWN': 20}, 'Chưa xác định vé trúng'),
@@ -1132,7 +1224,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 wait("document.getElementById('effectivenessMixedWarning').textContent.includes('đang chờ nguồn')")
                 self.assertEqual(browser.value("document.querySelectorAll('#effectivenessMixedWarning img').length"), 0)
                 report["automation"]["sourceSync"]["error"] = ""
-                self.assertTrue(browser.value("document.getElementById('effectivenessLab').hidden"))
+                self.assertTrue(browser.value("!document.getElementById('effectivenessLab')"))
                 self.assertTrue(browser.value("document.getElementById('effectivenessLimitLabel').hidden"))
                 self.assertEqual(browser.value("document.querySelectorAll('#effectivenessKenoOverview tbody tr').length"), 10)
                 self.assertEqual(browser.value("document.querySelector('.effectiveness-cycle .effectiveness-ticket-hits').textContent"), "10/10")
@@ -1184,7 +1276,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 wait("!document.getElementById('effectivenessSettings').hidden&&!document.getElementById('effectivenessSettings').disabled")
                 input_posts = sum(method == 'POST' for method, _, _ in requests)
                 browser.value("document.getElementById('effectivenessSettings').click()")
-                for level, maximum, hint in ((1, 80, 'Max 80'), (2, 3160, 'Max 3.160'), (3, 82160, 'Max 82.160'), (10, 100000, 'Max 100.000')):
+                for level, maximum, hint in ((1, 80, 'Max 80'), (2, 3160, 'Max 3.160'), (3, 82160, 'Max 82.160'), (10, 324632, 'Max 324.632')):
                     browser.value(f"document.getElementById('effectivenessKenoLevel').value='{level}';document.getElementById('effectivenessKenoLevel').dispatchEvent(new Event('change'))")
                     wait(f"document.querySelector('.effectiveness-cycle .effectiveness-ticket-hits')?.textContent==='{level}/{level}'&&!document.getElementById('effectivenessTicketCount').disabled")
                     self.assertEqual(browser.value("document.getElementById('effectivenessTicketCount').max"), str(maximum))

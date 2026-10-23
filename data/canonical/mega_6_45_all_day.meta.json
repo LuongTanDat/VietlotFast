@@ -2,7 +2,7 @@
   "type": "LOTO_6_45",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-17T21:28:22",
+  "lastSyncAt": "2026-10-23T14:35:35",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "2",
   "effectiveEarliestDate": "20/07/2016",
@@ -13,10 +13,10 @@
     },
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-17T21:28:22",
+    "updatedAt": "2026-10-23T14:35:35",
     "complete": true,
-    "totalRows": 1575,
-    "completeRows": 1575,
+    "totalRows": 1577,
+    "completeRows": 1577,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -68,7 +68,7 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-10-17T21:28:22",
+    "updatedAt": "2026-10-23T14:35:35",
     "countsByDraw": {
       "1570": {
         "identity": "02/10/2026||1,6,20,27,31,41|",
@@ -17393,6 +17393,28 @@
           "third": 28075
         },
         "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-16-10-2026.html",
+        "checkedAt": ""
+      },
+      "1577": {
+        "identity": "18/10/2026||10,11,31,38,40,44|",
+        "counts": {
+          "jackpot": 0,
+          "first": 27,
+          "second": 1370,
+          "third": 25159
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-18-10-2026.html",
+        "checkedAt": ""
+      },
+      "1578": {
+        "identity": "21/10/2026||4,10,14,22,25,44|",
+        "counts": {
+          "jackpot": 1,
+          "first": 63,
+          "second": 1882,
+          "third": 28104
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-21-10-2026.html",
         "checkedAt": ""
       }
     }

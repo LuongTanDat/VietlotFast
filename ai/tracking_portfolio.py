@@ -8,6 +8,7 @@ import math
 import random
 
 MAX_TICKETS = 1_000_000
+KENO_MAX_TICKETS = 324_632
 TICKET_PAGE_SIZE = 10
 VERSION = "tracking_unique_portfolio_v1"
 

@@ -76,7 +76,7 @@ class PredictionEffectivenessTests(unittest.TestCase):
 
     def test_configure_validates_settings_and_audits_actor(self):
         for enabled, count, actor in (("true", 3, "admin"), (True, 0, "admin"),
-                                      (True, 1000001, "admin"), (True, 2.5, "admin"), (True, 3, "")):
+                                      (True, 324633, "admin"), (True, 1000001, "admin"), (True, 2.5, "admin"), (True, 3, "")):
             with self.assertRaises(ValueError):
                 effectiveness.configure(self.GAME, enabled, count, actor, self.db)
         result = effectiveness.configure(self.GAME, True, 4, "owner", self.db)
@@ -86,6 +86,18 @@ class PredictionEffectivenessTests(unittest.TestCase):
             row = connection.execute("SELECT * FROM effectiveness_config_audit").fetchone()
             self.assertEqual(row["actor"], "owner")
             self.assertEqual(json.loads(row["settings_json"])["ticketCount"], 4)
+
+    def test_loto535_maximum_and_legacy_requested_budget(self):
+        result = effectiveness.configure(self.GAME, False, 324632, 'owner', self.db)
+        self.assertEqual(result['settings']['maxTicketCount'], 324632)
+        self.assertEqual(result['settings']['ticketCount'], 324632)
+        with closing(effectiveness._connect(self.db)) as connection:
+            connection.execute('UPDATE effectiveness_settings SET ticket_count=1000000 WHERE game_type=?', (self.GAME,))
+        legacy = effectiveness.settings(self.GAME, self.db)['settings']
+        self.assertEqual(legacy['ticketCount'], 324632)
+        self.assertEqual(legacy['maxTicketCount'], 324632)
+        self.assertEqual(effectiveness.ticket_limit('LOTO_6_45'), 1000000)
+        self.assertEqual(effectiveness.ticket_limit('LOTO_6_55'), 1000000)
 
     def test_10000_tickets_are_all_scored_with_bounded_read_only_pages(self):
         effectiveness.configure(self.GAME, True, 10000, "admin_fixture", self.db)

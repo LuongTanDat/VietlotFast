@@ -40,7 +40,9 @@ class WebPerformanceContractTests(unittest.TestCase):
         self.assertIn("DVLF là tên viết tắt của Deep Vietlott Fast", html)
         self.assertIn('const APP_SHORT_NAME = "DVLF";', core)
         self.assertIn('const APP_FULL_NAME = "Deep Vietlott Fast";', core)
-        self.assertIn("brandReloadBtn.onclick = () => window.location.reload();", core)
+        self.assertIn("window.location.assign(APP_PAGE_PATHS.home);", core)
+        self.assertIn("if (IS_LOCAL_MODE) window.location.reload();", core)
+        self.assertIn("Bấm để tải lại Trang chủ.", html)
         self.assertIn(".brand-reload-btn:hover::after", styles)
         self.assertTrue(readme.startswith("# DVLF\n"))
 
@@ -57,9 +59,13 @@ class WebPerformanceContractTests(unittest.TestCase):
         side_menu = html[html.index('<aside id="sideMenu"'):html.index('<div class="wrap">')]
         settings_panel = html[html.index('id="settingsPanel"'):html.index("</div>\n        </div>\n      </div>", html.index('id="settingsPanel"'))]
 
-        for element_id in ("whoami", "openAccountBtn"):
+        for element_id in ("whoami",):
             self.assertNotIn(f'id="{element_id}"', top_right)
             self.assertIn(f'id="{element_id}"', side_menu)
+        self.assertNotIn('id="openAccountBtn"', side_menu)
+        admin_users = html[html.index('<section data-admin-pane="users"'):html.index('</section>', html.index('<section data-admin-pane="users"'))]
+        self.assertIn('id="adminUsersEdit"', admin_users)
+        self.assertNotIn('id="openAccountBtn"', html)
         self.assertNotIn('id="logoutBtn"', side_menu)
         for element_id in ("notificationBtn", "notificationPanel", "settingsBtn", "settingsPanel"):
             self.assertIn(f'id="{element_id}"', top_right)

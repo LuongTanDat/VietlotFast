@@ -104,6 +104,14 @@ public class LottoWebServer {
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
     private final Map<String, Long> sessionExpiry = new ConcurrentHashMap<>();
     private final Map<String, String> sessionPasswordHash = new ConcurrentHashMap<>();
+    private final Map<String, AccessPresence> accessPresence = new ConcurrentHashMap<>();
+    private static final long PRESENCE_TIMEOUT_MS = 90000;
+    private static class AccessPresence {
+        final String token, accountId;
+        final long seenAt;
+        final boolean active;
+        AccessPresence(String token, String accountId, long seenAt, boolean active) { this.token=token; this.accountId=accountId; this.seenAt=seenAt; this.active=active; }
+    }
     private final Map<String, long[]> loginAttempts = new ConcurrentHashMap<>();
     private final Map<String, long[]> codeAttempts = new ConcurrentHashMap<>();
     private static final int MAX_REQUEST_BYTES = 8 * 1024 * 1024;
@@ -112,35 +120,6 @@ public class LottoWebServer {
     private final Map<String, TimedJsonPayload> heavyApiCache = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
     private final AtomicBoolean effectivenessJobRunning = new AtomicBoolean();
-    private final AtomicBoolean algorithmLabRunning = new AtomicBoolean();
-    private final AtomicBoolean algorithmLabTrackingActionRunning = new AtomicBoolean();
-    private final Map<String, AlgorithmLabJob> algorithmLabJobs = new ConcurrentHashMap<>();
-
-    private static final class AlgorithmLabJob {
-        final String id = UUID.randomUUID().toString();
-        final String owner, type;
-        final int ticketCount, validationCount, testCount;
-        final Instant createdAt = Instant.now();
-        String state = "running", finishedAt = "", report = "null", error = "";
-        int completedFolds;
-        boolean cancelled;
-        Process process;
-
-        AlgorithmLabJob(String owner, String type, int ticketCount, int validationCount, int testCount) {
-            this.owner = owner; this.type = type; this.ticketCount = ticketCount;
-            this.validationCount = validationCount; this.testCount = testCount;
-        }
-
-        synchronized String json() {
-            return "{\"id\":" + quoteJson(id) + ",\"type\":" + quoteJson(type)
-                    + ",\"state\":" + quoteJson(state) + ",\"createdAt\":" + quoteJson(createdAt.toString())
-                    + ",\"finishedAt\":" + quoteJson(finishedAt) + ",\"ticketCount\":" + ticketCount
-                    + ",\"validationCount\":" + validationCount + ",\"testCount\":" + testCount
-                    + ",\"progress\":{\"completed\":" + completedFolds + ",\"total\":" + (validationCount + testCount) + "}"
-                    + ",\"report\":" + report + ",\"error\":" + quoteJson(error) + "}";
-        }
-    }
-
     // ----- Helper lồng bên trong -----
     // Các lớp nhỏ phục vụ đọc JSON tay và gom stdout/stderr của tiến trình con.
     private static final class ProcessOutput {
@@ -155,23 +134,6 @@ public class LottoWebServer {
             this.stdout = stdout;
             this.stderr = stderr;
         }
-    }
-
-    private static final class LimitedProcessOutput extends OutputStream {
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        private final int limit;
-        private final Process process;
-        volatile boolean exceeded;
-
-        LimitedProcessOutput(int limit, Process process) { this.limit = limit; this.process = process; }
-
-        @Override public synchronized void write(int value) { write(new byte[] {(byte)value}, 0, 1); }
-        @Override public synchronized void write(byte[] bytes, int offset, int length) {
-            int available = limit - buffer.size();
-            if (available > 0) buffer.write(bytes, offset, Math.min(available, length));
-            if (length > available && !exceeded) { exceeded = true; process.destroyForcibly(); }
-        }
-        synchronized byte[] bytes() { return buffer.toByteArray(); }
     }
 
     private static final class StaticAsset {
@@ -476,7 +438,11 @@ public class LottoWebServer {
         server.createContext("/auth-google-logo.png", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/auth-google-logo.png"), "image/png"));
         server.createContext("/api/logout", this::handleLogout);
         server.createContext("/api/store", this::handleStore);
+        server.createContext("/api/account/statistics", this::handleAccountStatistics);
+        server.createContext("/vietlott-web-account-stats.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-account-stats.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/api/payments/vnpay", this::handleVnpay);
+        server.createContext("/api/payments/manual", this::handleManualTopup);
+        server.createContext("/api/admin/deposits", this::handleManualTopup);
         server.createContext("/vietlott-web-payments.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-payments.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/api/wheel", this::handleWheel);
         server.createContext("/api/admin/vip", this::handleAdminVip);
@@ -500,13 +466,14 @@ public class LottoWebServer {
         server.createContext("/api/ml/effectiveness-cycle", this::handleMlEffectivenessCycle);
         server.createContext("/api/ml/effectiveness-tickets", this::handleMlEffectivenessTickets);
         server.createContext("/api/ml/effectiveness-export", this::handleMlEffectivenessExport);
-        server.createContext("/api/ml/algorithm-lab", this::handleAlgorithmLab);
         server.createContext("/api/live-results", this::handleLiveResults);
         server.createContext("/api/live-results-start", this::handleLiveResultsStart);
         server.createContext("/api/live-results-progress", this::handleLiveResultsProgress);
         server.createContext("/api/live-history", this::handleLiveHistory);
         server.createContext("/api/recover-admin", this::handleRecoverAdmin);
         server.createContext("/api/admin/users", this::handleAdminUsers);
+        server.createContext("/api/presence", this::handlePresence);
+        server.createContext("/api/admin/account-history", this::handleAccountHistory);
         server.createContext("/api/admin/update-user", this::handleAdminUpdateUser);
         server.createContext("/api/admin/update-assets", this::handleAdminUpdateAssets);
         server.createContext("/api/admin/gift-codes", this::handleAdminGiftCodes);
@@ -540,6 +507,7 @@ public class LottoWebServer {
                 && !"/nap-tien.html".equals(path)
                 && !"/bang-du-lieu".equals(path)
                 && !"/admin".equals(path)
+                && !"/bieu-do".equals(path)
                 && !"/bang-du-lieu.html".equals(path)) {
             sendNotFound(ex);
             return;
@@ -687,7 +655,7 @@ public class LottoWebServer {
             sendJson(ex, 200, "{\"ok\":false}");
             return;
         }
-        sendJson(ex, 200, "{\"ok\":true,\"username\":\"" + esc(su.username) + "\",\"role\":\"" + esc(su.account.role) + "\"}");
+        sendJson(ex, 200, "{\"ok\":true,\"username\":\"" + esc(su.username) + "\",\"role\":\"" + esc(su.account.role) + "\",\"accountId\":" + quoteJson(su.account.accountId) + "}");
     }
 
     private void handleServerTime(HttpExchange ex) throws IOException {
@@ -729,7 +697,7 @@ public class LottoWebServer {
         }
         try {
             repo.register(user, pass);
-            sendJson(ex, 200, "{\"ok\":true}");
+            sendJson(ex, 200, "{\"ok\":true,\"accountId\":" + quoteJson(repo.getUser(user).accountId) + "}");
         } catch (IllegalStateException e) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"" + esc(e.getMessage()) + "\"}");
         } catch (RuntimeException e) {
@@ -777,9 +745,10 @@ public class LottoWebServer {
             sessions.put(token, user);
             sessionExpiry.put(token, System.currentTimeMillis() + SESSION_TTL_MS);
             sessionPasswordHash.put(token, acc.passwordHash);
+            recordAccess(ex, acc, token, "login", true);
             loginAttempts.remove(attemptKey);
             setCookie(ex, COOKIE_NAME, token, false);
-            sendJson(ex, 200, "{\"ok\":true,\"username\":\"" + esc(user) + "\",\"role\":\"" + esc(acc.role) + "\"}");
+            sendJson(ex, 200, "{\"ok\":true,\"username\":\"" + esc(user) + "\",\"role\":\"" + esc(acc.role) + "\",\"accountId\":" + quoteJson(acc.accountId) + "}");
         } catch (RuntimeException e) {
             sendJson(ex, 500, "{\"ok\":false,\"message\":\"Lỗi DB khi đăng nhập: " + esc(rootCauseMsg(e)) + "\"}");
         }
@@ -952,6 +921,7 @@ public class LottoWebServer {
             if(sessions.size()>=4096){socialRedirect(ex,"failed");return;}
             String old=getCookie(ex,COOKIE_NAME);if(old!=null){sessions.remove(old);sessionExpiry.remove(old);sessionPasswordHash.remove(old);}
             String token=socialRandom();sessions.put(token,account.username);sessionExpiry.put(token,now+SESSION_TTL_MS);sessionPasswordHash.put(token,account.passwordHash);
+            recordAccess(ex,account,token,"login",true);
             setCookie(ex,COOKIE_NAME,token,false);socialRedirect(ex,"");
         } catch(IllegalStateException unavailable){socialRedirect(ex,"disabled");}
         catch(Exception failure){socialRedirect(ex,"failed");}
@@ -964,7 +934,7 @@ public class LottoWebServer {
             return;
         }
         String token = getCookie(ex, COOKIE_NAME);
-        if (token != null) { sessions.remove(token); sessionExpiry.remove(token); sessionPasswordHash.remove(token); }
+        if (token != null) { sessions.remove(token); sessionExpiry.remove(token); sessionPasswordHash.remove(token); accessPresence.entrySet().removeIf(entry -> token.equals(entry.getValue().token)); }
         setCookie(ex, COOKIE_NAME, "", true);
         sendJson(ex, 200, "{\"ok\":true}");
     }
@@ -2208,6 +2178,13 @@ public class LottoWebServer {
         return command;
     }
 
+    private List<String> personalEffectivenessCommand(String action, String type, SessionUser user) {
+        List<String> command = effectivenessCommand(action, type);
+        command.add("--owner=" + user.username);
+        command.add("--personal-id=" + repo.personalTrackingId(user.username));
+        return command;
+    }
+
     private boolean validateEffectivenessType(HttpExchange ex, String type) throws IOException {
         if (!Arrays.asList("LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "KENO").contains(type)) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Hiệu quả dự đoán hỗ trợ 5/35, Mega, Power và Keno.\"}");
@@ -2216,7 +2193,7 @@ public class LottoWebServer {
         return true;
     }
 
-    private void sendEffectivenessResult(HttpExchange ex, List<String> command, boolean canManage) throws IOException {
+    private void sendEffectivenessResult(HttpExchange ex, List<String> command) throws IOException {
         Process process = null;
         try {
             process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
@@ -2227,7 +2204,7 @@ public class LottoWebServer {
             String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
             // Domain errors still carry valid JSON and a nonzero CLI exit code.
             Map<String, String> fields = jsonFields(payload);
-            fields.put("canManage", canManage ? "true" : "false");
+            fields.put("canManage", "true");
             sendJson(ex, "false".equals(fields.get("ok")) ? 400 : output.exitCode == 0 ? 200 : 500, fieldsJson(fields));
         } catch (IllegalArgumentException invalid) {
             sendJson(ex, 500, "{\"ok\":false,\"message\":\"Dữ liệu đánh giá không hợp lệ.\"}");
@@ -2238,6 +2215,47 @@ public class LottoWebServer {
             sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không chạy được đánh giá dự đoán.\"}");
         } finally {
             if (process != null) process.destroy();
+        }
+    }
+
+    private void handleAccountStatistics(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
+        }
+        Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        String game = nvl(query.get("type"));
+        String method = nvl(query.get("method"));
+        String period = nvl(query.get("period"));
+        String day = nvl(query.get("date"));
+        String level = nvl(query.get("level"));
+        if (!Arrays.asList("all", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "KENO").contains(game)
+                || !Arrays.asList("all", "web", "random", "bayesian", "ewma").contains(method)
+                || !Arrays.asList("all", "day", "week", "month", "year").contains(period)
+                || !day.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}") || !level.matches("(?:[1-9]|10)")) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Bộ lọc biểu đồ không hợp lệ.\"}"); return;
+        }
+        List<String> command = buildPythonCommand(rootDir.resolve("ai/account_statistics.py"));
+        Collections.addAll(command, "--owner=" + su.username, "--game=" + game, "--method=" + method,
+                "--period=" + period, "--date=" + day, "--level=" + level,
+                "--personal-id=" + repo.personalTrackingId(su.username));
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
+            ProcessOutput output = waitForProcessOutput(process, 30, TimeUnit.SECONDS);
+            if (!output.finished) { sendJson(ex, 504, "{\"ok\":false,\"message\":\"Tải biểu đồ quá thời gian chờ. Hãy thử lại.\"}"); return; }
+            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
+            Map<String, String> fields = jsonFields(payload);
+            sendJson(ex, "false".equals(fields.get("ok")) ? 400 : output.exitCode == 0 ? 200 : 500, fieldsJson(fields));
+        } catch (IOException | IllegalArgumentException failure) {
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Chưa đọc được dữ liệu biểu đồ. Vui lòng thử lại.\"}");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Tải biểu đồ bị gián đoạn.\"}");
+        } finally {
+            if (process != null) process.destroyForcibly();
         }
     }
 
@@ -2255,7 +2273,7 @@ public class LottoWebServer {
         if (limit < 1 || limit > 300) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Số kỳ phải từ 1 đến 300.\"}"); return;
         }
-        List<String> command = effectivenessCommand("report", type);
+        List<String> command = personalEffectivenessCommand("report", type, su);
         command.add("--limit=" + limit);
         if ("KENO".equals(type)) {
             int level = isBlank(query.get("level")) ? 10 : parseStrictPositiveInt(query.get("level"));
@@ -2266,12 +2284,13 @@ public class LottoWebServer {
             command.add("--level=" + level);
             command.add("--page=" + page);
         }
-        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+        sendEffectivenessResult(ex, command);
     }
 
     private void handleMlEffectivenessProgress(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
-        if (requireAuth(ex, true) == null) return;
+        SessionUser su = requireAuth(ex, true);
+        if (su == null) return;
         ex.getResponseHeaders().set("Cache-Control", "no-store");
         if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
@@ -2280,7 +2299,8 @@ public class LottoWebServer {
         if (!validateEffectivenessType(ex, type)) return;
         long now = System.currentTimeMillis();
         String progress = "{\"phase\":\"idle\",\"error\":\"\"}";
-        Path file = rootDir.resolve("runtime").resolve("effectiveness_progress_" + type.toLowerCase(Locale.ROOT) + ".json");
+        Path file = rootDir.resolve("runtime/personal_tracking").resolve(repo.personalTrackingId(su.username))
+                .resolve("effectiveness_progress_" + type.toLowerCase(Locale.ROOT) + ".json");
         if (Files.isRegularFile(file)) {
             try {
                 if (Files.size(file) > 8192) throw new IOException("Progress too large");
@@ -2301,7 +2321,7 @@ public class LottoWebServer {
     private void handleMlEffectivenessSettings(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         boolean read = "GET".equalsIgnoreCase(ex.getRequestMethod());
-        SessionUser su = read ? requireAuth(ex, true) : requireAdmin(ex);
+        SessionUser su = requireAuth(ex, true);
         if (su == null) return;
         if (!read && !"POST".equalsIgnoreCase(ex.getRequestMethod())) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
@@ -2309,7 +2329,7 @@ public class LottoWebServer {
         Map<String, String> values = read ? parseQuery(ex.getRequestURI().getRawQuery()) : parseForm(ex);
         String type = normalizeLiveType(values.get("type"));
         if (!validateEffectivenessType(ex, type)) return;
-        List<String> command = effectivenessCommand(read ? "settings" : "configure", type);
+        List<String> command = personalEffectivenessCommand(read ? "settings" : "configure", type, su);
         if (!read) {
             String enabled = nvl(values.get("enabled"));
             int count = parseStrictPositiveInt(values.get("ticketCount"));
@@ -2320,7 +2340,7 @@ public class LottoWebServer {
             command.add("--ticket-count=" + count);
             command.add("--actor=" + su.username);
         }
-        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+        sendEffectivenessResult(ex, command);
     }
 
     private void handleMlEffectivenessTickets(HttpExchange ex) throws IOException {
@@ -2338,7 +2358,7 @@ public class LottoWebServer {
         if (page < 1 || page > 1000000 || !predictionId.matches("[a-fA-F0-9\\-]{36}")) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã dự đoán hoặc trang vé không hợp lệ.\"}"); return;
         }
-        List<String> command = effectivenessCommand("tickets", type);
+        List<String> command = personalEffectivenessCommand("tickets", type, su);
         command.add("--prediction-id=" + predictionId);
         command.add("--page=" + page);
         String prizeCode = query.get("prizeCode");
@@ -2356,7 +2376,7 @@ public class LottoWebServer {
             }
             command.add("--after-ticket-index=" + cursor);
         }
-        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+        sendEffectivenessResult(ex, command);
     }
 
     private void handleMlEffectivenessExport(HttpExchange ex) throws IOException {
@@ -2371,10 +2391,10 @@ public class LottoWebServer {
         if (!validateEffectivenessType(ex, type)) return;
         String cycleId = nvl(query.get("cycleId"));
         int level = isBlank(query.get("level")) ? 10 : parseStrictPositiveInt(query.get("level"));
-        if (!validLabId(cycleId) || level < 1 || level > 10) {
+        if (!validPredictionCycleId(cycleId) || level < 1 || level > 10) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã kỳ dự đoán hoặc bậc Keno không hợp lệ.\"}"); return;
         }
-        List<String> command = effectivenessCommand("export", type);
+        List<String> command = personalEffectivenessCommand("export", type, su);
         command.add("--cycle-id=" + cycleId);
         command.add("--level=" + level);
         ex.getResponseHeaders().set("Cache-Control", "no-store");
@@ -2383,13 +2403,13 @@ public class LottoWebServer {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"Định dạng xuất không hợp lệ.\"}"); return;
         }
         if ("xlsx".equals(format)) {
-            sendEffectivenessWorkbook(ex, type, cycleId, level);
+            sendEffectivenessWorkbook(ex, type, cycleId, level, su);
             return;
         }
-        sendEffectivenessResult(ex, command, "admin".equals(su.account.role));
+        sendEffectivenessResult(ex, command);
     }
 
-    private void sendEffectivenessWorkbook(HttpExchange ex, String type, String cycleId, int level) throws IOException {
+    private void sendEffectivenessWorkbook(HttpExchange ex, String type, String cycleId, int level, SessionUser su) throws IOException {
         if (!effectivenessJobRunning.compareAndSet(false, true)) {
             sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang xử lý dự đoán hoặc Excel. Vui lòng thử lại sau.\"}"); return;
         }
@@ -2401,7 +2421,7 @@ public class LottoWebServer {
             Files.createDirectories(runtime);
             directory = Files.createTempDirectory(runtime, "effectiveness_export_");
             file = directory.resolve("portfolio.xlsx");
-            List<String> command = effectivenessCommand("export-file", type);
+            List<String> command = personalEffectivenessCommand("export-file", type, su);
             command.add("--cycle-id=" + cycleId);
             command.add("--level=" + level);
             command.add("--output=" + file.toAbsolutePath());
@@ -2433,7 +2453,7 @@ public class LottoWebServer {
 
     private void handleMlEffectivenessCycle(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
-        SessionUser su = requireAdmin(ex);
+        SessionUser su = requireAuth(ex, true);
         if (su == null) return;
         if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
@@ -2445,7 +2465,7 @@ public class LottoWebServer {
             sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang xử lý đánh giá. Vui lòng tải lại sau.\"}"); return;
         }
         try {
-            sendEffectivenessResult(ex, effectivenessCommand("cycle", type), true);
+            sendEffectivenessResult(ex, personalEffectivenessCommand("cycle", type, su));
         } finally {
             effectivenessJobRunning.set(false);
         }
@@ -2477,232 +2497,8 @@ public class LottoWebServer {
         }, 15, 60, TimeUnit.SECONDS);
     }
 
-    private void pruneAlgorithmLabJobs() {
-        Instant oldestAllowed = Instant.now().minus(Duration.ofDays(1));
-        algorithmLabJobs.entrySet().removeIf(entry -> {
-            AlgorithmLabJob job = entry.getValue();
-            synchronized (job) { return !"running".equals(job.state) && job.createdAt.isBefore(oldestAllowed); }
-        });
-        while (algorithmLabJobs.size() >= 8) {
-            AlgorithmLabJob oldest = null;
-            for (AlgorithmLabJob job : algorithmLabJobs.values()) {
-                synchronized (job) {
-                    if (!"running".equals(job.state) && (oldest == null || job.createdAt.isBefore(oldest.createdAt))) oldest = job;
-                }
-            }
-            if (oldest == null) break;
-            algorithmLabJobs.remove(oldest.id, oldest);
-        }
-    }
-
-    private void sendAlgorithmLabJob(HttpExchange ex, int status, AlgorithmLabJob job, boolean canManage) throws IOException {
-        sendJson(ex, status, "{\"ok\":true,\"canManage\":" + canManage + ",\"job\":" + (job == null ? "null" : job.json()) + "}");
-    }
-
-    private static boolean validLabId(String id) {
+    private static boolean validPredictionCycleId(String id) {
         return id.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
-    }
-
-    private String executeLabService(String script, String action, String owner, String type, String... options)
-            throws Exception {
-        Path source = rootDir.resolve("ai").resolve(script);
-        if (!Files.isRegularFile(source)) throw new IOException("Lab service is unavailable");
-        List<String> command = buildPythonCommand(source);
-        command.add("--action=" + action);
-        command.add("--owner=" + owner);
-        command.add("--game=" + type);
-        Collections.addAll(command, options);
-        Process process = null;
-        try {
-            process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
-            ProcessOutput output = waitForLabProcessOutput(process, 30);
-            if (!output.finished) throw new IOException("Lab service timeout");
-            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
-            Map<String, String> fields = jsonFields(payload);
-            if (output.exitCode != 0 || !"true".equals(fields.get("ok"))) {
-                String message = jsonString(fields.get("message"));
-                if (!isBlank(message)) throw new IllegalArgumentException(message);
-                throw new IOException("Lab service did not return a valid result");
-            }
-            if (!type.equals(jsonString(fields.get("type")))) throw new IOException("Lab service game mismatch");
-            return payload;
-        } finally {
-            if (process != null) process.destroyForcibly();
-        }
-    }
-
-    private void sendAlgorithmLabServiceFailure(HttpExchange ex, Exception failure) throws IOException {
-        if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
-        sendJson(ex, failure instanceof IllegalArgumentException ? 400 : 503,
-                "{\"ok\":false,\"message\":" + quoteJson(failure instanceof IllegalArgumentException
-                        ? nvl(failure.getMessage()) : "Không đọc hoặc cập nhật được dữ liệu phòng thử. Vui lòng thử lại.") + "}");
-    }
-
-    private void handleAlgorithmLab(HttpExchange ex) throws IOException {
-        if (handleOptions(ex)) return;
-        String method = ex.getRequestMethod();
-        SessionUser su = "GET".equalsIgnoreCase(method) ? requireAuth(ex, true) : requireAdmin(ex);
-        if (su == null) return;
-        if (!"GET".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
-            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}"); return;
-        }
-        Map<String, String> values = "GET".equalsIgnoreCase(method) ? parseQuery(ex.getRequestURI().getRawQuery()) : parseForm(ex);
-        String type = normalizeLiveType(values.get("type"));
-        if (!validateEffectivenessType(ex, type)) return;
-        pruneAlgorithmLabJobs();
-        if ("KENO".equals(type)) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Phòng thử hiện hỗ trợ 5/35, Mega và Power.\"}"); return;
-        }
-        String jobId = nvl(values.get("jobId")).trim();
-        String candidateId = nvl(values.get("candidateId")).trim();
-        if ((!isBlank(jobId) && !validLabId(jobId)) || (!isBlank(candidateId) && !validLabId(candidateId))) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã lượt thử hoặc ứng viên không hợp lệ.\"}"); return;
-        }
-        String action = nvl(values.get("action")).trim();
-        if ("POST".equalsIgnoreCase(method) && ("start_tracking".equals(action) || "stop_tracking".equals(action))) {
-            boolean start = "start_tracking".equals(action);
-            if ((start && (isBlank(jobId) || !isBlank(candidateId))) || (!start && (isBlank(candidateId) || !isBlank(jobId)))) {
-                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn lượt thử hoặc ứng viên cần theo dõi.\"}"); return;
-            }
-            if (!algorithmLabTrackingActionRunning.compareAndSet(false, true)) {
-                sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang cập nhật theo dõi ứng viên. Vui lòng chờ.\"}"); return;
-            }
-            try {
-                String payload = executeLabService("lab_trials.py", start ? "start" : "stop", su.username, type,
-                        start ? "--run-id=" + jobId : "--candidate-id=" + candidateId);
-                Map<String, String> fields = jsonFields(payload);
-                sendJson(ex, 200, "{\"ok\":true,\"type\":" + quoteJson(type)
-                        + ",\"canManage\":true,\"tracking\":" + fields.getOrDefault("tracking", "null") + "}");
-            } catch (Exception failure) { sendAlgorithmLabServiceFailure(ex, failure); }
-            finally { algorithmLabTrackingActionRunning.set(false); }
-            return;
-        }
-        if (!isBlank(candidateId) || ("GET".equalsIgnoreCase(method) && !isBlank(action))) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thao tác phòng thử không hợp lệ.\"}"); return;
-        }
-        AlgorithmLabJob selected = null;
-        if (!isBlank(jobId)) {
-            selected = algorithmLabJobs.get(jobId);
-            if (selected != null && (!selected.owner.equals(su.username) || !selected.type.equals(type))) {
-                sendJson(ex, 404, "{\"ok\":false,\"message\":\"Không tìm thấy lượt thử của tài khoản này.\"}"); return;
-            }
-        }
-        if ("GET".equalsIgnoreCase(method)) {
-            if (isBlank(jobId)) {
-                for (AlgorithmLabJob job : algorithmLabJobs.values()) {
-                    if (job.owner.equals(su.username) && job.type.equals(type)
-                            && (selected == null || job.createdAt.isAfter(selected.createdAt))) selected = job;
-                }
-            }
-            try {
-                String payload = isBlank(jobId)
-                        ? executeLabService("lab_store.py", "overview", su.username, type)
-                        : executeLabService("lab_store.py", "overview", su.username, type, "--run-id=" + jobId);
-                Map<String, String> fields = jsonFields(payload);
-                String storedJob = fields.getOrDefault("job", "null");
-                String chosenJob = selected == null ? storedJob : selected.json();
-                if (isBlank(jobId) && selected != null && !"null".equals(storedJob)) {
-                    try {
-                        Instant storedAt = Instant.parse(jsonString(jsonFields(storedJob).get("createdAt")));
-                        if (storedAt.isAfter(selected.createdAt)) chosenJob = storedJob;
-                    } catch (RuntimeException ignored) { }
-                }
-                if (!isBlank(jobId) && "null".equals(chosenJob)) {
-                    sendJson(ex, 404, "{\"ok\":false,\"message\":\"Không tìm thấy lượt thử của tài khoản này.\"}"); return;
-                }
-                sendJson(ex, 200, "{\"ok\":true,\"type\":" + quoteJson(type)
-                        + ",\"canManage\":" + "admin".equals(su.account.role) + ",\"job\":" + chosenJob
-                        + ",\"history\":" + fields.getOrDefault("history", "[]")
-                        + ",\"tracking\":" + fields.getOrDefault("tracking", "null") + "}");
-            } catch (Exception failure) { sendAlgorithmLabServiceFailure(ex, failure); }
-            return;
-        }
-        if ("cancel".equals(action)) {
-            if (selected == null) {
-                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thiếu mã lượt thử cần hủy.\"}"); return;
-            }
-            synchronized (selected) {
-                if ("running".equals(selected.state)) {
-                    selected.cancelled = true; selected.state = "cancelled";
-                    selected.finishedAt = Instant.now().toString();
-                    if (selected.process != null) selected.process.destroyForcibly();
-                }
-            }
-            sendAlgorithmLabJob(ex, 200, selected, true); return;
-        }
-        if ((!isBlank(action) && !"run".equals(action)) || !isBlank(jobId)) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Thao tác phòng thử không hợp lệ.\"}"); return;
-        }
-        int tickets = isBlank(values.get("ticketCount")) ? 3 : parseStrictPositiveInt(values.get("ticketCount"));
-        int validation = isBlank(values.get("validationCount")) ? 20 : parseStrictPositiveInt(values.get("validationCount"));
-        int test = isBlank(values.get("testCount")) ? 30 : parseStrictPositiveInt(values.get("testCount"));
-        if (tickets < 1 || tickets > 10 || validation < 5 || validation > 50 || test < 5 || test > 50 || validation + test > 100) {
-            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chọn 1–10 vé và 5–50 kỳ cho mỗi tập chọn/đánh giá.\"}"); return;
-        }
-        if (!Files.isRegularFile(rootDir.resolve("ai").resolve("algorithm_lab.py"))) {
-            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Phòng thử chưa sẵn sàng trên server.\"}"); return;
-        }
-        if (!algorithmLabRunning.compareAndSet(false, true)) {
-            sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang có lượt thử thuật toán chạy. Vui lòng chờ hoàn tất.\"}"); return;
-        }
-        AlgorithmLabJob job = new AlgorithmLabJob(su.username, type, tickets, validation, test);
-        algorithmLabJobs.put(job.id, job);
-        Thread worker = new Thread(() -> runAlgorithmLab(job), "algorithm-lab-" + job.id);
-        worker.setDaemon(true);
-        try { worker.start(); }
-        catch (RuntimeException failure) {
-            algorithmLabJobs.remove(job.id); algorithmLabRunning.set(false);
-            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Không khởi chạy được phòng thử.\"}"); return;
-        }
-        sendAlgorithmLabJob(ex, 202, job, true);
-    }
-
-    private void runAlgorithmLab(AlgorithmLabJob job) {
-        Process process = null;
-        try {
-            List<String> command = buildPythonCommand(rootDir.resolve("ai").resolve("algorithm_lab.py"));
-            command.add("--action=run"); command.add("--game=" + job.type);
-            command.add("--ticket-count=" + job.ticketCount);
-            command.add("--validation-count=" + job.validationCount); command.add("--test-count=" + job.testCount);
-            synchronized (job) {
-                if (job.cancelled) return;
-                process = new ProcessBuilder(command).directory(rootDir.toFile()).start(); job.process = process;
-            }
-            ProcessOutput output = waitForLabProcessOutput(process, AI_ML_TIMEOUT_SECONDS, job);
-            String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
-            synchronized (job) {
-                if (job.cancelled) return;
-                if (!output.finished) throw new IllegalArgumentException("Lượt thử quá thời gian chờ; hãy giảm số kỳ.");
-                Map<String, String> fields = jsonFields(payload);
-                if (output.exitCode != 0 || !"true".equals(fields.get("ok"))) {
-                    String message = jsonString(fields.get("message"));
-                    throw new IllegalArgumentException(isBlank(message) ? "Không hoàn tất lượt thử thuật toán." : message);
-                }
-                if (!job.type.equals(jsonString(fields.get("type")))) throw new IllegalArgumentException("Báo cáo không khớp loại xổ số đã chọn.");
-                String finishedAt = Instant.now().toString();
-                Path reportFile = Files.createTempFile(rootDir.resolve("runtime"), "algorithm-lab-report-", ".json");
-                try {
-                    Files.write(reportFile, payload.getBytes(StandardCharsets.UTF_8));
-                    executeLabService("lab_store.py", "save", job.owner, job.type,
-                            "--run-id=" + job.id, "--created-at=" + job.createdAt,
-                            "--finished-at=" + finishedAt, "--report-file=" + reportFile);
-                } finally { Files.deleteIfExists(reportFile); }
-                job.report = payload; job.state = "completed"; job.finishedAt = finishedAt;
-            }
-        } catch (Exception failure) {
-            if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
-            synchronized (job) {
-                if (!job.cancelled) {
-                    job.state = "failed";
-                    job.error = failure instanceof IllegalArgumentException ? nvl(failure.getMessage()) : "Không chạy được phòng thử thuật toán.";
-                    job.finishedAt = Instant.now().toString();
-                }
-            }
-        } finally {
-            if (process != null) process.destroyForcibly();
-            synchronized (job) { job.process = null; if (isBlank(job.finishedAt)) job.finishedAt = Instant.now().toString(); }
-            algorithmLabRunning.set(false);
-        }
     }
 
     private void handleMlStatus(HttpExchange ex) throws IOException {
@@ -2891,7 +2687,43 @@ public class LottoWebServer {
 
     // ----- API quản trị -----
     // Nhóm route chỉ dành cho admin: user list, sửa quyền, đổi tên, reset/xóa tài khoản.
+    private void recordAccess(HttpExchange ex, Account account, String token, String tab, boolean active) {
+        long now = System.currentTimeMillis();
+        accessPresence.entrySet().removeIf(entry -> now-entry.getValue().seenAt>PRESENCE_TIMEOUT_MS || !sessions.containsKey(entry.getValue().token));
+        if (!"login".equals(tab)) accessPresence.remove(token + ".login");
+        String key = token + "." + tab;
+        if(!accessPresence.containsKey(key)&&accessPresence.values().stream().filter(p->token.equals(p.token)).count()>=32)throw new IllegalArgumentException("Quá nhiều tab hoạt động.");
+        if (accessPresence.size()>=16384 && !accessPresence.containsKey(key)) throw new IllegalArgumentException("Quá nhiều phiên hoạt động.");
+        String ua = nvl(ex.getRequestHeaders().getFirst("User-Agent"));
+        if (ua.length()>1024) ua=ua.substring(0,1024);
+        String device = ua.contains("iPad") ? "Máy tính bảng · iPadOS" : ua.contains("iPhone") ? "Điện thoại · iOS" : ua.contains("Android") ? (ua.contains("Mobile") ? "Điện thoại · Android" : "Máy tính bảng · Android") : ua.contains("Windows") ? "Máy tính · Windows" : ua.contains("Macintosh") ? "Máy tính · macOS" : ua.contains("Linux") ? "Máy tính · Linux" : "Chưa xác định";
+        String browser = "Chưa xác định";
+        String[][] agents = {{"(?:Edg|EdgA|EdgiOS)/([0-9]+)","Edge"},{"(?:OPR|Opera)/([0-9]+)","Opera"},{"(?:Firefox|FxiOS)/([0-9]+)","Firefox"},{"(?:Chrome|CriOS)/([0-9]+)","Chrome"},{"Version/([0-9]+).*Safari/","Safari"}};
+        for (String[] agent: agents) { Matcher match=Pattern.compile(agent[0]).matcher(ua); if(match.find()){browser=agent[1]+" "+match.group(1);break;} }
+        String network = ex.getRemoteAddress().getAddress().getHostAddress();
+        // Use the actual peer address; untrusted forwarding headers cannot forge it.
+        repo.recordUserAccess(account.accountId,network,device,browser,now);
+        accessPresence.put(key,new AccessPresence(token,account.accountId,now,active));
+    }
+
+    private void handlePresence(HttpExchange ex) throws IOException {
+        if(handleOptions(ex))return;
+        ex.getResponseHeaders().set("Cache-Control","no-store");
+        SessionUser user=requireAuth(ex,true); if(user==null)return;
+        if(!"POST".equals(ex.getRequestMethod())){sendJson(ex,405,"{\"ok\":false}");return;}
+        try {
+            Map<String,String> form=parseForm(ex); String tab=form.getOrDefault("tabId",""), state=form.getOrDefault("state","");
+            if(!tab.matches("[a-f0-9]{24,32}")||!Arrays.asList("active","idle","offline").contains(state))throw new IllegalArgumentException("Tín hiệu hoạt động không hợp lệ.");
+            String token=getCookie(ex,COOKIE_NAME);
+            if(state.equals("offline")){accessPresence.remove(token+"."+tab);accessPresence.remove(token+".login");}
+            else recordAccess(ex,user.account,token,tab,state.equals("active"));
+            sendJson(ex,200,"{\"ok\":true}");
+        }catch(IllegalArgumentException invalid){sendJson(ex,400,"{\"ok\":false,\"message\":"+quoteJson(invalid.getMessage())+"}");}
+        catch(RuntimeException failed){sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa cập nhật được trạng thái truy cập.\"}");}
+    }
+
     private void handleAdminUsers(HttpExchange ex) throws IOException {
+        ex.getResponseHeaders().set("Cache-Control","no-store");
         if (handleOptions(ex)) return;
         SessionUser su = requireAdmin(ex);
         if (su == null) return;
@@ -2900,20 +2732,59 @@ public class LottoWebServer {
             return;
         }
         List<UserView> users = repo.listUsers();
+        String idFilter = parseQuery(ex.getRequestURI().getRawQuery()).getOrDefault("accountId", "");
+        if (!idFilter.isEmpty()) {
+            if (!idFilter.matches("[1-9][0-9]{11}")) { sendJson(ex, 400, "{\"ok\":false,\"message\":\"ID tài khoản phải gồm 12 chữ số.\"}"); return; }
+            users.removeIf(account -> !idFilter.equals(account.accountId));
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("{\"ok\":true,\"users\":[");
         for (int i = 0; i < users.size(); i++) {
             UserView u = users.get(i);
+            long now=System.currentTimeMillis(),lastSeen=u.lastSeen; boolean online=false,active=false;
+            for(AccessPresence presence:accessPresence.values())if(presence.accountId.equals(u.accountId)&&now-presence.seenAt<=PRESENCE_TIMEOUT_MS&&sessionExpiry.getOrDefault(presence.token,0L)>now&&u.username.equals(sessions.get(presence.token))){online=true;active|=presence.active;lastSeen=Math.max(lastSeen,presence.seenAt);}
+            String accessStatus=!u.enabled||!online?"offline":active?"active":"idle";
+            boolean vipActive="admin".equals(u.role);
+            try { vipActive|=Instant.parse(u.vipExpiresAt).isAfter(Instant.now()); } catch(DateTimeParseException invalid) { }
             if (i > 0) sb.append(",");
             sb.append("{\"username\":\"").append(esc(u.username)).append("\",")
+                    .append("\"accountId\":").append(quoteJson(u.accountId)).append(",")
                     .append("\"role\":\"").append(esc(u.role)).append("\",")
                     .append("\"enabled\":").append(u.enabled).append(",")
                     .append("\"hasData\":").append(u.hasData).append(",")
                     .append("\"diamondBalance\":").append(u.diamondBalance).append(",")
-                    .append("\"paypalBalance\":").append(u.paypalBalance).append("}");
+                    .append("\"paypalBalance\":").append(u.paypalBalance).append(",")
+                    .append("\"vipExpiresAt\":").append(quoteJson(u.vipExpiresAt)).append(",")
+                    .append("\"vipActive\":").append(vipActive).append(",")
+                    .append("\"networkAddress\":").append(quoteJson(u.networkAddress)).append(",")
+                    .append("\"device\":").append(quoteJson(u.device)).append(",")
+                    .append("\"browser\":").append(quoteJson(u.browser)).append(",")
+                    .append("\"lastSeen\":").append(lastSeen).append(",")
+                    .append("\"accessStatus\":").append(quoteJson(accessStatus)).append("}");
         }
         sb.append("]}");
         sendJson(ex, 200, sb.toString());
+    }
+
+    private void handleAccountHistory(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        if (requireAdmin(ex) == null) return;
+        if (!"GET".equals(ex.getRequestMethod())) { sendJson(ex, 405, "{\"ok\":false}"); return; }
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        String id = parseQuery(ex.getRequestURI().getRawQuery()).getOrDefault("accountId", "");
+        if (!id.matches("[1-9][0-9]{11}")) { sendJson(ex, 400, "{\"ok\":false,\"message\":\"ID tài khoản phải gồm 12 chữ số.\"}"); return; }
+        try { sendJson(ex, 200, repo.accountHistory(id)); }
+        catch (IllegalStateException missing) { sendJson(ex, 404, "{\"ok\":false,\"message\":" + quoteJson(missing.getMessage()) + "}"); }
+    }
+
+    private String adminTarget(Map<String, String> form) {
+        String user = normalizeUser(form.get("username")), id = form.getOrDefault("accountId", "");
+        if (id.isEmpty()) return user;
+        if (!id.matches("[1-9][0-9]{11}")) throw new IllegalStateException("ID tài khoản không hợp lệ.");
+        String owner = repo.usernameForAccountId(id);
+        if (owner.isEmpty()) throw new IllegalStateException("ID tài khoản không tồn tại hoặc đã bị xóa.");
+        if (!user.isEmpty() && !user.equals(owner)) throw new IllegalStateException("ID và tên tài khoản không khớp. Hãy tải lại danh sách.");
+        return owner;
     }
 
     private void handleAdminUpdateUser(HttpExchange ex) throws IOException {
@@ -2929,6 +2800,7 @@ public class LottoWebServer {
         String role = "admin".equalsIgnoreCase(f.get("role")) ? "admin" : "user";
         boolean enabled = "true".equalsIgnoreCase(f.get("enabled")) || "1".equals(f.get("enabled")) || "on".equalsIgnoreCase(f.get("enabled"));
         try {
+            user = adminTarget(f);
             repo.updateUser(user, role, enabled, su.username);
             sendJson(ex, 200, "{\"ok\":true}");
         } catch (IllegalStateException e) {
@@ -2948,7 +2820,8 @@ public class LottoWebServer {
         String user = normalizeUser(f.get("username"));
         String newUser = normalizeUser(f.get("newUsername"));
         try {
-            repo.renameUser(user, newUser);
+            user = adminTarget(f);
+            repo.renameUser(user, newUser, su.username);
             if (su.username.equals(user)) {
                 String token = getCookie(ex, COOKIE_NAME);
                 if (token != null) sessions.put(token, newUser);
@@ -3023,13 +2896,24 @@ public class LottoWebServer {
         Map<String, String> f = parseForm(ex);
         String user = normalizeUser(f.get("username"));
         try {
+            user = adminTarget(f);
             long diamond = parseAccountBalance(f.get("diamond"), "Kim cương");
             long paypal = parseAccountBalance(f.get("paypal"), "PayPal");
-            repo.updateAssets(user, diamond, paypal, su.username);
+            Long expectedDiamond = null, expectedPaypal = null;
+            if (f.containsKey("expectedDiamond") || f.containsKey("expectedPaypal")) {
+                expectedDiamond = parseExpectedBalance(f.get("expectedDiamond"));
+                expectedPaypal = parseExpectedBalance(f.get("expectedPaypal"));
+            }
+            repo.updateAssets(user, diamond, paypal, su.username, expectedDiamond, expectedPaypal);
             sendJson(ex, 200, "{\"ok\":true}");
         } catch (IllegalStateException e) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":\"" + esc(e.getMessage()) + "\"}");
         }
+    }
+
+    private static long parseExpectedBalance(String value) {
+        String raw = nvl(value).trim();
+        return raw.startsWith("-") ? -parseAccountBalance(raw.substring(1), "Số dư ban đầu") : parseAccountBalance(raw, "Số dư ban đầu");
     }
 
     private void handleAdminResetPassword(HttpExchange ex) throws IOException {
@@ -3044,6 +2928,7 @@ public class LottoWebServer {
         String user = normalizeUser(f.get("username"));
         String pass = nvl(f.get("newPassword")).trim();
         try {
+            user = adminTarget(f);
             repo.resetPassword(user, pass);
             sendJson(ex, 200, "{\"ok\":true}");
         } catch (IllegalStateException e) {
@@ -3062,6 +2947,7 @@ public class LottoWebServer {
         Map<String, String> f = parseForm(ex);
         String user = normalizeUser(f.get("username"));
         try {
+            user = adminTarget(f);
             repo.deleteUser(user, su.username);
             sendJson(ex, 200, "{\"ok\":true}");
         } catch (IllegalStateException e) {
@@ -3600,7 +3486,7 @@ public class LottoWebServer {
     }
 
     private static boolean protectedStoreField(String key) {
-        return key.equals("paymentOrders") || key.equals("diamondBalance") || key.equals("paypalBalance") || key.startsWith("vip")
+        return key.equals("accountId") || key.equals("paypalTopups") || key.equals("paymentOrders") || key.equals("diamondBalance") || key.equals("paypalBalance") || key.startsWith("vip")
                 || key.startsWith("luckyWheel") || key.equals("walletVersion");
     }
 
@@ -3624,7 +3510,7 @@ public class LottoWebServer {
 
     // VNPAY 2.1.0: browser return never settles an order; only verified IPN does.
     private static class VnpayConfig {
-        boolean enabled; String mode, tmn, secret, base; long maximum = 10000000L;
+        boolean enabled; String mode, tmn, secret, base; long maximum = 100000000L;
         boolean ready() { return ("sandbox".equals(mode) || "production".equals(mode)) && tmn.matches("[A-Za-z0-9]{8}") && secret.length() >= 16 && !base.isEmpty(); }
         String endpoint() { return "production".equals(mode) ? "https://pay.vnpay.vn/vpcpay.html" : "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"; }
     }
@@ -3650,7 +3536,7 @@ public class LottoWebServer {
                     || (local && "production".equals(cfg.mode))) cfg.base = "";
             else if (cfg.base.endsWith("/")) cfg.base = cfg.base.substring(0, cfg.base.length() - 1);
         } catch (IllegalArgumentException invalid) { cfg.base = ""; }
-        try { long max = Long.parseLong(socialSetting(p, "maxAmount", "LOTTO_VNPAY_MAX_AMOUNT")); if (max >= 10000 && max <= 100000000) cfg.maximum = max; }
+        try { long max = Long.parseLong(socialSetting(p, "maxAmount", "LOTTO_VNPAY_MAX_AMOUNT")); if (max >= 20000) cfg.maximum = Math.min(max, 100000000L); }
         catch (NumberFormatException ignored) { }
         return cfg;
     }
@@ -3738,7 +3624,7 @@ public class LottoWebServer {
         SessionUser user = requireAuth(ex, true);
         if (user == null) return;
         if ("GET".equals(method) && path.equals("/api/payments/vnpay/config")) {
-            sendJson(ex, 200, "{\"ok\":true,\"configured\":" + (cfg.enabled && cfg.ready()) + ",\"environment\":" + quoteJson(cfg.mode) + ",\"minimum\":10000,\"step\":1000,\"maximum\":" + cfg.maximum + "}"); return;
+            sendJson(ex, 200, "{\"ok\":true,\"configured\":" + (cfg.enabled && cfg.ready()) + ",\"environment\":" + quoteJson(cfg.mode) + ",\"minimum\":1000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"maximum\":" + cfg.maximum + "}"); return;
         }
         try {
             if ("GET".equals(method) && path.equals("/api/payments/vnpay/orders")) {
@@ -3750,7 +3636,6 @@ public class LottoWebServer {
                 String raw = form.getOrDefault("amount", ""), request = form.getOrDefault("requestId", "");
                 if (!raw.matches("[0-9]{1,9}") || !request.matches("[A-Za-z0-9_-]{16,64}")) throw new IllegalArgumentException("Số tiền hoặc mã yêu cầu không hợp lệ.");
                 long amount = Long.parseLong(raw);
-                if (amount < 10000 || amount > cfg.maximum || amount % 1000 != 0) throw new IllegalArgumentException("Số tiền phải từ 10.000 VNĐ, là bội số 1.000 VNĐ và trong giới hạn cho phép.");
                 Map<String, String> order = repo.createVnpay(user.username, request, amount, cfg);
                 String checkout = "";
                 if (order.get("status").equals("PENDING") && Instant.parse(order.get("expiresAt")).isAfter(Instant.now())) checkout = vnpayPaymentUrl(order, cfg, ex.getRemoteAddress().getAddress().getHostAddress());
@@ -3761,10 +3646,85 @@ public class LottoWebServer {
         catch (RuntimeException failed) { sendJson(ex, 500, "{\"ok\":false,\"message\":\"Chưa xử lý được giao dịch. Hãy thử lại với cùng yêu cầu.\"}"); }
     }
 
+    private static String topupText(Map<String, String> form, String key, int min, int max) {
+        String value = form.getOrDefault(key, "").trim();
+        if (value.length() < min || value.length() > max || value.chars().anyMatch(ch -> Character.isISOControl(ch) && ch != '\n' && ch != '\r'))
+            throw new IllegalArgumentException("Thông tin " + key + " chưa hợp lệ hoặc quá dài.");
+        return value;
+    }
+
+    private static boolean validTopupAmount(long amount) {
+        return amount == 20000 || amount == 50000 || amount == 100000 || amount == 200000 || amount == 500000 ||
+            (amount >= 1000000 && amount <= 100000000 && amount % 100000 == 0);
+    }
+
+    private void handleManualTopup(HttpExchange ex) throws IOException {
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        if (handleOptions(ex)) return;
+        String path = ex.getRequestURI().getPath(), method = ex.getRequestMethod();
+        boolean admin = path.startsWith("/api/admin/");
+        SessionUser user = admin ? requireAdmin(ex) : requireAuth(ex, true);
+        if (user == null) return;
+        try {
+            if ("GET".equals(method) && path.equals("/api/payments/manual")) {
+                sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(null)) + ",\"minimum\":1000000,\"maximum\":100000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"orders\":" + repo.manualTopups(user.username, "all", 0) + ",\"legacyKeys\":" + repo.migratedLegacyKeys(user.username) + ",\"store\":" + repo.publicWallet(user.username) + "}"); return;
+            }
+            if ("GET".equals(method) && path.equals("/api/admin/deposits")) {
+                Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
+                String status = query.getOrDefault("status", "PENDING"), rawPage = query.getOrDefault("page", "0");
+                if (!Arrays.asList("PENDING", "PAID", "REJECTED", "OWNER_DELETED", "all").contains(status) || !rawPage.matches("[0-9]{1,6}")) throw new IllegalArgumentException("Bộ lọc không hợp lệ.");
+                int page = Integer.parseInt(rawPage);
+                sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(null)) + ",\"orders\":" + repo.manualTopups(null, status, page) + ",\"total\":" + repo.manualTopupCount(status) + "}"); return;
+            }
+            if ("POST".equals(method)) {
+                Map<String, String> form = parseForm(ex);
+                if (path.equals("/api/payments/manual")) {
+                    String raw = form.getOrDefault("amount", ""), request = form.getOrDefault("requestId", "");
+                    if (!raw.matches("[0-9]{1,9}") || !request.matches("[A-Za-z0-9_-]{16,64}")) throw new IllegalArgumentException("Số tiền hoặc mã yêu cầu không hợp lệ.");
+                    long amount = Long.parseLong(raw);
+                    Map<String, String> details = new LinkedHashMap<>();
+                    if ("account-id".equals(form.get("mode"))) {
+                        details.put("transferMemo", user.account.accountId);
+                        for (String key : Arrays.asList("sender", "channel", "reference", "email", "note", "transferredAt")) details.put(key, "");
+                    } else {
+                      details.put("channel", topupText(form, "channel", 2, 80));
+                      details.put("reference", topupText(form, "reference", 3, 100));
+                      if (form.containsKey("email")) {
+                        String email = topupText(form, "email", 3, 254);
+                        if (!email.matches("[^\\s@<>]+@[^\\s@<>]+\\.[^\\s@<>]+")) throw new IllegalArgumentException("Email chưa hợp lệ.");
+                        if (!Arrays.asList("MB Bank", "Agribank", "MoMo", "ZaloPay").contains(details.get("channel"))) throw new IllegalArgumentException("Chọn ngân hàng / ví trong danh sách.");
+                        details.put("email", email);
+                        details.put("sender", ""); details.put("note", ""); details.put("transferredAt", "");
+                    } else {
+                        // Old clients may retry an existing order, but cannot create one without email.
+                        details.put("sender", topupText(form, "sender", 2, 100));
+                        details.put("note", topupText(form, "note", 0, 500));
+                        try { details.put("transferredAt", Instant.parse(form.getOrDefault("transferredAt", "")).toString()); }
+                        catch (Exception invalid) { throw new IllegalArgumentException("Vui lòng nhập Email để gửi yêu cầu nạp."); }
+                      }
+                    }
+                    sendJson(ex, 200, "{\"ok\":true,\"order\":" + repo.createManualTopup(user.username, request, amount, details) + "}"); return;
+                }
+                if (path.equals("/api/admin/deposits/settings")) {
+                    sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(topupText(form, "instructions", 0, 2000))) + "}"); return;
+                }
+                if (path.equals("/api/admin/deposits/review")) {
+                    String id = form.getOrDefault("id", ""), action = form.getOrDefault("action", "");
+                    if (!id.matches("[a-f0-9]{32}") || !Arrays.asList("approve", "reject").contains(action)) throw new IllegalArgumentException("Yêu cầu duyệt không hợp lệ.");
+                    String note = topupText(form, "reviewNote", 0, 500);
+                    if (action.equals("reject") && note.isEmpty()) throw new IllegalArgumentException("Vui lòng nhập lý do từ chối.");
+                    sendJson(ex, 200, "{\"ok\":true,\"order\":" + repo.reviewManualTopup(user.username, id, action.equals("approve"), note) + "}"); return;
+                }
+            }
+            sendJson(ex, 405, "{\"ok\":false,\"message\":\"Thao tác không được hỗ trợ.\"}");
+        } catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        catch (RuntimeException failed) { sendJson(ex, 500, "{\"ok\":false,\"message\":\"Chưa xử lý được yêu cầu. Vui lòng kiểm tra trạng thái rồi thử lại.\"}"); }
+    }
+
     private static String paymentOrderJson(Map<String, String> p) {
         Map<String, String> result = new LinkedHashMap<>();
-        for (String key : Arrays.asList("id", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo")) result.put(key, quoteJson(p.getOrDefault(key, "")));
-        if ("PENDING".equals(p.get("status")) && !Instant.parse(p.get("expiresAt")).isAfter(Instant.now())) result.put("status", quoteJson("EXPIRED"));
+        for (String key : Arrays.asList("id", "accountId", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo")) result.put(key, quoteJson(p.getOrDefault(key, "")));
+        if (!"manual".equals(p.get("environment")) && "PENDING".equals(p.get("status")) && !Instant.parse(p.get("expiresAt")).isAfter(Instant.now())) result.put("status", quoteJson("EXPIRED"));
         for (String key : Arrays.asList("amount", "baseCredit", "bonusCredit", "credit")) result.put(key, p.get(key));
         return fieldsJson(result);
     }
@@ -3789,9 +3749,9 @@ public class LottoWebServer {
         if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) { sendJson(ex, 405, "{\"ok\":false}"); return; }
         Map<String, String> form = parseForm(ex);
         try {
-            repo.grantVip(normalizeUser(form.get("username")), form.get("expiresAt"), su.username);
+            repo.grantVip(adminTarget(form), form.get("expiresAt"), su.username);
             sendJson(ex, 200, "{\"ok\":true}");
-        } catch (IllegalArgumentException invalid) {
+        } catch (IllegalArgumentException | IllegalStateException invalid) {
             sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}");
         }
     }
@@ -3919,63 +3879,6 @@ public class LottoWebServer {
         return new ProcessOutput(finished, exitCode, stdout.toByteArray(), stderr.toByteArray());
     }
 
-    private static ProcessOutput waitForLabProcessOutput(Process process) throws IOException, InterruptedException {
-        return waitForLabProcessOutput(process, AI_ML_TIMEOUT_SECONDS);
-    }
-
-    private static ProcessOutput waitForLabProcessOutput(Process process, long timeoutSeconds) throws IOException, InterruptedException {
-        return waitForLabProcessOutput(process, timeoutSeconds, null);
-    }
-
-    private static ProcessOutput waitForLabProcessOutput(Process process, long timeoutSeconds, AlgorithmLabJob job) throws IOException, InterruptedException {
-        LimitedProcessOutput stdout = new LimitedProcessOutput(8 * 1024 * 1024, process);
-        LimitedProcessOutput stderr = new LimitedProcessOutput(256 * 1024, process);
-        Thread outThread = pumpProcessStream(process.getInputStream(), stdout, "lab-stdout");
-        Thread errThread = job == null ? pumpProcessStream(process.getErrorStream(), stderr, "lab-stderr")
-                : pumpLabProgress(process.getErrorStream(), stderr, job);
-        boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
-        if (!finished) { process.destroyForcibly(); process.waitFor(5, TimeUnit.SECONDS); }
-        joinQuietly(outThread, 5000); joinQuietly(errThread, 5000);
-        if (stdout.exceeded || stderr.exceeded) throw new IllegalArgumentException("Lượt thử vượt giới hạn dung lượng báo cáo hoặc nhật ký.");
-        return new ProcessOutput(finished, finished ? process.exitValue() : -1, stdout.bytes(), stderr.bytes());
-    }
-
-    private static Thread pumpLabProgress(InputStream input, LimitedProcessOutput output, AlgorithmLabJob job) {
-        Thread thread = new Thread(() -> {
-            ByteArrayOutputStream line = new ByteArrayOutputStream();
-            boolean tooLong = false;
-            try {
-                byte[] bytes = new byte[8192];
-                int count;
-                while ((count = input.read(bytes)) != -1) {
-                    output.write(bytes, 0, count);
-                    for (int index = 0; index < count; index++) {
-                        if (bytes[index] == '\n') {
-                            if (!tooLong) {
-                                try {
-                                    Map<String, String> fields = jsonFields(new String(line.toByteArray(), StandardCharsets.UTF_8));
-                                    int done = Integer.parseInt(fields.get("completed"));
-                                    int total = Integer.parseInt(fields.get("total"));
-                                    synchronized (job) {
-                                        if (total == job.validationCount + job.testCount && done >= job.completedFolds && done <= total) {
-                                            job.completedFolds = done;
-                                        }
-                                    }
-                                } catch (RuntimeException ignored) { }
-                            }
-                            line.reset(); tooLong = false;
-                        } else if (line.size() < 4096 && !tooLong) {
-                            line.write(bytes[index]);
-                        } else { tooLong = true; }
-                    }
-                }
-            } catch (IOException ignored) { }
-        }, "lab-progress");
-        thread.setDaemon(true);
-        thread.start();
-        return thread;
-    }
-
     private static Thread pumpProcessStream(InputStream input, OutputStream output, String name) {
         Thread thread = new Thread(() -> {
             try {
@@ -4035,6 +3938,8 @@ public class LottoWebServer {
             this.jdbcUrl = "jdbc:sqlite:" + file.toAbsolutePath();
             ensureDriver();
             initSchema();
+            migrateAccountIds();
+            migrateLegacyTopups();
         }
 
         private void ensureDriver() {
@@ -4071,8 +3976,26 @@ public class LottoWebServer {
                 st.execute("CREATE TABLE IF NOT EXISTS account_entitlements (username TEXT PRIMARY KEY, vip_expires_at TEXT NOT NULL, updated_at TEXT NOT NULL)");
                 st.execute("CREATE TABLE IF NOT EXISTS wallet_events (username TEXT NOT NULL, request_id TEXT NOT NULL, action TEXT NOT NULL, response_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(username,request_id))");
                 st.execute("CREATE TABLE IF NOT EXISTS account_audit (event_id TEXT PRIMARY KEY, actor TEXT NOT NULL, target TEXT NOT NULL, action TEXT NOT NULL, details_json TEXT NOT NULL, created_at TEXT NOT NULL)");
+                st.execute("CREATE TABLE IF NOT EXISTS account_identities (account_id TEXT PRIMARY KEY NOT NULL CHECK(length(account_id)=12 AND account_id NOT GLOB '*[^0-9]*' AND substr(account_id,1,1)<>'0'),username TEXT UNIQUE,last_username TEXT NOT NULL,created_at TEXT NOT NULL,deleted_at TEXT NOT NULL DEFAULT '')");
+                st.execute("CREATE TABLE IF NOT EXISTS account_access (account_id TEXT PRIMARY KEY,network_address TEXT NOT NULL DEFAULT '',device TEXT NOT NULL DEFAULT '',browser TEXT NOT NULL DEFAULT '',last_seen INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(account_id) REFERENCES account_identities(account_id))");
+                st.execute("CREATE TRIGGER IF NOT EXISTS account_id_immutable BEFORE UPDATE OF account_id ON account_identities WHEN NEW.account_id<>OLD.account_id BEGIN SELECT RAISE(ABORT,'Account ID is immutable'); END");
+                st.execute("CREATE TRIGGER IF NOT EXISTS account_id_never_reuse BEFORE DELETE ON account_identities BEGIN SELECT RAISE(ABORT,'Account IDs cannot be deleted or reused'); END");
+                st.execute("CREATE TABLE IF NOT EXISTS account_activity_links (event_id TEXT PRIMARY KEY,actor_account_id TEXT NOT NULL DEFAULT '',target_account_id TEXT NOT NULL DEFAULT '')");
+                st.execute("CREATE INDEX IF NOT EXISTS account_activity_target ON account_activity_links(target_account_id)");
+                st.execute("CREATE TRIGGER IF NOT EXISTS account_audit_identity AFTER INSERT ON account_audit BEGIN INSERT INTO account_activity_links(event_id,actor_account_id,target_account_id) VALUES(NEW.event_id,COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.actor),''),COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.target),'')); END");
+                st.execute("CREATE TABLE IF NOT EXISTS personal_tracking_accounts (id TEXT PRIMARY KEY,username TEXT NOT NULL UNIQUE)");
+                st.execute("CREATE TABLE IF NOT EXISTS prediction_charges (id TEXT PRIMARY KEY,account_id TEXT NOT NULL,game_type TEXT NOT NULL,target_draw_id TEXT NOT NULL,ticket_count INTEGER NOT NULL,paypal_cost INTEGER NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,settled_at TEXT NOT NULL DEFAULT '')");
+                st.execute("CREATE INDEX IF NOT EXISTS prediction_charges_pending ON prediction_charges(account_id,status)");
                 st.execute("CREATE TABLE IF NOT EXISTS payment_orders (id TEXT PRIMARY KEY,username TEXT NOT NULL,request_id TEXT NOT NULL,environment TEXT NOT NULL,tmn_code TEXT NOT NULL,amount INTEGER NOT NULL,base_credit INTEGER NOT NULL,bonus_credit INTEGER NOT NULL,credit INTEGER NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,paid_at TEXT NOT NULL DEFAULT '',transaction_no TEXT,UNIQUE(username,request_id))");
                 st.execute("CREATE UNIQUE INDEX IF NOT EXISTS payment_transaction_unique ON payment_orders(environment,tmn_code,transaction_no) WHERE transaction_no IS NOT NULL");
+                st.execute("CREATE TABLE IF NOT EXISTS manual_topup_details (order_id TEXT PRIMARY KEY,sender TEXT NOT NULL,channel TEXT NOT NULL,reference TEXT NOT NULL,transfer_key TEXT NOT NULL UNIQUE,transferred_at TEXT NOT NULL,note TEXT NOT NULL,reviewer TEXT NOT NULL DEFAULT '',review_note TEXT NOT NULL DEFAULT '',reviewed_at TEXT NOT NULL DEFAULT '')");
+                Set<String> topupColumns = new HashSet<>();
+                try (ResultSet columns = st.executeQuery("PRAGMA table_info(manual_topup_details)")) { while (columns.next()) topupColumns.add(columns.getString("name")); }
+                for (String column : Arrays.asList("legacy_key", "legacy_json", "legacy_email", "legacy_time_text", "email", "transfer_memo"))
+                    if (!topupColumns.contains(column)) st.execute("ALTER TABLE manual_topup_details ADD COLUMN " + column + " TEXT NOT NULL DEFAULT ''");
+                st.execute("CREATE TABLE IF NOT EXISTS manual_topup_settings (id INTEGER PRIMARY KEY CHECK(id=1),instructions TEXT NOT NULL)");
+                st.execute("CREATE TABLE IF NOT EXISTS manual_topup_legacy_sources (order_id TEXT NOT NULL,source_key TEXT NOT NULL,source_json TEXT NOT NULL,PRIMARY KEY(order_id,source_key))");
+                st.execute("CREATE INDEX IF NOT EXISTS payment_review_status ON payment_orders(environment,status,created_at)");
                 st.execute("CREATE TABLE IF NOT EXISTS gift_codes (code TEXT PRIMARY KEY, diamond INTEGER NOT NULL, paypal INTEGER NOT NULL, vip_days INTEGER NOT NULL, bonus_spins INTEGER NOT NULL, max_uses INTEGER NOT NULL, used_count INTEGER NOT NULL DEFAULT 0, expires_at TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL)");
                 st.execute("CREATE TABLE IF NOT EXISTS gift_code_redemptions (code TEXT NOT NULL, username TEXT NOT NULL, redeemed_at TEXT NOT NULL, PRIMARY KEY(code,username))");
                 Set<String> codeColumns = new HashSet<>();
@@ -4090,19 +4013,107 @@ public class LottoWebServer {
                     while (columns.next()) redemptionColumns.add(columns.getString("name"));
                 }
                 if (!redemptionColumns.contains("received_count")) st.execute("ALTER TABLE gift_code_redemptions ADD COLUMN received_count INTEGER NOT NULL DEFAULT 1");
+                if (!redemptionColumns.contains("account_id")) st.execute("ALTER TABLE gift_code_redemptions ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
+                Set<String> paymentColumns = new HashSet<>();
+                try (ResultSet columns = st.executeQuery("PRAGMA table_info(payment_orders)")) { while (columns.next()) paymentColumns.add(columns.getString("name")); }
+                if (!paymentColumns.contains("account_id")) st.execute("ALTER TABLE payment_orders ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
+                st.execute("CREATE INDEX IF NOT EXISTS payment_account_id ON payment_orders(account_id,created_at)");
+                st.execute("CREATE TRIGGER IF NOT EXISTS payment_owner_identity AFTER INSERT ON payment_orders WHEN NEW.account_id='' BEGIN UPDATE payment_orders SET account_id=COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.username),'') WHERE id=NEW.id; END");
+                st.execute("CREATE TRIGGER IF NOT EXISTS gift_recipient_identity AFTER INSERT ON gift_code_redemptions WHEN NEW.account_id='' BEGIN UPDATE gift_code_redemptions SET account_id=COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.username),'') WHERE code=NEW.code AND username=NEW.username; END");
             } catch (SQLException e) {
                 throw new RuntimeException("Không thể khởi tạo schema SQLite: " + e.getMessage(), e);
             }
         }
 
+        private String accountIdOf(Connection c, String user) throws SQLException {
+            try (PreparedStatement ps = c.prepareStatement("SELECT account_id FROM account_identities WHERE username=?")) {
+                ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getString(1) : ""; }
+            }
+        }
+
+        private String assignAccountId(Connection c, String user) throws SQLException {
+            String existing = accountIdOf(c, user);
+            if (!existing.isEmpty()) return existing;
+            // The database reserves each candidate atomically. A random collision
+            // retries; a retired ID remains reserved forever.
+            for (int attempt = 0; attempt < 128; attempt++) {
+                StringBuilder id = new StringBuilder().append(1 + random.nextInt(9));
+                for (int digit = 1; digit < 12; digit++) id.append(random.nextInt(10));
+                try (PreparedStatement ps = c.prepareStatement("INSERT OR IGNORE INTO account_identities(account_id,username,last_username,created_at) VALUES(?,?,?,?)")) {
+                    ps.setString(1, id.toString()); ps.setString(2, user); ps.setString(3, user); ps.setString(4, Instant.now().toString());
+                    if (ps.executeUpdate() == 1) return id.toString();
+                }
+            }
+            throw new IllegalStateException("Chưa cấp được ID duy nhất. Vui lòng thử lại.");
+        }
+
+        private void migrateAccountIds() {
+            try (Connection c = conn(); Statement st = c.createStatement()) {
+                c.setAutoCommit(false);
+                try {
+                    st.executeUpdate("UPDATE account_identities SET created_at=created_at WHERE 0");
+                    List<String> names = new ArrayList<>();
+                    try (ResultSet rs = st.executeQuery("SELECT username FROM users")) { while (rs.next()) names.add(rs.getString(1)); }
+                    for (String user : names) assignAccountId(c, user);
+                    for (String table : Arrays.asList("payment_orders", "gift_code_redemptions"))
+                        st.executeUpdate("UPDATE " + table + " SET account_id=COALESCE((SELECT i.account_id FROM account_identities i WHERE i.username=" + table + ".username),'') WHERE account_id=''");
+                    // Keep even an unknown historical identity fixed; never attach
+                    // an old event to a later account reusing the same username.
+                    List<String[]> historical = new ArrayList<>();
+                    try (ResultSet rs = st.executeQuery("SELECT a.event_id,a.action,a.details_json FROM account_audit a LEFT JOIN account_activity_links l ON l.event_id=a.event_id WHERE l.event_id IS NULL")) {
+                        while (rs.next()) historical.add(new String[]{rs.getString(1),rs.getString(2),rs.getString(3)});
+                    }
+                    for (String[] event : historical) {
+                        String targetId = "";
+                        // A payment UUID establishes ownership across renames.
+                        // A historical username alone cannot establish lifetime
+                        // ownership when a deleted name may have been reused.
+                        if (event[1].startsWith("manual_topup_") || event[1].startsWith("vnpay_")) {
+                            try {
+                                String order = jsonString(jsonFields(event[2]).getOrDefault("id", "null"));
+                                try (PreparedStatement ps = c.prepareStatement("SELECT account_id FROM payment_orders WHERE id=?")) {
+                                    ps.setString(1, order); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) targetId = rs.getString(1); }
+                                }
+                            } catch (IllegalArgumentException invalid) { /* Preserve the unlinked raw audit. */ }
+                        }
+                        try (PreparedStatement ps = c.prepareStatement("INSERT INTO account_activity_links(event_id,actor_account_id,target_account_id) VALUES(?,'',?)")) { ps.setString(1,event[0]); ps.setString(2,targetId); ps.executeUpdate(); }
+                    }
+                    c.commit();
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String usernameForAccountId(String id) {
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT username FROM account_identities WHERE account_id=? AND deleted_at=''")) {
+                ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { return rs.next() ? nvl(rs.getString(1)) : ""; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String accountHistory(String id) {
+            try (Connection c = conn()) {
+                String name, deleted;
+                try (PreparedStatement ps = c.prepareStatement("SELECT last_username,deleted_at FROM account_identities WHERE account_id=?")) {
+                    ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { if (!rs.next()) throw new IllegalStateException("Không tìm thấy ID tài khoản."); name = rs.getString(1); deleted = rs.getString(2); }
+                }
+                List<String> events = new ArrayList<>();
+                try (PreparedStatement ps = c.prepareStatement("SELECT a.*,l.actor_account_id,l.target_account_id FROM account_activity_links l JOIN account_audit a ON a.event_id=l.event_id WHERE l.target_account_id=? ORDER BY a.created_at DESC,a.event_id DESC LIMIT 100")) {
+                    ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { while (rs.next()) {
+                        events.add("{\"action\":" + quoteJson(rs.getString("action")) + ",\"createdAt\":" + quoteJson(rs.getString("created_at")) + ",\"actor\":" + quoteJson(rs.getString("actor")) + ",\"actorAccountId\":" + quoteJson(rs.getString("actor_account_id")) + ",\"accountId\":" + quoteJson(id) + ",\"details\":" + rs.getString("details_json") + "}");
+                    } }
+                }
+                return "{\"ok\":true,\"accountId\":" + quoteJson(id) + ",\"username\":" + quoteJson(name) + ",\"deleted\":" + !deleted.isEmpty() + ",\"events\":[" + String.join(",", events) + "]}";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
         synchronized Account getUser(String user) {
             try (Connection c = conn();
-                 PreparedStatement ps = c.prepareStatement("SELECT username,salt,password_hash,role,enabled FROM users WHERE username=?")) {
+                 PreparedStatement ps = c.prepareStatement("SELECT u.*,i.account_id FROM users u LEFT JOIN account_identities i ON i.username=u.username WHERE u.username=?")) {
                 ps.setString(1, user);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) return null;
                     Account a = new Account();
                     a.username = rs.getString("username");
+                    a.accountId = nvl(rs.getString("account_id"));
                     a.salt = rs.getString("salt");
                     a.passwordHash = rs.getString("password_hash");
                     a.role = rs.getString("role");
@@ -4131,6 +4142,7 @@ public class LottoWebServer {
                     try(PreparedStatement ps=c.prepareStatement("INSERT INTO users(username,salt,password_hash,role,enabled) VALUES(?,?,?,'user',1)")) {
                         ps.setString(1,user);ps.setString(2,Base64.getEncoder().encodeToString(salt));ps.setString(3,password);ps.executeUpdate();
                     }
+                    assignAccountId(c,user);
                     try(PreparedStatement ps=c.prepareStatement("INSERT INTO social_identities VALUES(?,?,?,?,?,?)")) {
                         ps.setString(1,provider);ps.setString(2,clientId);ps.setString(3,subject);ps.setString(4,user);ps.setString(5,displayName);ps.setString(6,Instant.now().toString());ps.executeUpdate();
                     }
@@ -4150,11 +4162,17 @@ public class LottoWebServer {
             String role = countUsers() == 0 ? "admin" : "user";
             try (Connection c = conn();
                  PreparedStatement ps = c.prepareStatement("INSERT INTO users(username,salt,password_hash,role,enabled) VALUES(?,?,?,?,1)")) {
-                ps.setString(1, user);
-                ps.setString(2, saltB64);
-                ps.setString(3, hash);
-                ps.setString(4, role);
-                ps.executeUpdate();
+                c.setAutoCommit(false);
+                try {
+                    ps.setString(1, user);
+                    ps.setString(2, saltB64);
+                    ps.setString(3, hash);
+                    ps.setString(4, role);
+                    ps.executeUpdate();
+                    assignAccountId(c, user);
+                    auditAccount(c, user, user, "account_registered", "{}");
+                    c.commit();
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
@@ -4188,12 +4206,6 @@ public class LottoWebServer {
                     if (rs.next()) {
                         String raw = rs.getString(1);
                         String normalized = normalizeStoredJsonObjectText(raw);
-                        if (!normalized.equals(nvl(raw).trim())) {
-                            try {
-                                setStore(user, normalized);
-                            } catch (RuntimeException ignored) {
-                            }
-                        }
                         return normalized;
                     }
                 }
@@ -4224,10 +4236,16 @@ public class LottoWebServer {
 
         private Map<String, String> paymentRow(ResultSet rs) throws SQLException {
             Map<String, String> p = new LinkedHashMap<>();
-            String[] columns = {"id", "environment", "status", "created_at", "expires_at", "paid_at", "transaction_no", "amount", "base_credit", "bonus_credit", "credit"};
-            String[] keys = {"id", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo", "amount", "baseCredit", "bonusCredit", "credit"};
+            String[] columns = {"id", "account_id", "environment", "status", "created_at", "expires_at", "paid_at", "transaction_no", "amount", "base_credit", "bonus_credit", "credit"};
+            String[] keys = {"id", "accountId", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo", "amount", "baseCredit", "bonusCredit", "credit"};
             for (int i = 0; i < columns.length; i++) p.put(keys[i], nvl(rs.getString(columns[i])));
             return p;
+        }
+
+        private long topupBonus(long amount) {
+            // Wallet credits are whole PayPal units; round half up, matching the preview.
+            if (amount >= 1000000 && amount <= 100000000 && amount % 100000 == 0) return ((amount * 5 / 4) * 5 + 50) / 100;
+            return amount == 50000 ? 625 : amount == 100000 ? 1875 : amount == 200000 ? 5000 : amount == 500000 ? 15625 : 0;
         }
 
         synchronized Map<String, String> createVnpay(String user, String request, long amount, VnpayConfig cfg) {
@@ -4243,13 +4261,14 @@ public class LottoWebServer {
                             }
                         }
                     }
+                    if (!validTopupAmount(amount) || amount > cfg.maximum) throw new IllegalArgumentException("Chọn gói nạp hoặc nhập từ 1.000.000 đến 100.000.000 VNĐ, bội số 100.000 VNĐ và trong hạn mức cổng thanh toán.");
                     Instant now = Instant.now();
                     try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM payment_orders WHERE username=? AND (created_at>? OR (status='PENDING' AND expires_at>?))")) {
                         ps.setString(1, user); ps.setString(2, now.minusSeconds(60).toString()); ps.setString(3, now.toString());
                         try (ResultSet rs = ps.executeQuery()) { if (rs.next() && rs.getInt(1) >= 5) throw new IllegalArgumentException("Bạn đang có nhiều yêu cầu thanh toán. Hãy hoàn tất hoặc chờ đơn cũ hết hạn."); }
                     }
                     long base = amount * 5 / 4;
-                    long bonus = amount == 50000 ? 625 : amount == 100000 ? 1875 : amount == 200000 ? 5000 : amount == 500000 ? 15625 : 0;
+                    long bonus = topupBonus(amount);
                     String id = UUID.randomUUID().toString().replace("-", "");
                     try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,'PENDING',?,?)")) {
                         ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setString(4, cfg.mode); ps.setString(5, cfg.tmn);
@@ -4263,9 +4282,229 @@ public class LottoWebServer {
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
+        private String legacyText(Map<String, String> entry, String key) {
+            String raw = entry.getOrDefault(key, "null");
+            return raw.startsWith("\"") ? jsonString(raw) : raw.equals("null") ? "" : raw;
+        }
+
+        private String legacySourceKey(Map<String, String> entry) {
+            String id = legacyText(entry, "id");
+            if (!id.isEmpty()) return "id:" + id;
+            List<String> identity = new ArrayList<>();
+            for (String key : Arrays.asList("amount", "createdAt", "txnCode", "txnTime", "senderName", "email", "note")) identity.add(quoteJson(legacyText(entry, key)));
+            return "fields:[" + String.join(",", identity) + "]";
+        }
+
+        private String legacyStamp(String value) {
+            try { return Instant.parse(value).toString(); } catch (Exception ignored) { }
+            try { return OffsetDateTime.parse(value).toInstant().toString(); } catch (Exception ignored) { }
+            try { return LocalDateTime.parse(value).atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant().toString(); } catch (Exception ignored) { return ""; }
+        }
+
+        private void migrateLegacyTopups() {
+            List<String> users = new ArrayList<>();
+            try (Connection c = conn(); Statement st = c.createStatement(); ResultSet rs = st.executeQuery("SELECT s.username FROM stores s JOIN users u ON u.username=s.username WHERE instr(s.store_json,'\"paypalTopups\"')>0")) {
+                while (rs.next()) users.add(rs.getString(1));
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+            for (String user : users) {
+                try (Connection c = conn()) {
+                    c.setAutoCommit(false);
+                    try {
+                        Map<String, String> store = lockedStore(c, user);
+                        JsonCursor cursor = new JsonCursor(store.getOrDefault("paypalTopups", "[]"));
+                        List<String> entries = new ArrayList<>();
+                        try {
+                            cursor.expect('[');
+                            if (!cursor.consumeIf(']')) do {
+                                cursor.skipWhitespace(); int start = cursor.index; cursor.parseValue();
+                                String raw = cursor.text.substring(start, cursor.index);
+                                if (raw.startsWith("{")) entries.add(raw);
+                                if (cursor.consumeIf(']')) break;
+                                cursor.expect(',');
+                            } while (entries.size() < 1000);
+                        } catch (IllegalArgumentException malformed) { entries.clear(); }
+                        for (String raw : entries) {
+                            Map<String, String> entry;
+                            try { entry = jsonFields(raw); } catch (IllegalArgumentException malformed) { continue; }
+                            String status = legacyText(entry, "status").trim();
+                            if (!status.isEmpty() && !Arrays.asList("PENDING", "Chờ xử lý", "Chờ duyệt", "Chưa xác minh").contains(status)) continue;
+                            long amount = fieldLong(entry, "amount", 0);
+                            if (amount < 10000 || amount > 10000000 || amount % 1000 != 0) continue;
+                            String key = legacySourceKey(entry);
+                            String request = "legacy_" + UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)).toString().replace("-", "");
+                            try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM payment_orders p LEFT JOIN manual_topup_legacy_sources s ON s.order_id=p.id WHERE p.username=? AND (p.request_id=? OR s.source_key=?)")) {
+                                ps.setString(1, user); ps.setString(2, request); ps.setString(3, key); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) continue; }
+                            }
+                            // A legacy receipt may already have been resubmitted using the new form.
+                            // Link to that same owner's order rather than queueing a second credit.
+                            String reference = legacyText(entry, "txnCode").trim(), existing = "";
+                            if (!reference.isEmpty()) try (PreparedStatement ps = c.prepareStatement("SELECT p.id FROM payment_orders p JOIN manual_topup_details d ON d.order_id=p.id WHERE p.username=? AND p.environment='manual' AND p.amount=? AND upper(replace(d.reference,' ',''))=upper(replace(?,' ','')) ORDER BY p.created_at LIMIT 1")) {
+                                ps.setString(1, user); ps.setLong(2, amount); ps.setString(3, reference);
+                                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) existing = rs.getString(1); }
+                            }
+                            String id = existing.isEmpty() ? UUID.randomUUID().toString().replace("-", "") : existing;
+                            String created = legacyStamp(legacyText(entry, "createdAt"));
+                            if (created.isEmpty()) created = Instant.now().toString();
+                            if (existing.isEmpty()) {
+                                long base = amount * 5 / 4, bonus = amount == 50000 ? 625 : amount == 100000 ? 1875 : amount == 200000 ? 5000 : amount == 500000 ? 15625 : 0;
+                                try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,'manual','',?,?,?,?,'PENDING',?,'')")) {
+                                    ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setLong(4, amount); ps.setLong(5, base); ps.setLong(6, bonus); ps.setLong(7, base + bonus); ps.setString(8, created); ps.executeUpdate();
+                                }
+                                String sender = legacyText(entry, "senderName").trim();
+                                if (sender.isEmpty()) sender = "Chưa ghi tên người chuyển";
+                                try (PreparedStatement ps = c.prepareStatement("INSERT INTO manual_topup_details(order_id,sender,channel,reference,transfer_key,transferred_at,note) VALUES(?,?,?,?,?,?,?)")) {
+                                    ps.setString(1, id); ps.setString(2, sender); ps.setString(3, "Chưa ghi ngân hàng / ví"); ps.setString(4, reference); ps.setString(5, "legacy:" + user + ":" + request); ps.setString(6, legacyStamp(legacyText(entry, "txnTime"))); ps.setString(7, legacyText(entry, "note")); ps.executeUpdate();
+                                }
+                            }
+                            try (PreparedStatement ps = c.prepareStatement("INSERT INTO manual_topup_legacy_sources(order_id,source_key,source_json) VALUES(?,?,?)")) {
+                                ps.setString(1, id); ps.setString(2, key); ps.setString(3, raw); ps.executeUpdate();
+                            }
+                            try (PreparedStatement ps = c.prepareStatement("UPDATE manual_topup_details SET legacy_key=?,legacy_json=?,legacy_email=?,legacy_time_text=? WHERE order_id=? AND legacy_key=''")) {
+                                ps.setString(1, key); ps.setString(2, raw); ps.setString(3, legacyText(entry, "email")); ps.setString(4, legacyText(entry, "timeText")); ps.setString(5, id); ps.executeUpdate();
+                            }
+                            auditAccount(c, "legacy_topup_migration", user, "manual_topup_legacy_migrated", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + ",\"linkedExisting\":" + !existing.isEmpty() + "}");
+                        }
+                        c.commit();
+                    } catch (Exception failure) { c.rollback(); throw new RuntimeException(failure); }
+                } catch (SQLException failure) { throw new RuntimeException(failure); }
+            }
+        }
+
+        synchronized String migratedLegacyKeys(String user) {
+            List<String> keys = new ArrayList<>();
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT s.source_key FROM manual_topup_legacy_sources s JOIN payment_orders p ON p.id=s.order_id WHERE p.username=?")) {
+                ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { while (rs.next()) keys.add(quoteJson(rs.getString(1))); }
+                return "[" + String.join(",", keys) + "]";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String manualInstructions(String value) {
+            try (Connection c = conn()) {
+                if (value != null) try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO manual_topup_settings(id,instructions) VALUES(1,?)")) { ps.setString(1, value); ps.executeUpdate(); }
+                try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery("SELECT instructions FROM manual_topup_settings WHERE id=1")) { return rs.next() ? rs.getString(1) : ""; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        private String manualTopupJson(ResultSet rs) throws SQLException {
+            Map<String, String> fields = jsonFields(paymentOrderJson(paymentRow(rs)));
+            String[] columns = {"username", "sender", "channel", "reference", "transferred_at", "note", "reviewer", "review_note", "reviewed_at"};
+            String[] keys = {"username", "sender", "channel", "reference", "transferredAt", "note", "reviewer", "reviewNote", "reviewedAt"};
+            for (int i = 0; i < columns.length; i++) fields.put(keys[i], quoteJson(nvl(rs.getString(columns[i]))));
+            fields.put("legacyKey", quoteJson(nvl(rs.getString("legacy_key"))));
+            fields.put("legacyEmail", quoteJson(nvl(rs.getString("legacy_email"))));
+            fields.put("email", quoteJson(nvl(rs.getString("email"))));
+            fields.put("transferMemo", quoteJson(nvl(rs.getString("transfer_memo"))));
+            fields.put("legacyTimeText", quoteJson(nvl(rs.getString("legacy_time_text"))));
+            return fieldsJson(fields);
+        }
+
+        private String manualTopupById(Connection c, String id) throws SQLException {
+            try (PreparedStatement ps = c.prepareStatement("SELECT p.*,d.* FROM payment_orders p JOIN manual_topup_details d ON d.order_id=p.id WHERE p.id=? AND p.environment='manual'")) {
+                ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu nạp."); return manualTopupJson(rs); }
+            }
+        }
+
+        synchronized String manualTopups(String user, String status, int page) {
+            List<String> rows = new ArrayList<>();
+            String filter = user != null ? " AND p.username=?" : status.equals("all") ? "" : " AND p.status=?";
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT p.*,d.* FROM payment_orders p JOIN manual_topup_details d ON d.order_id=p.id WHERE p.environment='manual'" + filter + " ORDER BY p.created_at DESC,p.id DESC LIMIT ? OFFSET ?")) {
+                int i = 1; if (user != null || !status.equals("all")) ps.setString(i++, user != null ? user : status);
+                ps.setInt(i++, user != null ? 100 : 30); ps.setInt(i, user != null ? 0 : page * 30);
+                try (ResultSet rs = ps.executeQuery()) { while (rs.next()) rows.add(manualTopupJson(rs)); }
+                return "[" + String.join(",", rows) + "]";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized int manualTopupCount(String status) {
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM payment_orders WHERE environment='manual'" + (status.equals("all") ? "" : " AND status=?"))) {
+                if (!status.equals("all")) ps.setString(1, status);
+                try (ResultSet rs = ps.executeQuery()) { rs.next(); return rs.getInt(1); }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String createManualTopup(String user, String request, long amount, Map<String, String> details) {
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    lockedStore(c, user);
+                    try (PreparedStatement ps = c.prepareStatement("SELECT p.*,d.* FROM payment_orders p LEFT JOIN manual_topup_details d ON d.order_id=p.id WHERE p.username=? AND p.request_id=?")) {
+                        ps.setString(1, user); ps.setString(2, request);
+                        try (ResultSet rs = ps.executeQuery()) { if (rs.next()) {
+                            boolean same = "manual".equals(rs.getString("environment")) && rs.getLong("amount") == amount;
+                            if (details.containsKey("transferMemo")) same &= details.get("transferMemo").equals(rs.getString("transfer_memo"));
+                            else for (String key : details.containsKey("email") ? Arrays.asList("channel", "reference", "email") : Arrays.asList("sender", "channel", "reference", "note", "transferredAt")) same &= details.get(key).equals(rs.getString(key.equals("transferredAt") ? "transferred_at" : key));
+                            if (!same) throw new IllegalArgumentException("Mã yêu cầu đã dùng cho thông tin khác.");
+                            String found = manualTopupJson(rs); c.commit(); return found;
+                        } }
+                    }
+                    if (!details.containsKey("email")) throw new IllegalArgumentException("Vui lòng nhập Email để gửi yêu cầu nạp.");
+                    if (!validTopupAmount(amount)) throw new IllegalArgumentException("Chọn gói nạp hoặc nhập từ 1.000.000 đến 100.000.000 VNĐ, bội số 100.000 VNĐ.");
+                    String transferKey = details.containsKey("transferMemo") ? "memo:" + details.get("transferMemo") + ":" + request : details.get("channel").replaceAll("\\s+", "").toLowerCase(Locale.ROOT) + ":" + details.get("reference").replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+                    if (!details.containsKey("transferMemo")) try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM manual_topup_details WHERE transfer_key=? OR (legacy_key<>'' AND upper(replace(reference,' ',''))=upper(replace(?,' ','')))")) {
+                        ps.setString(1, transferKey); ps.setString(2, details.get("reference")); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) throw new IllegalArgumentException("Giao dịch này đã được gửi. Hãy kiểm tra lịch sử hoặc liên hệ admin."); }
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM payment_orders WHERE username=? AND environment='manual' AND status='PENDING'")) {
+                        ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { rs.next(); if (rs.getInt(1) >= 5) throw new IllegalArgumentException("Bạn có 5 yêu cầu đang chờ duyệt. Vui lòng chờ admin xử lý."); }
+                    }
+                    long base = amount * 5 / 4, bonus = topupBonus(amount);
+                    String id = UUID.randomUUID().toString().replace("-", ""), now = Instant.now().toString();
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,'manual','',?,?,?,?,'PENDING',?,'')")) {
+                        ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setLong(4, amount); ps.setLong(5, base); ps.setLong(6, bonus); ps.setLong(7, base + bonus); ps.setString(8, now); ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO manual_topup_details(order_id,sender,channel,reference,transfer_key,transferred_at,note,email,transfer_memo) VALUES(?,?,?,?,?,?,?,?,?)")) {
+                        ps.setString(1, id); ps.setString(2, details.get("sender")); ps.setString(3, details.get("channel")); ps.setString(4, details.get("reference")); ps.setString(5, transferKey); ps.setString(6, details.get("transferredAt")); ps.setString(7, details.get("note")); ps.setString(8, details.get("email")); ps.setString(9, details.getOrDefault("transferMemo", "")); ps.executeUpdate();
+                    }
+                    auditAccount(c, user, user, "manual_topup_requested", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + "}");
+                    String result = manualTopupById(c, id); c.commit(); return result;
+                } catch (Exception failure) { c.rollback(); if (failure instanceof IllegalArgumentException) throw (IllegalArgumentException) failure; throw new RuntimeException(failure); }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized String reviewManualTopup(String actor, String id, boolean approve, String note) {
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    // Lock before any read so other wallet writers cannot overwrite this credit.
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE payment_orders SET status=status WHERE id=?")) { ps.setString(1, id); ps.executeUpdate(); }
+                    String user, status; long credit, amount;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE id=? AND environment='manual'")) {
+                        ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) {
+                            if (!rs.next()) throw new IllegalArgumentException("Không tìm thấy yêu cầu nạp.");
+                            user = rs.getString("username"); status = rs.getString("status"); credit = rs.getLong("credit"); amount = rs.getLong("amount");
+                        }
+                    }
+                    String outcome = approve ? "PAID" : "REJECTED";
+                    if (!status.equals("PENDING")) {
+                        if (!status.equals(outcome)) throw new IllegalArgumentException("Yêu cầu đã được xử lý, không thể đổi trạng thái.");
+                        String result = manualTopupById(c, id); c.commit(); return result;
+                    }
+                    Account account = getUser(user);
+                    if (account == null || !account.enabled) throw new IllegalArgumentException("Tài khoản đã xóa hoặc đang bị khóa.");
+                    if (approve) {
+                        try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM manual_topup_details d JOIN manual_topup_details other ON upper(replace(other.reference,' ',''))=upper(replace(d.reference,' ','')) JOIN payment_orders paid ON paid.id=other.order_id WHERE d.order_id=? AND other.order_id<>d.order_id AND d.reference<>'' AND (d.legacy_key<>'' OR other.legacy_key<>'') AND paid.status='PAID' LIMIT 1")) {
+                            ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) throw new IllegalArgumentException("Mã giao dịch đã được cộng tiền ở yêu cầu khác. Hãy đối chiếu trước khi xử lý."); }
+                        }
+                        Map<String, String> fields = lockedStore(c, user);
+                        long balance = Math.addExact(fieldLong(fields, "paypalBalance", 0), credit);
+                        if (balance > 9007199254740991L || balance < -9007199254740991L) throw new IllegalArgumentException("Số dư vượt giới hạn. Chưa cộng tiền.");
+                        fields.put("paypalBalance", Long.toString(balance));
+                        fields.put("walletVersion", Long.toString(Math.addExact(fieldLong(fields, "walletVersion", 0), 1)));
+                        try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) { ps.setString(1, user); ps.setString(2, fieldsJson(fields)); ps.executeUpdate(); }
+                    }
+                    String now = Instant.now().toString();
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE payment_orders SET status=?,paid_at=? WHERE id=? AND status='PENDING'")) {
+                        ps.setString(1, outcome); ps.setString(2, approve ? now : ""); ps.setString(3, id); if (ps.executeUpdate() != 1) throw new IllegalStateException("Order changed");
+                    }
+                    try (PreparedStatement ps = c.prepareStatement("UPDATE manual_topup_details SET reviewer=?,review_note=?,reviewed_at=? WHERE order_id=?")) { ps.setString(1, actor); ps.setString(2, note); ps.setString(3, now); ps.setString(4, id); ps.executeUpdate(); }
+                    auditAccount(c, actor, user, approve ? "manual_topup_credit" : "manual_topup_rejected", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + ",\"credit\":" + (approve ? credit : 0) + "}");
+                    String result = manualTopupById(c, id); c.commit(); return result;
+                } catch (Exception failure) { c.rollback(); if (failure instanceof IllegalArgumentException) throw (IllegalArgumentException) failure; throw new RuntimeException(failure); }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
         synchronized String listVnpay(String user) {
             List<String> orders = new ArrayList<>();
-            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE username=? ORDER BY created_at DESC,id DESC LIMIT 100")) {
+            try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE username=? AND environment<>'manual' ORDER BY created_at DESC,id DESC LIMIT 100")) {
                 ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { while (rs.next()) orders.add(paymentOrderJson(paymentRow(rs))); }
                 return "[" + String.join(",", orders) + "]";
             } catch (SQLException failure) { throw new RuntimeException(failure); }
@@ -4319,6 +4558,8 @@ public class LottoWebServer {
         synchronized String publicStore(String user) {
             Map<String, String> fields = jsonFields(getStore(user));
             fields.put("vipExpiresAt", quoteJson(vipExpiry(user)));
+            Account owner = getUser(user);
+            fields.put("accountId", quoteJson(owner == null ? "" : owner.accountId));
             return fieldsJson(fields);
         }
 
@@ -4329,16 +4570,35 @@ public class LottoWebServer {
         }
 
         synchronized void setClientStore(String user, String json) {
-            Map<String, String> oldFields = jsonFields(getStore(user));
-            Map<String, String> fields = jsonFields(json);
-            fields.keySet().removeIf(LottoWebServer::protectedStoreField);
-            for (Map.Entry<String, String> entry : oldFields.entrySet())
-                if (protectedStoreField(entry.getKey())) fields.put(entry.getKey(), entry.getValue());
-            fields.putIfAbsent("diamondBalance", "0");
-            fields.putIfAbsent("paypalBalance", "0");
-            fields.putIfAbsent("luckyWheelStoredSpins", "60");
-            fields.putIfAbsent("luckyWheelLastRegenAt", quoteJson(Instant.now().toString()));
-            setStore(user, fieldsJson(fields));
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                Map<String, String> oldFields = lockedStore(c, user);
+                Map<String, String> fields = jsonFields(json);
+                fields.keySet().removeIf(LottoWebServer::protectedStoreField);
+                for (Map.Entry<String, String> entry : oldFields.entrySet())
+                    if (protectedStoreField(entry.getKey())) fields.put(entry.getKey(), entry.getValue());
+                fields.put("accountId", quoteJson(accountIdOf(c, user)));
+                fields.putIfAbsent("diamondBalance", "0");
+                fields.putIfAbsent("paypalBalance", "0");
+                fields.putIfAbsent("luckyWheelStoredSpins", "60");
+                fields.putIfAbsent("luckyWheelLastRegenAt", quoteJson(Instant.now().toString()));
+                try (PreparedStatement up = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
+                    up.setString(1, user); up.setString(2, fieldsJson(fields)); up.executeUpdate();
+                }
+                c.commit();
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        private Map<String, String> lockedStore(Connection c, String user) throws SQLException {
+            // Acquire the write lock before reading: Python billing is another
+            // writer and Java's synchronized monitor cannot serialize it.
+            try (PreparedStatement lock = c.prepareStatement("UPDATE stores SET store_json=store_json WHERE username=?")) {
+                lock.setString(1, user); lock.executeUpdate();
+            }
+            try (PreparedStatement read = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                read.setString(1, user);
+                try (ResultSet rs = read.executeQuery()) { return jsonFields(rs.next() ? rs.getString(1) : "{}"); }
+            }
         }
 
         private String vipExpiry(String user) {
@@ -4812,6 +5072,7 @@ public class LottoWebServer {
                         ps.setString(1, code);
                         if (ps.executeUpdate() != 1) throw new IllegalStateException("Code đã hết lượt sử dụng.");
                     }
+                    fields.put("accountId", quoteJson(accountIdOf(c, user)));
                     String reward = "{\"diamond\":" + diamond + ",\"paypal\":" + paypal + ",\"vipDays\":" + vipDays + ",\"bonusSpins\":" + spins + "}";
                     auditAccount(c, user, user, "redeem_gift_code", "{\"code\":" + quoteJson(code) + ",\"reward\":" + reward + "}");
                     c.commit();
@@ -4824,16 +5085,18 @@ public class LottoWebServer {
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
-        synchronized void updateAssets(String user, long diamond, long paypal, String actor) {
+        synchronized void updateAssets(String user, long diamond, long paypal, String actor, Long expectedDiamond, Long expectedPaypal) {
             if (getUser(user) == null) throw new IllegalStateException("Không tìm thấy tài khoản");
-            String store = getStore(user);
-            if (store == null || isBlank(store)) store = "{}";
-            Map<String, String> fields = jsonFields(store);
-            fields.put("diamondBalance", Long.toString(diamond));
-            fields.put("paypalBalance", Long.toString(paypal));
-            fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
             try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
                 c.setAutoCommit(false);
+                Map<String, String> fields = lockedStore(c, user);
+                if (expectedDiamond != null && (fieldLong(fields, "diamondBalance", 0) != expectedDiamond || fieldLong(fields, "paypalBalance", 0) != expectedPaypal)) {
+                    c.rollback();
+                    throw new IllegalStateException("Số dư đã thay đổi bởi giao dịch khác. Bấm Hủy rồi Chỉnh Sửa để tải số dư mới.");
+                }
+                fields.put("diamondBalance", Long.toString(diamond));
+                fields.put("paypalBalance", Long.toString(paypal));
+                fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
                 ps.setString(1, user); ps.setString(2, fieldsJson(fields)); ps.executeUpdate();
                 auditAccount(c, actor, user, "update_assets", "{\"diamond\":" + diamond + ",\"paypal\":" + paypal + "}");
                 c.commit();
@@ -4855,18 +5118,27 @@ public class LottoWebServer {
             return "{" + body + "," + replacement + "}";
         }
 
+        synchronized void recordUserAccess(String id,String network,String device,String browser,long now) {
+            try(Connection c=conn();PreparedStatement ps=c.prepareStatement("INSERT INTO account_access(account_id,network_address,device,browser,last_seen) VALUES(?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET network_address=excluded.network_address,device=excluded.device,browser=excluded.browser,last_seen=excluded.last_seen WHERE account_access.network_address<>excluded.network_address OR account_access.device<>excluded.device OR account_access.browser<>excluded.browser OR account_access.last_seen<excluded.last_seen-60000")) {
+                ps.setString(1,id);ps.setString(2,network);ps.setString(3,device);ps.setString(4,browser);ps.setLong(5,now);ps.executeUpdate();
+            }catch(SQLException failure){throw new RuntimeException(failure);}
+        }
+
         synchronized List<UserView> listUsers() {
             List<UserView> out = new ArrayList<>();
-            String sql = "SELECT u.username,u.role,u.enabled,COALESCE(s.store_json,'{}') store_json " +
-                    "FROM users u LEFT JOIN stores s ON s.username=u.username ORDER BY u.username";
+            String sql = "SELECT u.username,i.account_id,u.role,u.enabled,COALESCE(s.store_json,'{}') store_json,a.network_address,a.device,a.browser,a.last_seen,e.vip_expires_at " +
+                    "FROM users u LEFT JOIN stores s ON s.username=u.username LEFT JOIN account_identities i ON i.username=u.username LEFT JOIN account_access a ON a.account_id=i.account_id LEFT JOIN account_entitlements e ON e.username=u.username ORDER BY u.username";
             try (Connection c = conn();
                  PreparedStatement ps = c.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     UserView uv = new UserView();
                     uv.username = rs.getString("username");
+                    uv.accountId = nvl(rs.getString("account_id"));
                     uv.role = rs.getString("role");
                     uv.enabled = rs.getInt("enabled") == 1;
+                    uv.vipExpiresAt=nvl(rs.getString("vip_expires_at"));
+                    uv.networkAddress=nvl(rs.getString("network_address"));uv.device=nvl(rs.getString("device"));uv.browser=nvl(rs.getString("browser"));uv.lastSeen=rs.getLong("last_seen");
                     String sj = rs.getString("store_json");
                     uv.hasData = sj != null && !isBlank(sj) && !"{}".equals(sj.trim());
                     uv.diamondBalance = readBalanceFromJson(sj, "diamondBalance");
@@ -4909,7 +5181,22 @@ public class LottoWebServer {
             }
         }
 
-        synchronized void renameUser(String user, String newUser) {
+        synchronized String personalTrackingId(String user) {
+            try (Connection c = conn()) {
+                try (PreparedStatement insert = c.prepareStatement("INSERT OR IGNORE INTO personal_tracking_accounts(id,username) VALUES(?,?)")) {
+                    insert.setString(1, UUID.randomUUID().toString()); insert.setString(2, user); insert.executeUpdate();
+                }
+                try (PreparedStatement select = c.prepareStatement("SELECT id FROM personal_tracking_accounts WHERE username=?")) {
+                    select.setString(1, user);
+                    try (ResultSet rs = select.executeQuery()) {
+                        if (!rs.next()) throw new IllegalStateException("Không tìm thấy danh mục cá nhân");
+                        return rs.getString(1);
+                    }
+                }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        synchronized void renameUser(String user, String newUser, String actor) {
             if (EFFECTIVENESS_SYSTEM_USER.equals(newUser)) throw new IllegalStateException("Tên này dành riêng cho tác vụ hệ thống.");
             if (newUser.length() < 3) throw new IllegalStateException("Tên mới tối thiểu 3 ký tự");
             if (getUser(user) == null) throw new IllegalStateException("Không tìm thấy tài khoản");
@@ -4925,11 +5212,13 @@ public class LottoWebServer {
                     p2.setString(1, newUser);
                     p2.setString(2, user);
                     p2.executeUpdate();
-                    for (String table : Arrays.asList("account_entitlements", "wallet_events", "gift_code_redemptions", "social_identities", "payment_orders")) {
+                    for (String table : Arrays.asList("account_entitlements", "wallet_events", "gift_code_redemptions", "social_identities", "payment_orders", "personal_tracking_accounts", "account_identities")) {
                         try (PreparedStatement linked = c.prepareStatement("UPDATE " + table + " SET username=? WHERE username=?")) {
                             linked.setString(1, newUser); linked.setString(2, user); linked.executeUpdate();
                         }
                     }
+                    try (PreparedStatement id = c.prepareStatement("UPDATE account_identities SET last_username=? WHERE username=?")) { id.setString(1, newUser); id.setString(2, newUser); id.executeUpdate(); }
+                    auditAccount(c, actor.equals(user) ? newUser : actor, newUser, "account_renamed", "{\"previousUsername\":" + quoteJson(user) + ",\"username\":" + quoteJson(newUser) + "}");
                     c.commit();
                 } catch (SQLException e) {
                     try {
@@ -4965,6 +5254,11 @@ public class LottoWebServer {
                  PreparedStatement p1 = c.prepareStatement("DELETE FROM stores WHERE username=?");
                  PreparedStatement p2 = c.prepareStatement("DELETE FROM users WHERE username=?")) {
                 c.setAutoCommit(false);
+                auditAccount(c, currentUser, user, "account_deleted", "{}");
+                try (PreparedStatement identity = c.prepareStatement("UPDATE account_identities SET username=NULL,deleted_at=? WHERE username=?")) { identity.setString(1, Instant.now().toString()); identity.setString(2, user); identity.executeUpdate(); }
+                try (PreparedStatement personal = c.prepareStatement("UPDATE personal_tracking_accounts SET username=? WHERE username=?")) {
+                    personal.setString(1, "deleted:" + UUID.randomUUID().toString()); personal.setString(2, user); personal.executeUpdate();
+                }
                 try (PreparedStatement payments = c.prepareStatement("UPDATE payment_orders SET username=?,status=CASE WHEN status='PENDING' THEN 'OWNER_DELETED' ELSE status END WHERE username=?")) {
                     payments.setString(1, "deleted:" + UUID.randomUUID().toString()); payments.setString(2, user); payments.executeUpdate();
                 }
@@ -5052,15 +5346,20 @@ public class LottoWebServer {
 
     static class UserView {
         String username;
+        String accountId;
         String role;
         boolean enabled;
         boolean hasData;
         long diamondBalance;
         long paypalBalance;
+        String networkAddress,device,browser;
+        String vipExpiresAt;
+        long lastSeen;
     }
 
     static class Account {
         String username;
+        String accountId;
         String salt;
         String passwordHash;
         String role;

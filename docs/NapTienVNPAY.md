@@ -23,7 +23,7 @@ Các bước và thông tin kết nối đối chiếu theo [tài liệu tích h
 | `tmnCode` | Mã website 8 ký tự VNPAY cấp cho đúng môi trường |
 | `hashSecret` | Khóa bí mật VNPAY cấp cho đúng môi trường |
 | `publicBaseUrl` | Origin HTTPS của website, không kèm đường dẫn/query |
-| `maxAmount` | Mặc định 10.000.000 VNĐ, có thể đặt 10.000–100.000.000 |
+| `maxAmount` | Mặc định/tối đa 100.000.000 VNĐ; giới hạn cổng có thể thấp hơn. Tự nhập từ 1.000.000, bội số 100.000; các gói có sẵn vẫn dùng được |
 
 Các biến môi trường tương ứng, nếu có, ưu tiên hơn file: `LOTTO_VNPAY_ENABLED`, `LOTTO_VNPAY_ENVIRONMENT`, `LOTTO_VNPAY_TMN_CODE`, `LOTTO_VNPAY_HASH_SECRET`, `LOTTO_VNPAY_PUBLIC_BASE_URL`, `LOTTO_VNPAY_MAX_AMOUNT`.
 

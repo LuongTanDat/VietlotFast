@@ -401,7 +401,7 @@ class AdminPanelTests(GiftCodeTests):
             browser.call('Page.enable',page=True);browser.call('Network.enable',page=True)
             browser.call('Network.setCookie',dict(name='LOTTO_AUTH',value=self.admin.split(';')[0].split('=',1)[1],url=self.url),page=True)
             browser.call('Page.navigate',dict(url=self.url+'/'),page=True)
-            wait("!!window.adminPanel && document.getElementById('openAccountBtn').style.display==='flex'")
+            wait("!!window.adminPanel && !!document.getElementById('adminUsersEdit')")
             browser.value("document.getElementById('settingsBtn').click()")
             self.assertTrue(browser.value("document.getElementById('settingsAdminBtn').getBoundingClientRect().top<document.getElementById('settingsCodeBtn').getBoundingClientRect().top"))
             browser.value("document.getElementById('settingsAdminBtn').click()")

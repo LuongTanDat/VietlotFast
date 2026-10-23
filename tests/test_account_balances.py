@@ -167,8 +167,15 @@ class AccountBalanceTests(unittest.TestCase):
             browser.call('Network.setCookie', dict(name='LOTTO_AUTH', value=self.admin.split(';')[0].split('=',1)[1],
                                                   url=self.url), page=True)
             browser.call('Page.navigate', dict(url=self.url+'/'), page=True)
-            wait("typeof openAccountManager==='function' && document.getElementById('openAccountBtn').style.display==='flex'")
-            run_async('openAccountManager()')
+            wait("typeof openAccountManager==='function' && !!document.getElementById('adminUsersEdit')")
+            self.assertTrue(browser.value("!document.getElementById('openAccountBtn') && !!document.querySelector('#adminPanelSection [data-admin-pane=users] #adminUsersEdit')"))
+            self.assertFalse(browser.value("document.getElementById('adminUsersEdit').getClientRects().length>0"))
+            browser.value("document.getElementById('settingsBtn').click();document.getElementById('settingsAdminBtn').click()")
+            wait("location.pathname==='/admin' && !document.getElementById('adminPanelSection').hidden")
+            browser.value("document.querySelector('[data-admin-view=users]').click()")
+            wait("document.getElementById('adminUsersEdit').getClientRects().length>0")
+            browser.value("openAccountManager()")
+            wait("document.getElementById('accountOverlay').style.display==='block'")
             run_async("document.getElementById('toggleAccountEditBtn').onclick()")
             paypal = "document.querySelector('#accountRows tr[data-user=owner_fixture] .acc-paypal')"
             self.assertEqual(browser.value(paypal+'.type'), 'text')
@@ -245,6 +252,15 @@ class AccountBalanceTests(unittest.TestCase):
             for key in ('keyDown','keyUp'):
                 browser.call('Input.dispatchKeyEvent',dict(type=key,key='Backspace',code='Backspace',windowsVirtualKeyCode=8),page=True)
             self.assertEqual(browser.value(paypal+'.value'),'234')
+            # A member cannot see the entry or open the manager directly, even
+            # when navigating to the admin URL. Server authorization stays intact.
+            browser.call('Network.setCookie', dict(name='LOTTO_AUTH', value=self.member.split(';')[0].split('=',1)[1], url=self.url), page=True)
+            browser.call('Page.navigate', dict(url=self.url+'/admin'), page=True)
+            wait("typeof openAccountManager==='function' && currentUser==='member_fixture'")
+            self.assertTrue(browser.value("document.getElementById('settingsAdminBtn').hidden && document.getElementById('adminPanelSection').hidden && document.getElementById('adminUsersEdit').getClientRects().length===0"))
+            run_async('openAccountManager()')
+            self.assertNotEqual(browser.value("getComputedStyle(document.getElementById('accountOverlay')).display"), 'block')
+            self.assertEqual(self.request('/api/admin/users', cookie=self.member)[0], 403)
         finally:
             browser.close()
 

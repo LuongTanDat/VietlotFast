@@ -9309,6 +9309,10 @@ body.light-theme #liveBoardSection .live-prize-change.is-pending { color: #536b8
   line-height: 1.4;
 }
 #liveBoardSection .live-card-empty { color: #98aec4; font-size: 12px; }
+#liveBoardSection .live-card-result-label { margin:0 0 6px; color:#98aec4; font-size:9px; line-height:1.5; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+#liveBoardSection .live-prize-change.is-reset { color:#8cc5eb; }
+body.light-theme #liveBoardSection .live-card-result-label { color:#5e758c; }
+body.light-theme #liveBoardSection .live-prize-change.is-reset { color:#286a94; }
 .data-table-grid td.data-table-prize {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -18683,7 +18687,7 @@ body.light-theme .local-chatbot-size-labels span.is-active {
 .effectiveness-settings-panel > summary > span { max-width: 50%; font-size: 9px; line-height: 1.4; }
 .effectiveness-board .effectiveness-settings-panel .effectiveness-admin-body { padding: 12px; }
 .effectiveness-board .effectiveness-settings-panel .effectiveness-admin-controls { grid-template-columns: minmax(0, 1fr); }
-.effectiveness-board .effectiveness-settings-panel .effectiveness-admin-controls > label { justify-content: flex-start; height: 36px; padding: 0 10px; font-size: 11px; }
+.effectiveness-board .effectiveness-settings-panel .effectiveness-admin-controls > label { justify-content: flex-start; height: 40px; padding: 0 10px; font-size: 11px; }
 .effectiveness-board .effectiveness-settings-panel .effectiveness-admin-controls > .effectiveness-budget { justify-content: space-between; padding-right: 5px; }
 .effectiveness-board .effectiveness-settings-panel #effectivenessTicketCount { flex: 0 0 76px; width: 76px; height: 28px; min-height: 28px; margin: 0; padding: 4px 6px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; box-shadow: none; }
 .effectiveness-board .effectiveness-settings-panel #effectivenessTicketCount:focus-visible { outline: 0; border-color: var(--effectiveness-accent); box-shadow: 0 0 0 2px rgba(139, 123, 221, .25); }
@@ -18702,8 +18706,8 @@ body.light-theme .local-chatbot-size-labels span.is-active {
 .effectiveness-tracking-switch input:checked + .effectiveness-tracking-state::after { content: 'Bật'; }
 .effectiveness-tracking-switch input:focus-visible + .effectiveness-tracking-state { outline: 2px solid #aa96fa; outline-offset: 1px; }
 .effectiveness-tracking-switch input:disabled + .effectiveness-tracking-state { opacity: .55; }
-.effectiveness-settings-panel .effectiveness-budget > span { display: flex; flex-direction: column; gap: 2px; }
-.effectiveness-settings-panel .effectiveness-budget small { color: var(--effectiveness-muted); font-size: 9px; font-weight: 400; }
+.effectiveness-settings-panel .effectiveness-budget > span { display: flex; flex-direction: column; justify-content: center; gap: 2px; margin: 0; line-height: 14px; }
+.effectiveness-settings-panel .effectiveness-budget small { display: block; margin: 0; color: var(--effectiveness-muted); font-size: 9px; font-weight: 400; line-height: 12px; }
 .effectiveness-ticket-pager { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; font-size: 10px; color: var(--effectiveness-muted); }
 .effectiveness-ticket-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; margin-top: 8px; }
 .effectiveness-ticket-footer .effectiveness-ticket-pager { flex: 0 1 auto; margin-top: 0; }
@@ -18942,7 +18946,7 @@ body.light-theme .effectiveness-ball.is-hit { color: #164d30; background: #c6ead
   .effectiveness-admin-controls { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Giải thực tế và phòng thử lịch sử giữ riêng với báo cáo kỳ đã khóa. */
+/* Giải thực tế của các kỳ đã khóa. */
 .effectiveness-board .effectiveness-ticket-row { grid-template-columns: var(--effectiveness-ticket-number-width, 33px) minmax(0, 1fr) 29px auto; }
 .effectiveness-board .effectiveness-ticket-prize { max-width: 112px; padding: 4px 6px; border-radius: 5px; color: var(--effectiveness-muted); background: var(--effectiveness-surface); font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
 .effectiveness-board .effectiveness-ticket-prize[data-prize-status="won"] { color: var(--effectiveness-hit); background: rgba(156, 231, 187, .09); }
@@ -18961,98 +18965,12 @@ body.light-theme .effectiveness-ball.is-hit { color: #164d30; background: #c6ead
 body.light-theme .effectiveness-board .effectiveness-cycle-preview .effectiveness-ticket > .effectiveness-ball { color: #164d30; border-color: #a8d5b9; background: #c6ead3; }
 .effectiveness-board .effectiveness-actual-special .effectiveness-actual-special-ball { width: 26px; height: 26px; padding: 0; border-radius: 50%; border-color: #ffe7a4; color: #4b3205; background: #ffd76a; font-size: 10px; }
 body.light-theme .effectiveness-board .effectiveness-actual-special .effectiveness-actual-special-ball { color: #4b3205; border-color: #d6a331; background: #ffd76a; }
-.effectiveness-board .effectiveness-lab { margin-top: 9px; border: 1px solid var(--effectiveness-border); border-radius: 10px; }
-.effectiveness-board .effectiveness-lab > summary { display: flex; align-items: center; gap: 9px; padding: 11px 12px; font-size: 12px; }
-.effectiveness-board .effectiveness-lab > summary::before,
-.effectiveness-board .effectiveness-lab-detail > summary::before { content: "›"; color: var(--effectiveness-muted); font-size: 16px; line-height: 1; }
-.effectiveness-board .effectiveness-lab > summary > span { margin-left: auto; color: var(--effectiveness-muted); font-size: 10px; }
-.effectiveness-board .effectiveness-lab-body { min-width: 0; padding: 0 12px 12px; }
-.effectiveness-board .effectiveness-lab-intro { margin: 0 0 12px; font-size: 11px; line-height: 1.7; color: var(--effectiveness-muted); }
-.effectiveness-board .effectiveness-lab-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-bottom: 11px; }
-.effectiveness-board .effectiveness-lab-controls > label { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 0; color: var(--effectiveness-muted); font-size: 10px; font-weight: 600; }
-.effectiveness-board .effectiveness-lab-controls input { width: 110px; min-width: 0; height: 36px; padding: 7px 9px; border-color: var(--effectiveness-border); border-radius: 7px; font-size: 12px; }
-.effectiveness-board .effectiveness-lab-controls button { height: 36px; border-color: var(--effectiveness-border); background: var(--effectiveness-surface); color: var(--ink); box-shadow: none; }
-.effectiveness-board .effectiveness-lab-controls button:first-of-type { margin-left: auto; }
-.effectiveness-board .effectiveness-lab-status { margin-bottom: 10px; color: var(--effectiveness-muted); font-size: 10px; line-height: 1.7; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-status[data-kind="error"] { color: #fda4af; }
-.effectiveness-board .effectiveness-lab-split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.effectiveness-board .effectiveness-lab-split > span { min-width: 0; padding: 9px 10px; border: 1px solid var(--effectiveness-border); border-radius: 7px; background: var(--effectiveness-surface); }
-.effectiveness-board .effectiveness-lab-split strong { display: block; font-size: 10px; line-height: 1.6; font-weight: 600; }
-.effectiveness-board .effectiveness-lab-split small { display: block; margin-top: 3px; color: var(--effectiveness-muted); font-size: 9px; }
-.effectiveness-board .effectiveness-lab-selection { margin: 10px 0 12px; color: var(--effectiveness-muted); font-size: 10px; line-height: 1.75; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-selection strong { color: var(--effectiveness-accent); }
-.effectiveness-board .effectiveness-table .effectiveness-lab-selected { color: var(--effectiveness-accent); }
-.effectiveness-board .effectiveness-lab-detail { margin-top: 10px; }
-.effectiveness-board .effectiveness-lab-detail > summary { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--effectiveness-muted); }
-.effectiveness-board .effectiveness-lab-detail p, .effectiveness-board .effectiveness-lab-detail ul { font-size: 10px; line-height: 1.8; color: var(--effectiveness-muted); overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-detail ul { padding-left: 16px; }
-.effectiveness-board .effectiveness-lab-detail > summary > span { margin-left: auto; font-size: 9px; }
-.effectiveness-board .effectiveness-lab-conclusion { padding: 13px; margin-bottom: 12px; border: 1px solid var(--effectiveness-border); border-radius: 9px; background: var(--effectiveness-surface); }
-.effectiveness-board .effectiveness-lab-kicker { display: block; margin-bottom: 5px; color: var(--effectiveness-accent); font-size: 9px; font-weight: 650; }
-.effectiveness-board .effectiveness-lab-conclusion h4, .effectiveness-board .effectiveness-lab-tracking h4 { margin: 0; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-conclusion p { margin: 6px 0 0; color: var(--effectiveness-muted); font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-conclusion[data-conclusion="possible_improvement"] { border-color: rgba(156, 231, 187, .4); }
-.effectiveness-board .effectiveness-lab-outcome { display: grid; grid-template-columns: 1.25fr .75fr 1fr; gap: 10px; margin-top: 12px; }
-.effectiveness-board .effectiveness-lab-outcome > span { min-width: 0; padding-left: 11px; border-left: 1px solid var(--effectiveness-border); }
-.effectiveness-board .effectiveness-lab-outcome > span:first-child { padding-left: 0; border-left: 0; }
-.effectiveness-board .effectiveness-lab-outcome small { display: block; color: var(--effectiveness-muted); font-size: 9px; line-height: 1.6; }
-.effectiveness-board .effectiveness-lab-outcome strong { display: block; margin-top: 3px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-action { display: flex; align-items: center; gap: 11px; margin-top: 12px; }
-.effectiveness-board .effectiveness-lab-action button, .effectiveness-board .effectiveness-lab-tracking-head button { flex-shrink: 0; min-height: 34px; padding: 7px 10px; border-color: var(--effectiveness-border); border-radius: 7px; box-shadow: none; background: var(--effectiveness-surface); color: var(--ink); font-size: 10px; }
-.effectiveness-board .effectiveness-lab-action > span { color: var(--effectiveness-muted); font-size: 10px; line-height: 1.6; }
-.effectiveness-board .effectiveness-lab-detail > .effectiveness-lab-split, .effectiveness-board .effectiveness-lab-detail > .effectiveness-table-wrap { margin-top: 10px; }
-.effectiveness-board .effectiveness-lab-candidate-row { background: rgba(167, 139, 250, .035); }
-.effectiveness-board .effectiveness-lab-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
-.effectiveness-board .effectiveness-lab-profile-grid > div { min-width: 0; padding: 9px 10px; border: 1px solid var(--effectiveness-border); border-radius: 7px; }
-.effectiveness-board .effectiveness-lab-profile-grid strong { font-size: 11px; }
-.effectiveness-board .effectiveness-lab-profile-grid p { margin: 4px 0; }
-.effectiveness-board .effectiveness-lab-profile-grid small { color: var(--effectiveness-muted); font-size: 9px; line-height: 1.6; }
-.effectiveness-board .effectiveness-lab-history { padding-top: 10px; border-top: 1px solid var(--effectiveness-border); }
-.effectiveness-board .effectiveness-lab-history-list { display: grid; gap: 5px; margin-top: 10px; }
-.effectiveness-board .effectiveness-lab-history-item { display: flex; justify-content: space-between; align-items: center; gap: 14px; width: 100%; padding: 9px 10px; text-align: left; box-shadow: none; border: 1px solid var(--effectiveness-border); border-radius: 7px; background: var(--effectiveness-surface); color: var(--ink); }
-.effectiveness-board .effectiveness-lab-history-item[aria-pressed="true"] { border-color: var(--effectiveness-accent); }
-.effectiveness-board .effectiveness-lab-history-item > span { min-width: 0; }
-.effectiveness-board .effectiveness-lab-history-item strong { display: block; font-size: 11px; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-history-item small { display: block; margin-top: 4px; color: var(--effectiveness-muted); font-size: 9px; font-weight: 400; }
-.effectiveness-board .effectiveness-lab-history-item > span:last-child { color: var(--effectiveness-muted); font-size: 10px; font-weight: 400; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-tracking { padding: 12px; margin-top: 14px; border: 1px solid var(--effectiveness-border); border-radius: 9px; }
-.effectiveness-board .effectiveness-lab-tracking-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.effectiveness-board .effectiveness-lab-tracking-head > div { min-width: 0; flex: 1; }
-.effectiveness-board .effectiveness-lab-tracking-state { padding: 5px 7px; border-radius: 6px; font-size: 9px; color: var(--effectiveness-muted); background: var(--effectiveness-surface); }
-.effectiveness-board .effectiveness-lab-tracking-state.is-active { color: var(--effectiveness-hit); background: rgba(156, 231, 187, .06); }
-.effectiveness-board .effectiveness-lab-tracking-counts { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 10px 0; color: var(--effectiveness-muted); font-size: 10px; }
-.effectiveness-board .effectiveness-lab-tracking-counts strong { margin-right: 3px; color: var(--ink); font-size: 13px; }
-.effectiveness-board .effectiveness-lab-tracking-note, .effectiveness-board .effectiveness-lab-tracking-footnote, .effectiveness-board .effectiveness-lab-cycle-cutoff { margin: 0; color: var(--effectiveness-muted); font-size: 10px; line-height: 1.7; }
-.effectiveness-board .effectiveness-lab-tracking-footnote { margin-top: 11px; font-size: 9px; }
-.effectiveness-board .effectiveness-lab-tracking-error { margin: 0 0 7px; color: #fda4af; font-size: 10px; line-height: 1.7; overflow-wrap: anywhere; }
-.effectiveness-board .effectiveness-lab-tracking-journal > .effectiveness-cycles { margin-top: 10px; }
-.effectiveness-board .effectiveness-lab-cycle-methods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.effectiveness-board .effectiveness-lab-cycle-cutoff { margin-top: 9px; font-size: 9px; }
-body.light-theme .effectiveness-board .effectiveness-lab-tracking-error { color: #a72f46; }
-@media (max-width: 1050px) {
-  .effectiveness-board .effectiveness-lab-cycle-methods { grid-template-columns: 1fr; }
-}
-@media (max-width: 600px) {
-  .effectiveness-board .effectiveness-lab-conclusion { padding: 10px; }
-  .effectiveness-board .effectiveness-lab-outcome { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-  .effectiveness-board .effectiveness-lab-outcome > span:first-child { grid-column: 1 / -1; }
-  .effectiveness-board .effectiveness-lab-outcome > span:nth-child(2) { padding-left: 0; border-left: 0; }
-  .effectiveness-board .effectiveness-lab-action { flex-direction: column; align-items: stretch; gap: 7px; }
-  .effectiveness-board .effectiveness-lab-action button { white-space: normal; }
-  .effectiveness-board .effectiveness-lab-profile-grid { grid-template-columns: 1fr; }
-  .effectiveness-board .effectiveness-lab-history-item { flex-direction: column; align-items: start; gap: 5px; }
-  .effectiveness-board .effectiveness-lab-tracking { padding: 10px; }
-  .effectiveness-board .effectiveness-lab-tracking-head > div { flex-basis: 100%; }
-  .effectiveness-board .effectiveness-lab-tracking-head button { margin-left: auto; }
-  .effectiveness-board .effectiveness-lab-detail > summary > span { font-size: 8px; text-align: right; }
-}
 body.light-theme .effectiveness-board .effectiveness-ticket-prize[data-prize-status="unknown"],
 body.light-theme .effectiveness-board .effectiveness-ticket-prize[data-prize-status="invalid"],
 body.light-theme .effectiveness-board .effectiveness-actual-special,
 body.light-theme .effectiveness-board .effectiveness-special-unknown { color: #876528; }
 body.light-theme .effectiveness-board .effectiveness-ticket-prize[data-prize-status="won"] { background: #e4f3e9; }
 body.light-theme .effectiveness-board .effectiveness-special.is-matched { color: #4b3205; border-color: #d6a331; background: #ffd76a; }
-body.light-theme .effectiveness-board .effectiveness-lab-status[data-kind="error"] { color: #a72f46; }
 body.light-theme .effectiveness-board .effectiveness-cycle-status.is-scored { color: var(--effectiveness-hit); }
 @media (max-width: 1050px) {
   .effectiveness-board .effectiveness-ticket-row { grid-template-columns: var(--effectiveness-ticket-number-width, 33px) minmax(0, 1fr) 29px; }
@@ -19062,14 +18980,6 @@ body.light-theme .effectiveness-board .effectiveness-cycle-status.is-scored { co
   .effectiveness-board .effectiveness-ticket-row { grid-template-columns: var(--effectiveness-ticket-number-width, 33px) minmax(0, 1fr) 29px; }
   .effectiveness-board .effectiveness-ticket-prize { grid-column: 2; grid-row: 1; justify-self: start; }
   .effectiveness-board .effectiveness-ticket-hits { grid-column: 3; }
-  .effectiveness-board .effectiveness-lab > summary > span { display: none; }
-  .effectiveness-board .effectiveness-lab-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .effectiveness-board .effectiveness-lab-controls input { width: 100%; }
-  .effectiveness-board .effectiveness-lab-controls button:first-of-type { margin-left: 0; align-self: end; }
-  .effectiveness-board .effectiveness-lab-controls button { padding: 7px 9px; font-size: 10px; }
-  .effectiveness-board .effectiveness-lab-split { grid-template-columns: 1fr; gap: 5px; }
-  .effectiveness-board .effectiveness-lab-split > span { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; }
-  .effectiveness-board .effectiveness-lab-split small { margin: 0; text-align: right; }
 }
 /* Keno: one selected level, compact overview and bounded journal pages. */
 .effectiveness-keno-table { min-width: 680px; table-layout: fixed; }
@@ -19146,7 +19056,7 @@ body.light-theme .effectiveness-board .effectiveness-cycle-status.is-scored { co
 .effectiveness-board details.effectiveness-fold > summary > .effectiveness-fold-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 78px; min-height: 28px; margin-left: auto; padding: 4px 8px; border: 1px solid var(--effectiveness-border); border-radius: 6px; background: var(--effectiveness-surface); color: var(--ink); font-size: 10px; font-weight: 600; line-height: 18px; white-space: nowrap; }
 .effectiveness-board details.effectiveness-fold .when-open, .effectiveness-board details.effectiveness-fold[open] .when-closed { display: none; }
 .effectiveness-board details.effectiveness-fold[open] .when-open { display: inline; }
-.effectiveness-board .effectiveness-timeline, .effectiveness-board .effectiveness-lab.effectiveness-fold { margin-top: 8px; }
+.effectiveness-board .effectiveness-timeline { margin-top: 8px; }
 .effectiveness-board .effectiveness-timeline { margin-bottom: 0; border: 0; border-radius: 0; }
 
 /* Keep all nine prediction tabs aligned, including the longer report label. */
@@ -19339,28 +19249,28 @@ body.light-theme .result-box.prize-box .prize-share-context, body.light-theme .r
   --deposit-field: #091522;
   --deposit-muted: #9fb2c8;
   --deposit-accent: #77b7ff;
-  max-width: 1120px; margin: 0 auto 24px; padding: 24px;
-  border: 1px solid var(--deposit-border); border-radius: 20px;
+  max-width: 1000px; margin: 0 auto 20px; padding: 20px;
+  border: 1px solid var(--deposit-border); border-radius: 16px;
   background: #0a1624; color: var(--ink); box-shadow: none;
 }
 #paypalDepositSection[hidden], #paypalDepositSection [hidden] { display: none !important; }
 #paypalDepositSection::before, #paypalDepositSection::after { display: none; }
-#paypalDepositSection .deposit-head { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 20px; text-align: left; }
+#paypalDepositSection .deposit-head { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; text-align: left; }
 #paypalDepositSection .deposit-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
 #paypalDepositSection .deposit-wallet-icon { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #31547c; border-radius: 12px; background: #142e4b; color: #86bcff; }
 #paypalDepositSection svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-#paypalDepositSection h2 { margin: 0; color: var(--ink); font-family: inherit; font-size: 24px; font-weight: 700; line-height: 1.25; letter-spacing: -.5px; }
+#paypalDepositSection h2 { margin: 0; color: var(--ink); font-family: inherit; font-size: 22px; font-weight: 700; line-height: 1.25; letter-spacing: -.3px; }
 #paypalDepositSection .deposit-heading p { margin: 5px 0 0; color: var(--deposit-muted); font-size: 12px; line-height: 1.5; }
 #paypalDepositSection .deposit-balance-box { display: grid; gap: 3px; min-width: 150px; min-height: 0; margin: 0; padding: 10px 14px; border: 1px solid var(--deposit-border); border-radius: 10px; background: var(--deposit-panel); text-align: right; box-shadow: none; }
 #paypalDepositSection .deposit-balance-label { color: var(--deposit-muted); font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 #paypalDepositSection .deposit-balance-box > div { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 #paypalDepositSection .deposit-balance-box strong { color: var(--ink); font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 #paypalDepositSection .deposit-balance-box > div > span { color: var(--deposit-muted); font-size: 11px; font-weight: 500; }
-#paypalDepositSection .deposit-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: start; gap: 16px; }
-#paypalDepositSection :is(.deposit-package-card, .deposit-form-card, .deposit-history-card) { min-width: 0; margin: 0; padding: 18px; border: 1px solid var(--deposit-border); border-radius: 13px; background: var(--deposit-panel); box-shadow: none; }
+#paypalDepositSection .deposit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 12px; }
+#paypalDepositSection :is(.deposit-package-card, .deposit-form-card, .deposit-history-card) { min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--deposit-border); border-radius: 11px; background: var(--deposit-panel); box-shadow: none; }
 #paypalDepositSection .deposit-card-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 #paypalDepositSection h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink); font-size: 14px; line-height: 1.4; font-weight: 650; }
-#paypalDepositSection .deposit-step { display: grid; place-items: center; width: 23px; height: 23px; border: 1px solid #355174; border-radius: 7px; color: var(--deposit-accent); background: rgba(68, 140, 231, .1); font-size: 11px; }
+#paypalDepositSection .deposit-step { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 22px; border: 1px solid #355174; border-radius: 6px; color: var(--deposit-accent); background: rgba(68, 140, 231, .1); font-size: 11px; }
 #paypalDepositSection :is(.deposit-bonus-hint, .deposit-required-hint) { font-size: 10px; color: var(--deposit-muted); }
 #paypalDepositSection .deposit-bonus-hint { color: #82dfb7; }
 #paypalDepositSection .deposit-rate-caption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 14px; color: var(--deposit-muted); font-size: 11px; line-height: 1.5; }
@@ -19375,16 +19285,16 @@ body.light-theme .result-box.prize-box .prize-share-context, body.light-theme .r
 #paypalDepositSection .active .deposit-package-check { visibility: visible; }
 #paypalDepositSection .deposit-package-credit { color: var(--deposit-muted); font-size: 11px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
 #paypalDepositSection .deposit-package-bonus { color: #7fdbb0; font-size: 10px; font-weight: 500; line-height: 1.3; }
-#paypalDepositSection .deposit-package-item:nth-child(-n+2) .deposit-package-bonus { color: var(--deposit-muted); }
+#paypalDepositSection .deposit-package-item[data-package-id="small"] .deposit-package-bonus { color: var(--deposit-muted); }
 #paypalDepositSection .deposit-field { display: grid; align-content: start; gap: 7px; min-width: 0; margin: 0; color: var(--ink); font-size: 11px; font-weight: 550; }
 #paypalDepositSection .deposit-field > span { display: flex; align-items: center; justify-content: space-between; gap: 5px; line-height: 16px; }
 #paypalDepositSection .deposit-field b { margin-right: auto; color: #a6bcdb; font-weight: 400; }
 #paypalDepositSection .deposit-field small { color: var(--deposit-muted); font-size: 10px; font-weight: 400; line-height: 1.4; }
-#paypalDepositSection :is(input, textarea) { box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; margin: 0; padding: 10px 11px; border: 1px solid var(--deposit-border); border-radius: 8px; color: var(--ink); background: var(--deposit-field); font: inherit; font-size: 12px; font-weight: 400; box-shadow: none; }
-#paypalDepositSection input { height: 42px; }
+#paypalDepositSection :is(input, textarea, select) { box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; margin: 0; padding: 10px 11px; border: 1px solid var(--deposit-border); border-radius: 8px; color: var(--ink); background: var(--deposit-field); font: inherit; font-size: 12px; font-weight: 400; box-shadow: none; }
+#paypalDepositSection :is(input, select) { height: 42px; }
 #paypalDepositSection input[type="datetime-local"] { color-scheme: dark; }
 #paypalDepositSection input::placeholder, #paypalDepositSection textarea::placeholder { color: #7d92ab; opacity: 1; }
-#paypalDepositSection :is(input, textarea):focus { outline: 2px solid #73aefa; outline-offset: 1px; border-color: transparent; }
+#paypalDepositSection :is(input, textarea, select):focus { outline: 2px solid #73aefa; outline-offset: 1px; border-color: transparent; }
 #paypalDepositSection :is(button, summary):focus-visible { outline: 2px solid #73aefa; outline-offset: 3px; }
 #paypalDepositSection [aria-invalid="true"] { border-color: #f29c96; }
 #paypalDepositSection .deposit-custom-amount { margin-top: 16px; }
@@ -19416,14 +19326,14 @@ body.light-theme .result-box.prize-box .prize-share-context, body.light-theme .r
 #paypalDepositSection .deposit-message { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--deposit-border); border-radius: 8px; color: var(--deposit-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 #paypalDepositSection .deposit-message[data-kind="ok"] { border-color: #38725e; color: #9de7cb; }
 #paypalDepositSection .deposit-message[data-kind="warn"] { border-color: #a07240; color: #f6cc98; }
-#paypalDepositSection .deposit-history-card { margin-top: 16px; }
+#paypalDepositSection .deposit-history-card { margin-top: 12px; }
 #paypalDepositSection .deposit-history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 #paypalDepositSection .deposit-history-count { min-height: 0; padding: 4px 8px; border: 1px solid var(--deposit-border); border-radius: 6px; background: var(--deposit-field); color: var(--deposit-muted); font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 #paypalDepositSection .deposit-history-list { display: grid; gap: 8px; max-height: 340px; overflow: auto; margin-top: 12px; }
 #paypalDepositSection .deposit-empty { display: grid; justify-items: center; gap: 5px; padding: 24px 12px; border: 1px dashed var(--deposit-border); border-radius: 8px; color: var(--deposit-muted); font-size: 11px; text-align: center; }
 #paypalDepositSection .deposit-empty strong { color: var(--ink); font-size: 12px; font-weight: 550; }
 #paypalDepositSection .deposit-history-item { min-width: 0; padding: 0; border: 1px solid var(--deposit-border); border-radius: 8px; background: var(--deposit-field); }
-#paypalDepositSection .deposit-history-item summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 12px; align-items: center; gap: 12px; padding: 12px; cursor: pointer; }
+#paypalDepositSection .deposit-history-item summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 12px; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; }
 #paypalDepositSection .deposit-history-amount { display: grid; gap: 4px; min-width: 0; }
 #paypalDepositSection .deposit-history-amount strong { color: var(--ink); font-size: 12px; font-weight: 600; }
 #paypalDepositSection .deposit-history-amount small { color: var(--deposit-muted); font-size: 10px; }
@@ -19464,10 +19374,7 @@ body.light-theme #paypalDepositSection .deposit-preview-total strong, body.light
 body.light-theme #paypalDepositSection .deposit-message[data-kind="warn"] { color: #895719; }
 body.light-theme #paypalDepositSection .deposit-status-pill { color: #885b19; }
 body.light-theme #paypalDepositSection input[type="datetime-local"] { color-scheme: light; }
-@media (min-width: 821px) and (max-width: 1040px) {
-  #paypalDepositSection .deposit-package-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 820px) {
+@media (max-width: 960px) {
   #paypalDepositSection .deposit-grid { grid-template-columns: minmax(0, 1fr); }
   #paypalDepositSection .deposit-package-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -19486,4 +19393,603 @@ body.light-theme #paypalDepositSection input[type="datetime-local"] { color-sche
   #paypalDepositSection .deposit-status-pill { grid-column: 2; grid-row: 1 / 3; }
   #paypalDepositSection .deposit-history-chevron { grid-column: 3; grid-row: 1 / 3; }
   #paypalDepositSection .deposit-history-detail { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Personal deposits and prospective simulation charts. */
+.account-stats { --as-bg:#0c1927; --as-card:#102232; --as-line:#263f50; --as-muted:#9bb2c6; --as-ink:#e6f1fb; color:var(--as-ink); border:1px solid var(--as-line); border-radius:18px; padding:22px; background:linear-gradient(145deg,#0d2031,var(--as-bg) 55%); }
+.account-stats *, .account-stats *::before, .account-stats *::after { box-sizing:border-box; }
+.account-stats[hidden], .account-stats [hidden] { display:none !important; }
+.account-stats-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.account-stats h1 { margin:0; font-size:26px; font-weight:800; line-height:1.3; letter-spacing:.2px; color:var(--as-ink); -webkit-text-fill-color:var(--as-ink); }
+.account-stats h1::after { content:none; }
+.account-stats button { min-height:0; }
+.account-stats select { color-scheme:dark; }
+body.light-theme .account-stats select { color-scheme:light; background:var(--as-card); }
+.account-stats h2 { margin:0 0 6px; font-size:15px; letter-spacing:-.2px; }
+.account-stats-head p { margin:0; color:var(--as-muted); font-size:12px; }
+.account-stats #accountStatsRefresh { display:inline-flex; align-items:center; justify-content:center; width:auto; height:38px; flex:none; border:1px solid var(--as-line); border-radius:9px; background:var(--as-card); color:var(--as-ink); box-shadow:none; padding:0 13px; font-size:12px; }
+.account-stats-toolbar { display:grid; grid-template-columns:minmax(280px,1.45fr) repeat(3,minmax(0,1fr)); align-items:end; gap:12px; padding:14px; background:var(--as-card); border:1px solid var(--as-line); border-radius:12px; }
+.account-stats-toolbar:has(#accountStatsLevelLabel:not([hidden])) { grid-template-columns:minmax(260px,1.5fr) repeat(4,minmax(0,1fr)); }
+.account-stats-toolbar label, .account-stats-period-field { display:flex; flex-direction:column; gap:7px; margin:0; min-width:0; color:var(--as-muted); font-size:11px; font-weight:600; line-height:16px; }
+.account-stats-toolbar :is(input,select) { display:block; width:100%; min-width:0; height:40px; min-height:40px; max-height:40px; margin:0; padding:0 11px; border:1px solid var(--as-line); border-radius:8px; background:var(--as-bg); color:var(--as-ink); font-size:12px; font-family:inherit; line-height:normal; box-shadow:none; }
+.account-stats-toolbar input:disabled { opacity:.55; cursor:default; }
+.account-stats-periods { display:flex; align-items:center; gap:3px; padding:4px; height:40px; border:1px solid var(--as-line); border-radius:8px; background:var(--as-bg); }
+.account-stats-periods button { width:auto; min-width:0; flex:1; height:30px; padding:0 7px; margin:0; border:0; background:transparent; box-shadow:none; color:var(--as-muted); border-radius:5px; font-size:11px; white-space:nowrap; }
+.account-stats-periods button[aria-pressed=true] { color:#052234; background:#6bddf7; font-weight:750; }
+.account-stats button:focus-visible { outline:2px solid #65d7fa; outline-offset:3px; }
+.account-stats-status { margin:10px 2px 14px; font-size:11px; color:var(--as-muted); overflow-wrap:anywhere; min-height:16px; line-height:1.6; }
+.account-stats-cards { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin:14px 0 16px; }
+.account-stats-status:not([hidden]) + .account-stats-cards { margin-top:0; }
+.account-stats-kpi { --as-accent:#38bdf8; container-type:inline-size; display:flex; flex-direction:column; min-width:0; min-height:92px; border:1px solid var(--as-line); border-radius:12px; padding:14px 16px; background:var(--as-card); position:relative; }
+.account-stats-kpi.is-purple { --as-accent:#a78bfa; }
+.account-stats-kpi.is-green { --as-accent:#34d399; }
+.account-stats-kpi::before { content:""; position:absolute; top:16px; left:0; height:25px; width:3px; border-radius:0 3px 3px 0; background:var(--as-accent); }
+.account-stats-kpi > span { display:block; font-size:14px; font-weight:700; line-height:20px; color:var(--as-ink); }
+.account-stats-kpi > strong { display:flex; align-items:center; height:32px; margin:8px 0 0; font-size:min(25px,calc(100cqi / var(--as-value-length,18) * 1.65)); font-variant-numeric:tabular-nums; letter-spacing:-.45px; line-height:1.2; white-space:nowrap; }
+.account-stats-change { display:flex; flex-direction:row; align-items:baseline; flex-wrap:nowrap; gap:5px; margin-top:8px; color:var(--as-muted); font-size:min(12px,calc(100cqi / var(--as-change-length,30) * 1.6)); line-height:1.3; white-space:nowrap; }
+.account-stats-change b { font-size:inherit; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.account-stats-change > span { font-size:.9em; color:var(--as-muted); }
+.account-stats-change.is-up { color:#34d399; }
+.account-stats-change.is-down { color:#fb7185; }
+body.light-theme .account-stats-change.is-up { color:#087950; }
+body.light-theme .account-stats-change.is-down { color:#b4233c; }
+.account-stats-charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:16px; }
+.account-stats-chart-card { display:flex; flex-direction:column; min-width:0; padding:18px; border:1px solid var(--as-line); border-radius:12px; background:var(--as-card); }
+.account-stats-chart-card > header, .account-stats-panel > header { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; min-height:28px; margin-bottom:10px; }
+.account-stats-chart-card header h2 { margin:0; white-space:nowrap; }
+.account-stats-panel { display:flex; flex-direction:column; flex:1; min-width:0; }
+.account-stats-panel > :is(#accountStatsMoneyChart,#accountStatsTicketChart) { display:flex; flex-direction:column; flex:1; min-width:0; }
+.account-stats-carousel-nav { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; padding-top:10px; border-top:1px solid var(--as-line); }
+.account-stats-carousel-nav button { display:flex; align-items:center; justify-content:center; flex:none; width:32px; height:30px; margin:0; padding:0; border:1px solid var(--as-line); border-radius:8px; background:var(--as-bg); color:var(--as-ink); box-shadow:none; font-size:12px; }
+.account-stats-carousel-nav button:hover { border-color:#38bdf8; background:color-mix(in srgb,#38bdf8 12%,var(--as-bg)); }
+.account-stats-carousel-nav svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.account-stats-carousel-nav > span { flex:1; color:var(--as-muted); font-size:11px; text-align:center; }
+.account-stats-method-card > header { grid-template-columns:minmax(0,1fr) auto; }
+.account-stats-method-chart { display:grid; grid-template-columns:minmax(140px,.9fr) minmax(0,1.1fr); align-items:center; gap:16px; flex:1; min-height:288px; }
+.account-stats-method-chart > .account-stats-empty { grid-column:1 / -1; }
+.account-stats-donut { width:100%; max-width:260px; justify-self:center; }
+.account-stats-donut svg { display:block; width:100%; height:auto; overflow:visible; }
+.account-stats-pie-track, .account-stats-pie-sector { fill:none; stroke-width:34px; }
+.account-stats-pie-track { stroke:var(--as-line); }
+.account-stats-pie-sector:focus { outline:none; stroke-width:38px; }
+.account-stats-donut-label { fill:var(--as-muted); font-family:inherit; font-size:10px; }
+.account-stats-donut-total, .account-stats-donut-won { fill:var(--as-ink); font-family:inherit; font-weight:750; font-variant-numeric:tabular-nums; }
+.account-stats-ring-key { display:flex; flex-wrap:wrap; justify-content:center; gap:5px 12px; color:var(--as-muted); font-size:9px; text-align:center; }
+.account-stats-method-breakdown { min-width:0; }
+.account-stats-method-columns, .account-stats-method-legend li { display:grid; grid-template-columns:minmax(0,1.2fr) repeat(2,minmax(0,1fr)); align-items:center; gap:8px; }
+.account-stats-method-columns { color:var(--as-muted); font-size:10px; padding-bottom:4px; }
+.account-stats-method-columns > span:not(:first-child) { text-align:right; }
+.account-stats-method-legend { display:grid; gap:0; min-width:0; list-style:none; margin:0; padding:0; }
+.account-stats-method-legend li { padding:12px 0; border-bottom:1px solid var(--as-line); }
+.account-stats-method-legend li:last-child { border-bottom:0; }
+.account-stats-method-legend i { flex:none; width:7px; height:7px; border-radius:50%; }
+.account-stats-method-name { display:flex; gap:7px; align-items:center; font-size:11px; font-weight:650; }
+.account-stats-method-value { min-width:0; text-align:right; }
+.account-stats-method-legend small { display:block; margin-top:4px; color:var(--as-muted); font-size:9px; font-weight:400; overflow-wrap:anywhere; }
+.account-stats-method-legend strong { display:flex; align-items:center; justify-content:flex-end; gap:5px; font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.account-stats-chip { flex:none; background:var(--as-bg); color:var(--as-muted); border:1px solid var(--as-line); border-radius:20px; padding:5px 9px; font-size:9px; }
+.account-stats-legend { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:4px; min-width:0; margin:0; }
+.account-stats-legend-group { display:inline-flex; align-items:center; flex-wrap:wrap; gap:4px; max-width:100%; min-width:0; }
+.account-stats-legend button { display:inline-flex; gap:4px; align-items:center; width:auto; min-height:24px; padding:3px 6px; margin:0; border:1px solid var(--as-line); border-radius:6px; background:transparent; color:var(--as-ink); box-shadow:none; font-size:10px; line-height:16px; white-space:nowrap; }
+.account-stats-legend button[aria-pressed=false] { opacity:.4; }
+.account-stats-legend i { display:block; width:6px; height:6px; border-radius:50%; }
+.account-stats-legend .is-previous i { width:12px; height:0; border-top:2px dashed var(--as-series-color); border-radius:0; background:transparent; }
+.account-stats-svg { margin-top:auto; width:100%; min-width:0; }
+.account-stats-svg svg { display:block; width:100%; height:240px; overflow:visible; }
+.account-stats-svg text { fill:var(--as-muted); font-size:11px; font-family:inherit; }
+.account-stats-grid line { stroke:var(--as-line); stroke-dasharray:4 5; }
+.account-stats-lines path { fill:none; stroke-width:2.5; vector-effect:non-scaling-stroke; }
+.account-stats-lines circle { stroke:var(--as-card); stroke-width:2; }
+.account-stats-axis .is-future { opacity:.55; }
+.account-stats-lines circle:focus { outline:none; stroke:var(--as-ink); stroke-width:3; r:6px; }
+.account-stats-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:200px; text-align:center; padding:24px; }
+.account-stats-empty > span { color:#55c9ea; font-size:35px; margin-bottom:10px; }
+.account-stats-empty strong { font-size:13px; }
+.account-stats-empty p { font-size:11px; line-height:1.6; color:var(--as-muted); max-width:330px; }
+.account-stats-note { margin:14px 2px 0; color:var(--as-muted); font-size:10px; line-height:1.8; }
+.account-stats-table { margin-top:16px; border:1px solid var(--as-line); border-radius:10px; background:var(--as-card); overflow:hidden; }
+.account-stats-table > summary { cursor:pointer; padding:12px 14px; color:var(--as-muted); font-size:11px; }
+.account-stats-table[open] > summary { border-bottom:1px solid var(--as-line); }
+.account-stats-table-scroll { position:relative; isolation:isolate; overflow:auto; max-height:360px; background:var(--as-card); }
+.account-stats-table table { width:100%; margin:0; border-collapse:separate; border-spacing:0; font-size:10px; line-height:1.5; font-variant-numeric:tabular-nums; }
+.account-stats-table :is(th,td) { border:0; border-bottom:1px solid var(--as-line); padding:10px 12px; vertical-align:middle; text-align:right; white-space:nowrap; }
+.account-stats-table th:first-child { text-align:left; }
+.account-stats-table thead { position:sticky; top:0; z-index:2; background:var(--as-bg); }
+.account-stats-table thead th { position:static; background:var(--as-bg); color:var(--as-muted); }
+.account-stats-table tbody tr:last-child :is(th,td) { border-bottom:0; }
+body.light-theme .account-stats { --as-bg:#f5f8fc; --as-card:#fff; --as-line:#d8e3ed; --as-muted:#60788d; --as-ink:#173249; background:linear-gradient(145deg,#eef7ff,#f5f8fc); }
+@media(max-width:1199px) {
+  .account-stats-toolbar, .account-stats-toolbar:has(#accountStatsLevelLabel:not([hidden])) { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  .account-stats-toolbar label, .account-stats-period-field { grid-column:span 3; }
+  .account-stats-toolbar:has(#accountStatsLevelLabel:not([hidden])) .account-stats-period-field { grid-column:1 / -1; }
+  .account-stats-cards { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  .account-stats-kpi { grid-column:span 2; }
+  .account-stats-kpi:nth-child(n+4) { grid-column:span 3; }
+  .account-stats-charts { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .account-stats { padding:16px 12px; border-radius:12px; }
+  .account-stats h1 { font-size:20px; }
+  .account-stats-head { align-items:flex-start; }
+  .account-stats-head > div { min-width:0; }
+  .account-stats-head p { font-size:10px; line-height:1.6; }
+  .account-stats #accountStatsRefresh { font-size:10px; padding:8px; }
+  .account-stats-toolbar, .account-stats-toolbar:has(#accountStatsLevelLabel:not([hidden])) { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 10px; padding:12px; }
+  .account-stats-period-field { grid-column:1 / -1; }
+  .account-stats-toolbar label { grid-column:auto; font-size:10px; }
+  .account-stats-toolbar:not(:has(#accountStatsLevelLabel:not([hidden]))) > label:has(#accountStatsMethod) { grid-column:1 / -1; }
+  .account-stats-toolbar :is(input,select) { padding:0 8px; font-size:11px; }
+  .account-stats-cards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+  .account-stats-kpi, .account-stats-kpi:nth-child(n+4) { grid-column:auto; }
+  .account-stats-kpi:nth-child(-n+3) { grid-column:1 / -1; }
+  .account-stats-kpi { min-height:86px; padding:12px; }
+  .account-stats-kpi > strong { font-size:min(23px,calc(100cqi / var(--as-value-length,18) * 1.65)); }
+  .account-stats-chart-card { padding:14px 12px 10px; }
+  .account-stats-chart-card > header, .account-stats-panel > header { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+  .account-stats-panel > header .account-stats-legend { grid-column:1 / -1; grid-row:2; justify-content:flex-start; }
+  .account-stats-panel > header .account-stats-chip { grid-column:2; grid-row:1; justify-self:end; }
+  .account-stats-chart-card h2 { font-size:13px; }
+  .account-stats-method-chart { grid-template-columns:minmax(0,1fr); gap:2px; min-height:0; }
+  .account-stats-donut { max-width:210px; }
+  .account-stats-method-breakdown { margin-top:14px; }
+  .account-stats-method-legend li { gap:6px; padding:10px 0; }
+  .account-stats-method-name { font-size:10px; }
+  .account-stats-method-legend strong { font-size:11px; }
+}
+
+/* Manual deposits share package selection with the existing QR checkout. */
+#paypalDepositSection .deposit-mode-tabs { display:flex; gap:4px; margin-bottom:12px; padding:4px; border:1px solid var(--deposit-border); border-radius:10px; background:var(--deposit-field); }
+#paypalDepositSection .deposit-mode-tabs button { display:flex; flex:1; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px 12px; min-width:0; min-height:38px; margin:0; padding:8px 12px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--deposit-muted); font-size:13px; font-weight:650; box-shadow:none; }
+#paypalDepositSection .deposit-mode-tabs button span { font-size:10px; font-weight:400; }
+#paypalDepositSection .deposit-mode-tabs [aria-selected="true"] { color:var(--ink); border-color:var(--deposit-border); background:var(--deposit-panel); }
+#paypalDepositSection .deposit-manual-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 12px; }
+#paypalDepositSection .deposit-field-wide { grid-column:1 / -1; }
+#paypalDepositSection .deposit-transfer-instructions { margin:0 0 16px; white-space:pre-wrap; overflow-wrap:anywhere; }
+#paypalDepositSection #paypalDepositForm, #paypalDepositSection #manualDepositForm { margin:0; padding:0; border:0; background:none; box-shadow:none; }
+#paypalDepositSection .deposit-status-pill[data-payment-status="REJECTED"] { color:#f28e98; background:rgba(220,60,80,.1); }
+#adminPanelSection .admin-deposit-settings { margin:16px 0; padding:14px; border:1px solid var(--admin-border,#294050); border-radius:10px; }
+#adminPanelSection .admin-deposit-settings summary { cursor:pointer; font-weight:600; }
+#adminPanelSection #adminDepositSettingsForm { display:grid; gap:10px; margin-top:14px; }
+#adminPanelSection .admin-deposit-toolbar, #adminPanelSection .admin-deposit-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:14px 0; }
+#adminPanelSection .admin-deposit-toolbar { justify-content:space-between; }
+#adminPanelSection .admin-deposit-toolbar label { display:flex; align-items:center; gap:10px; }
+#adminPanelSection .admin-deposit-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+#adminPanelSection .admin-deposit-item { min-width:0; padding:16px; border:1px solid var(--admin-border,#294050); border-radius:10px; }
+#adminPanelSection .admin-deposit-item header { display:flex; justify-content:space-between; gap:12px; }
+#adminPanelSection .admin-deposit-item header > div { display:grid; gap:4px; min-width:0; }
+#adminPanelSection .admin-deposit-item small { font-size:11px; opacity:.7; }
+#adminPanelSection .admin-deposit-amount { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:16px 0; }
+#adminPanelSection .admin-deposit-amount strong { font-size:20px; }
+#adminPanelSection .admin-deposit-item dl { display:grid; gap:8px; margin:0 0 16px; font-size:12px; }
+#adminPanelSection .admin-deposit-item dl > div { display:grid; grid-template-columns:125px minmax(0,1fr); gap:8px; }
+#adminPanelSection .admin-deposit-item dt { opacity:.7; }
+#adminPanelSection .admin-deposit-item dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+#adminPanelSection .admin-deposit-item > label { display:grid; gap:6px; font-size:12px; }
+#adminPanelSection .admin-deposit-item input, #adminPanelSection #adminDepositInstructions { width:100%; min-width:0; box-sizing:border-box; }
+#adminPanelSection .admin-deposit-confirm { padding:12px; margin-top:12px; border:1px solid var(--admin-border,#294050); border-radius:8px; }
+#adminPanelSection .admin-deposit-confirm p { margin:0; font-size:12px; line-height:1.6; }
+#adminPanelSection .admin-deposit-confirm[hidden] { display:none; }
+@media (max-width:760px) {
+  #adminPanelSection .admin-deposit-list { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:420px) {
+  #paypalDepositSection .deposit-manual-fields { grid-template-columns:minmax(0,1fr); }
+  #paypalDepositSection .deposit-mode-tabs button { flex-direction:column; padding:10px 5px; font-size:13px; }
+  #adminPanelSection .admin-deposit-item dl > div { grid-template-columns:minmax(0,1fr); gap:3px; }
+}
+
+#adminPanelSection .admin-metrics[hidden] { display:none; }
+#adminPanelSection .admin-deposit-toolbar label { white-space:nowrap; }
+#adminPanelSection .admin-deposit-toolbar select { width:auto; }
+#adminPanelSection .admin-deposit-actions .admin-primary { width:auto; }
+#adminPanelSection #adminDepositInstructions { height:auto !important; min-height:110px; resize:vertical; }
+#adminPanelSection #adminDepositSettingsForm > button { justify-self:start; width:auto; }
+#adminPanelSection .admin-deposit-list > .admin-empty { grid-column:1 / -1; }
+
+#paypalDepositSection select[name="channel"] { color-scheme:dark; cursor:pointer; }
+body.light-theme #paypalDepositSection select[name="channel"] { color-scheme:light; }
+
+/* Permanent account identifier: preserve all twelve digits in every view. */
+.account-id-text { display:block; margin-top:4px; font-size:11px; font-weight:500; line-height:1.5; color:#8faac3; font-variant-numeric:tabular-nums; letter-spacing:.35px; overflow-wrap:anywhere; }
+button.account-id-chip, #paypalDepositSection button.account-id-chip { display:inline-flex; align-items:center; width:auto; min-height:26px; height:auto; margin:6px 0 0; padding:4px 8px; border:1px solid #2c4860; border-radius:6px; background:rgba(40,117,159,.08); color:#9ecbe5; box-shadow:none; font-size:11px; font-weight:550; line-height:16px; letter-spacing:.35px; font-variant-numeric:tabular-nums; }
+button.account-id-chip[hidden], .account-id-text[hidden] { display:none !important; }
+button.account-id-chip:hover { border-color:#54badb; }
+body.light-theme .account-id-text { color:#57728c; }
+body.light-theme button.account-id-chip { color:#226585; border-color:#b9d4e5; background:#edf7fd; }
+#accountOverlay .account-user-cell .account-id-text { flex-basis:100%; }
+#accountOverlay .account-search-label { display:grid; gap:6px; margin:8px 0 12px; font-size:11px; }
+#accountOverlay #accountSearch { width:100%; min-height:38px; margin:0; font-size:12px; }
+#adminPanelSection .admin-account-activity { margin-top:16px; padding:16px; border:1px solid var(--admin-border); border-radius:10px; min-width:0; }
+#adminPanelSection .admin-account-activity h3 { margin:0; font-size:15px; overflow-wrap:anywhere; }
+#adminPanelSection .admin-account-activity details { padding:10px 0; border-top:1px solid var(--admin-border); }
+#adminPanelSection .admin-account-activity summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; cursor:pointer; font-size:12px; }
+#adminPanelSection .admin-account-activity summary span { color:var(--admin-muted); font-size:11px; }
+#adminPanelSection .admin-account-activity p { font-size:11px; overflow-wrap:anywhere; }
+#adminPanelSection .admin-account-activity pre { max-width:100%; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
+
+/* Compact, aligned package selection and amount summary. */
+#paypalDepositSection .deposit-package-card { display:grid; align-content:start; gap:12px; }
+#paypalDepositSection .deposit-package-card > .deposit-card-heading, #paypalDepositSection .deposit-package-card > .deposit-rate-caption { margin:0; }
+#paypalDepositSection .deposit-package-card .deposit-bonus-hint { padding:3px 7px; border:1px solid rgba(87,190,151,.22); border-radius:6px; background:rgba(57,158,118,.07); white-space:nowrap; }
+#paypalDepositSection .deposit-package-grid { gap:9px; align-items:stretch; }
+#paypalDepositSection button.deposit-package-item { box-sizing:border-box; height:80px; min-height:80px; padding:10px; gap:4px; grid-template-rows:20px 15px 14px; align-content:center; border-radius:8px; }
+#paypalDepositSection .deposit-package-top { display:block; min-width:0; width:100%; padding-right:18px; box-sizing:border-box; }
+#paypalDepositSection .deposit-package-amount { display:block; font-size:16px; line-height:20px; font-weight:750; letter-spacing:-.3px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#paypalDepositSection .deposit-package-check { position:absolute; top:10px; right:9px; width:14px; height:14px; font-size:10px; }
+#paypalDepositSection .deposit-package-credit { font-size:11px; line-height:15px; font-variant-numeric:tabular-nums; }
+#paypalDepositSection .deposit-package-bonus { line-height:14px; }
+#paypalDepositSection button.deposit-package-item[data-package-id="custom"] { grid-template-rows:22px auto; justify-items:center; align-content:center; gap:7px; }
+#paypalDepositSection [data-package-id="custom"] .deposit-package-top { padding:0; text-align:center; }
+#paypalDepositSection [data-package-id="custom"] .deposit-package-amount { font-size:13px; line-height:18px; letter-spacing:0; }
+#paypalDepositSection .deposit-package-custom-icon { display:grid; place-items:center; width:22px; height:22px; border:1px solid var(--deposit-border); border-radius:6px; color:var(--deposit-accent); font-size:19px; font-weight:400; line-height:1; }
+#paypalDepositSection .active .deposit-package-custom-icon { border-color:rgba(106,170,255,.45); background:rgba(106,170,255,.1); }
+#paypalDepositSection .deposit-amount-panel { display:grid; gap:12px; min-width:0; }
+#paypalDepositSection .deposit-amount-panel .deposit-custom-amount { margin:0; gap:7px; }
+#paypalDepositSection .deposit-custom-amount > span { font-size:12px; }
+#paypalDepositSection .deposit-field > .deposit-amount-input { display:block; position:relative; min-width:0; }
+#paypalDepositSection #depositAmount { height:44px; padding-right:52px; font-size:17px; font-weight:650; letter-spacing:.1px; }
+#paypalDepositSection .deposit-amount-input > span { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--deposit-muted); font-size:11px; font-weight:500; pointer-events:none; }
+#paypalDepositSection .deposit-amount-panel .deposit-rate-preview { margin:0; padding:12px; border-color:var(--deposit-border); border-radius:10px; background:rgba(50,146,148,.055); }
+#paypalDepositSection .deposit-preview-total { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; font-size:12px; line-height:18px; }
+#paypalDepositSection .deposit-preview-total strong { font-size:23px; line-height:28px; white-space:nowrap; }
+#paypalDepositSection .deposit-preview-total strong.is-empty { color:var(--deposit-muted); }
+#paypalDepositSection .deposit-preview-breakdown { margin-top:9px; padding-top:9px; gap:5px 12px; line-height:15px; }
+#paypalDepositSection .deposit-preview-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; gap:10px; color:var(--deposit-muted); font-size:12px; line-height:22px; }
+#paypalDepositSection .deposit-preview-row + .deposit-preview-row { margin-top:5px; }
+#paypalDepositSection .deposit-preview-row strong { color:var(--ink); font-size:15px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#paypalDepositSection .deposit-preview-row small { color:var(--deposit-muted); font-size:11px; font-weight:400; }
+#paypalDepositSection .deposit-preview-bonus strong { color:#9de7cb; }
+body.light-theme #paypalDepositSection .deposit-preview-bonus strong { color:#1a7657; }
+#paypalDepositSection .deposit-preview-final { margin-top:10px; padding-top:10px; border-top:1px solid var(--deposit-border); font-size:14px; font-weight:750; gap:8px; }
+#paypalDepositSection #depositAmount.has-live-composition { color:transparent; -webkit-text-fill-color:transparent; caret-color:transparent; }
+#paypalDepositSection .deposit-amount-input > .deposit-amount-live { position:absolute; inset:1px 52px 1px 12px; display:flex; align-items:center; transform:none; color:var(--ink); background:var(--deposit-field); font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; letter-spacing:.1px; white-space:pre; pointer-events:none; overflow:hidden; }
+#paypalDepositSection .deposit-amount-input > .deposit-amount-live[hidden] { display:none; }
+#paypalDepositSection .deposit-amount-live-caret { position:relative; flex:0 0 0; }
+#paypalDepositSection .deposit-amount-live-caret::after { content:""; position:absolute; left:0; top:50%; transform:translateY(-50%); height:1.1em; width:1px; background:currentColor; }
+#paypalDepositSection .deposit-amount-live-selection { background:rgba(106,170,255,.3); }
+@media (max-width:380px) {
+  #paypalDepositSection .deposit-package-amount { font-size:15px; }
+  #paypalDepositSection [data-package-id="custom"] .deposit-package-amount { font-size:12px; }
+  #paypalDepositSection .deposit-preview-total strong { font-size:21px; }
+  #paypalDepositSection .deposit-preview-final { font-size:12px; }
+  #paypalDepositSection .deposit-preview-final strong { font-size:17px; }
+}
+
+/* The recipient ID is issued by the server and cannot be edited in the deposit form. */
+#paypalDepositSection .deposit-manual-fields input[readonly] { color:var(--deposit-accent); font-variant-numeric:tabular-nums; letter-spacing:.3px; cursor:default; }
+
+/* Receiving account stays editable through the existing admin instructions. */
+#paypalDepositSection .deposit-transfer-instructions.has-bank-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px 12px; padding:14px; border:1px solid var(--deposit-border); border-radius:10px; background:linear-gradient(120deg,rgba(55,127,218,.1),rgba(65,151,183,.035)); white-space:normal; }
+#paypalDepositSection .deposit-bank-heading { display:flex; align-items:center; gap:10px; min-width:0; }
+#paypalDepositSection .deposit-bank-icon { display:grid; place-items:center; width:36px; height:36px; border:1px solid rgba(106,170,255,.25); border-radius:9px; background:rgba(75,139,222,.1); color:var(--deposit-accent); }
+#paypalDepositSection .deposit-bank-icon svg { width:24px; height:24px; margin:0; }
+#paypalDepositSection .deposit-bank-heading > div, #paypalDepositSection .deposit-bank-account > div { display:grid; gap:2px; min-width:0; }
+#paypalDepositSection .deposit-bank-heading strong { color:var(--ink); font-size:16px; line-height:21px; }
+#paypalDepositSection .deposit-bank-number { display:grid; align-content:center; gap:2px; text-align:right; }
+#paypalDepositSection .deposit-bank-number strong { color:var(--ink); font-size:17px; font-weight:750; line-height:22px; letter-spacing:.4px; font-variant-numeric:tabular-nums; white-space:nowrap; user-select:all; }
+#paypalDepositSection .deposit-bank-account { grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#paypalDepositSection button.deposit-bank-copy { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:none; width:auto; min-height:34px; margin:0; padding:7px 9px; border:1px solid var(--deposit-border); border-radius:7px; background:var(--deposit-field); color:var(--deposit-accent); font-size:11px; font-weight:600; line-height:18px; box-shadow:none; white-space:nowrap; }
+#paypalDepositSection .deposit-bank-copy svg { width:15px; height:15px; flex:none; margin:0; }
+#paypalDepositSection button.deposit-bank-copy:hover { border-color:var(--deposit-accent); }
+#paypalDepositSection button.deposit-bank-copy[data-copied="true"] { color:#2ec69c; border-color:#2ec69c; }
+#paypalDepositSection .deposit-bank-extra { grid-column:1 / -1; margin:0; padding-top:10px; border-top:1px solid var(--deposit-border); white-space:pre-line; overflow-wrap:anywhere; }
+#paypalDepositSection .deposit-bank-recipient { display:grid; gap:3px; }
+#paypalDepositSection .deposit-bank-recipient strong { color:var(--ink); font-size:20px; font-weight:750; line-height:26px; overflow-wrap:anywhere; }
+@media (max-width:380px) {
+  #paypalDepositSection .deposit-bank-copy span { display:none; }
+  #paypalDepositSection .deposit-bank-icon { display:none; }
+  #paypalDepositSection .deposit-bank-heading strong { font-size:14px; }
+  #paypalDepositSection .deposit-bank-recipient strong { font-size:18px; }
+}
+
+/* Account ID is the only transfer memo; no additional transfer fields are collected. */
+#paypalDepositSection .deposit-transfer-memo { display:grid; gap:8px; }
+#paypalDepositSection .deposit-transfer-memo > label { color:var(--ink); font-size:12px; font-weight:650; }
+#paypalDepositSection .deposit-memo-input { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+#paypalDepositSection #depositManualAccountId { color:var(--deposit-accent); font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:.5px; }
+#paypalDepositSection .deposit-memo-input button { min-height:40px; }
+
+/* Consistent controls and a full-width action for the manual deposit form. */
+#paypalDepositSection #manualDepositForm { margin:0; }
+#paypalDepositSection .deposit-checkout-actions { grid-template-columns:minmax(0,1fr); margin:0; }
+#paypalDepositSection #depositManualAccountId { height:40px; font-size:15px; }
+#paypalDepositSection .deposit-message { margin-top:12px; padding:9px 11px; }
+@media (max-width:560px) {
+  #paypalDepositSection { padding:12px; }
+  #paypalDepositSection .deposit-head { gap:12px; margin-bottom:12px; }
+  #paypalDepositSection :is(.deposit-package-card, .deposit-form-card, .deposit-history-card) { padding:12px; }
+  #paypalDepositSection .deposit-balance-box { box-sizing:border-box; gap:8px; min-width:0; }
+  #paypalDepositSection .deposit-balance-box > div { min-width:0; }
+  #paypalDepositSection .deposit-balance-box strong { font-size:16px; }
+}
+
+/* Compact wallet actions; transaction history opens only when requested. */
+#paypalDepositSection .deposit-head-actions { display:flex; align-items:center; gap:8px; min-width:0; }
+#paypalDepositSection .deposit-head-actions .deposit-balance-box { display:grid; gap:2px; min-width:0; width:auto; padding:7px 10px; border-radius:8px; }
+#paypalDepositSection .deposit-head-actions .deposit-balance-box strong { font-size:16px; line-height:20px; }
+#paypalDepositSection button.deposit-history-button { display:inline-flex; align-items:center; justify-content:center; gap:7px; flex:none; min-height:38px; width:auto; margin:0; padding:8px 11px; border:1px solid var(--deposit-border); border-radius:8px; background:var(--deposit-panel); color:var(--ink); font-size:12px; font-weight:650; box-shadow:none; white-space:nowrap; }
+#paypalDepositSection .deposit-history-button svg { width:16px; height:16px; color:var(--deposit-accent); }
+#paypalDepositSection button.deposit-history-button:hover { border-color:var(--deposit-accent); }
+body:has(#depositHistoryDialog[open]) { overflow:hidden; }
+#paypalDepositSection .deposit-history-dialog { box-sizing:border-box; position:fixed; inset:0; width:calc(100% - 24px); max-width:900px; max-height:calc(100dvh - 32px); margin:auto; padding:18px; border:1px solid var(--deposit-border); border-radius:14px; background:var(--deposit-panel); color:var(--ink); font-family:inherit; box-shadow:0 20px 70px rgba(0,0,0,.35); overflow:hidden; }
+#paypalDepositSection .deposit-history-dialog:not([open]) { display:none; }
+#paypalDepositSection .deposit-history-dialog::backdrop { background:rgba(3,10,18,.7); }
+#paypalDepositSection .deposit-history-dialog .deposit-history-head { gap:12px; margin:0 0 14px; }
+#paypalDepositSection .deposit-history-head > div { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+#paypalDepositSection button.deposit-history-close { display:grid; place-items:center; flex:none; width:32px; height:32px; min-height:32px; margin:0; padding:0; border:1px solid var(--deposit-border); border-radius:7px; background:var(--deposit-field); color:var(--ink); font-size:22px; line-height:1; box-shadow:none; }
+#paypalDepositSection .deposit-history-dialog .deposit-history-list { display:block; margin:0; max-height:calc(100dvh - 130px); overflow:auto; overscroll-behavior:contain; }
+#paypalDepositSection .deposit-transactions { width:100%; min-width:760px; margin:0; table-layout:fixed; border-collapse:collapse; color:var(--ink); font-size:12px; text-align:left; }
+#paypalDepositSection .deposit-col-time { width:17%; }
+#paypalDepositSection .deposit-col-method { width:12%; }
+#paypalDepositSection .deposit-col-amount { width:18%; }
+#paypalDepositSection .deposit-col-credit { width:20%; }
+#paypalDepositSection .deposit-col-status { width:21%; }
+#paypalDepositSection .deposit-col-action { width:12%; }
+#paypalDepositSection .deposit-transactions :is(th, td) { border:0; }
+#paypalDepositSection .deposit-transactions th { position:sticky; top:0; z-index:1; padding:11px 8px; background:var(--deposit-field); color:var(--deposit-muted); font-size:11px; font-weight:600; white-space:nowrap; text-align:left; }
+#paypalDepositSection .deposit-transactions td { padding:12px 8px; vertical-align:middle; }
+#paypalDepositSection .deposit-transactions tbody { border-bottom:1px solid var(--deposit-border); }
+#paypalDepositSection .deposit-transactions thead { border-bottom:1px solid var(--deposit-border); }
+#paypalDepositSection .deposit-transactions .deposit-transaction-time { font-size:12px; line-height:18px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#paypalDepositSection .deposit-transaction-time > span, #paypalDepositSection .deposit-transaction-time > small { display:block; }
+#paypalDepositSection .deposit-transactions .deposit-transaction-time > small { font-size:11px; line-height:16px; }
+#paypalDepositSection .deposit-transactions .deposit-transaction-number { text-align:right; font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:650; }
+#paypalDepositSection .deposit-transactions th:nth-child(3), #paypalDepositSection .deposit-transactions th:nth-child(4) { text-align:right; }
+#paypalDepositSection .deposit-transactions small { color:var(--deposit-muted); font-size:10px; font-weight:400; }
+#paypalDepositSection .deposit-method-label { display:inline-block; padding:3px 7px; border:1px solid var(--deposit-border); border-radius:6px; background:var(--deposit-field); color:var(--deposit-accent); font-size:10px; font-weight:550; line-height:16px; white-space:nowrap; }
+#paypalDepositSection .deposit-method-label[data-kind="fast"] { color:#b8a7fa; }
+body.light-theme #paypalDepositSection .deposit-method-label[data-kind="fast"] { color:#7050b9; }
+#paypalDepositSection .deposit-transactions .deposit-status-pill { display:inline-flex; align-items:center; justify-content:center; gap:5px; box-sizing:border-box; width:134px; max-width:100%; min-height:25px; padding:4px 6px; font-size:10px; font-weight:600; line-height:14px; text-align:center; white-space:normal; }
+#paypalDepositSection .deposit-transactions .deposit-status-pill::before { content:""; flex:none; width:5px; height:5px; border-radius:50%; background:currentColor; }
+#paypalDepositSection .deposit-transactions [data-payment-status="REJECTED"] { color:#f1aaa5; border-color:rgba(229,103,95,.3); background:rgba(229,103,95,.08); }
+body.light-theme #paypalDepositSection .deposit-transactions [data-payment-status="REJECTED"] { color:#af3730; }
+#paypalDepositSection .deposit-transactions .deposit-history-item { border-bottom:1px solid var(--deposit-border); border-radius:0; background:transparent; }
+#paypalDepositSection .deposit-transaction-row:hover { background:rgba(119,183,255,.035); }
+#paypalDepositSection .deposit-transaction-row { height:64px; }
+#paypalDepositSection .deposit-transactions .deposit-transaction-action { text-align:right; }
+#paypalDepositSection button[data-history-toggle] { display:inline-flex; align-items:center; justify-content:center; gap:4px; width:auto; min-height:30px; margin:0; padding:5px 7px; border:1px solid var(--deposit-border); border-radius:6px; background:var(--deposit-field); color:var(--deposit-accent); font-size:11px; font-weight:550; line-height:18px; white-space:nowrap; box-shadow:none; }
+#paypalDepositSection button[data-history-toggle]:hover, #paypalDepositSection button[data-history-toggle][aria-expanded="true"] { border-color:var(--deposit-accent); }
+#paypalDepositSection button[data-history-toggle] svg { flex:none; width:12px; height:12px; }
+#paypalDepositSection button[data-history-toggle][aria-expanded="true"] svg { transform:rotate(180deg); }
+#paypalDepositSection .deposit-transactions .deposit-transaction-details > td { padding:0 8px 12px; }
+#paypalDepositSection .deposit-transactions .deposit-history-detail { grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr)); margin:0; padding:14px; gap:14px 20px; border:1px solid var(--deposit-border); border-radius:8px; background:var(--deposit-field); }
+@media (max-width:560px) {
+  #paypalDepositSection .deposit-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+  #paypalDepositSection .deposit-head-actions { display:contents; }
+  #paypalDepositSection .deposit-head-actions .deposit-balance-box { display:flex; grid-column:1 / -1; grid-row:2; justify-content:space-between; align-items:center; width:100%; }
+  #paypalDepositSection .deposit-history-button { grid-column:2; grid-row:1; }
+  #paypalDepositSection .deposit-history-dialog { padding:12px; border-radius:11px; }
+  #paypalDepositSection .deposit-history-dialog .deposit-history-list { max-height:calc(100dvh - 120px); }
+}
+@media (max-width:380px) {
+  #paypalDepositSection h2 { font-size:18px; }
+  #paypalDepositSection button.deposit-history-button { padding:7px 8px; gap:5px; font-size:11px; }
+  #paypalDepositSection .deposit-head-actions .deposit-balance-box strong { font-size:14px; }
+}
+
+/* Shared checkout summary keeps both form columns balanced. */
+#paypalDepositSection .deposit-head { padding-bottom:16px; border-bottom:1px solid var(--deposit-border); }
+#paypalDepositSection .deposit-head-actions { align-items:stretch; }
+body.light-theme #paypalDepositSection button.account-id-chip { color:#226585; border-color:#b9d4e5; background:#edf7fd; }
+#paypalDepositSection .deposit-head-actions .deposit-history-button { min-height:44px; }
+#paypalDepositSection .deposit-grid { gap:16px; }
+#paypalDepositSection :is(.deposit-package-card, .deposit-form-card) { padding:18px; border-radius:12px; }
+#paypalDepositSection .deposit-package-card > .deposit-card-heading { min-height:24px; }
+#paypalDepositSection .deposit-form-card .deposit-card-heading { min-height:24px; margin-bottom:16px; }
+#paypalDepositSection .deposit-transfer-instructions.has-bank-card { gap:18px 12px; padding:16px; }
+#paypalDepositSection .deposit-bank-account { padding-top:12px; border-top:1px solid var(--deposit-border); }
+#paypalDepositSection .deposit-transfer-memo { gap:8px; }
+#paypalDepositSection #depositManualAccountId { height:44px; }
+#paypalDepositSection .deposit-memo-input button { min-height:44px; }
+#paypalDepositSection .deposit-checkout-card { display:grid; gap:16px; margin-top:16px; padding:18px; border:1px solid var(--deposit-border); border-radius:12px; background:var(--deposit-panel); }
+#paypalDepositSection .deposit-checkout-card .deposit-rate-preview { margin:0; padding:0; border:0; border-radius:0; background:transparent; }
+#paypalDepositSection .deposit-checkout-actions button { min-height:44px; }
+#paypalDepositSection .deposit-checkout-card .deposit-message { margin:0; }
+@media (min-width:961px) {
+  #paypalDepositSection .deposit-checkout-card .deposit-rate-preview { display:grid; grid-template-columns:1.1fr 1fr .8fr 1.3fr; gap:20px; align-items:center; }
+  #paypalDepositSection .deposit-checkout-card .deposit-rate-preview > :is(.deposit-preview-row,.deposit-preview-total) { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:5px; min-width:0; margin:0; padding:0; border:0; line-height:20px; }
+  #paypalDepositSection .deposit-checkout-card .deposit-preview-row + .deposit-preview-row { padding-left:20px; border-left:1px solid var(--deposit-border); }
+  #paypalDepositSection .deposit-checkout-card .deposit-rate-preview > .deposit-preview-final { align-items:flex-end; padding-left:20px; border-left:1px solid var(--deposit-border); font-size:12px; font-weight:650; }
+  #paypalDepositSection .deposit-checkout-card .deposit-preview-final strong { font-size:22px; line-height:26px; }
+  #paypalDepositSection .deposit-checkout-actions { justify-self:end; width:230px; }
+}
+@media (max-width:960px) {
+  #paypalDepositSection .deposit-grid { gap:12px; }
+  #paypalDepositSection .deposit-checkout-card { gap:14px; margin-top:12px; padding:16px; }
+}
+@media (max-width:560px) {
+  #paypalDepositSection :is(.deposit-package-card,.deposit-form-card,.deposit-checkout-card) { padding:12px; }
+  #paypalDepositSection .deposit-head { padding-bottom:12px; }
+  #paypalDepositSection .deposit-head-actions .deposit-history-button { min-height:36px; }
+  #paypalDepositSection .deposit-transfer-instructions.has-bank-card { padding:12px; gap:14px 10px; }
+}
+
+/* Admin deposits: review queue, processed history and in-app notices. */
+#adminPanelSection .admin-deposit-head { align-items:center; gap:12px; margin-bottom:16px; }
+#adminPanelSection .admin-deposit-head h2 { font-size:16px; }
+#adminPanelSection .admin-deposit-head p { margin:5px 0 0; color:var(--admin-muted); font-size:11px; line-height:1.5; }
+#adminPanelSection .admin-deposit-tools { display:flex; align-items:center; gap:6px; }
+#adminPanelSection .admin-deposit-tools button { position:relative; display:inline-flex; justify-content:center; align-items:center; gap:6px; min-height:36px; padding:8px 10px; border:1px solid var(--admin-border); background:var(--admin-input); color:var(--admin-text); font-size:11px; white-space:nowrap; }
+#adminPanelSection .admin-deposit-tools svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+#adminDepositNotificationBadge { position:absolute; top:-5px; right:-4px; min-width:17px; padding:1px 4px; border-radius:9px; background:#397ddd; color:white; font-size:9px; text-align:center; }
+#adminPanelSection #adminDepositNavBadge { margin-left:auto; padding:2px 5px; min-width:18px; border-radius:5px; background:#2b66ad; color:#fff; text-align:center; font-size:10px; }
+#adminPanelSection .admin-deposit-settings { padding:11px 13px; border-radius:8px; background:var(--admin-input); }
+#adminPanelSection .admin-deposit-toolbar { margin:16px 0 12px; font-size:11px; color:var(--admin-muted); }
+#adminPanelSection .admin-deposit-pending-label { display:flex; align-items:center; gap:7px; color:var(--admin-text); font-size:12px; font-weight:600; }
+#adminPanelSection .admin-deposit-pending-label i { width:6px; height:6px; border-radius:50%; background:#e6b35e; }
+#adminPanelSection .admin-deposit-list { gap:12px; align-items:start; }
+#adminPanelSection .admin-deposit-item { padding:16px; border:1px solid var(--admin-border); border-radius:11px; background:var(--admin-input); }
+#adminPanelSection .admin-deposit-item header { display:flex; align-items:center; gap:10px; }
+#adminPanelSection .admin-deposit-item header .admin-status { display:inline-flex; flex:none; align-self:flex-start; align-items:center; min-height:24px; width:auto; padding:4px 7px; border:1px solid rgba(223,171,83,.24); border-radius:6px; background:rgba(223,171,83,.07); color:#eac283; font-size:10px; line-height:14px; }
+#adminPanelSection .admin-deposit-item header .admin-deposit-identity { display:flex; align-items:center; gap:9px; min-width:0; }
+#adminPanelSection .admin-deposit-avatar { display:grid; place-items:center; flex:none; width:34px; height:34px; border:1px solid var(--admin-border); border-radius:9px; background:var(--admin-surface); color:#8bbdff; font-size:11px; font-weight:700; }
+#adminPanelSection .admin-deposit-identity > div { display:grid; gap:3px; min-width:0; }
+#adminPanelSection .admin-deposit-identity strong { font-size:13px; line-height:18px; overflow-wrap:anywhere; }
+#adminPanelSection .admin-deposit-identity .account-id-text { margin:0; color:var(--admin-muted); font-size:10px; line-height:15px; }
+#adminPanelSection .admin-deposit-created { margin:8px 0 12px; color:var(--admin-muted); font-size:10px; text-align:right; font-variant-numeric:tabular-nums; }
+#adminPanelSection .admin-deposit-amount { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 14px; padding:12px 0; border-top:1px solid var(--admin-border); border-bottom:1px solid var(--admin-border); }
+#adminPanelSection .admin-deposit-amount > div { display:grid; gap:5px; min-width:0; }
+#adminPanelSection .admin-deposit-amount > div:last-child { text-align:right; }
+#adminPanelSection .admin-deposit-amount span { color:var(--admin-muted); font-size:10px; }
+#adminPanelSection .admin-deposit-amount strong { color:var(--admin-text); font-size:17px; line-height:22px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+#adminPanelSection .admin-deposit-amount > div:last-child strong { color:#7fd9b6; }
+#adminPanelSection .admin-deposit-amount small { font-size:10px; font-weight:400; color:var(--admin-muted); }
+#adminPanelSection .admin-deposit-item > dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 14px; margin:0 0 14px; }
+#adminPanelSection .admin-deposit-item > dl > div { grid-template-columns:minmax(0,1fr); gap:4px; font-size:11px; }
+#adminPanelSection .admin-deposit-item > dl > div:last-child { grid-column:1/-1; }
+#adminPanelSection .admin-deposit-item dt { color:var(--admin-muted); opacity:1; font-size:10px; }
+#adminPanelSection .admin-deposit-item dd { color:var(--admin-text); line-height:1.5; font-variant-numeric:tabular-nums; }
+#adminPanelSection .admin-deposit-review { padding-top:12px; border-top:1px solid var(--admin-border); }
+#adminPanelSection .admin-deposit-review > label { display:grid; gap:6px; font-size:11px; color:var(--admin-muted); }
+#adminPanelSection .admin-deposit-review input { font-size:12px; }
+#adminPanelSection .admin-deposit-actions { display:grid; grid-template-columns:minmax(0,1fr) 95px; gap:8px; margin:10px 0 0; }
+#adminPanelSection .admin-deposit-actions button { min-height:36px; padding:8px 10px; font-size:11px; }
+#adminPanelSection .admin-deposit-actions button:not(.admin-primary):not(.admin-deposit-reject) { border:1px solid var(--admin-border); background:var(--admin-input); color:var(--admin-text); }
+#adminPanelSection .admin-deposit-review:has(> .admin-deposit-confirm:not([hidden])) > .admin-deposit-actions { display:none; }
+#adminPanelSection .admin-deposit-actions .admin-deposit-reject { border:1px solid rgba(222,113,113,.32); background:rgba(222,113,113,.06); color:#edaaaa; }
+#adminPanelSection .admin-deposit-confirm { margin-top:10px; padding:12px; background:var(--admin-surface); border-color:#3978bd; }
+#adminPanelSection .admin-deposit-confirm p { font-size:11px; }
+#adminPanelSection .admin-deposit-empty { display:grid; justify-items:center; gap:6px; margin:0; padding:32px 14px; border:1px dashed var(--admin-border); border-radius:10px; font-size:11px; }
+#adminPanelSection .admin-deposit-empty strong { color:var(--admin-text); font-size:13px; }
+#adminPanelSection .admin-deposit-dialog { box-sizing:border-box; width:calc(100% - 24px); max-width:1040px; max-height:calc(100dvh - 32px); padding:20px; border:1px solid var(--admin-border); border-radius:14px; background:var(--admin-surface); color:var(--admin-text); overflow:hidden; }
+#adminPanelSection .admin-deposit-dialog:not([open]) { display:none; }
+#adminPanelSection .admin-deposit-dialog::backdrop, .deposit-notification-dialog::backdrop { background:rgba(3,10,18,.72); }
+body:has(#adminDepositHistoryDialog[open]), body:has(.deposit-notification-dialog[open]) { overflow:hidden; }
+#adminPanelSection .admin-deposit-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+#adminPanelSection .admin-deposit-dialog-head h2 { margin:0; font-size:17px; }
+#adminPanelSection .admin-deposit-dialog-head p { margin:6px 0 0; font-size:11px; color:var(--admin-muted); }
+#adminPanelSection .admin-deposit-dialog-head > button { width:32px; height:32px; min-height:32px; padding:0; border:1px solid var(--admin-border); background:var(--admin-input); color:var(--admin-text); font-size:22px; }
+#adminPanelSection .admin-deposit-history-filter { display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:11px; color:var(--admin-muted); }
+#adminPanelSection .admin-deposit-history-filter select { width:auto; min-width:150px; }
+#adminPanelSection .admin-deposit-history-scroll { max-height:calc(100dvh - 240px); overflow:auto; overscroll-behavior:contain; }
+#adminPanelSection .admin-deposit-history-table { width:100%; min-width:880px; margin:0; border-collapse:collapse; font-size:11px; text-align:left; }
+#adminPanelSection .admin-deposit-history-table :is(th,td) { padding:12px 10px; border:0; border-bottom:1px solid var(--admin-border); vertical-align:middle; }
+#adminPanelSection .admin-deposit-history-table th { position:sticky; top:0; background:var(--admin-input); color:var(--admin-muted); font-weight:500; white-space:nowrap; }
+#adminPanelSection .admin-deposit-history-table td { max-width:220px; overflow-wrap:anywhere; }
+#adminPanelSection .admin-deposit-history-table small { display:block; margin-top:4px; color:var(--admin-muted); font-size:10px; }
+#adminPanelSection .admin-deposit-history-table .is-number { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:650; }
+#adminPanelSection .admin-deposit-history-table th:nth-child(3), #adminPanelSection .admin-deposit-history-table th:nth-child(4) { text-align:right; }
+#adminPanelSection .admin-deposit-history-table .is-credit { color:#7fd9b6; }
+body.light-theme #adminPanelSection .admin-deposit-item header .admin-status { color:#956219; }
+body.light-theme #adminPanelSection .admin-deposit-actions .admin-deposit-reject { color:#a83e3e; }
+body.light-theme #adminPanelSection .admin-deposit-amount > div:last-child strong, body.light-theme #adminPanelSection .admin-deposit-history-table .is-credit { color:#147852; }
+.deposit-notification-dialog, .deposit-notification-toast { --dn-bg:#101c2b; --dn-field:#0c1725; --dn-border:#2b4058; --dn-ink:#e8f0fa; --dn-muted:#99abc2; font-family:inherit; color:var(--dn-ink); }
+body.light-theme .deposit-notification-dialog, body.light-theme .deposit-notification-toast { --dn-bg:#fff; --dn-field:#f5f8fc; --dn-border:#d5e0ee; --dn-ink:#1e324d; --dn-muted:#62758d; }
+.deposit-notification-dialog { box-sizing:border-box; width:calc(100% - 24px); max-width:480px; max-height:calc(100dvh - 32px); padding:18px; border:1px solid var(--dn-border); border-radius:14px; background:var(--dn-bg); overflow:hidden; }
+.deposit-notification-dialog:not([open]), .deposit-notification-toast[hidden] { display:none; }
+.deposit-notification-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.deposit-notification-head h2 { margin:0; color:var(--dn-ink); font-size:16px; }
+.deposit-notification-head p { margin:5px 0 0; color:var(--dn-muted); font-size:11px; }
+.deposit-notification-head > button { width:32px; height:32px; min-height:32px; margin:0; padding:0; border:1px solid var(--dn-border); border-radius:7px; background:var(--dn-field); color:var(--dn-ink); font-size:22px; box-shadow:none; }
+.deposit-notification-list { display:grid; gap:8px; max-height:calc(100dvh - 140px); overflow:auto; }
+button.deposit-notification-entry { display:grid; gap:5px; width:100%; margin:0; padding:12px; border:1px solid var(--dn-border); border-radius:9px; background:var(--dn-field); color:var(--dn-ink); text-align:left; white-space:normal; box-shadow:none; }
+.deposit-notification-entry strong { font-size:12px; line-height:18px; }
+.deposit-notification-entry span { color:var(--dn-muted); font-size:11px; line-height:18px; overflow-wrap:anywhere; }
+.deposit-notification-entry small { color:var(--dn-muted); font-size:10px; }
+button.deposit-notification-entry:not(.is-read) { border-left:3px solid #6aaaff; }
+.deposit-notification-empty { margin:0; padding:24px 12px; color:var(--dn-muted); font-size:12px; text-align:center; }
+.deposit-notification-toast { position:fixed; right:20px; bottom:80px; z-index:10020; display:flex; align-items:flex-start; gap:10px; box-sizing:border-box; width:360px; max-width:calc(100% - 24px); padding:12px; border:1px solid var(--dn-border); border-left:3px solid #6aaaff; border-radius:10px; background:var(--dn-bg); box-shadow:0 8px 30px rgba(0,0,0,.25); }
+.deposit-notification-toast > button { min-width:0; width:auto; min-height:0; margin:0; padding:0; border:0; background:transparent; color:var(--dn-ink); text-align:left; box-shadow:none; }
+.deposit-notification-toast > button:first-child { display:grid; flex:1; gap:4px; }
+.deposit-notification-toast strong { font-size:12px; line-height:18px; }
+.deposit-notification-toast span { color:var(--dn-muted); font-size:11px; font-weight:400; line-height:18px; overflow-wrap:anywhere; }
+.deposit-notification-toast > button:last-child { width:24px; height:24px; font-size:20px; text-align:center; }
+.header-notification-dot.is-deposit { background:#6aaaff; }
+@media (max-width:1100px) { #adminPanelSection .admin-deposit-list { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:560px) {
+  #adminPanelSection .admin-deposit-head { align-items:flex-start; }
+  #adminPanelSection .admin-deposit-head > div:first-child { flex:1 0 100%; }
+  #adminPanelSection .admin-deposit-tools { justify-content:flex-end; width:100%; }
+  #adminPanelSection .admin-deposit-item { padding:12px; }
+  #adminPanelSection .admin-deposit-amount { gap:8px; }
+  #adminPanelSection .admin-deposit-amount strong { font-size:15px; }
+  #adminPanelSection .admin-deposit-dialog { padding:12px; }
+  .deposit-notification-toast { right:12px; bottom:76px; }
+}
+@media (max-width:760px) {
+  #adminPanelSection .admin-nav { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  #adminPanelSection .admin-nav [data-admin-view="deposits"] { position:relative; }
+  #adminPanelSection #adminDepositNavBadge { position:absolute; right:3px; top:3px; }
+}
+
+/* Account access: automatic active, idle and offline presence. */
+#adminPanelSection #adminUsersFilterToggle { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+#adminPanelSection #adminUsersFilterToggle svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+#adminPanelSection #adminUsersFilterToggle.has-filters { border-color:#6aaaff; color:#8bbdff; }
+#adminPanelSection #adminUsersFilterBadge { display:inline-grid; place-items:center; min-width:17px; height:17px; padding:0 4px; border-radius:5px; background:#2b66ad; color:white; font-size:10px; }
+#adminPanelSection .admin-users-filters { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:0 0 12px; padding:10px; border:1px solid var(--admin-border); border-radius:9px; background:var(--admin-input); }
+#adminPanelSection .admin-users-filters > label { display:grid; gap:5px; min-width:0; color:var(--admin-muted); font-size:11px; }
+#adminPanelSection .admin-users-filters select { appearance:auto; width:100%; min-width:0; min-height:34px; height:34px !important; margin:0; padding:5px 8px !important; border:1px solid var(--admin-border); border-radius:7px; background:var(--admin-surface); color:var(--admin-text); font-family:inherit; font-size:12px; box-shadow:none; color-scheme:dark; }
+#adminPanelSection .admin-users-filters select:focus-visible { outline:2px solid #6aaaff; outline-offset:2px; }
+body.light-theme #adminPanelSection .admin-users-filters select { color-scheme:light; }
+#adminPanelSection .admin-users-filter-footer { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:8px; border-top:1px solid var(--admin-border); color:var(--admin-muted); font-size:11px; }
+#adminPanelSection #adminUsersFilterClear { min-height:28px; padding:4px 8px; border:1px solid var(--admin-border); border-radius:6px; background:var(--admin-surface); color:var(--admin-text); font-size:11px; }
+body.light-theme #adminPanelSection #adminUsersFilterToggle.has-filters { border-color:#3476c9; color:#235a99; }
+#adminPanelSection .admin-users-card > .admin-list-head { align-items:center; margin-bottom:16px; }
+#adminPanelSection .admin-users-card h2 { margin:0; font-size:16px; }
+#adminPanelSection .admin-users-count { margin:5px 0 0; color:var(--admin-muted); font-size:11px; }
+#adminPanelSection .admin-users-tools { display:flex; gap:6px; flex-wrap:wrap; }
+#adminPanelSection .admin-users-tools button { padding:8px 10px; border:1px solid var(--admin-border); background:var(--admin-input); color:var(--admin-text); font-size:11px; }
+#adminPanelSection #adminUsersEdit { border-color:#397cd0; background:#235ca5; color:#fff; min-width:80px; }
+#adminPanelSection .admin-users-edit-message { margin:0 0 14px; padding:9px 11px; border:1px solid var(--admin-border); border-radius:7px; background:var(--admin-input); color:var(--admin-muted); font-size:11px; line-height:1.5; }
+#adminPanelSection .admin-users-edit-message.is-error { border-color:#975353; color:#f2abab; }
+body.light-theme #adminPanelSection .admin-users-edit-message.is-error { border-color:#e2b6b6; color:#ad3030; }
+#adminPanelSection .is-editing-balances .admin-users-table { min-width:1225px; }
+#adminPanelSection .is-editing-balances .admin-users-table th:nth-child(8) { width:150px; }
+#adminPanelSection .is-editing-balances .admin-users-table th:nth-child(9) { width:170px; }
+#adminPanelSection .is-editing-balances .admin-users-table :is(th,td):first-child { position:sticky; left:0; z-index:1; background:var(--admin-surface); box-shadow:1px 0 var(--admin-border); }
+#adminPanelSection .is-editing-balances .admin-users-table th:first-child { background:var(--admin-input); }
+#adminPanelSection .admin-user-balance input { min-height:32px; height:32px !important; padding:5px 7px !important; border-color:#4a7eb7; text-align:right; font-size:11px; font-variant-numeric:tabular-nums; }
+#adminPanelSection .admin-users-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+#adminPanelSection .admin-users-metrics article { display:grid; gap:8px; min-width:0; padding:13px 14px; border:1px solid var(--admin-border); border-radius:9px; background:var(--admin-input); }
+#adminPanelSection .admin-users-metrics span { color:var(--admin-muted); font-size:11px; }
+#adminPanelSection .admin-users-metrics strong { color:var(--admin-text); font-size:23px; line-height:26px; font-variant-numeric:tabular-nums; }
+#adminPanelSection .admin-users-metrics [data-status="active"] strong { color:#36d399; }
+#adminPanelSection .admin-users-metrics [data-status="idle"] strong { color:#e6b35e; }
+#adminPanelSection .admin-user-legend { display:flex; flex-wrap:wrap; gap:8px 18px; margin:12px 0; color:var(--admin-muted); font-size:10px; }
+#adminPanelSection .admin-user-legend > span { display:inline-flex; align-items:center; gap:6px; }
+#adminPanelSection .admin-user-legend i, #adminPanelSection .admin-access-state i { display:inline-block; flex:none; width:7px; height:7px; border:1px solid transparent; border-radius:50%; }
+#adminPanelSection .admin-user-legend .is-active, #adminPanelSection .admin-access-state.is-active i { background:#2dcd8e; }
+#adminPanelSection .admin-user-legend .is-idle, #adminPanelSection .admin-access-state.is-idle i { background:#edbc56; }
+#adminPanelSection .admin-user-legend .is-offline, #adminPanelSection .admin-access-state.is-offline i { background:#111318; border-color:#6d7a8d; }
+#adminPanelSection .admin-users-table { min-width:1090px; width:100%; table-layout:fixed; font-size:11px; }
+#adminPanelSection .admin-users-table :is(th,td) { padding:13px 10px; border-bottom:1px solid var(--admin-border); vertical-align:middle; }
+#adminPanelSection .admin-users-table th { color:var(--admin-muted); background:var(--admin-input); font-size:10px; font-weight:550; white-space:nowrap; }
+#adminPanelSection .admin-users-table th:nth-child(1) { width:140px; }
+#adminPanelSection .admin-users-table th:nth-child(2) { width:83px; }
+#adminPanelSection .admin-users-table th:nth-child(3) { width:92px; }
+#adminPanelSection .admin-users-table th:nth-child(4) { width:195px; }
+#adminPanelSection .admin-users-table th:nth-child(5) { width:115px; }
+#adminPanelSection .admin-users-table th:nth-child(6) { width:125px; }
+#adminPanelSection .admin-users-table th:nth-child(7) { width:90px; }
+#adminPanelSection .admin-users-table th:nth-child(8) { width:80px; text-align:right; }
+#adminPanelSection .admin-users-table th:nth-child(9) { width:105px; text-align:right; }
+#adminPanelSection .admin-users-table td { color:var(--admin-text); overflow-wrap:anywhere; line-height:18px; }
+#adminPanelSection .admin-users-table td > strong { font-size:12px; }
+#adminPanelSection .admin-users-table .account-id-text { color:var(--admin-muted); font-size:10px; line-height:16px; }
+#adminPanelSection .admin-user-access { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+#adminPanelSection .admin-access-state { display:inline-flex; align-items:center; gap:7px; font-size:11px; white-space:nowrap; }
+#adminPanelSection .admin-user-last-seen { display:block; margin-top:4px; color:var(--admin-muted); font-size:9px; line-height:14px; }
+#adminPanelSection .admin-user-role { display:inline-block; padding:3px 7px; border:1px solid var(--admin-border); border-radius:5px; background:var(--admin-input); font-size:10px; white-space:nowrap; }
+#adminPanelSection .admin-user-locked { display:block; color:#edaaaa; font-size:10px; }
+#adminPanelSection .admin-user-network { font-variant-numeric:tabular-nums; }
+#adminPanelSection .admin-user-balance { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:600; }
+#adminPanelSection .admin-user-vip-badge { display:inline-block; padding:3px 6px; border:1px solid var(--admin-border); border-radius:5px; color:var(--admin-muted); background:var(--admin-input); font-size:10px; line-height:16px; white-space:nowrap; }
+#adminPanelSection .admin-user-vip-badge.is-active { border-color:rgba(221,177,77,.4); color:#efd088; background:rgba(221,177,77,.08); }
+#adminPanelSection .admin-user-vip > small { display:block; margin-top:4px; color:var(--admin-muted); font-size:9px; line-height:14px; white-space:nowrap; }
+body.light-theme #adminPanelSection .admin-user-vip-badge.is-active { color:#8f650e; border-color:#dcc48a; background:#fff8e6; }
+body.light-theme #adminPanelSection .admin-users-metrics [data-status="active"] strong { color:#147852; }
+body.light-theme #adminPanelSection .admin-users-metrics [data-status="idle"] strong { color:#97610c; }
+@media (max-width:960px) {
+  #adminPanelSection .admin-users-filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:560px) {
+  #adminPanelSection .admin-users-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  #adminPanelSection .admin-users-metrics article { padding:11px; }
+  #adminPanelSection .admin-users-tools { width:100%; }
+  #adminPanelSection .admin-user-legend { gap:8px 12px; }
+  #adminPanelSection #adminUserSearchForm { flex-wrap:wrap; }
+  #adminPanelSection #adminUserSearchForm > input { flex:1 0 100%; }
+  #adminPanelSection #adminUserSearchForm > button { flex:1; }
+  #adminPanelSection .admin-users-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }

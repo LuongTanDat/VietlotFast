@@ -27,6 +27,7 @@ if __package__ in (None, ""):
 from ai import ml_pipeline, prediction_ledger as ledger
 from ai import tracking_portfolio as portfolio
 from ai import tracking_progress as progress
+from ai import personal_tracking as billing
 from ai.tracking_storage import database_path
 from ai.configs import data_paths as dp
 from ai.evaluation.statistical_tests import paired_bootstrap_ci
@@ -134,11 +135,15 @@ def _connect(db_path=None):
 
 
 def ticket_limit(game: str) -> int:
-    return 100000 if game == "KENO" else portfolio.MAX_TICKETS
+    if game == "LOTO_5_35":
+        return math.comb(35, 5)
+    return portfolio.KENO_MAX_TICKETS if game == "KENO" else portfolio.MAX_TICKETS
 
 
 def _settings(row) -> dict:
-    return {"enabled": bool(row["enabled"]), "ticketCount": int(row["ticket_count"]), "maxTicketCount": ticket_limit(row["game_type"]),
+    maximum = ticket_limit(row["game_type"])
+    count = min(int(row["ticket_count"]), maximum) if row["game_type"] == "LOTO_5_35" else int(row["ticket_count"])
+    return {"enabled": bool(row["enabled"]), "ticketCount": count, "maxTicketCount": maximum,
             "engine": "classic", "riskMode": "balanced", "predictionMode": "normal",
             "bayesianPrior": PRIOR_STRENGTH, "ewmaHalfLife": HALF_LIFE,
             "updatedAt": row["updated_at"], "updatedBy": row["updated_by"]}
@@ -365,6 +370,7 @@ def _cycle_rows(connection, game: str):
 
 
 @progress.track
+@billing.settle
 def cycle(game: str, db_path=None, force=True) -> dict:
     game = _game(game)
     if game == "KENO":
@@ -388,6 +394,7 @@ def cycle(game: str, db_path=None, force=True) -> dict:
                 from ai.tracking_capacity import ensure_storage
                 ensure_storage(database, [(ml_pipeline.game_config(game)["draw_size"], 4 * count)])
             progress.start("creating", 8 * count, 4 * count)
+            charge_id = billing.reserve(game, snapshot['target'], 4 * count)
             manifest = _execution_manifest(game)
             payloads = {"web": _production_web_prediction(game, count, snapshot)}
             payloads["web"] = dict(payloads["web"])
@@ -439,6 +446,7 @@ def cycle(game: str, db_path=None, force=True) -> dict:
                         _index_tickets(connection, locked["prediction_id"], payload)
                         progress.advance(count)
                     _guard(snapshot)
+                    billing.receipt(connection, charge_id, cycle_id, 4 * count)
                     connection.commit()
                 except Exception:
                     connection.rollback()
@@ -822,11 +830,28 @@ def report(game: str, limit: int = 100, db_path=None, level: int = 10, page: int
                           "Dưới 30 kỳ hoặc CI chứa 0: chưa đủ bằng chứng lợi thế. Kết quả quá khứ không bảo đảm kỳ sau."]}
 
 
-def tick(db_path=None) -> dict:
+@progress.track
+def sync_source(game, db_path=None):
+    from backend import prospective_live_sync
+    with closing(_connect(db_path)) as connection:
+        pending = connection.execute("SELECT DISTINCT ec.target_draw_id,ec.deadline FROM effectiveness_cycles ec "
+                                     "JOIN effectiveness_predictions ep ON ep.cycle_id=ec.cycle_id "
+                                     "JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id "
+                                     "WHERE ec.game_type=? AND pr.status='locked'", (game,)).fetchall()
+    return prospective_live_sync.refresh(game, now=_now(), pending=pending)
+
+
+def tick(db_path=None, sync_sources=False) -> dict:
     results = []
     for game in GAMES:
         error = ""
         try:
+            if sync_sources:
+                with closing(_connect(db_path)) as connection:
+                    enabled = connection.execute('SELECT enabled FROM effectiveness_settings WHERE game_type=?', (game,)).fetchone()[0]
+                    pending = connection.execute("SELECT 1 FROM prediction_runs WHERE game_type=? AND status='locked' LIMIT 1", (game,)).fetchone()
+                if enabled or pending:
+                    sync_source(game, db_path)
             scoring = score_cycles(game, db_path)
             if not scoring["ok"]:
                 error = "; ".join(item["error"] for item in scoring["errors"])
@@ -846,15 +871,27 @@ def tick(db_path=None) -> dict:
         result["keno"] = keno_effectiveness.tick(db_path)
     except Exception as exc:
         result["keno"] = {"ok": False, "error": str(exc)}
-    if db_path is None:
-        # Independent candidate trials have their own database and immutable
-        # payloads. Fixture/explicit ledger paths never reach production trials.
-        from ai import lab_trials
-        try:
-            result["labTrials"] = lab_trials.tick()
-        except Exception as exc:
-            result["labTrials"] = {"ok": False, "error": str(exc)}
     return result
+
+
+def dispatch(args):
+    if args.command == "report": return report(args.game, args.limit, args.db_path, args.level, args.page)
+    if args.command == "settings": return settings(args.game, args.db_path)
+    if args.command == "tickets": return ticket_page(args.game, args.prediction_id, args.page, args.db_path, args.prize_code, args.after_ticket_index)
+    if args.command == "export": return export_cycle(args.game, args.cycle_id, args.db_path, args.level)
+    if args.command == "export-file":
+        from ai.effectiveness_xlsx import write_cycle_xlsx
+        destination = Path(args.output).resolve()
+        allowed = dp.RUNTIME_DIR.resolve() if getattr(args, 'personal_id', None) or not args.db_path else Path(args.db_path).resolve().parent
+        # Output is always chosen by the server, under runtime.
+        if not destination.is_relative_to(allowed) or destination.suffix != '.xlsx':
+            raise ValueError("Đường dẫn file Excel không hợp lệ.")
+        return write_cycle_xlsx(args.game, args.cycle_id, destination, args.db_path, args.level)
+    if args.command == "configure": return configure(args.game, args.enabled == "true", args.ticket_count, args.actor, args.db_path)
+    if args.command == "cycle":
+        score_cycles(args.game, args.db_path)
+        return cycle(args.game, args.db_path)
+    return tick(args.db_path)
 
 
 def main(argv=None) -> int:
@@ -865,6 +902,8 @@ def main(argv=None) -> int:
         if command != "tick":
             child.add_argument("game", choices=(*GAMES, "KENO"))
         child.add_argument("--db-path", default=None, help=argparse.SUPPRESS)
+        child.add_argument("--owner", default=None, help=argparse.SUPPRESS)
+        child.add_argument("--personal-id", default=None, help=argparse.SUPPRESS)
         if command == "report":
             child.add_argument("--limit", type=int, default=100)
             child.add_argument("--level", type=int, default=10)
@@ -887,22 +926,12 @@ def main(argv=None) -> int:
     try:
         # Keep stdout exclusively JSON even if a legacy engine prints a diagnostic.
         with redirect_stdout(StringIO()):
-            if args.command == "report": result = report(args.game, args.limit, args.db_path, args.level, args.page)
-            elif args.command == "settings": result = settings(args.game, args.db_path)
-            elif args.command == "tickets": result = ticket_page(args.game, args.prediction_id, args.page, args.db_path, args.prize_code, args.after_ticket_index)
-            elif args.command == "export": result = export_cycle(args.game, args.cycle_id, args.db_path, args.level)
-            elif args.command == "export-file":
-                from ai.effectiveness_xlsx import write_cycle_xlsx
-                destination = Path(args.output).resolve()
-                allowed = Path(args.db_path).resolve().parent if args.db_path else dp.RUNTIME_DIR.resolve()
-                if not destination.is_relative_to(allowed) or destination.suffix != '.xlsx':
-                    raise ValueError("Đường dẫn file Excel không hợp lệ.")
-                result = write_cycle_xlsx(args.game, args.cycle_id, destination, args.db_path, args.level)
-            elif args.command == "configure": result = configure(args.game, args.enabled == "true", args.ticket_count, args.actor, args.db_path)
-            elif args.command == "cycle":
-                score_cycles(args.game, args.db_path)
-                result = cycle(args.game, args.db_path)
-            else: result = tick(args.db_path)
+            if args.owner and args.personal_id:
+                result = billing.execute(args)
+            elif args.command == 'tick' and args.db_path is None:
+                result = billing.tick_all()
+            else:
+                result = dispatch(args)
     except Exception as exc:
         result = {"ok": False, "type": getattr(args, "game", ""), "error": str(exc), "message": str(exc)}
     print(json.dumps(result, ensure_ascii=False, allow_nan=False))

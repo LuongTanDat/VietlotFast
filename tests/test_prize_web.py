@@ -118,6 +118,7 @@ const getLiveResultsBoardSignature = () => JSON.stringify(liveResultsState);
 const getLiveUpdateBadge = () => ({});
 const liveUpdateBadgeClass = () => '';
 const buildUpcomingLiveMetaParts = () => [];
+const buildLiveResultMetaParts = (type,item) => ['Kỳ #'+item.ky,item.date,item.time].filter(Boolean);
 const renderLiveCardMainLines = () => '<div>01 02 03 04 05 06</div>';
 const updateLiveResultsCountdownText = () => {};
 function check(value,message) { if (!value) throw new Error(message); }
@@ -161,7 +162,8 @@ try {
   }
   renderLiveResultsBoard({force:true});
   check(document.querySelectorAll('.live-card-amount').length === 4,'three games must have four prize values');
-  check(document.getElementById('liveResultGrid').textContent.includes('178.900.548.500 VNĐ'),'live card amount');
+  for (const amount of ['6.000.000.000 VNĐ','12.000.000.000 VNĐ','30.000.000.000 VNĐ','3.000.000.000 VNĐ']) check(document.getElementById('liveResultGrid').textContent.includes(amount),'upcoming won pool resets to starting value');
+  check(liveResultsState.LOTO_6_45.jackpot===178900548500,'reset must not rewrite historical amount');
   check(!getDrawPrizeFields('KENO',{jackpot:100}).jackpot,'unrelated game prize');
   check(!getDataTableHeaders('KENO').includes('Nổ') && !getDataTableHeaders('MAX_3D').includes('Nổ'),'unrelated game hit column');
   for (const marker of ['ĐB','Chia Giải','']) {

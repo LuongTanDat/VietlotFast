@@ -23,6 +23,7 @@ from statistics import mean
 from ai import ml_pipeline, prediction_effectiveness as pe, prediction_ledger as ledger
 from ai import tracking_portfolio as portfolio
 from ai import tracking_progress as progress
+from ai import keno_prize_context as prize_contexts
 from ai.configs import data_paths as dp
 from ai.prizes import classify_tickets, prize_counts, prize_statistics, PRIZE_SCOPE, RULE_VERSION
 from backend.file_guard import resource_lock, version
@@ -378,6 +379,7 @@ def _score_portfolio(arguments):
 
 
 @progress.track
+@pe.billing.settle
 def cycle(db_path=None, force=True):
     database = pe.database_path(db_path)
     with resource_lock(database.parent / "effectiveness_keno", timeout=15), closing(_connect(db_path)) as connection, \
@@ -403,6 +405,7 @@ def cycle(db_path=None, force=True):
             ensure_storage(database, [(level, 4 * counts_by_level[str(level)]) for level in LEVELS])
         total_tickets = 4 * sum(counts_by_level.values())
         progress.start("creating", 2 * total_tickets, total_tickets)
+        charge_id = pe.billing.reserve(GAME, snapshot['target'], total_tickets)
         # Keep only small web seeds resident; stage one expanded portfolio at a
         # time, then lock all 40 atomically after checking the source again.
         web = _web_predictions(snapshot, min(count, 8), db_path)
@@ -486,6 +489,7 @@ def cycle(db_path=None, force=True):
                 pe._guard(fresh)
                 if version(snapshot["path"]) != snapshot["version"]:
                     raise RuntimeError("Canonical thay đổi trước khi ghi chu kỳ Keno.")
+                pe.billing.receipt(connection, charge_id, cycle_id, total_tickets)
                 connection.commit()
             except Exception:
                 connection.rollback()
@@ -596,6 +600,7 @@ def _summary(method, rows, pairs, level):
 def report(level=10, page=1, db_path=None):
     if type(level) is not int or level not in LEVELS or type(page) is not int or not 1 <= page <= 1000000:
         raise ValueError("Bậc Keno phải từ 1 đến 10 và trang phải là số nguyên dương.")
+    prize_records = prize_contexts.load_cache()['draws']
     with closing(_connect(db_path)) as connection:
         connection.execute("BEGIN")
         settings_row = connection.execute("SELECT * FROM effectiveness_settings WHERE game_type=?", (GAME,)).fetchone()
@@ -625,6 +630,8 @@ def report(level=10, page=1, db_path=None):
                     "status": row["status"], "actualMain": actual.get("main", []), "actualSpecial": None,
                     "actualSpecialStatus": "not_applicable", "actualSource": "recorded_ledger_score" if row["status"] == "scored" else "pending",
                     "config": json.loads(row["config_json"]), "level": level, "methods": {}}
+            if row['status'] == 'scored':
+                item['prizeContext'] = prize_contexts.context_for(row['target_draw_id'],actual,row['deadline'],prize_records)
             # Avoid repeating a large source manifest twenty times in HTTP.
             item["config"].pop("sourceManifest", None)
             predictions = connection.execute("SELECT kp.method,pr.prediction_id,pr.engine,pr.model_id,pr.random_seed,pr.status,km.mean_hits,km.best_hits,km.summary_json FROM keno_effectiveness_predictions kp JOIN prediction_runs pr ON pr.prediction_id=kp.prediction_id LEFT JOIN keno_effectiveness_metrics km ON km.cycle_id=kp.cycle_id AND km.level=kp.level AND km.method=kp.method WHERE kp.cycle_id=? AND kp.level=?", (row["cycle_id"], level)).fetchall()
@@ -651,7 +658,7 @@ def report(level=10, page=1, db_path=None):
                 "scope": "main_numbers_only", "metricWeighting": "equal_weight_per_draw", "prizeScope": PRIZE_SCOPE, "prizeRuleVersion": RULE_VERSION,
                 "automation": {"lastError": settings_row["last_error"], "lastTick": settings_row["last_tick"], "nextTargetDrawId": settings_row["next_target"], "sourceSync": source_sync},
                 "notes": ["Mỗi kỳ khóa đồng thời 10 bậc × 4 phương pháp. Đổi bậc hoặc trang chỉ đổi phần xem, không tạo lại vé.",
-                          "Kỳ mới tối đa 100.000 vé/phương pháp/bậc; bậc 1/2/3 tối đa 80 / 3.160 / 82.160 bộ không trùng. Kỳ đã khóa giữ nguyên và chấm toàn bộ danh mục.",
+                          "Kỳ mới tối đa 324.632 vé/phương pháp/bậc; bậc 1/2/3 tối đa 80 / 3.160 / 82.160 bộ không trùng. Kỳ đã khóa giữ nguyên và chấm toàn bộ danh mục.",
                           f"Bậc {level}: số trùng kỳ vọng ngẫu nhiên là {level / 4:g} số/vé; chỉ so các vé cùng bậc và ngân sách.",
                           "Tỷ lệ có giải gồm cả trùng 0 ở bậc 8–10; trùng đủ và có giải là hai chỉ số riêng. Không tính tiền lĩnh thưởng.",
                           "Chấm theo mã kỳ và giờ quay canonical. Kết quả trễ giữ kỳ đã khóa; không cộng 8 phút từ thời điểm nhận dữ liệu.",
@@ -713,6 +720,12 @@ def tick(db_path=None, sync_source=None):
         action = cycle(db_path, force=False)
         target = action.get("targetDrawId", "")
         result = {"ok": not error, "type": GAME, "scoring": scoring, "cycle": action}
+        if db_path is None and sync_source is not False:
+            try:
+                from ai.tracking_storage import database_path
+                result['prizeSync'] = prize_contexts.refresh(database_path(),limit=1)
+            except Exception as exc:
+                result['prizeSync'] = {'errors':[{'error':str(exc)[:300]}]}
     except Exception as exc:
         error = str(exc)
         result = {"ok": False, "type": GAME, "error": error}

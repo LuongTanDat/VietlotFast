@@ -37,15 +37,17 @@ window.errors=[];window.addEventListener('error',e=>errors.push(e.message));wind
                 results = []
                 for name in ids:
                     node = f'document.getElementById({json.dumps(name)})'
-                    for raw in ('200000', '220000', '1000000', '0200000', '200.000'):
+                    for raw in ('1', '10', '100', '1000', '100000', '200000', '220000', '1000000', '0200000', '200.000'):
                         b.value(node + '.focus();' + node + '.select()')
                         for length in range(1, len(raw) + 1):
                             composing = raw[:length]
                             b.call('Input.imeSetComposition', {'text': composing, 'selectionStart': length, 'selectionEnd': length}, page=True)
-                            expected = f'{int(composing.replace(".", "")):,}'.replace(',', '.')
-                            self.assertEqual(b.value(node + '.value'), expected, (name, composing))
+                            self.assertEqual(b.value(node + '.value'), composing, (name, 'native composition', composing))
                         b.call('Input.insertText', {'text': raw}, page=True)
                         expected = f'{int(raw.replace(".", "")):,}'.replace(',', '.')
+                        deadline = time.monotonic() + 2
+                        while b.value(node + '.value') != expected and time.monotonic() < deadline:
+                            time.sleep(.02)
                         self.assertEqual(b.value(node + '.value'), expected, (name, 'commit', raw))
                         self.assertEqual(b.value(node + '.selectionStart'), len(expected))
                         results.append({'field': name, 'typed': raw, 'shown': expected})
@@ -55,21 +57,38 @@ window.errors=[];window.addEventListener('error',e=>errors.push(e.message));wind
                     b.value(node + '.setSelectionRange(0,1)')
                     b.call('Input.imeSetComposition', {'text': '3', 'selectionStart': 1, 'selectionEnd': 1}, page=True)
                     b.call('Input.insertText', {'text': '3'}, page=True)
+                    time.sleep(.03)
                     self.assertEqual(b.value(node + '.value'), '300.000', (name, 'middle replacement'))
                     b.value(node + '.select()')
                     b.call('Input.insertText', {'text': '2'}, page=True)
                     for event in ('keyDown', 'keyUp'):
                         b.call('Input.dispatchKeyEvent', {'type': event, 'key': '2', 'code': 'Digit2', 'text': '2' if event == 'keyDown' else '', 'windowsVirtualKeyCode': 50}, page=True)
                     self.assertEqual(b.value(node + '.value'), '22', (name, 'intentional repeated digit'))
+                node = 'document.getElementById("paypal")'
+                b.value(node + '.focus();' + node + '.select()')
+                for index, digit in enumerate('100000'):
+                    b.call('Input.imeSetComposition', {'text':digit,'selectionStart':1,'selectionEnd':1}, page=True)
+                    b.call('Input.insertText', {'text':digit}, page=True)
+                    expected = f'{int("100000"[:index+1]):,}'.replace(',', '.')
+                    deadline = time.monotonic() + 2
+                    while b.value(node + '.value') != expected and time.monotonic() < deadline:
+                        time.sleep(.02)
+                    self.assertEqual(b.value(node + '.value'),expected,('per-digit IME commit',index))
+                b.value(node + '.select()')
+                b.call('Input.imeSetComposition', {'text':'1.5','selectionStart':3,'selectionEnd':3}, page=True)
+                b.call('Input.insertText', {'text':'1.5'}, page=True)
+                time.sleep(.03)
+                self.assertEqual(b.value(node + '.value'),'1.5','Malformed grouped decimal must not become a different integer')
                 for maximum in (80, 3160, 82160, 1000000):
                     b.value(f'maximum={maximum};document.getElementById("tickets").focus();document.getElementById("tickets").select()')
                     for raw in ('9', '99', '999', '9999', '99999', '9999999'):
                         b.call('Input.imeSetComposition', {'text': raw, 'selectionStart': len(raw), 'selectionEnd': len(raw)}, page=True)
-                        self.assertEqual(b.value('document.getElementById("tickets").value'), f'{min(int(raw), maximum):,}'.replace(',', '.'))
+                        self.assertEqual(b.value('document.getElementById("tickets").value'), raw)
                     b.call('Input.insertText', {'text': '9999999'}, page=True)
+                    time.sleep(.03)
                     self.assertEqual(b.value('document.getElementById("tickets").value'), f'{maximum:,}'.replace(',', '.'))
                 self.assertEqual(b.value('window.errors'), [])
-                proof = {'ok': True, 'imeSequences': results, 'boundaries': [80, 3160, 82160, 1000000], 'intentionalRepeatedDigitsPreserved': True}
+                proof = {'ok': True, 'imeSequences': results, 'nativeCompositionUnmodified':True, 'perDigitImeCommit':True, 'malformedDecimalPreservedForValidation':True, 'boundaries': [80, 3160, 82160, 1000000], 'intentionalRepeatedDigitsPreserved': True}
                 (ROOT / 'Bin/session_1_latest/numeric_ime_unified_verification.json').write_text(json.dumps(proof, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
             finally:
                 b.close()

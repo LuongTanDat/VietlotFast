@@ -7,4 +7,4 @@ hashSecret=
 # Sandbox on localhost can build URLs, but IPN requires a reachable endpoint.
 # Use your HTTPS origin for a complete test. Production requires public HTTPS.
 publicBaseUrl=http://127.0.0.1:8080
-maxAmount=10000000
+maxAmount=100000000

@@ -55,8 +55,8 @@ class VnpayBackendTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def configure(self, mode='production', enabled=True):
-        (self.work/'runtime/vnpay.properties').write_text(f'enabled={str(enabled).lower()}\nenvironment={mode}\ntmnCode=TEST0001\nhashSecret=fixture_only_secret_not_a_merchant_key\npublicBaseUrl=https://merchant.example.test\nmaxAmount=10000000\n', encoding='utf-8')
+    def configure(self, mode='production', enabled=True, maximum=100000000):
+        (self.work/'runtime/vnpay.properties').write_text(f'enabled={str(enabled).lower()}\nenvironment={mode}\ntmnCode=TEST0001\nhashSecret=fixture_only_secret_not_a_merchant_key\npublicBaseUrl=https://merchant.example.test\nmaxAmount={maximum}\n', encoding='utf-8')
 
     def order(self, amount=50000, cookie=None, request_id=None):
         code, payload, _ = self.request('/api/payments/vnpay/orders', dict(amount=amount, requestId=request_id or uuid.uuid4().hex, credit=999999999, bonusCredit=999999999), cookie or self.admin)
@@ -75,6 +75,44 @@ class VnpayBackendTests(unittest.TestCase):
 
     def balance(self, cookie=None):
         return self.request('/api/store', cookie=cookie or self.admin)[1]['store'].get('paypalBalance', 0)
+
+    def test_custom_bonus_boundaries_hard_cap_and_stored_settlement(self):
+        self.configure(maximum=500000000)
+        metadata=self.request('/api/payments/vnpay/config',cookie=self.admin)[1]
+        self.assertEqual((metadata['minimum'],metadata['maximum'],metadata['step']),(1000000,100000000,100000))
+        for invalid in (10000,501000,900000,1000001,1050000,9999000,100100000):
+            self.assertEqual(self.request('/api/payments/vnpay/orders',dict(amount=invalid,requestId=uuid.uuid4().hex),self.admin)[0],400)
+        orders, requests = {}, {}
+        for amount, bonus, credit in [(500000,15625,640625), (1100000,68750,1443750),
+                                      (1000000,62500,1312500), (99900000,6243750,131118750),
+                                      (100000000,6250000,131250000)]:
+            request_id = uuid.uuid4().hex
+            order = self.order(amount,request_id=request_id)['order']
+            self.assertEqual((order['baseCredit'],order['bonusCredit'],order['credit']),
+                             (amount*5//4,bonus,credit))
+            self.assertEqual(self.order(amount,request_id=request_id)['order']['id'],order['id'])
+            orders[amount], requests[amount] = order, request_id
+        self.assertEqual(self.balance(),0)
+        signed = self.signed(orders[100000000])
+        self.assertEqual(self.ipn(signed),'00')
+        self.assertEqual(self.ipn(signed),'02')
+        self.assertEqual(self.balance(),131250000)
+        with self.db() as db:
+            db.execute('UPDATE payment_orders SET bonus_credit=0,credit=base_credit WHERE id=?',
+                       (orders[1000000]['id'],))
+        self.assertEqual(self.order(1000000,request_id=requests[1000000])['order']['credit'],1250000)
+        self.assertEqual(self.ipn(self.signed(orders[1000000])),'00')
+        self.assertEqual(self.balance(),132500000)
+        with self.db() as db:
+            db.execute('UPDATE payment_orders SET amount=501000,base_credit=626250,bonus_credit=31313,credit=657563 WHERE id=?',
+                       (orders[500000]['id'],))
+        old=self.order(501000,request_id=requests[500000])['order']
+        self.assertEqual(old['credit'],657563)
+        self.assertEqual(self.ipn(self.signed(old)),'00')
+        self.assertEqual(self.balance(),133157563)
+        self.configure(maximum=2000000)
+        self.assertEqual(self.request('/api/payments/vnpay/config',cookie=self.admin)[1]['maximum'],2000000)
+        self.assertEqual(self.request('/api/payments/vnpay/orders',dict(amount=2100000,requestId=uuid.uuid4().hex),self.admin)[0],400)
 
     def test_01_configuration_server_amount_and_idempotency(self):
         self.assertEqual(self.request('/api/payments/vnpay/config')[0], 401)

@@ -4,6 +4,7 @@
   const root = document.getElementById("predictRootEffectiveness");
   if (!root) return;
   const byId = id => document.getElementById(id);
+  const kenoTicketMaximum = 324632;
   const methods = [
     { key: "web", label: "Pipeline web", color: "#a78bfa" },
     { key: "random", label: "Ngẫu nhiên", color: "#94a3b8" },
@@ -11,8 +12,7 @@
     { key: "ewma", label: "EWMA", color: "#34d399" },
   ];
   const methodPairs = [{ key: "web", methods: methods.slice(0, 2) }, { key: "bayesian", methods: methods.slice(2) }];
-  const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, ticketController: null, exportController: null, exportCycleId: null, ticketPages: new Map(), prizeCursors: new Map(), selectedMethods: new Map(), timer: null, page: 1, lines: new Set(methods.map(item => item.key)), timelineFullScale: false, openDetails: new Map() };
-  const lab = { job: null, history: [], tracking: null, selectedJobId: null, canManage: false, loading: false, busy: false, controller: null, serial: 0, timer: null };
+  const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, prizeController: null, ticketController: null, exportController: null, exportCycleId: null, ticketPages: new Map(), prizeCursors: new Map(), selectedMethods: new Map(), timer: null, page: 1, lines: new Set(methods.map(item => item.key)), timelineFullScale: false, openDetails: new Map() };
   const activity = { progress: null, type: "", controller: null, timer: null, receivedAt: 0, serverTime: 0, requestStarted: 0, reportEstimate: 3, localPhase: "updating", error: "", message: "Đăng nhập để xem báo cáo.", kind: "" };
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const closePrizeRewardHelp = setupPrizeRewardHelp();
@@ -106,9 +106,10 @@
   }
 
   function ticketMaximum() {
+    if (byId("effectivenessType").value === "LOTO_5_35") return 324632;
     if (!isKeno()) return 1000000;
     const level = Number(byId("effectivenessKenoLevel").value);
-    return level === 1 ? 80 : level === 2 ? 3160 : level === 3 ? 82160 : 100000;
+    return level === 1 ? 80 : level === 2 ? 3160 : level === 3 ? 82160 : kenoTicketMaximum;
   }
 
   function normalizeTicketCount(commit = false) {
@@ -172,20 +173,13 @@
         else if (buttonRect.right > barRect.right) levelBar.scrollLeft += buttonRect.right - barRect.right + 4;
       }
     }
-    byId("effectivenessLab").hidden = isKeno();
     updateTicketLimit();
-    byId("effectivenessTicketHint").textContent = isKeno()
-      ? "Theo dõi cả 10 bậc · Tối đa theo số bộ không trùng của từng bậc · Áp dụng từ kỳ chưa khóa."
-      : byId("effectivenessType").value === "LOTO_5_35"
-        ? "5/35 tối đa 324.632 bộ số chính không trùng · Áp dụng từ kỳ chưa khóa."
-        : "Vé không trùng · Tự khóa khi server chạy · Cấu hình áp dụng từ kỳ chưa khóa.";
     const cyclePages = cyclePagination(state.report);
     byId("effectivenessKenoPrevious").disabled = state.loading || state.busy || cyclePages.page <= 1;
     byId("effectivenessKenoNext").disabled = state.loading || state.busy || cyclePages.page >= cyclePages.totalPages;
     byId("effectivenessCyclePages").querySelectorAll("button").forEach(button => { button.disabled = state.loading || state.busy || !state.authenticated; });
     ["effectivenessEnabled", "effectivenessTicketCount", "effectivenessSave", "effectivenessLock"].forEach(id => { byId(id).disabled = !canManage || state.busy || state.loading; });
     root.setAttribute("aria-busy", state.loading || state.busy ? "true" : "false");
-    setLabControls();
   }
 
   async function request(path, { method = "GET", form = null, signal } = {}) {
@@ -220,7 +214,7 @@
   function renderSummary(report) {
     const counts = report.counts || {};
     const settings = report.settings || {};
-    const effectiveBudget = Math.min(Number(settings.ticketCount), report.type === "LOTO_5_35" ? 324632 : report.type === "KENO" ? (reportSize(report) === 1 ? 80 : reportSize(report) === 2 ? 3160 : reportSize(report) === 3 ? 82160 : 100000) : 1000000);
+    const effectiveBudget = Math.min(Number(settings.ticketCount), report.type === "LOTO_5_35" ? 324632 : report.type === "KENO" ? (reportSize(report) === 1 ? 80 : reportSize(report) === 2 ? 3160 : reportSize(report) === 3 ? 82160 : kenoTicketMaximum) : 1000000);
     const cards = [
       ["Đã chấm", number(counts.scored, 0), "kỳ có kết quả"],
       ["Chờ kết quả", number(counts.locked, 0), "kỳ đã khóa"],
@@ -232,7 +226,8 @@
       byId("effectivenessEnabled").checked = settings.enabled === true;
       byId("effectivenessTicketCount").value = finite(settings.ticketCount) ? number(Math.min(Number(settings.ticketCount), ticketMaximum()), 0) : "1";
     }
-    byId("effectivenessAdminSummary").textContent = `${settings.enabled ? "Đang bật" : "Đang tắt"} · ${number(settings.ticketCount, 0)} vé`;
+    byId("effectivenessAdminSummary").textContent = `${settings.enabled ? "Đang bật" : "Đang tắt"} · ${number(Math.min(Number(settings.ticketCount), ticketMaximum()), 0)} vé`;
+    if (report.billing) window.dispatchEvent(new CustomEvent('dvlf:prediction-wallet', { detail: report.billing }));
   }
 
   function renderComparison(report) {
@@ -381,6 +376,112 @@
     return match ? keno[Number(match[1])]?.[Number(match[2])] ?? null : fixed[game]?.[code] ?? null;
   }
 
+  const jackpotFields = {
+    LOTO_5_35: { LOTTO_JACKPOT: "specialPrize" },
+    LOTO_6_45: { MEGA_JACKPOT: "jackpot" },
+    LOTO_6_55: { POWER_JACKPOT_1: "jackpot1", POWER_JACKPOT_2: "jackpot2" },
+  };
+
+  function matchingPrizeDraw(game, cycle, draw) {
+    const size = game === "LOTO_5_35" ? 5 : 6;
+    const universe = game === "LOTO_5_35" ? 35 : game === "LOTO_6_45" ? 45 : 55;
+    const balls = values => Array.isArray(values) && values.length === size && values.every(value => Number.isInteger(value) && value >= 1 && value <= universe) && new Set(values).size === size
+      ? [...values].sort((a, b) => a - b).join(",") : "";
+    if (!draw || !Number.isSafeInteger(Number(cycle.targetDrawId)) || Number(cycle.targetDrawId) <= 0 || Number(draw.ky) !== Number(cycle.targetDrawId)) return false;
+    const actual = balls(cycle.actualMain);
+    if (!actual || balls(draw.main) !== actual) return false;
+    if (game === "LOTO_6_45") {
+      if (cycle.actualSpecial != null || draw.special != null) return false;
+    } else if (!Number.isInteger(cycle.actualSpecial) || cycle.actualSpecial < 1 || cycle.actualSpecial > (game === "LOTO_5_35" ? 12 : 55) || cycle.actualSpecial !== draw.special || game === "LOTO_6_55" && cycle.actualMain.includes(cycle.actualSpecial)) return false;
+    const deadline = new Date(cycle.deadline);
+    if (!Number.isFinite(deadline.getTime())) return false;
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(deadline).map(part => [part.type, part.value]));
+    const drawTime = draw.time || (game === "LOTO_5_35" ? "" : "18:00");
+    return draw.date === `${parts.day}/${parts.month}/${parts.year}` && drawTime === `${parts.hour}:${parts.minute}`;
+  }
+
+  async function loadPrizeContexts(report) {
+    state.prizeController?.abort();
+    const fields = jackpotFields[report.type];
+    const cycles = fields ? (report.cycles || []).filter(cycle => (cycle.actualMain || []).length && Object.values(cycle.methods || {}).some(entry =>
+      Object.keys(fields).some(code => Number(entry.prizeCounts?.[code]) > 0 || entry.ticketResults?.some(result => result.prizeCode === code)))) : [];
+    if (!cycles.length) { state.prizeController = null; return; }
+    cycles.forEach(cycle => { cycle.prizeContext = { status: "loading" }; });
+    const controller = new AbortController(), generation = state.generation;
+    state.prizeController = controller;
+    const current = () => !controller.signal.aborted && state.prizeController === controller && state.report === report && generation === state.generation && state.active && state.authenticated;
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 10000);
+    try {
+      const ids = [...new Set(cycles.map(cycle => String(cycle.targetDrawId)))];
+      const draws = new Map();
+      for (let start = 0; start < ids.length; start += 240) {
+        const params = new URLSearchParams({ type: report.type, count: "all", drawIds: ids.slice(start, start + 240).join(",") });
+        const response = await request(`/api/live-history?${params}`, { signal: controller.signal });
+        if (!current()) return;
+        if (response.type !== report.type || !Array.isArray(response.history)) throw new Error("Dữ liệu quỹ thưởng không khớp loại xổ số.");
+        response.history.forEach(draw => {
+          const key = Number(draw.ky);
+          draws.set(key, draws.has(key) ? null : draw);
+        });
+      }
+      if (!current()) return;
+      cycles.forEach(cycle => {
+        const draw = draws.get(Number(cycle.targetDrawId));
+        cycle.prizeContext = matchingPrizeDraw(report.type, cycle, draw) ? { status: "ready", draw } : { status: "mismatch" };
+      });
+    } catch (error) {
+      if (state.prizeController === controller && state.report === report && generation === state.generation) cycles.forEach(cycle => { cycle.prizeContext = { status: timedOut ? "timeout" : "error" }; });
+      if (error.status === 401 && current()) { expireSession(); return; }
+    } finally {
+      clearTimeout(timeout);
+      const update = state.prizeController === controller && state.report === report && generation === state.generation && state.active && state.authenticated;
+      if (state.prizeController === controller) state.prizeController = null;
+      if (update) {
+        cycles.forEach(cycle => methods.forEach(method => {
+          const entry = cycle.methods?.[method.key];
+          if (!entry?.predictionId) return;
+          root.querySelectorAll(".effectiveness-cycle-method").forEach(panel => {
+            if (panel.dataset.predictionId !== entry.predictionId) return;
+            const total = Number(entry.ticketCount ?? entry.ticketPagination?.total ?? entry.tickets?.length);
+            const summary = panel.querySelector(".effectiveness-prize-summary");
+            if (summary) summary.outerHTML = methodPrizeSummaryHtml(cycle, entry, report.type, total, method.label);
+          });
+        }));
+      }
+    }
+  }
+
+  function prizeAmountInfo(game, group, context) {
+    const fixed = prizeUnitAmount(game, group.code);
+    if (fixed !== null) return { unit: fixed, amount: fixed * group.count, estimated: false };
+    const top = game === 'KENO' && /^KENO_(8|9|10)_\1$/.exec(group.code);
+    if (top) {
+      const level=Number(top[1]), winners=context?.kenoWinnerCounts?.[String(level)];
+      if (context?.status !== 'ready' || !Number.isSafeInteger(winners) || winners < 0)
+        return {unit:null,amount:null,reason:'Chưa có số vé trúng thực tế đã đối chiếu cho kỳ Keno này'};
+      const total=winners+group.count;
+      if (!Number.isSafeInteger(total) || total<=0) return {unit:null,amount:null,reason:'Số vé chia thưởng Keno không hợp lệ'};
+      const unit=total<=({8:50,9:12,10:5}[level]) ? {8:200000000,9:800000000,10:2000000000}[level] : Number(10000000000n/BigInt(total));
+      return {unit,amount:unit*group.count,estimated:true,
+        reason:`Keno ${level}/${level}: tính cùng ${number(winners,0)} vé thực tế và ${number(group.count,0)} vé mô phỏng; quỹ tối đa 10 tỷ ₫ riêng từng bậc/kỳ`};
+    }
+    const field = jackpotFields[game]?.[group.code];
+    if (!field) return { unit: null, amount: null, reason: "Cần mức trả/vé của đúng kỳ cho giải chia thưởng" };
+    if (!context || context.status === "loading") return { unit: null, amount: null, reason: "Đang đối chiếu quỹ Jackpot của đúng kỳ" };
+    if (context.status !== "ready") return { unit: null, amount: null, reason: context.status === "mismatch" ? "Quỹ Jackpot chưa khớp kỳ, ngày giờ hoặc bộ số đã chấm" : "Chưa tải được quỹ Jackpot. Bấm Làm mới để thử lại" };
+    const pool = context.draw[field], actualWinners = context.draw.prizeWinnerCounts?.[field];
+    if (!Number.isSafeInteger(pool) || pool <= 0) return { unit: null, amount: null, reason: "Kỳ này chưa có giá trị quỹ Jackpot hợp lệ" };
+    if (!Number.isSafeInteger(actualWinners) || actualWinners < 0) return { unit: null, amount: null, reason: "Kỳ này chưa có số vé trúng Jackpot thực tế đã xác minh" };
+    const denominator = actualWinners + group.count;
+    if (!Number.isSafeInteger(denominator) || denominator <= 0) return { unit: null, amount: null, reason: "Số vé chia Jackpot không hợp lệ" };
+    // Each method is an independent hypothetical addition to the published
+    // winners. Never multiply the whole shared pool by simulated ticket count.
+    const unit = Number(BigInt(pool) / BigInt(denominator));
+    return { unit, amount: unit * group.count, estimated: true,
+      reason: `${group.label}: quỹ ${number(pool, 0)} ₫ ÷ (${number(actualWinners, 0)} vé thực tế + ${number(group.count, 0)} vé mô phỏng), làm tròn xuống đồng` };
+  }
+
   function setupPrizeRewardHelp() {
     const panel = document.createElement("div");
     panel.id = "effectivenessPrizeRewardHelp";
@@ -461,21 +562,17 @@
     return close;
   }
 
-  function prizeMoneyHtml(groups, total, uncertain, game) {
+  function prizeMoneyHtml(groups, total, uncertain, game, context) {
     const ticketPrice = 10000;
     const money = value => `${number(value, 0)} ₫`;
-    const rows = groups.map(group => {
-      const unit = prizeUnitAmount(game, group.code);
-      return { ...group, unit, amount: unit === null ? null : unit * group.count };
-    });
+    const rows = groups.map(group => ({ ...group, ...prizeAmountInfo(game, group, context) }));
     const reward = rows.reduce((sum, row) => sum + (row.amount ?? 0), 0);
     const cost = total * ticketPrice;
     const complete = !uncertain && rows.every(row => row.amount !== null && Number.isSafeInteger(row.amount)) && Number.isSafeInteger(reward) && Number.isSafeInteger(cost);
     const net = reward - cost;
-    const notes = [
-      rows.some(row => row.unit === null) ? "Cần mức trả/vé của đúng kỳ cho giải chia thưởng/Jackpot" : "",
-    ].filter(Boolean).join(" · ");
-    return `<div class="effectiveness-prize-counts" role="list" aria-label="Chi tiết giải thưởng, số lượng giảm dần">${rows.map(row => `<div class="effectiveness-prize-detail" role="listitem" data-prize-code="${escape(row.code)}" data-prize-unit="${row.unit ?? ''}" data-prize-subtotal="${row.amount ?? ''}"><span class="effectiveness-prize-name">${escape(row.label)}</span><span class="effectiveness-prize-equation"><b>${number(row.count, 0)}</b><i>×</i><span>${row.unit === null ? "Chờ mức trả/vé" : money(row.unit)}</span><i>=</i><strong>${row.amount === null ? "Chưa xác định" : money(row.amount)}</strong></span></div>`).join("")}</div><div class="effectiveness-prize-total"><span class="effectiveness-prize-total-label">${complete ? "Tổng tiền thưởng" : "Thưởng đã tính"}<button type="button" class="effectiveness-prize-help-button" data-prize-reward-help="${escape(game)}" popovertarget="effectivenessPrizeRewardHelp" aria-label="Giải thích cơ cấu thưởng và thuế TNCN" aria-haspopup="dialog" aria-expanded="false">?</button></span><strong data-prize-reward="${reward}">${money(reward)}</strong></div><div class="effectiveness-prize-total effectiveness-ticket-total"><span>Tổng tiền vé</span><strong data-total-ticket-cost="${cost}">${money(cost)}</strong></div><div class="effectiveness-prize-net${complete ? net > 0 ? ' is-positive' : net < 0 ? ' is-negative' : ' is-even' : ' is-incomplete'}"><span class="effectiveness-prize-net-label">Tiền thưởng − Tiền vé</span><span class="effectiveness-prize-net-equation"><span>${complete ? money(reward) : 'Chưa đủ tổng thưởng'}</span><span>− ${money(cost)}</span><span>=</span><strong data-prize-net="${complete ? net : ''}" data-ticket-cost="${cost}">${complete ? money(net) : "Chưa tính đủ"}</strong></span></div>${notes ? `<small>${notes}</small>` : ""}`;
+    const estimated = rows.some(row => row.estimated);
+    const notes = [...new Set(rows.map(row => row.reason).filter(Boolean)), estimated ? "Ước tính từng phương pháp riêng, theo quỹ công bố của kỳ, chưa trừ thuế; không xác nhận tiền lĩnh thưởng thực tế" : ""].filter(Boolean).join(" · ");
+    return `<div class="effectiveness-prize-counts" role="list" aria-label="Chi tiết giải thưởng, số lượng giảm dần">${rows.map(row => `<div class="effectiveness-prize-detail" role="listitem" data-prize-code="${escape(row.code)}" data-prize-unit="${row.unit ?? ''}" data-prize-subtotal="${row.amount ?? ''}"><span class="effectiveness-prize-name">${escape(row.label)}</span><span class="effectiveness-prize-equation"><b>${number(row.count, 0)}</b><i>×</i><span>${row.unit === null ? "Chờ mức trả/vé" : money(row.unit)}</span><i>=</i><strong>${row.amount === null ? "Chưa xác định" : money(row.amount)}</strong></span></div>`).join("")}</div><div class="effectiveness-prize-total"><span class="effectiveness-prize-total-label">${complete ? estimated ? "Tổng thưởng ước tính" : "Tổng tiền thưởng" : "Thưởng đã tính"}<button type="button" class="effectiveness-prize-help-button" data-prize-reward-help="${escape(game)}" popovertarget="effectivenessPrizeRewardHelp" aria-label="Giải thích cơ cấu thưởng và thuế TNCN" aria-haspopup="dialog" aria-expanded="false">?</button></span><strong data-prize-reward="${reward}">${money(reward)}</strong></div><div class="effectiveness-prize-total effectiveness-ticket-total"><span>Tổng tiền vé</span><strong data-total-ticket-cost="${cost}">${money(cost)}</strong></div><div class="effectiveness-prize-net${complete ? net > 0 ? ' is-positive' : net < 0 ? ' is-negative' : ' is-even' : ' is-incomplete'}"><span class="effectiveness-prize-net-label">Tiền thưởng − Tiền vé</span><span class="effectiveness-prize-net-equation"><span>${complete ? money(reward) : 'Chưa đủ tổng thưởng'}</span><span>− ${money(cost)}</span><span>=</span><strong data-prize-net="${complete ? net : ''}" data-ticket-cost="${cost}">${complete ? money(net) : "Chưa tính đủ"}</strong></span></div>${notes ? `<small>${escape(notes)}</small>` : ""}`;
   }
 
   function methodPrizeSummaryHtml(cycle, entry, game, total, label) {
@@ -519,7 +616,7 @@
     if (!groups.length) return uncertain ? '<div class="effectiveness-prize-summary is-muted">Chưa xác định vé trúng</div>' : `<div class="effectiveness-prize-summary"><span class="effectiveness-prize-empty">Chưa có vé trúng</span>${prizeMoneyHtml([], total, 0, game)}</div>`;
     const highest = [...groups].sort((a, b) => a.rank - b.rank)[0];
     groups.sort((a, b) => b.count - a.count || a.rank - b.rank);
-    return `<div class="effectiveness-prize-summary" aria-label="Vé trúng và tiền thưởng mô phỏng của toàn bộ ${escape(label)} trong kỳ này"><div class="effectiveness-prize-best"><span>Cao nhất</span><button type="button" class="effectiveness-prize-jump" data-prize-jump="${escape(highest.code)}" title="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}" aria-label="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}"><strong>${escape(highest.label)}</strong></button><span>SL <b>${number(highest.count, 0)}</b></span></div>${prizeMoneyHtml(groups, total, uncertain, game)}${uncertain ? `<small>Còn ${number(uncertain, 0)} vé chưa xác định giải</small>` : ""}</div>`;
+    return `<div class="effectiveness-prize-summary" aria-label="Vé trúng và tiền thưởng mô phỏng của toàn bộ ${escape(label)} trong kỳ này"><div class="effectiveness-prize-best"><span>Cao nhất</span><button type="button" class="effectiveness-prize-jump" data-prize-jump="${escape(highest.code)}" title="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}" aria-label="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}"><strong>${escape(highest.label)}</strong></button><span>SL <b>${number(highest.count, 0)}</b></span></div>${prizeMoneyHtml(groups, total, uncertain, game, cycle.prizeContext)}${uncertain ? `<small>Còn ${number(uncertain, 0)} vé chưa xác định giải</small>` : ""}</div>`;
   }
 
   function cycleMethodHtml(cycle, method, game, mainCount) {
@@ -825,55 +922,6 @@
     setControls();
   }
 
-  function labIsVisible() {
-    return state.active && state.authenticated && !isKeno() && byId("effectivenessLab").open && !document.hidden;
-  }
-
-  function labIsRunning() {
-    return ["queued", "running"].includes(lab.job?.state);
-  }
-
-  function setLabControls() {
-    const canManage = state.authenticated && (lab.canManage || state.report?.canManage === true);
-    const running = labIsRunning();
-    byId("effectivenessLabAdmin").hidden = !canManage;
-    ["effectivenessLabTickets", "effectivenessLabValidation", "effectivenessLabTest", "effectivenessLabRun"].forEach(id => { byId(id).disabled = !canManage || lab.loading || lab.busy || running; });
-    byId("effectivenessLabCancel").hidden = !canManage || !running;
-    byId("effectivenessLabCancel").disabled = !canManage || lab.busy;
-    root.querySelectorAll("[data-lab-job]").forEach(button => { button.disabled = lab.loading || lab.busy || running; });
-    const candidateActive = lab.tracking?.candidate?.status === "active";
-    root.querySelectorAll("[data-lab-track-start]").forEach(button => { button.disabled = !canManage || lab.loading || lab.busy || candidateActive || !lab.job?.report?.conclusion?.canTrack; button.hidden = !canManage; });
-    root.querySelectorAll("[data-lab-track-stop]").forEach(button => { button.disabled = !canManage || lab.loading || lab.busy || !candidateActive; button.hidden = !canManage; });
-    byId("effectivenessLab").setAttribute("aria-busy", lab.loading || lab.busy || running ? "true" : "false");
-  }
-
-  function showLabStatus(message, error = false) {
-    byId("effectivenessLabStatus").textContent = message;
-    byId("effectivenessLabStatus").dataset.kind = error ? "error" : "";
-  }
-
-  function resetLab() {
-    lab.serial += 1;
-    lab.controller?.abort();
-    lab.controller = null;
-    clearTimeout(lab.timer);
-    lab.timer = null;
-    lab.job = null;
-    lab.history = [];
-    lab.tracking = null;
-    lab.selectedJobId = null;
-    lab.canManage = false;
-    lab.loading = false;
-    lab.busy = false;
-    byId("effectivenessLabResult").innerHTML = "";
-    byId("effectivenessLabHistory").innerHTML = "";
-    byId("effectivenessLabHistoryCount").textContent = "0 lượt";
-    byId("effectivenessLabHistoryDetails").open = false;
-    byId("effectivenessLabTracking").innerHTML = "";
-    showLabStatus(state.authenticated ? "Mở phòng thử để tải kết quả gần nhất của tài khoản." : "Đăng nhập để xem phòng thử.");
-    setLabControls();
-  }
-
   function expireSession() {
     state.generation += 1;
     state.authenticated = false;
@@ -886,271 +934,13 @@
     clearReport();
     byId("effectivenessAdmin").open = false;
     setHelpOpen(false);
-    byId("effectivenessLab").open = false;
-    resetLab();
     syncTimer();
     showStatus("Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.", "error");
   }
 
-  function validateLabJob(payload, type) {
-    if (payload.job && (payload.job.type !== type || payload.job.report && payload.job.report.type !== type)) {
-      throw new Error("Báo cáo thử nghiệm không khớp loại xổ số đang chọn.");
-    }
-    if (payload.type && payload.type !== type || (Array.isArray(payload.history) ? payload.history : []).some(row => row.type !== type) || payload.tracking?.type && payload.tracking.type !== type || payload.tracking?.candidate?.type && payload.tracking.candidate.type !== type) {
-      throw new Error("Lịch sử hoặc ứng viên không khớp loại xổ số đang chọn.");
-    }
-  }
-
-  function labProvenanceHtml(report) {
-    const provenance = report.provenance || {};
-    const registry = provenance.registryModel || {};
-    const webRuns = (Array.isArray(report.folds) ? report.folds : []).map(fold => fold.methods?.web).filter(Boolean);
-    const unique = values => [...new Set(values.filter(value => value !== null && value !== undefined && value !== "").map(String))].join(" · ");
-    const engines = unique(webRuns.map(run => run.engine)) || provenance.requestedEngine || "Chưa có thông tin";
-    const models = unique(webRuns.map(run => run.modelId)) || registry.modelId || (registry.mode === "legacy_classic" ? "Không có champion khi bắt đầu · engine classic" : "Chưa có thông tin");
-    const fields = [["Engine web thực tế", engines], ["Model được giữ cố định", models],
-      ["Dữ liệu đầu vào", "Mỗi lượt chỉ dùng lịch sử trước kỳ mục tiêu"],
-      ["Huấn luyện trong phòng thử", "Giữ nguyên artifact · không huấn luyện lại từng kỳ"],
-      ["Pipeline", report.pipeline], ["Model đã học đến kỳ", registry.trainedCutoff],
-      ["Mã phiên bản nguồn", provenance.sourceHash], ["Mã dữ liệu", provenance.dataHash],
-      ["Mã artifact", registry.artifactHash]];
-    return `<dl class="effectiveness-info-list">${fields.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>`;
-  }
-
-  function renderLabReport(report) {
-    rememberOpenDetails();
-    const rows = Array.isArray(report.methods) ? report.methods : [];
-    const profiles = Array.isArray(report.profiles) ? report.profiles : [];
-    const split = report.split || {};
-    const selection = report.selection || {};
-    const parameters = report.parameters || {};
-    const conclusion = report.conclusion || {};
-    const notes = Array.isArray(report.notes) ? report.notes.filter(note => typeof note === "string") : [];
-    const candidate = rows.find(row => row.profileId === selection.candidateProfileId && row.kind === "candidate");
-    const random = conclusion.evidence?.random || {};
-    const status = ["insufficient_evidence", "no_clear_advantage", "possible_improvement"].includes(conclusion.status) ? conclusion.status : "insufficient_evidence";
-    const title = conclusion.title || "Báo cáo lịch sử";
-    const summary = conclusion.message || "Lượt thử này chưa so sánh các cấu hình mới. Chạy lượt thử mới để tìm và theo dõi ứng viên.";
-    const reportKey = `${reportGame(report)}:lab:${lab.job?.id || "latest"}`;
-    const candidateLabel = selection.candidateLabel || conclusion.candidateLabel || "Chưa có ứng viên cấu hình";
-    const active = lab.tracking?.candidate?.status === "active";
-    const sameRun = active && String(lab.tracking.candidate.runId) === String(lab.job?.id);
-    byId("effectivenessLabResult").innerHTML = `<div class="effectiveness-lab-conclusion" data-conclusion="${status}"><span class="effectiveness-lab-kicker">Kết luận lượt thử</span><h4>${escape(title)}</h4><p>${escape(summary)}</p><div class="effectiveness-lab-outcome"><span><small>Ứng viên được chọn</small><strong>${escape(candidateLabel)}</strong></span><span><small>Kiểm tra giữ riêng</small><strong>${number(conclusion.sampleCount ?? split.test?.count, 0)} kỳ</strong></span><span><small>Brier so ngẫu nhiên · thấp hơn tốt hơn</small><strong>${finite(random.brierDelta) ? `${Number(random.brierDelta) > 0 ? "+" : ""}${number(random.brierDelta, 5)}` : "—"}</strong></span></div>${conclusion.recommendation ? `<p class="effectiveness-lab-next">${escape(conclusion.recommendation)}</p>` : ""}${conclusion.canTrack === true && selection.candidateProfileId ? `<div class="effectiveness-lab-action"><button type="button" class="secondary" data-lab-track-start>Theo dõi ứng viên trên kỳ mới</button><span>${sameRun ? "Ứng viên này đang được theo dõi." : active ? "Dừng ứng viên đang theo dõi trước khi chọn cấu hình khác." : "Khóa bộ số trước quay · đối chiếu với web và ngẫu nhiên."}</span></div>` : ""}</div>
-      <details class="effectiveness-lab-detail effectiveness-lab-comparison" data-effectiveness-state="${escape(reportKey)}:comparison"${opened(`${reportKey}:comparison`)}><summary>So sánh cấu hình và đối chứng <span>${rows.length} phương pháp</span></summary><div class="effectiveness-lab-split">${[["training", "Lịch sử ban đầu"], ["validation", "Chọn cấu hình"], ["test", "Kiểm tra giữ riêng"]].map(([key, label]) => `<span><strong>${escape(label)} · ${number(split[key]?.count, 0)} kỳ</strong><small>Kỳ ${escape(split[key]?.firstDrawId ?? "—")} → ${escape(split[key]?.lastDrawId ?? "—")}</small></span>`).join("")}</div>
-      <p class="effectiveness-lab-selection"><strong>${escape(selection.label || methodLabel(selection.selectedMethod || "")) || "Chưa có lựa chọn"}</strong> được chọn trước khi chấm tập kiểm tra phía sau. Điểm kiểm tra không dùng để chọn lại thuật toán. ${number(parameters.ticketCount, 0)} vé / phương pháp / kỳ.</p>
-      <div class="effectiveness-table-wrap"><table class="effectiveness-table effectiveness-comparison-table"><caption><strong>Kiểm tra lịch sử ngoài mẫu</strong><span>Cấu hình cố định trước tập test · không phải dự đoán tương lai đã khóa</span></caption><thead><tr><th scope="col">Phương pháp</th><th scope="col">Brier validation</th><th scope="col">Brier test</th><th scope="col">Trùng / vé test</th><th scope="col">Số trùng so với ngẫu nhiên</th><th scope="col">Nhận định test</th></tr></thead><tbody>${rows.map(row => {
-        const test = row.test || {};
-        const selected = row.key === selection.selectedMethod;
-        const chosenProfile = row === candidate;
-        return `<tr${chosenProfile ? ' class="effectiveness-lab-candidate-row"' : ""}><th scope="row">${escape(row.label || methodLabel(row.key))}${selected ? '<small class="effectiveness-lab-selected">Thấp nhất trên tập chọn</small>' : chosenProfile ? '<small class="effectiveness-lab-selected">Ứng viên cấu hình</small>' : `<small>${row.kind === "candidate" ? "Cấu hình thử" : "Đối chứng"} · ${number(test.sampleCount, 0)} kỳ test</small>`}</th><td data-label="Brier validation">${number(row.validation?.brierScore, 5)}</td><td data-label="Brier test">${number(test.brierScore, 5)}</td><td data-label="Trùng / vé test" class="effectiveness-mean">${number(test.meanHits)}</td><td data-label="So với ngẫu nhiên"><strong>${signed(test.deltaVsRandom)}</strong><small class="effectiveness-ci">95% ${interval(test.ci95)}</small></td><td data-label="Nhận định test" class="effectiveness-decision">${escape(decisionText({ ...test, key: row.key }))}</td></tr>`;
-      }).join("")}</tbody></table></div>
-      </details>${profiles.length ? `<details class="effectiveness-lab-detail effectiveness-lab-profiles" data-effectiveness-state="${escape(reportKey)}:profiles"${opened(`${reportKey}:profiles`)}><summary>Các cấu hình được thử <span>${profiles.length} cấu hình</span></summary><div class="effectiveness-lab-profile-grid">${profiles.map(profile => `<div><strong>${escape(profile.label || profile.id)}</strong><p>${escape(profile.description || "")}</p><small>${profile.historyWindow === null ? "Toàn bộ lịch sử" : `${number(profile.historyWindow, 0)} kỳ lịch sử`} · ${number(profile.recentWindow, 0)} kỳ gần · ${profile.allocation === "aggressive" ? "Phân bổ mạnh" : "Phân bổ ổn định"}</small></div>`).join("")}</div></details>` : ""}
-      <details class="effectiveness-lab-detail effectiveness-lab-provenance" data-effectiveness-state="${escape(reportKey)}:provenance"${opened(`${reportKey}:provenance`)}><summary>Chỉ số và ghi chú thử nghiệm</summary><p>Validation là tập chọn cấu hình; test là tập kiểm tra giữ riêng. Brier / log-loss càng thấp càng tốt. Giữ nguyên artifact model, không huấn luyện lại mỗi kỳ. Tỷ lệ trùng xét số chính trên từng vé; kết quả lịch sử không bảo đảm kỳ sau và không tự nâng model.</p>${conclusion.evidence ? `<div class="effectiveness-table-wrap"><table class="effectiveness-table"><caption><strong>Ứng viên so với đối chứng</strong><span>Chênh lệch Brier / log-loss âm là tốt hơn</span></caption><thead><tr><th>Đối chứng</th><th>Δ Brier</th><th>Khoảng 95% Δ Brier</th><th>Δ Log-loss</th></tr></thead><tbody>${["random", "web"].map(key => { const evidence = conclusion.evidence[key] || {}; return `<tr><th scope="row">${escape(methodLabel(key))}</th><td>${number(evidence.brierDelta, 5)}</td><td>${evidence.brierCi95 && finite(evidence.brierCi95.lower) && finite(evidence.brierCi95.upper) ? `[${number(evidence.brierCi95.lower, 5)}; ${number(evidence.brierCi95.upper, 5)}]` : "—"}</td><td>${number(evidence.logLossDelta, 5)}</td></tr>`; }).join("")}</tbody></table></div>` : ""}<div class="effectiveness-table-wrap"><table class="effectiveness-table"><thead><tr><th>Phương pháp</th><th>Log-loss test</th><th>Trùng ≥3</th><th>Trùng ≥4</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}</th><td>${number(row.test?.logLoss, 5)}</td><td>${percent(row.test?.rate3)}</td><td>${percent(row.test?.rate4)}</td></tr>`).join("")}</tbody></table></div>${conclusion.highPrizeNote ? `<p>${escape(conclusion.highPrizeNote)}</p>` : ""}${labProvenanceHtml(report)}${selection.reason ? `<p>${escape(selection.reason)}</p>` : ""}${notes.length ? `<ul>${notes.map(note => `<li>${escape(note)}</li>`).join("")}</ul>` : ""}</details>`;
-  }
-
-  function renderLabHistory() {
-    const history = lab.history;
-    byId("effectivenessLabHistoryCount").textContent = `${history.length} lượt`;
-    byId("effectivenessLabHistory").innerHTML = history.length ? `<div class="effectiveness-lab-history-list">${history.map(row => `<button type="button" class="secondary effectiveness-lab-history-item" data-lab-job="${escape(row.id)}" aria-pressed="${String(row.id) === String(lab.job?.id)}"><span><strong>${escape(row.candidateLabel || methodLabel(row.selectedMethod || "") || "Báo cáo lịch sử")}</strong><small>${escape(dateTime(row.finishedAt || row.createdAt))} · ${number(row.ticketCount, 0)} vé · ${number(row.validationCount, 0)} + ${number(row.testCount, 0)} kỳ</small></span><span>${escape(typeof row.conclusion === "object" ? row.conclusion?.title || "Xem báo cáo" : row.conclusion || "Xem báo cáo")}</span></button>`).join("")}</div><p>Lượt thử được lưu trên server và giữ lại khi khởi động lại.</p>` : '<p>Chưa có báo cáo đã lưu. Chạy thử để so sánh các cấu hình.</p>';
-  }
-
-  function renderLabTracking() {
-    rememberOpenDetails();
-    const tracking = lab.tracking;
-    const candidate = tracking?.candidate;
-    const host = byId("effectivenessLabTracking");
-    if (!candidate) { host.innerHTML = ""; return; }
-    const game = tracking.type || byId("effectivenessType").value;
-    const counts = tracking.counts || {};
-    const rows = Array.isArray(tracking.methods) ? tracking.methods : [];
-    const cycles = (Array.isArray(tracking.cycles) ? tracking.cycles : []).slice(0, 6);
-    const active = candidate.status === "active";
-    const key = `${game}:lab:tracking:${candidate.id}`;
-    host.innerHTML = `<div class="effectiveness-lab-tracking"><div class="effectiveness-lab-tracking-head"><div><span class="effectiveness-lab-kicker">Theo dõi trên kỳ mới</span><h4>${escape(candidate.label || candidate.profileId)}</h4></div><span class="effectiveness-lab-tracking-state${active ? " is-active" : ""}">${active ? "Đang theo dõi" : "Đã dừng tạo kỳ mới"}</span>${active ? '<button type="button" class="secondary" data-lab-track-stop>Dừng theo dõi</button>' : ""}</div><div class="effectiveness-lab-tracking-counts"><span><strong>${number(counts.scored, 0)}</strong> kỳ đã chấm</span><span><strong>${number(counts.locked, 0)}</strong> kỳ chờ kết quả</span><span>${number(candidate.ticketCount, 0)} vé / phương pháp</span></div><p class="effectiveness-lab-tracking-note">${escape(tracking.conclusion?.title || "Chờ đủ kỳ thực tế để đánh giá")}${tracking.conclusion?.summary ? ` · ${escape(tracking.conclusion.summary)}` : ""}</p>${candidate.lastError ? `<p class="effectiveness-lab-tracking-error">${escape(candidate.lastError)}</p>` : ""}<details class="effectiveness-lab-detail" data-effectiveness-state="${escape(key)}:comparison"${opened(`${key}:comparison`)}><summary>So sánh trên kết quả thực tế <span>Ứng viên · Web · Ngẫu nhiên</span></summary><div class="effectiveness-table-wrap"><table class="effectiveness-table effectiveness-comparison-table"><thead><tr><th scope="col">Phương pháp</th><th scope="col">Trùng / vé</th><th scope="col">Brier</th><th scope="col">Trùng ≥3 / ≥4</th><th scope="col">Số trùng so ngẫu nhiên</th></tr></thead><tbody>${rows.map(row => `<tr><th scope="row">${escape(row.label || methodLabel(row.key))}<small>${number(row.sampleCount, 0)} kỳ thực tế</small></th><td data-label="Trùng / vé">${number(row.meanHits)}</td><td data-label="Brier">${number(row.brierScore, 5)}</td><td data-label="Trùng ≥3 / ≥4">${percent(row.rate3)} / ${percent(row.rate4)}</td><td data-label="So ngẫu nhiên"><strong>${signed(row.deltaVsRandom)}</strong><small class="effectiveness-ci">95% ${interval(row.ci95)}</small></td></tr>`).join("")}</tbody></table></div></details><details class="effectiveness-lab-detail effectiveness-lab-tracking-journal" data-effectiveness-state="${escape(key)}:journal"${opened(`${key}:journal`, true)}><summary>Bộ số đã khóa trước quay <span>${cycles.length} kỳ gần nhất</span></summary><div class="effectiveness-cycles">${cycles.length ? cycles.map(cycle => {
-      const actualList = Array.isArray(cycle.actualMain) ? cycle.actualMain : [];
-      const actual = new Set(actualList.map(Number));
-      const cycleKey = `${key}:cycle:${cycle.id || cycle.targetDrawId}`;
-      return `<details class="effectiveness-cycle" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${actual.size ? " is-scored" : ""}">${actual.size ? "Đã chấm" : "Chờ kết quả"}</span></span><small>Khóa ${escape(dateTime(cycle.createdAt))}</small></span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${number(candidate.ticketCount, 0)} vé / phương pháp đã khóa`}</span>${actual.size ? actualNumbersHtml(cycle, game) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span><span class="effectiveness-cycle-toggle" aria-hidden="true"><span class="when-closed">Mở rộng</span><span class="when-open">Thu gọn</span></span></summary><div class="effectiveness-cycle-body"><div class="effectiveness-cycle-methods effectiveness-lab-cycle-methods">${["candidate", "web", "random"].map(methodKey => {
-        const entry = cycle.methods?.[methodKey] || {};
-        const tickets = Array.isArray(entry.tickets) ? entry.tickets : [];
-        const results = Array.isArray(entry.ticketResults) ? entry.ticketResults : [];
-        const label = methodKey === "candidate" ? candidate.label || "Ứng viên" : methodLabel(methodKey);
-        return `<div class="effectiveness-cycle-method"><div class="effectiveness-cycle-method-head"><strong>${escape(label)}</strong><span>${actual.size ? `TB ${number(entry.meanHits, 2)} số / vé` : `${tickets.length} vé đã khóa`}</span></div><div class="effectiveness-ticket-list">${tickets.map((ticket, index) => ticketRowHtml(ticket, actual, index, game === "LOTO_5_35" ? 5 : 6, results.find(result => Number(result.ticketIndex) === index + 1) || results[index], game === "LOTO_6_55", cycle.actualSpecial)).join("")}</div></div>`;
-      }).join("")}</div><p class="effectiveness-lab-cycle-cutoff">Dữ liệu đến kỳ ${escape(cycle.cutoffDrawId)} · hạn khóa ${escape(dateTime(cycle.deadline))}</p></div></details>`;
-    }).join("") : '<p>Server sẽ khóa bộ số khi có kỳ hợp lệ tiếp theo. Mở lại mục này để đối chiếu kết quả.</p>'}</div></details><p class="effectiveness-lab-tracking-footnote">Ứng viên chạy song song với dự đoán web. Dừng theo dõi vẫn giữ bộ số đã khóa và tiếp tục chấm kỳ đang chờ.</p></div>`;
-  }
-
-  function applyLabPayload(payload, type) {
-    validateLabJob(payload, type);
-    if (typeof payload.canManage === "boolean") lab.canManage = payload.canManage;
-    if (Object.prototype.hasOwnProperty.call(payload, "job")) lab.job = payload.job || null;
-    if (Array.isArray(payload.history)) lab.history = payload.history;
-    if (Object.prototype.hasOwnProperty.call(payload, "tracking")) lab.tracking = payload.tracking || null;
-    renderLabJob();
-  }
-
-  function renderLabJob() {
-    rememberOpenDetails();
-    const job = lab.job;
-    byId("effectivenessLabResult").innerHTML = "";
-    if (!job) {
-      showLabStatus("Tài khoản chưa có lượt thử cho loại xổ số này.");
-    } else if (labIsRunning()) {
-      const total = Number(job.progress?.total) || Number(job.validationCount) + Number(job.testCount);
-      const completed = Math.max(0, Math.min(total, Number(job.progress?.completed) || 0));
-      showLabStatus(`Đang chạy thử · đã xử lý ${number(completed, 0)}/${number(total, 0)} kỳ (${number(job.validationCount, 0)} chọn cấu hình + ${number(job.testCount, 0)} kiểm tra). Có thể đóng phòng thử và quay lại sau.`);
-    } else if (job.state === "completed" && job.report) {
-      showLabStatus(`Hoàn tất ${dateTime(job.finishedAt || job.createdAt)} · báo cáo riêng của tài khoản.`);
-      renderLabReport(job.report);
-    } else if (job.state === "cancelled") {
-      showLabStatus("Đã hủy lượt thử. Không có model sản xuất nào được thay đổi.");
-    } else {
-      showLabStatus(String(job.error || "Lượt thử chưa có báo cáo hoàn chỉnh."), true);
-    }
-    renderLabTracking();
-    renderLabHistory();
-    setLabControls();
-  }
-
-  function scheduleLabPoll() {
-    clearTimeout(lab.timer);
-    lab.timer = null;
-    if (labIsVisible() && !lab.busy && (labIsRunning() || lab.tracking?.candidate?.status === "active" || Number(lab.tracking?.counts?.locked) > 0)) lab.timer = setTimeout(() => void loadLab(), labIsRunning() ? 2000 : 60000);
-  }
-
-  function pauseLab() {
-    clearTimeout(lab.timer);
-    lab.timer = null;
-    if (lab.loading) {
-      lab.serial += 1;
-      lab.controller?.abort();
-      lab.controller = null;
-      lab.loading = false;
-    }
-    setLabControls();
-  }
-
-  async function loadLab() {
-    if (!labIsVisible() || lab.loading || lab.busy) return;
-    const serial = ++lab.serial;
-    const generation = state.generation;
-    const type = byId("effectivenessType").value;
-    const controller = new AbortController();
-    lab.controller?.abort();
-    lab.controller = controller;
-    lab.loading = true;
-    if (!lab.job) showLabStatus("Đang tải kết quả thử nghiệm…");
-    setLabControls();
-    try {
-      const jobId = lab.selectedJobId || lab.job?.id;
-      const payload = await request(`/api/ml/algorithm-lab?type=${encodeURIComponent(type)}${jobId ? `&jobId=${encodeURIComponent(jobId)}` : ""}`, { signal: controller.signal });
-      if (serial !== lab.serial || generation !== state.generation || type !== byId("effectivenessType").value) return;
-      applyLabPayload(payload, type);
-    } catch (error) {
-      if (error.name !== "AbortError" && serial === lab.serial && generation === state.generation) {
-        if (error.status === 401) { expireSession(); return; }
-        showLabStatus(error.message, true);
-      }
-    } finally {
-      if (serial === lab.serial) {
-        lab.loading = false;
-        lab.controller = null;
-        setLabControls();
-        scheduleLabPoll();
-      }
-    }
-  }
-
-  async function runLab(cancel = false) {
-    if (!state.authenticated || !(lab.canManage || state.report?.canManage === true) || lab.busy || lab.loading || !cancel && labIsRunning()) return;
-    const type = byId("effectivenessType").value;
-    const form = { type };
-    if (cancel) {
-      if (!lab.job?.id) return;
-      form.action = "cancel";
-      form.jobId = lab.job.id;
-    } else {
-      const ticketCount = Number(byId("effectivenessLabTickets").value);
-      const validationCount = Number(byId("effectivenessLabValidation").value);
-      const testCount = Number(byId("effectivenessLabTest").value);
-      if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > 10 || !Number.isInteger(validationCount) || validationCount < 5 || validationCount > 50 || !Number.isInteger(testCount) || testCount < 5 || testCount > 50 || validationCount + testCount > 100) {
-        showLabStatus("Chọn 1–10 vé; validation và test mỗi tập 5–50 kỳ, tổng không quá 100 kỳ.", true); return;
-      }
-      Object.assign(form, { ticketCount: String(ticketCount), validationCount: String(validationCount), testCount: String(testCount) });
-    }
-    const serial = ++lab.serial;
-    const generation = state.generation;
-    const controller = new AbortController();
-    lab.controller?.abort();
-    lab.controller = controller;
-    clearTimeout(lab.timer);
-    lab.busy = true;
-    setLabControls();
-    showLabStatus(cancel ? "Đang hủy lượt thử…" : "Đang bắt đầu thử nghiệm…");
-    try {
-      const payload = await request("/api/ml/algorithm-lab", { method: "POST", form, signal: controller.signal });
-      if (serial !== lab.serial || generation !== state.generation || type !== byId("effectivenessType").value) return;
-      lab.selectedJobId = null;
-      applyLabPayload(payload, type);
-    } catch (error) {
-      if (error.name !== "AbortError" && serial === lab.serial && generation === state.generation) {
-        if (error.status === 401) { expireSession(); return; }
-        showLabStatus(error.message, true);
-      }
-    } finally {
-      if (serial === lab.serial) {
-        lab.busy = false;
-        lab.controller = null;
-        setLabControls();
-        scheduleLabPoll();
-      }
-    }
-  }
-
-  async function mutateLabTracking(action) {
-    if (!state.authenticated || !(lab.canManage || state.report?.canManage === true) || lab.busy || lab.loading) return;
-    const type = byId("effectivenessType").value;
-    const form = { type, action };
-    if (action === "start_tracking") {
-      if (!lab.job?.id || !lab.job.report?.conclusion?.canTrack || !lab.job.report.selection?.candidateProfileId || lab.tracking?.candidate?.status === "active") return;
-      form.jobId = String(lab.job.id);
-    } else {
-      if (!lab.tracking?.candidate?.id || lab.tracking.candidate.status !== "active") return;
-      form.candidateId = String(lab.tracking.candidate.id);
-    }
-    const serial = ++lab.serial;
-    const generation = state.generation;
-    const controller = new AbortController();
-    lab.controller?.abort();
-    lab.controller = controller;
-    clearTimeout(lab.timer);
-    lab.busy = true;
-    setLabControls();
-    showLabStatus(action === "start_tracking" ? "Đang bật theo dõi ứng viên trên kỳ mới…" : "Đang dừng tạo kỳ mới cho ứng viên…");
-    let succeeded = false;
-    try {
-      const payload = await request("/api/ml/algorithm-lab", { method: "POST", form, signal: controller.signal });
-      if (serial !== lab.serial || generation !== state.generation || type !== byId("effectivenessType").value) return;
-      applyLabPayload(payload, type);
-      succeeded = true;
-      showLabStatus(action === "start_tracking" ? "Đã bật theo dõi. Xem bộ số được khóa trước quay ở bên dưới." : "Đã dừng tạo kỳ mới. Các kỳ đang chờ vẫn được chấm khi có kết quả.");
-    } catch (error) {
-      if (error.name !== "AbortError" && serial === lab.serial && generation === state.generation) {
-        if (error.status === 401) { expireSession(); return; }
-        showLabStatus(error.message, true);
-      }
-    } finally {
-      if (serial === lab.serial) {
-        lab.busy = false;
-        lab.controller = null;
-        setLabControls();
-        scheduleLabPoll();
-      }
-    }
-    if (succeeded && serial === lab.serial && labIsVisible()) await loadLab();
-  }
-
   function clearReport() {
+    state.prizeController?.abort();
+    state.prizeController = null;
     stopCycleExport();
     closePrizeRewardHelp();
     state.ticketController?.abort();
@@ -1169,6 +959,8 @@
   async function refresh({ statusAfter = "", scrollAnchor = null, scrollToCycles = false } = {}) {
     if (!state.authenticated || !state.active || state.busy) return;
     stopCycleExport();
+    state.prizeController?.abort();
+    state.prizeController = null;
     state.controller?.abort();
     state.ticketController?.abort();
     state.ticketController = null;
@@ -1192,6 +984,7 @@
       state.report = report;
       activity.reportEstimate = Math.max(1, (performance.now() - activity.requestStarted) / 1000 * 1.2);
       render(report);
+      void loadPrizeContexts(report);
       if (scrollToCycles) root.querySelector(".effectiveness-history-head").scrollIntoView({ behavior: "smooth", block: "start" });
       byId("effectivenessUpdated").textContent = `Cập nhật ${dateTime(new Date().toISOString())}`;
       showStatus(statusAfter || (Number(report.counts?.scored) ? "Báo cáo đã cập nhật." : "Chưa có kỳ đã chấm. Đang chờ kết quả thực tế."));
@@ -1232,6 +1025,7 @@
     try {
       const response = await request(`/api/ml/effectiveness-${action === "settings" ? "settings" : "cycle"}`, { method: "POST", form });
       if (generation !== state.generation) return;
+      if (response.billing) window.dispatchEvent(new CustomEvent('dvlf:prediction-wallet', { detail: response.billing }));
       message = action === "settings" ? "Đã lưu cấu hình. Kỳ đã khóa giữ nguyên bộ số và số vé." : String(response.message || "Đã xử lý khóa kỳ tiếp theo. Mở nhật ký để xem bộ số.");
     } catch (error) {
       if (generation !== state.generation) return;
@@ -1263,9 +1057,8 @@
       state.active = !!active;
       syncTimer();
       if (state.active && state.authenticated && (changed || !state.report)) void refresh();
-      if (state.active && labIsVisible() && changed) void loadLab();
       if (!state.active) { stopCycleExport(); state.controller?.abort(); state.ticketController?.abort(); state.ticketController = null; state.loading = false; setSettingsOpen(false); setHelpOpen(false); setControls(); }
-      if (!state.active) { closePrizeRewardHelp(); pauseLab(); }
+      if (!state.active) { state.prizeController?.abort(); state.prizeController = null; closePrizeRewardHelp(); }
     },
   });
   window.addEventListener("dvlf:auth-changed", event => {
@@ -1281,24 +1074,20 @@
     byId("effectivenessAdmin").open = false;
     setHelpOpen(false);
     clearReport();
-    byId("effectivenessLab").open = false;
-    resetLab();
-    showStatus(state.authenticated ? "Mở tab Hiệu Quả Dự Đoán & Thực Tế để tải báo cáo." : "Đăng nhập để xem báo cáo.");
+    showStatus(state.authenticated ? "Mở tab Dự Đoán & Thực Tế để tải báo cáo." : "Đăng nhập để xem báo cáo.");
     syncTimer();
     if (state.active && state.authenticated) void refresh();
   });
   root.addEventListener("toggle", event => {
     if (event.target.matches("details[data-effectiveness-state]") && root.contains(event.target)) state.openDetails.set(event.target.dataset.effectivenessState, event.target.open);
   }, true);
-  byId("effectivenessLab").addEventListener("toggle", () => { if (labIsVisible()) void loadLab(); else pauseLab(); });
   ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => {
     setSettingsOpen(false);
     setHelpOpen(false);
     rememberOpenDetails(); clearReport();
     state.page = 1;
-    if (id === "effectivenessType") { resetLab(); syncTimer(); }
+    if (id === "effectivenessType") syncTimer();
     void refresh();
-    if (id === "effectivenessType" && labIsVisible()) void loadLab();
   }));
   byId("effectivenessKenoLevel").addEventListener("change", () => { rememberOpenDetails(); void refresh(); });
   root.addEventListener("click", event => {
@@ -1382,18 +1171,6 @@
   byId("effectivenessSave").addEventListener("click", () => void mutate("settings"));
   window.VietlottNumericInput.bind(byId("effectivenessTicketCount"), { maximum: ticketMaximum, minimum: 1, rejectMalformed: false });
   byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
-  byId("effectivenessLabRun").addEventListener("click", () => void runLab());
-  byId("effectivenessLabCancel").addEventListener("click", () => void runLab(true));
-  byId("effectivenessLab").addEventListener("click", event => {
-    const button = event.target.closest("button");
-    if (!button || button.disabled) return;
-    if (button.hasAttribute("data-lab-track-start")) void mutateLabTracking("start_tracking");
-    else if (button.hasAttribute("data-lab-track-stop")) void mutateLabTracking("stop_tracking");
-    else if (button.dataset.labJob && !lab.loading && !lab.busy && !labIsRunning()) {
-      lab.selectedJobId = button.dataset.labJob;
-      void loadLab();
-    }
-  });
   byId("effectivenessTimeline").addEventListener("click", event => {
     const scaleButton = event.target.closest("[data-effectiveness-scale-toggle]");
     if (scaleButton && state.report) {
@@ -1413,7 +1190,6 @@
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.active && state.authenticated && !state.loading && !state.busy) void refresh();
-    if (labIsVisible()) void loadLab(); else pauseLab();
   });
   setControls();
 })();

@@ -2229,6 +2229,27 @@
     };
     const livePrizeComparisonState = new Map();
 
+    const LIVE_PRIZE_STARTING_VALUES = {
+      LOTO_5_35: { specialPrize: 6000000000 },
+      LOTO_6_45: { jackpot: 12000000000 },
+      LOTO_6_55: { jackpot1: 30000000000, jackpot2: 3000000000 },
+    };
+    function getLivePrizeReset(type, item, key) {
+      const startingValue = LIVE_PRIZE_STARTING_VALUES[type]?.[key];
+      if (!startingValue || !item) return null;
+      const marker = String(item.prizeHit || "").trim();
+      const wonByMarker = type === "LOTO_6_45" ? marker === "Jackpot"
+        : type === "LOTO_5_35" ? ["ĐB", "Chia Giải"].includes(marker)
+        : key === "jackpot1" ? ["Jackpot 1", "Jackpot 1, 2"].includes(marker)
+        : key === "jackpot2" && ["Jackpot 2", "Jackpot 1, 2"].includes(marker);
+      const winners = item.prizeWinnerCounts?.[key];
+      return wonByMarker || (Number.isSafeInteger(winners) && winners > 0) ? startingValue : null;
+    }
+    function formatUpcomingLivePrizeAmount(type, item, key) {
+      const reset = getLivePrizeReset(type, item, key);
+      return formatDrawPrizeAmount(reset === null ? item : { [key]: reset }, key);
+    }
+
     function getLivePrizeChanges(type, item, rows) {
       const ky = Number(String(item?.ky || "").replace(/^#/, ""));
       if (!Number.isSafeInteger(ky) || ky < 2 || !Array.isArray(rows) || rows.length > 2) return {};
@@ -2248,6 +2269,7 @@
     }
 
     function renderLivePrizeChange(type, item, key) {
+      if (getLivePrizeReset(type, item, key) !== null) return `<small class="live-prize-change is-reset" title="Giải kỳ ${escapeHtml(formatLiveKy(item.ky))} đã trúng hoặc đã chia; kỳ tiếp theo về giá trị khởi điểm.">Về mốc khởi điểm</small>`;
       const state = livePrizeComparisonState.get(type);
       if (Number(String(item?.ky || "").replace(/^#/, "")) < 2 || IS_LOCAL_MODE || !currentUser) return '<small class="live-prize-change is-pending">Chưa đủ dữ liệu kỳ trước</small>';
       if (!state || state.signature !== getLiveResultSignature(item) || state.loading) return '<small class="live-prize-change is-pending">Đang đối chiếu…</small>';
@@ -4350,11 +4372,16 @@
     }
 
     function buildUpcomingLiveMetaParts(type, item = null, nowValue = getSyncedNowDate()) {
-      const nextDrawDate = findNextLiveDrawDate(type, nowValue);
-      if (!nextDrawDate) return buildLiveCardMetaParts(item?.ky, item?.date, item?.time);
-      const nextKyText = computeNextLiveKy(item?.ky);
-      const parts = [];
-      if (nextKyText) parts.push(`Kỳ ${nextKyText}`);
+      // Anchor the next draw to the result's own date/time. A timer passing zero
+      // cannot confirm a new result or move the old result to another draw.
+      const schedule = LIVE_DRAW_SCHEDULES[type];
+      const hasDrawTime = Number.isFinite(parseScheduleTimeToMinutes(item?.time)) || schedule?.kind === "weekly";
+      const resultDate = item && hasDrawTime ? resolveLiveDrawDateTime(type, item.date, item.time) : null;
+      const anchoredDate = resultDate && resultDate.getTime() <= nowValue.getTime() ? findNextLiveDrawDate(type, resultDate) : null;
+      const nextDrawDate = anchoredDate || findNextLiveDrawDate(type, nowValue);
+      if (!nextDrawDate) return [];
+      const nextKyText = anchoredDate ? computeNextLiveKy(item?.ky) : "";
+      const parts = [nextKyText ? `Kỳ ${nextKyText}` : "Lịch quay tiếp theo"];
       const dayDateText = [
         formatLiveWeekdayShortFromDate(nextDrawDate),
         formatLiveDateShortFromDate(nextDrawDate)
@@ -4362,8 +4389,16 @@
       if (dayDateText) parts.push(dayDateText);
       const timeText = `${String(nextDrawDate.getHours()).padStart(2, "0")}:${String(nextDrawDate.getMinutes()).padStart(2, "0")}`;
       if (timeText) parts.push(timeText);
-      parts.push(formatDrawCountdown(nextDrawDate.getTime() - nowValue.getTime()));
+      const remaining = nextDrawDate.getTime() - nowValue.getTime();
+      parts.push(remaining > 0 ? `Còn ${formatDrawCountdown(remaining)}` : "Đang chờ kết quả");
       return parts.filter(Boolean);
+    }
+
+    function buildLiveResultMetaParts(type, item) {
+      if (!item) return [];
+      const schedule = LIVE_DRAW_SCHEDULES[type];
+      const timeText = item.time || (schedule?.kind === "weekly" ? schedule.time : "");
+      return buildLiveCardMetaParts(item.ky, item.date, timeText);
     }
 
     function resolveLiveDrawDateTime(type, dateText, timeText) {
@@ -4711,10 +4746,11 @@
             </article>
           `;
         }
-        const metaParts = buildUpcomingLiveMetaParts(meta.key, item, nowValue);
+        const metaParts = buildLiveResultMetaParts(meta.key, item);
+        const upcomingParts = buildUpcomingLiveMetaParts(meta.key, item, nowValue);
         const lines = renderLiveCardMainLines(meta.key, item);
         const prizeLines = (DRAW_PRIZE_COLUMNS[meta.key] || []).map(({ key, label }) =>
-          `<div class="live-card-amount"><span class="live-card-prize-name">${escapeHtml(label)}</span><span class="live-card-prize-delta" data-live-prize-type="${meta.key}" data-live-prize-key="${key}">${renderLivePrizeChange(meta.key, item, key)}</span><strong>${escapeHtml(formatDrawPrizeAmount(item, key))}</strong></div>`
+          `<div class="live-card-amount"><span class="live-card-prize-name">${escapeHtml(label)}</span><span class="live-card-prize-delta" data-live-prize-type="${meta.key}" data-live-prize-key="${key}">${renderLivePrizeChange(meta.key, item, key)}</span><strong title="${getLivePrizeReset(meta.key,item,key)!==null?"Giá trị khởi điểm của kỳ tiếp theo":`Giá trị tích lũy từ kỳ ${escapeHtml(formatLiveKy(item.ky))}; chờ công bố mới`}">${escapeHtml(formatUpcomingLivePrizeAmount(meta.key, item, key))}</strong></div>`
         ).join("");
         return `
           <article class="${cardClass}" data-live-type="${meta.key}">
@@ -4722,10 +4758,11 @@
               <div class="live-card-info-row">
                 <span class="live-card-chip">Live</span>
                 <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
-                <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(metaParts.join(" • "))}</div>
+                <div class="live-card-meta" data-live-countdown-type="${escapeHtml(meta.key)}">${escapeHtml(upcomingParts.join(" • "))}</div>
               </div>
               ${refreshButton}
             </div>
+            ${metaParts.length ? `<div class="live-card-result-label">Kết quả · ${escapeHtml(metaParts.join(" • "))}</div>` : ""}
             <div class="live-card-main">${lines}</div>
             ${prizeLines ? `<div class="live-card-amounts">${prizeLines}</div>` : ""}
           </article>

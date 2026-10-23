@@ -1,5 +1,293 @@
 # Nhật Ký Thay Đổi
 
+## 23/10/2026 — Jackpot kỳ tiếp theo trở về mốc khởi điểm sau khi trúng
+
+- Giữ tiêu đề kỳ sắp quay theo yêu cầu. Bộ số kỳ đã quay có nhãn Kết quả và đúng mã kỳ riêng. Tiền thưởng trên thẻ Live của kỳ tiếp theo trở về mức khởi điểm khi nhãn Nổ hoặc số vé trúng xác nhận giải đã trúng: Mega 12 tỷ, Power Jackpot 1 30 tỷ / Jackpot 2 3 tỷ, Lotto 5/35 6 tỷ (gồm kỳ đã xác nhận Chia Giải). Không đặt lại Power Jackpot còn lại khi chỉ một giải trúng, không suy từ tiền giảm hay dữ liệu trống.
+- Dòng biến động của giải được đặt lại ghi Về mốc khởi điểm, tránh tiếp tục hiển thị mức tăng cũ. Lịch sử/Excel/giải thực tế/canonical giữ nguyên; quy đổi này chỉ dùng cho thẻ kỳ tiếp theo. Thay đổi số vé trúng cũng cập nhật chữ ký cache. Mức khởi điểm đối chiếu https://info.vietlottsms.vn/game_mega.html, https://info.vietlottsms.vn/game_power.html và https://info.vietlottsms.vn/lotto535/.
+
+## 23/10/2026 — Giữ đúng kỳ của kết quả Live
+
+- Sửa lỗi thẻ Live lấy kỳ/ngày tương lai đặt trên bộ số và Jackpot của kỳ đã quay. Dòng tiêu đề dùng đúng kỳ/ngày/giờ của dữ liệu kết quả; lịch và đếm ngược nằm riêng bên dưới, không thay tiêu đề mỗi giây.
+- Lịch tiếp theo bám vào mốc của kết quả đã có. Đến giờ mà chưa nhận kết quả mới thì ghi Đang chờ kết quả, không tự nhảy sang kỳ sau. Thiếu ngày/giờ để đối chiếu thì chỉ hiện lịch dự kiến, không đoán mã kỳ. Áp dụng cả sáu loại; giữ nguyên bộ số, giá trị giải và canonical.
+
+## 23/10/2026 — Chỉnh sửa số dư ngay trong Quản Lý Use
+
+- Thay nút Quản lý tài khoản bằng Chỉnh Sửa / Lưu và Hủy. Sửa trực tiếp Kim cương, PayPal theo ID trong bảng, nhập số đầy đủ có dấu chấm; chỉ lưu các dòng thay đổi, kiểm tra toàn bộ dữ liệu trước khi gửi. Giữ bản nháp khi lọc, tạm dừng tự làm mới trong lúc sửa và xóa bản nháp khi đổi tài khoản/đăng xuất.
+- API sửa tài sản hỗ trợ kiểm tra số dư ban đầu trong cùng transaction; từ chối nếu giao dịch khác đã thay đổi số dư. Giữ quyền Admin, ID đối chiếu, giới hạn số nguyên an toàn, phiên bản ví và nhật ký; mỗi tài khoản được lưu nguyên tử. Các dòng lỗi giữ nội dung để kiểm tra, dòng đã lưu không bị gửi lặp lại.
+
+## 23/10/2026 — Thu gọn khung lọc tài khoản
+
+- Xếp năm bộ lọc Vai trò, VIP, Truy cập, Thiết bị và Trình duyệt cùng một hàng trên máy tính. Giảm chiều cao ô chọn, khoảng cách và phần đệm; giữ số kết quả và nút xóa gọn bên dưới. Màn hình nhỏ tự chia ba hoặc hai cột.
+
+## 22/10/2026 — Bộ lọc Quản Lý Use
+
+- Thêm nút Lọc cạnh tìm kiếm, mở bộ lọc vai trò, VIP, truy cập, thiết bị và trình duyệt. Các điều kiện kết hợp với tìm kiếm tên/ID/IP, hiện số bộ lọc và số tài khoản phù hợp; có Xóa bộ lọc. Giữ lựa chọn khi làm mới, xóa khi đăng xuất/đổi tài khoản. Bộ lọc chỉ đọc danh sách đã được server cấp quyền Admin.
+
+## 22/10/2026 — Truy Cập chỉ còn ba trạng thái
+
+- Gỡ nút dấu ba chấm, hộp thoại và API đánh dấu hoạt động thất thường; chỉ còn xanh (hoạt động), vàng (treo máy), đen (offline). Thay thống kê đã đánh dấu bằng offline, bỏ dữ liệu cờ khỏi API/danh sách. Giữ thông tin kết nối, VIP, tài nguyên và dữ liệu lịch sử; cờ cũ không còn tác động trạng thái.
+
+## 22/10/2026 — Cột VIP trong Quản Lý Use
+
+- Thêm cột VIP sau Vai trò, lấy hạn VIP từ account_entitlements do server quản lý. Hiện VIP còn hiệu lực, Hết hạn hoặc Chưa có, kèm ngày hết hạn; Admin hiện quyền VIP theo quyền quản trị hiện có. Chỉ bổ sung dữ liệu đọc, giữ nguyên cấp quyền, hạn VIP, tài nguyên và các mức thưởng.
+
+## 22/10/2026 — Quản Lý Use và trạng thái truy cập
+
+- Đổi tên mục Người dùng thành Quản Lý Use; bỏ các thẻ thống kê Code và cột/khung Nhật Ký tại đây. Thêm thống kê tài khoản, tìm tên/ID/IP, cột địa chỉ mạng, thiết bị/hệ điều hành, trình duyệt và trạng thái bốn màu. Giữ bảng tài nguyên và chức năng quản lý tài khoản hiện có.
+- Thêm API tín hiệu hoạt động đã xác thực theo tab và bảng account_access theo ID. Xanh: có tương tác; vàng: để nền/treo 5 phút; đen: không có tín hiệu 90 giây hoặc hết phiên. Admin chủ động đánh dấu đỏ/bỏ đánh dấu kèm lý do, ghi audit. Không tự suy bất thường từ đổi mạng. Dữ liệu IP lấy từ socket, thiết bị/trình duyệt từ User-Agent; không lấy ID/mạng giả client gửi. Giữ metadata khi khởi động lại/đổi tên, không chuyển sang ID mới cùng tên. Không thay số dư hoặc phí dự đoán.
+
+## 22/10/2026 — Duyệt nạp Admin và thông báo hai chiều
+
+- Thiết kế lại thẻ yêu cầu: tài khoản/ID, trạng thái gọn, cặp tiền nạp/PayPal, nội dung chuyển khoản, mã yêu cầu và thao tác duyệt/từ chối. Giữ xác nhận cộng tiền và lý do bắt buộc khi từ chối. Thêm nút History góc phải, mở bảng lịch sử đã cộng tiền/từ chối có phân trang, người xử lý và phản hồi.
+- Thông báo trong ứng dụng lấy từ các API đã xác thực: Admin nhận yêu cầu đang chờ; chủ tài khoản nhận kết quả duyệt/từ chối và số dư server. Tự kiểm tra mỗi 15 giây khi trang đang hoạt động, có chuông/badge, popup gọn và hộp thông báo dẫn về đúng trang. Lưu trạng thái đọc theo cơ chế thông báo hiện có, ràng buộc tin nạp với ID người nhận; đổi tài khoản/đăng xuất hủy yêu cầu và xóa trạng thái tạm, bỏ phản hồi cũ. Không đổi nghiệp vụ cộng tiền, dữ liệu đơn, backend hay cấu hình nhận tiền.
+
+## 21/10/2026 — Cân đối toàn bộ form nạp tiền
+
+- Hai cột chọn tiền và thông tin chuyển khoản có cùng chiều rộng, thống nhất tiêu đề, khoảng cách và đường viền. Chuyển phần quy đổi/thưởng/VIP/dự kiến nhận vào khung chung bên dưới, đặt nút gửi thủ công sau tổng tiền để bỏ khoảng trống lớn trong cột phải. Nút liên kết đúng biểu mẫu bằng thuộc tính form; chỉ hiện ở chế độ thủ công. Giữ các mức nạp, cách tính, thông tin nhận tiền và lịch sử; màn hình nhỏ xếp dọc.
+
+## 21/10/2026 — Thu gọn bảng giao dịch nạp
+
+- Mỗi giao dịch nằm một hàng, ngày/giờ tách rõ, cột tiền căn phải và nhãn loại/trạng thái thống nhất kích thước. Chuyển nút Chi tiết về cuối hàng, mở nội dung đầy đủ bên dưới. Giữ phần đang mở, vị trí cuộn ngang và nút đang tập trung khi tự cập nhật trạng thái; bảng vẫn cuộn trên điện thoại.
+
+## 21/10/2026 — Nút mở bảng lịch sử nạp
+
+- Thu nhỏ số dư, thêm nút Lịch Sử Nạp cạnh số dư. Bỏ bảng lịch sử thường trực, mở cửa sổ giao dịch khi bấm với các cột thời gian, loại Thủ Công/Nạp Nhanh, tiền nạp, PayPal và trạng thái; giữ chi tiết đơn cũ, nhãn thử nghiệm và yêu cầu chưa xác minh. Hỗ trợ đóng bằng nút/Escape/bấm ngoài, cuộn bảng trên điện thoại và đóng khi đổi tài khoản/rời trang.
+
+## 21/10/2026 — Căn gọn bố cục nạp tiền
+
+- Thu khung nạp về tối đa 1.000px, chia hai cột đều nhau và căn bằng chiều cao; thống nhất khoảng cách, viền và cỡ chữ. Thu gọn ô gói nạp, căn nút gửi toàn chiều ngang, sắp một cột trên màn hình hẹp và giữ số dư dài trong khung. Giữ nguyên thông tin ngân hàng, nội dung chuyển khoản, quy đổi và thưởng.
+
+## 21/10/2026 — Nội dung chuyển khoản bằng ID
+
+- Thay bốn ô bằng Nội dung chuyển khoản tự điền ID tài khoản, nút sao chép và Gửi yêu cầu nạp. Server chốt nội dung theo ID của phiên đăng nhập, lưu riêng trong yêu cầu và hiển thị ở Admin/lịch sử; không thu thêm thông tin trong luồng mới. Giữ đơn cũ/biểu mẫu cũ, kiểm tra hạn mức và xác nhận cộng tiền. Gửi lại đơn chờ dùng cùng requestId; gửi khoản mới cùng số tiền sau khi xử lý được tạo đơn mới.
+
+## 21/10/2026 — Sắp lại thẻ ngân hàng
+
+- Chuyển số tài khoản lên góc trên phải, tên người nhận về vị trí số tài khoản cũ ở hàng dưới và giữ nút sao chép bên phải. Ngân hàng ở góc trên trái; thu gọn thẻ, giữ cấu hình nhận tiền và sao chép số tài khoản.
+
+## 21/10/2026 — Tên người nhận LuongTanDat
+
+- Thêm dòng Tên người nhận: LuongTanDat trên thẻ MB Bank 0328197771 và lưu cấu hình nhận tiền. Giữ nguyên tên được cung cấp, số tài khoản/nút sao chép và dữ liệu giao dịch.
+
+## 21/10/2026 — Thẻ nhận chuyển khoản MB Bank
+
+- Đổi khối hướng dẫn nhận tiền thành thẻ ngân hàng/số tài khoản, nút sao chép và phản hồi thành công. Cấu hình Admin nhận MB Bank / 0328197771 theo thông tin người dùng cung cấp; giữ số 0 đầu, không thêm tên chủ tài khoản. Nội dung hướng dẫn tùy chỉnh vẫn giữ dưới dạng text an toàn. Chỉ thay cấu hình nhận tiền, không đổi ví/đơn nạp hoặc thực hiện giao dịch.
+
+## 21/10/2026 — Thu gọn thông tin yêu cầu nạp
+
+- Biểu mẫu thủ công còn ID tài khoản chỉ đọc, Ngân hàng/Ví, Mã giao dịch, Email và nút gửi. Lưu Email ở server, hiển thị trong lịch sử và duyệt nạp; bỏ thu tên/giờ chuyển/ghi chú mới. Chủ tài khoản luôn xác định từ phiên đăng nhập. Giữ dữ liệu và báo giá cũ, cho gửi lại đơn cũ đúng thông tin; mới tạo phải có Email. Bản nháp xóa khi đổi tài khoản/đăng xuất.
+
+## 21/10/2026 — Dòng VIP chờ dữ liệu thưởng nạp
+
+- Thêm VIP — · —% / +0 PayPal giữa Thưởng và Dự kiến nhận. Chỉ là chỗ chờ nối dữ liệu VIP; giữ nguyên tổng nhận, tỷ lệ và xử lý giao dịch. Ghi nhận định hướng cấp VIP tự tăng theo tổng nạp, chưa thêm bảng cấp/ngưỡng hoặc quyền VIP.
+
+## 21/10/2026 — Tự giới hạn ô nhập tiền
+
+- Gõ/dán số vượt 100.000.000 VNĐ tự hiển thị mức tối đa. Lớp IME và số tiền đọc cho preview/gửi yêu cầu cùng giới hạn, chốt IME ghi input về tối đa mà không phá vùng nhập. Giữ kiểm tra server và các ô tài khoản khác. Kiểm tra gõ/dán/IME 1 tỷ về 100 triệu, thưởng và tổng PayPal đúng hạn mức, không tự tạo đơn.
+
+## 21/10/2026 — Nội dung hướng dẫn hạn mức nạp
+
+- Đổi dòng hướng dẫn thành: Nạp tối thiểu Từ 1.000.000 đến tối đa 100.000.000 VNĐ, Bội số 100.000 VNĐ. Đồng bộ HTML, nội dung tải từ bộ điều khiển nạp và kỳ vọng kiểm thử; giữ nguyên nghiệp vụ.
+
+## 21/10/2026 — Gợi ý khoảng tiền nạp
+
+- Đổi placeholder ô Nhập số tiền thành Min 1.000.000 - 100.000.000 theo yêu cầu.
+
+## 21/10/2026 — Gợi ý số tiền tối thiểu
+
+- Đổi placeholder ô Nhập số tiền thành Min 1 triệu. Giữ nguyên giới hạn và tính tiền.
+
+## 21/10/2026 — Ba dòng tóm tắt nạp PayPal
+
+- Tách thành Nạp Tiền / Thưởng [tỷ lệ]% / Dự kiến nhận. Căn nhãn trái và số PayPal phải, mỗi dòng có đơn vị; tổng nhận in đậm lớn hơn dưới viền phân cách. Giữ công thức quy đổi/bonus và giới hạn nạp, hỗ trợ đủ 100 triệu trên điện thoại.
+
+## 21/10/2026 — Giá Trị Khác từ 1 đến 100 triệu
+
+- Số tiền tự nhập từ 1.000.000 đến 100.000.000 VNĐ, gồm hai đầu, bội số 100.000; thưởng 5% toàn khoảng. Đồng bộ preview, gửi thủ công/QR và kiểm tra server; sửa placeholder/hướng dẫn. Giữ năm gói có sẵn và mức thưởng riêng. Tăng trần QR và cấu hình vận hành lên 100 triệu; đơn cũ/nguồn legacy giữ báo giá cũ, gửi lại requestId đúng thông tin vẫn trả đơn cũ ngoài hạn mức mới. Không tự cộng ví hoặc sửa lịch sử.
+
+## 21/10/2026 — Dấu chấm ngay khi đang nhập tiền
+
+- Hiển thị 1.000 / 100.000 / 10.000.000 ngay trong lúc IME chưa chốt, bằng lớp hiển thị số và con trỏ trên ô Nhập số tiền. Không ghi đè giá trị/vùng thay thế native; chốt xong trở về ô đã nhóm dấu chấm, tránh lặp số. Phím thường vẫn định dạng trực tiếp; giữ tính tiền, giới hạn nạp và các ô số khác. Kiểm tra IME chuỗi/từng phím, nhập số lặp, 8 bố cục IME sáng/tối và luồng nạp hiện hành.
+
+## 21/10/2026 — Căn hàng Quy đổi và Dự kiến nhận
+
+- Đưa Quy đổi và số PayPal cơ bản lên cùng hàng với Dự kiến nhận. Thưởng và tổng nhận ở hàng dưới, tổng nhận giữ căn phải. Kiểm tra giao diện sáng/tối từ 320px, giữ nguyên công thức, mức thưởng và nhập tiền.
+
+## 21/10/2026 — Sửa lặp chữ số khi nhập tiền
+
+- Bộ định dạng số không ghi lại value/caret trong lúc IME đang soạn; chờ chốt chuỗi rồi thêm dấu chấm, tránh mất vùng thay thế và lặp chữ số. Bỏ cơ chế tự nối lại composition text; phím thường vẫn định dạng ngay. Tăng phiên bản asset, kiểm tra trực tiếp gõ 100/100000, chốt IME theo chuỗi và từng phím, xóa/sửa giữa số, giới hạn các ô và giữ nguyên thưởng 5%/trần nạp 10 triệu.
+
+## 21/10/2026 — Giới hạn nạp và thưởng Giá Trị Khác
+
+- Tối đa 10.000.000 VNĐ cho thủ công và QR; cấu hình QR không vượt trần này. Đơn mới trên 500.000 và dưới 10.000.000 thưởng 5% PayPal quy đổi; giữ thưởng 2,5% tại 500.000 và không cộng 5% tại đúng 10 triệu. Preview/server cùng làm tròn bonus đến đơn vị PayPal nguyên. Cập nhật nhãn thưởng đến 5%, chặn gửi quá trần và không hiển thị dự kiến nhận cho số tiền không hợp lệ. Đơn cũ/nguồn legacy giữ báo giá cũ, không cộng tiền hoặc thay lịch sử.
+
+## 21/10/2026 — Căn gọn khối chọn số tiền nạp
+
+- Căn đều sáu ô, tách dấu chọn khỏi dòng tiêu đề, thêm dấu cộng/căn giữa Giá Trị Khác. Gom phần nhập và dự kiến nhận, đơn vị VNĐ trong input; bỏ dòng lựa chọn lặp và thay câu thông báo trống bằng tổng dự kiến — PayPal. Khoảng cách đồng nhất, giữ giao diện sáng/tối và bố cục điện thoại. Không đổi số tiền/bonus hoặc thanh toán.
+
+## 21/10/2026 — Năm mốc nạp và Giá Trị Khác
+
+- Đổi lưới thành 20.000 / 50.000 / 100.000 / 200.000 / 500.000 / Giá Trị Khác. Mặc định 20.000; chỉ chọn Giá Trị Khác mới hiện và focus ô nhập bên dưới. Quay về mốc có sẵn ẩn ô nhập; giữ chế độ tự nhập khi nhập đúng một mốc và khi tải lại phần giao diện. Không đổi quy đổi/bonus, giới hạn server hoặc đơn đã lưu.
+
+## 21/10/2026 — Thu gọn nút chọn cách nạp
+
+- Bỏ ghi chú Admin xác nhận / Thanh toán QR khỏi hai nút chuyển tab; dùng nhãn Nạp Thủ Công và Nạp Nhanh QR. Giữ nguyên luồng gửi yêu cầu và thanh toán.
+
+## 21/10/2026 — ID tài khoản cố định 12 chữ số
+
+- Cấp ID ngẫu nhiên trên server cho tài khoản mới/có sẵn và tài khoản liên kết. Ràng buộc DB ngăn trùng; thử lại khi va chạm; giữ ID khi đổi tên và giữ mã nghỉ sau xóa, không tái cấp. Đăng ký/cấp mã cùng transaction.
+- Gắn ID vào nạp tiền, nhận Code và nhật ký tài nguyên; liên kết audit bằng trigger tương thích tác vụ Python. Thêm hiển thị/sao chép ID, tìm tài khoản theo mã, API admin tra nhật ký kể cả tài khoản đã xóa; thao tác quản lý kiểm tra ID/tên khớp. Giữ xác thực/phân quyền, số dư và UUID danh mục riêng.
+- Sao lưu nhất quán các bảng tài khoản bị ảnh hưởng; kiểm thử đăng ký đồng thời, cưỡng bức va chạm/rollback, chuyển dữ liệu cũ, đổi tên/xóa/đăng ký lại, nạp/Code/tài nguyên và bố cục thật trên Chrome.
+
+## 21/10/2026 — Danh sách Ngân hàng / Ví nạp thủ công
+
+- Đổi ô nhập thành danh sách chọn MB Bank, Agribank, MoMo, ZaloPay; giữ trường channel và yêu cầu chọn trước khi gửi. Căn chiều cao/màu theo các trường còn lại, hỗ trợ giao diện sáng/tối. Không thay đổi các yêu cầu nạp đã lưu.
+
+## 21/10/2026 — Chuyển yêu cầu nạp cũ sang hàng chờ Admin
+
+- Bổ sung nhập yêu cầu paypalTopups chờ xử lý đã lưu trên server vào Duyệt nạp tiền. Giữ thông tin gốc và liên kết định danh để không tạo trùng hoặc cộng tiền lần hai; nguồn cũ không được client sửa lại. Không tự xác nhận thanh toán/cộng ví.
+- Lịch sử người chơi thay dòng Yêu cầu thủ công cũ bằng trạng thái đơn server; Admin xem tên, email, mã giao dịch và thời gian để đối chiếu. Sao lưu DB nhất quán trước thay đổi; kiểm thử dữ liệu cũ, khởi động lại, nguồn trùng và liên kết đơn đã xử lý.
+
+## 21/10/2026 — Nạp thủ công và Nạp nhanh
+
+- Thêm hai tab dùng chung gói nạp. Thủ công gửi thông tin chuyển khoản lên server, hiển thị trạng thái/lý do xử lý và tự cập nhật ví sau duyệt. Admin có mục Duyệt nạp tiền, hướng dẫn nhận chuyển khoản, bộ lọc/phân trang, xác nhận cộng và từ chối.
+- Lưu yêu cầu/giá trị server, khóa transaction ví, chặn lặp và bảo toàn lịch sử đổi tên/xóa. Tiền nạp thống kê gồm yêu cầu thủ công đã duyệt. Giữ QR VNPAY, khóa nạp nhanh nếu chưa kết nối; chưa giả lập liên kết MoMo Business. Kiểm tra bằng DB/server tách biệt và trình duyệt thật, không gửi tiền hoặc cộng ví vận hành.
+
+## 20/10/2026 — Bấm DVLF để tải lại Trang chủ
+
+- Nút thương hiệu chuyển đến / bằng điều hướng đầy đủ, thay vì reload nguyên đường dẫn phụ. Đang ở Trang chủ vẫn reload; mở file cục bộ giữ cách reload tệp hiện tại. Cập nhật aria-label và cache core JS (preload/defer).
+
+## 20/10/2026 — Sửa khoảng cách nhãn Vé / phương pháp
+
+- Căn giữa hai dòng nhãn/tối đa, đặt line-height rõ ràng, bỏ margin mặc định và tăng hai hàng cấu hình lên 40px để chừa khoảng đệm đều. Kiểm tra trực quan 320/1440px ở giao diện sáng/tối; không đổi phí, giới hạn hoặc hành vi tạo vé.
+
+## 20/10/2026 — Khóa kỳ tự cập nhật kết quả còn thiếu
+
+- Sửa lỗi theo dõi 5/35 dừng ở kỳ 957 (13:00), chưa lấy kỳ 958 (21:00) nên liên tục chặn vì quá giờ. Khóa thủ công và worker 5/35/Mega/Power lấy kết quả thiếu có giới hạn trước khi chấm/khóa, không chạy repair toàn bộ hoặc huấn luyện. Kiểm tra nhận diện/bộ số/ngày giờ/chuỗi kỳ và phiên bản CSV; không tạo vé lùi thời gian, không trừ tiền khi nguồn chưa đủ.
+- Thêm kiểm thử tái hiện CSV cũ, nguồn lỗi/chưa có kết quả, giới hạn retry, xung đột và kết quả tương lai; kiểm tra đủ vé và chỉ thu một lần cho kỳ tương lai.
+
+## 20/10/2026 — Gỡ Phòng thử thuật toán
+
+- Gỡ giao diện, CSS/JS, API tạo/xem/hủy thử thuật toán và worker theo dõi ứng viên. Chuyển bốn mô-đun riêng và năm tệp kiểm thử về Bin; giữ dữ liệu lịch sử phòng thử và mọi dữ liệu dự đoán/ví. Giữ theo dõi cá nhân, tính phí, báo cáo, xuất Excel và thống kê.
+
+## 20/10/2026 — Thu gọn ghi chú cấu hình theo dõi
+
+- Bỏ ba dòng ghi chú về giới hạn/kỳ áp dụng, tổng vé/phí/số dư và danh mục riêng/phí tự động. Xóa bộ dựng ghi chú và tham chiếu aria tới phần đã bỏ; giữ cập nhật ví từ API, phí backend và giới hạn vé.
+
+## 20/10/2026 — Giới hạn 5/35 ở 324.632 vé/phương pháp
+
+- Đồng bộ ô nhập, placeholder, nhãn tối đa, tóm tắt cấu hình, API và báo phí ở 324.632 vé/phương pháp. Từ chối cấu hình vượt giới hạn; cấu hình cũ yêu cầu một triệu trả về ngân sách hiệu lực 324.632, không thay đổi vé đã khóa. Mega/Power và giới hạn Keno giữ theo cấu hình hiện có.
+
+## 20/10/2026 — Keno tối đa 324.632 vé/phương pháp/bậc
+
+- Nâng giới hạn kỳ mới Keno từ 100.000 lên 324.632 vé/phương pháp/bậc. Bậc 1/2/3 giữ tối đa 80 / 3.160 / 82.160 bộ không trùng; bậc 4–10 dùng giới hạn mới. Cấu hình, bộ sinh, báo cáo, ô nhập và tổng phí đồng bộ. Tổng tối đa 40 danh mục là 9.431.296 vé, tương ứng 94.312.960.000 PayPal ở đơn giá 10.000/vé; giới hạn tổng vé tính phí dùng đúng tổng theo game. Giữ nguyên vé đã khóa, kiểm tra dung lượng và deadline.
+
+## 20/10/2026 — Đổi phí dự đoán thành 10.000 PayPal/vé
+
+- Phí cố định 10.000 PayPal/vé áp dụng cho lượt tạo mới, gồm thủ công và tự động; giao diện tính tổng theo đơn giá backend. Bỏ chú thích quy đổi VNĐ trong phí dự đoán; tỷ lệ nạp tiền giữ nguyên. Các phí đã thu hoặc đã giữ trước thay đổi quyết toán/hoàn theo số tiền lưu trong giao dịch, không tính lại theo đơn giá mới.
+
+## 20/10/2026 — Dự đoán cá nhân có tính phí PayPal
+
+- Tách Dự Đoán & Thực Tế thành danh mục UUID riêng cho từng tài khoản; mọi tài khoản tự bật/tắt và đặt số vé. Đồng bộ phạm vi báo cáo, vé, Excel, tiến trình và thống kê; giữ lịch sử dùng chung cũ, không truy thu.
+- Thu 12.500 PayPal nội bộ/vé thực tế, gồm bốn phương pháp và đủ 10 bậc Keno. Hiển thị phí theo số vé đang nhập, số dư và điều kiện tự động. Thiếu tiền dừng tạo mới; chấm vé và đọc báo cáo miễn phí, không tự cộng tiền thưởng.
+- Reservation ví và receipt cùng transaction khóa vé, phục hồi khi ngắt, hoàn phí khi thất bại, chống trừ lặp cùng kỳ. Giữ lịch sử thu/hoàn và walletVersion; lưu dữ liệu client không ghi đè tài sản khi worker chạy song song. Đổi tên giữ danh mục, xóa không chuyển lịch sử cho tài khoản đăng ký lại. Quyền thử thuật toán vẫn dành cho admin.
+
+- 2026-10-20: Đổi tên Hiệu Quả Dự Đoán & Thực Tế thành Dự Đoán & Thực Tế tại nút tab, tiêu đề và thông báo mở tab. Backup bốn file tại Bin/session_1_latest/files/followup_prediction_reality_title_20261020; manifest predictionRealityTitle20261020Followup.
+
+- 2026-10-20: Thu gọn chú thích Nguồn Tiền/Nguồn Vé: nhãn Nạp/Vé/Thưởng và Vé trước/Thưởng trước; Mua/Trúng và Mua trước/Trúng trước. Giữ tên đầy đủ/kỳ trước trong title/aria-label, không rút gọn tooltip dữ liệu. Gom nút hiện tại và nút kỳ trước thành hai nhóm, tránh rơi một nút lẻ; giảm nút từ 27 xuống 24px, khoảng cách/padding/icon gọn hơn. Giữ tính năng bật/tắt và số liệu. Cache CSS/JS statistics-compact-chart-legends-20261020. Backup sáu file tại Bin/session_1_latest/files/followup_statistics_compact_chart_legends_20261020.
+  Kiểm thử API/Chrome đạt 37,206 giây, gồm nhãn ngắn/tên đầy đủ truy cập, nút 24px không tràn, một hàng desktop, cặp kỳ trước luôn cùng hàng, thao tác bật/tắt và 14 bố cục sáng/tối. Đã xem ảnh tuần 1440px/320px trong account_statistics_compact_legend_images. HTML/CSS/JS live HTTP 200 khớp nguồn; không đổi backend. Log/proof statistics_compact_legend_tests.log và statistics_compact_legend_verification.json; manifest statisticsCompactChartLegends20261020Followup.
+
+- 2026-10-20: Bổ sung tương tự Nguồn Tiền cho Nguồn Vé: hai đường Vé mua/Vé trúng kỳ trước, nét đứt, chú thích bật/tắt độc lập, tooltip ngày/giờ gốc. Dùng comparison.series đã có, cùng quy tắc căn mốc và trục chung; không đổi backend hoặc thêm request. Áp dụng Ngày/Tuần/Tháng/Năm, Tổng vẫn chỉ có hai đường hiện tại. Cache JS statistics-previous-ticket-lines-20261020. Backup năm file tại Bin/session_1_latest/files/followup_statistics_previous_ticket_lines_20261020.
+  Kiểm thử API/Chrome đạt trong 38,111 giây: bốn đường/hai nét đứt ở Nguồn Vé, bật/tắt độc lập, dữ liệu kỳ trước đúng giờ/ngày, trục gồm đỉnh kỳ trước lớn hơn hiện tại, giữ Nguồn Tiền/Pie/bảng cuộn và 14 bố cục. Đã xem ảnh tuần 1440px/320px trong account_statistics_previous_ticket_lines_images. HTML/JS live HTTP 200 khớp nguồn; log/proof statistics_previous_ticket_lines_tests.log và statistics_previous_ticket_lines_verification.json; manifest statisticsPreviousTicketLines20261020Followup.
+
+- 2026-10-20: Thêm đường Tiền Vé/Tiền Thưởng kỳ trước trong Nguồn Tiền theo yêu cầu so ngày với ngày và tuần với tuần; áp dụng tương ứng cho Tháng/Năm. Kỳ trước dùng nét đứt, màu chàm/xanh ngọc và hai nút chú thích riêng; bật/tắt độc lập, tooltip ghi ngày/giờ gốc. Căn theo vị trí lịch cùng giờ/thứ/ngày/tháng trên trục hiện tại; không tạo ngày giả khi tháng trước ngắn hơn. Tính trục giá trị theo cả hai kỳ. API thêm comparison.series đã điền các bucket lịch trong lượt đọc sẵn có, không thêm request hay đọc mảng vé; giữ các tổng/KPI và biểu đồ khác. Cache CSS/JS statistics-previous-money-lines-20261020. Backup tám file tại Bin/session_1_latest/files/followup_statistics_previous_money_lines_20261020.
+  Mười chín test Python và một test API/Chrome đạt 41,805 giây: dữ liệu kỳ trước đủ 24 giờ/7 thứ, tổng series khớp tổng kỳ trước, tháng nhuận/ngắn hơn, DB giữ nguyên, năm đường/hai nét đứt, bật/tắt riêng, tooltip ngày cũ, đỉnh kỳ trước cao hơn vẫn trong trục chung và 14 bố cục. Đã xem ảnh tuần 1440px/320px trong account_statistics_previous_money_lines_images. Script verify_statistics_previous_money_lines.py đối chiếu trên cùng snapshot SQLite: các tổng và chênh lệch trước/sau giữ nguyên, Ngày có 24 mốc 19/10/2026 và Tuần có 7 mốc 12–18/10/2026. HTML/CSS/JS live HTTP 200 khớp nguồn; không cần restart Java. Log/proof statistics_previous_money_lines_tests.log và statistics_previous_money_lines_verification.json; manifest statisticsPreviousMoneyLines20261020Followup.
+
+- 2026-10-20: Bỏ dòng Tỷ trọng trên Vé mua + Vé trúng dưới Pie theo yêu cầu, giữ nguyên biểu đồ và các tooltip. Cache JS statistics-remove-pie-caption-20261020. Backup bốn file tại Bin/session_1_latest/files/followup_statistics_remove_pie_caption_20261020; manifest statisticsRemovePieCaption20261020Followup.
+
+- 2026-10-20: Theo yêu cầu sửa lại của người dùng, khôi phục hiển thị 0 và nối đường qua các điểm số 0 trong Nguồn Tiền/Nguồn Vé; không ngắt vì future/chờ chấm/thiếu mức trả. KPI và bảng chi tiết hiện số 0 từ API. Giữ tooltip/dấu * giải thích trạng thái và tổng thưởng đã biết, nhưng bỏ viền vàng/chấm vàng ở điểm tạm tính, dùng đúng màu đường. Khoảng chỉ có số 0 vẫn vẽ trục/đường thay vì thông báo trống; không đổi backend hoặc số liệu. Cache CSS/JS statistics-zero-lines-20261020. Backup sáu file tại Bin/session_1_latest/files/followup_statistics_restore_zero_lines_20261020.
+  Kiểm thử API/Chrome đạt trong 39,630 giây: 7 điểm/6 đoạn nối cho mỗi đường ở bốn bề rộng, 24 điểm số 0 khi xem ngày tương lai, số 0 trong bảng/KPI, giữ thưởng tạm tính và không có stroke vàng; giữ kiểm tra 14 bố cục, Pie và bảng cuộn. Đã xem ảnh money desktop/ticket 320px trong account_statistics_zero_lines_images. Đặt biên trục tối thiểu 4 để các mốc toàn 0 không bị làm tròn trùng nhau. HTML/CSS/JS live HTTP 200 khớp nguồn. Log/proof statistics_zero_lines_tests.log và statistics_zero_lines_verification.json; manifest statisticsRestoreZeroLines20261020Followup.
+
+- 2026-10-20: Sửa hiển thị Vé trúng/Tiền Thưởng thành 0 khi chưa tới ngày hoặc chưa có kết quả. Đối chiếu summary gốc thấy số trúng ngày 19–20/10 có thật, còn 21–25/10 là các bucket lịch tương lai; biểu đồ cũ nối về 0. API bổ sung asOf/future và drawPending theo giờ Việt Nam, không sửa tổng số đã ghi. Frontend ngắt các điểm chưa có giá trị, bảng dùng —, giữ 0 khi có chấm xác nhận không trúng. Đồng thời sửa điều kiện bỏ cả điểm thưởng nếu incomplete: nay giữ tổng thưởng đã biết >0, viền điểm tạm tính và tooltip *, không biến thiếu một vài giải thành mất toàn bộ thưởng. KPI của khoảng tương lai trống dùng — và ẩn so sánh giả. Cache CSS/JS statistics-missing-vs-zero-20261020. Backup tám file tại Bin/session_1_latest/files/followup_statistics_missing_vs_zero_20261020.
+  Mười tám test Python và một test API/Chrome đạt 42,855 giây: tương lai, chờ chấm hoàn toàn/một phần, 0 đã xác nhận, thiếu phân loại, thưởng tạm tính dương, KPI ngày tương lai không báo lỗ, hai biểu đồ và 14 bố cục. Đã xem ảnh positive_partial_accountStatsMoneyChart_1440.png / positive_partial_accountStatsTicketChart_1440.png trong account_statistics_missing_vs_zero_images. Script verify_statistics_missing_vs_zero.py giữ một snapshot SQLite chỉ đọc để so báo cáo trước/sau: các tổng cũ giữ nguyên và số vé trúng khớp tổng summary từng kỳ của nguồn, không đọc mảng vé lớn hay sửa DB. HTML/CSS/JS live HTTP 200 khớp nguồn, không cần restart Java. Log/proof statistics_missing_vs_zero_tests.log và statistics_missing_vs_zero_verification.json; manifest statisticsMissingVsZero20261020Followup.
+
+- 2026-10-20: Sửa trục ngang Nguồn Tiền/Nguồn Vé bỏ nhãn 22/10 khi xem tuần 19–25/10. Trước đây tối đa sáu nhãn desktop/ba nhãn mobile dù có đủ bảy điểm; nay chế độ Tuần hiển thị toàn bộ ngày. Dưới 450px vùng vẽ xếp ngày so le hai hàng, tăng phần đáy giữ nguyên chiều cao 240px. Không đổi chuỗi dữ liệu hoặc phép tính. Cache JS statistics-week-axis-days-20261020. Backup năm file tại Bin/session_1_latest/files/followup_statistics_week_axis_days_20261020.
+  Kiểm thử API/Chrome đạt 37,898 giây; xác nhận đủ đúng 19–25/10 trên cả hai biểu đồ ở 320/390/768/1440px, nhãn không giao nhau; giữ các kiểm tra carousel, bảng cuộn và 14 bố cục. Đã xem ảnh tuần 1440px/320px trong account_statistics_week_axis_images. Đọc nguồn thật xác nhận bảy ngày, các ngày 21–25/10 hiện có số 0. HTML/JS live HTTP 200 khớp nguồn, không đổi backend. Log/proof statistics_week_axis_tests.log và statistics_week_axis_verification.json; manifest statisticsWeekAxisDays20261020Followup.
+
+- 2026-10-20: Đổi tiêu đề Tổng Vé thành Nguồn Vé trong trang biểu đồ, nhãn chuyển 2/2 và nhãn truy cập của carousel. Cache JS statistics-ticket-source-title-20261020. Backup bốn file tại Bin/session_1_latest/files/followup_statistics_ticket_source_title_20261020; manifest statisticsTicketSourceTitle20261020Followup.
+
+- 2026-10-20: Sửa bảng Chi tiết theo thời gian bị chữ dòng cuộn lộ/đè ở tiêu đề. Cố định nguyên thead trên lớp riêng nền kín trong scrollport, bỏ border-collapse collapse, chuẩn hóa đường viền theo theme và cắt phần tràn theo khung bo góc. Đổi Nạp thực / Tiền Vé mô phỏng / Tiền Thưởng mô phỏng thành Tiền nạp / Tiền Vé / Tiền Thưởng; thêm scope col cho tiêu đề. Giữ số liệu và hành vi bộ lọc. Cache CSS statistics-detail-table-header-20261020. Backup năm file tại Bin/session_1_latest/files/followup_statistics_detail_table_header_20261020.
+  Kiểm thử API/Chrome đạt trong 39,921 giây, gồm 14 bố cục và kiểm tra bảng mở ở 390/1440px, cả hai theme, bốn vị trí cuộn dọc và cuộn ngang tới mép; hình học/hit-test xác nhận tiêu đề phủ dòng cuộn đúng vị trí. Đã xem ảnh detail_table_scrolled_dark_1440.png và detail_table_scrolled_light_390.png trong account_statistics_detail_table_images. HTML/CSS live HTTP 200 khớp nguồn; không đổi backend. Log/proof statistics_detail_table_tests.log và statistics_detail_table_verification.json; manifest statisticsDetailTableHeader20261020Followup.
+
+- 2026-10-20: Theo làm rõ của người dùng, thay Pie hai vòng bằng một vòng gồm tám màu: Vé mua và Vé trúng của mỗi phương pháp là hai phần riêng, xếp cạnh nhau. Chấm màu của tám ô chú thích khớp tám phần biểu đồ. Phần trăm tính chung trên tổng giá trị tám nhóm (Vé mua + Vé trúng); caption và tooltip giải thích mẫu số, giữ hai tổng ở giữa. Không còn vòng trong/ngoài hoặc phần mờ; nhóm 0 giữ số/chú thích mà không vẽ cung giả. Dùng nguyên methodPurchaseOutcomes và các số lượng hiện có, không đổi backend. Cache statistics-single-pie-eight-colors-20261020. Backup sáu file tại Bin/session_1_latest/files/followup_statistics_single_pie_eight_colors_20261020.
+  Kiểm thử API/Chrome đạt trong 36,436 giây, gồm một vòng/tám màu duy nhất, phần trăm tám nhóm cộng 100%, màu chú thích khớp từng phần, tỷ lệ kích thước cung đúng số vé, vé trúng 0/danh mục rỗng/chưa phân loại, carousel và 14 bố cục sáng/tối. Đã xem ảnh user_screenshot_eight_colors_dark_1440.png và fixture_statistics_light_390.png trong account_statistics_single_pie_eight_colors_images. Ba asset live HTTP 200 khớp nguồn; không đổi hoặc restart backend. Log/proof statistics_single_pie_eight_colors_tests.log và statistics_single_pie_eight_colors_verification.json; manifest statisticsSinglePieEightColors20261020Followup.
+
+- 2026-10-20: Sửa cách biểu diễn Pie hai lớp theo phản hồi Pipeline web 65.381.848 vé mua / 10.746.556 vé trúng. Trước đây vòng trong chuẩn hóa trên tổng vé trúng nên hiện 24,92%, dễ nhầm với tỷ lệ trúng. Nay vòng trong cùng góc và cùng mẫu số tổng vé mua với vòng ngoài: cung trúng chỉ chiếm phần tương ứng trong cung phương pháp, phần còn lại để mờ. Cột Trúng / mua hiển thị 16,44% cho ví dụ trên. Thêm methodPurchaseOutcomes theo danh mục khóa trong khoảng chọn, tránh chia vé trúng từ kỳ mua khác vào mẫu số hiện tại; giữ KPI và phân bố ngày quay hiện có. Vé chờ/chưa phân loại ghi riêng, tooltip có công thức và số lượng; không coi phần mờ là vé thua toàn bộ. Cache statistics-purchased-win-ratio-20261020. Backup tám file tại Bin/session_1_latest/files/followup_statistics_purchased_win_ratio_20261020.
+  Mười sáu test Python và một test API/Chrome đạt trong 39,147 giây: cùng danh mục qua ranh giới ngày quay/khóa, đủ bốn phương pháp, chờ/chưa phân loại/mức trả chưa có, trục/góc hai vòng, ví dụ chính xác từ ảnh người dùng, vòng trúng 0 và danh mục mua rỗng, carousel và 14 bố cục. Đã xem ảnh user_screenshot_ratio_dark_1440.png và fixture_statistics_light_390.png trong account_statistics_purchased_win_ratio_images. API live HTML/CSS/JS HTTP 200 khớp nguồn; cùng snapshot Tổng đối chiếu đủ số mua/trúng và Ngày giữ đúng cùng danh mục, các trạng thái phân chia không vượt số vé. Đọc Tổng 1,397 giây/Ngày 0,627 giây, không thêm yêu cầu định kỳ hay khởi động lại Java. Log/proof statistics_purchased_win_ratio_tests.log và statistics_purchased_win_ratio_verification.json; manifest statisticsPurchasedWinRatio20261020Followup.
+
+- 2026-10-19: Theo xác nhận của người dùng, chuyển Tỷ Lệ Vé thành Pie hai lớp đồng tâm: vòng ngoài Vé mua, vòng trong Vé trúng của bốn phương pháp, cùng màu giữa hai vòng. Thêm tổng ở giữa, nhãn ngoài/trong và bảng ba cột Phương pháp/Vé mua/Vé trúng gồm số lượng và tỷ trọng riêng của từng tổng. Backend trả methodWinDistribution từ summary đã chấm trong cùng snapshot, theo giờ quay như KPI, độc lập ô chọn phương pháp; giữ phân bố mua theo giờ khóa. Vé chờ không được xem là thua; vé chưa phân loại giữ riêng, thiếu mức trả nhưng đã xác định giải vẫn tính là trúng. Xử lý riêng vòng chưa có vé và trường hợp chỉ có vé trúng từ chu kỳ khóa trước khoảng đang xem. Cache CSS/JS statistics-two-layer-pie-20261019. Backup tám file tại Bin/session_1_latest/files/followup_statistics_two_layer_pie_20261019; ảnh account_statistics_two_layer_pie_images, log/proof statistics_two_layer_pie_tests.log và statistics_two_layer_pie_verification.json.
+  Mười bốn test Python và một test API/Chrome đạt trong 34,808 giây; gồm tỷ trọng hai vòng khác nhau, giữ DB nguyên, ranh giới ngày khóa/giờ quay, phương pháp riêng vẫn hiện đủ bốn nhóm, thiếu giải/thiếu mức trả, vòng mua hoặc trúng bằng 0, vé chưa phân loại, carousel và 14 bố cục sáng/tối. Đã xem ảnh tối 1440px và sáng 390px. Kiểm tra dữ liệu thật: 255.244.192 vé mua / 41.981.506 vé trúng; hai phân bố khớp KPI và không đổi khi chọn một phương pháp. HTML/CSS/JS live khớp nguồn HTTP 200; không cần restart Java. Manifest statisticsTwoLayerPie20261019Followup.
+
+- 2026-10-19: Gộp Nguồn Tiền và Tổng Vé thành khung chuyển trang bên trái, mũi tên trước/sau hai bên thanh điều khiển, chỉ báo 1/2 và tự chuyển mỗi 10 giây. Thêm tạm dừng, dừng khi tương tác/ẩn tab/rời trang/đăng xuất; dựng lại trục theo bề rộng trang đang hiện. Khung bên phải thay bằng biểu đồ tròn tỷ lệ số vé của bốn phương pháp, kèm số lượng và phần trăm; theo loại/bậc/thời gian nhưng luôn đủ bốn phương pháp. Backend cộng số vé thực tế trong cùng snapshot đọc, không đọc mảng vé hoặc thêm request định kỳ; giữ nguyên phép tính các chỉ số cũ. Cache CSS/JS statistics-carousel-pie-20261019. Backup tám file nguồn/test/tài liệu tại Bin/session_1_latest/files/followup_statistics_chart_carousel_20261019.
+  Mười hai test số liệu và một test API/Chrome đạt trong 36,625 giây: kiểm tra số vé khác nhau giữa phương pháp, khoảng thời gian, giữ DB nguyên, chuyển hai chiều, một lượt tự chuyển 10 giây thật, tạm dừng/ẩn tab/rời trang/đăng xuất và 14 bố cục sáng/tối. Đã xem ảnh tối 1440px, sáng 390px trong account_statistics_carousel_images. Dữ liệu vận hành: 255.244.192 vé, bốn phương pháp mỗi phương pháp 63.811.048 vé, tổng phân bố khớp Vé mua; lượt đọc 1,215 giây. HTML/CSS/JS đang phục vụ HTTP 200 khớp nguồn, không restart Java. Log/proof statistics_carousel_tests.log và statistics_carousel_verification.json; manifest statisticsChartCarousel20261019Followup.
+
+- 2026-10-19: Bổ sung đầy đủ đường tính giải Keno 8/8, 9/9, 10/10 trong Tổng quan & Thống kê và bảng Dự Đoán & Thực Tế. Cả ba hạng đều có giới hạn quỹ riêng 10 tỷ/kỳ theo thể lệ Vietlott; tính số vé thực tế cộng vé mô phỏng, dùng mức danh nghĩa khi không vượt ngưỡng 50/12/5, còn lại chia quỹ và làm tròn xuống đồng. Không gán cố định 200 triệu/800 triệu/2 tỷ khi thiếu số vé thực tế. Thêm ai/keno_prize_context.py để đọc bằng chứng đúng mã kỳ/ngày/giờ/20 số; bảng nguồn phải đủ dòng và thống kê để chấp nhận quy ước số lượng 0. Tách cache runtime/keno_prize_contexts.json, đọc báo cáo không gọi mạng. Worker tạo/chấm xong bổ sung tối đa một kỳ, tôn trọng giới hạn nguồn và nghỉ giữa yêu cầu; script update_keno_prize_contexts.py hỗ trợ backfill có chờ cooldown. Cache effectiveness JS keno-shared-prize-payouts-20261019.
+  Backup tám file tại Bin/session_1_latest/files/followup_keno_shared_prize_payouts_20261019. Hai mươi test Python đạt 16,294 giây, gồm giới hạn/chia quỹ ba bậc, làm tròn, nhận diện sai, nguồn thiếu/placeholder, số 0 đã công bố, hash HTML, retry/cooldown, bốn danh mục chia cùng một quỹ, thống kê không ghi DB và tick/report Keno. Kiểm thử Chrome hiệu quả đạt 1 test trong 24,396 giây, gồm ba giải Keno với số vé thực tế 0/50 và tổng thưởng/lãi lỗ đúng. Bằng chứng source HTML trong keno_shared_prize_sources, ảnh kiểm thử trong keno_shared_prize_images; log/proof keno_shared_prize_tests.log và keno_shared_prize_verification.json; manifest kenoSharedPrizePayouts20261019Followup. Không thay class Java hoặc khởi động lại server.
+  Hoàn tất xác minh 76/76 kỳ có vé trúng các hạng chia quỹ. So cùng snapshot dữ liệu: 92 nhóm kỳ/bậc thiếu mức trả giảm về 0; khôi phục 47.000.000.000 ₫ thưởng mô phỏng của 121 vé 8/8, 26 vé 9/9 và 1 vé 10/10. Tổng thưởng đầy đủ 1.341.841.714.000 ₫; bốn khoảng ngày/tuần/tháng/năm đều không còn incomplete hoặc dấu tạm tính do dữ liệu này. Kiểm tra hash 75 HTML gốc đã lưu; một kỳ được worker xác minh và lưu hash trong cache. Nguồn từng bị 429, đã đợi cooldown; lượt tải được tiếp tục có kiểm tra không trùng tiến trình và khóa cache sau khi hạn mức xét duyệt phục hồi.
+
+- 2026-10-19: Sửa so sánh Tiền Thưởng báo Chưa đủ dữ liệu dù hai kỳ đều có tổng đã tính. Nguyên nhân là điều kiện incomplete của bất kỳ kỳ nào đã trả changes.reward=null; nay trừ đúng hai tổng thưởng đã tính và trả cờ estimated.reward. Giao diện giữ số chênh lệch/màu/cùng hàng với tên kỳ, thêm * và tooltip giải thích khi còn giải thiếu mức trả. Không giả tiền cho giải chưa biết; giữ nguyên tổng, khoảng thời gian, bộ lọc và biểu đồ. Cache JS statistics-partial-reward-comparison-20261019; Python dùng ngay theo request, không restart backend.
+  Backup bảy file tại Bin/session_1_latest/files/followup_statistics_partial_reward_comparison_20261019. Mười một test số liệu đạt 2,053 giây, gồm thiếu thưởng ở kỳ trước/hiện tại/cả hai, bốn khoảng thời gian, bộ lọc Tất Cả, tổng đã tính và DB giữ nguyên. API/Chrome đạt 1 test trong 22,842 giây, kiểm tra số chênh lệch tạm tính có *, tooltip, màu đỏ, không hiện Chưa đủ dữ liệu và 14 bố cục. Đã xem ảnh tối 1440px trong account_statistics_partial_reward_images. Dữ liệu thật ngày 19/10/2026: 160.158.372.500 − 407.726.424.000 = −247.568.051.500 ₫; tuần cũng có chênh lệch −789.094.439.000 ₫. HTML/JS live HTTP 200 khớp nguồn; git diff --check đạt. Log/proof statistics_partial_reward_tests.log và statistics_partial_reward_verification.json; manifest statisticsPartialRewardComparison20261019Followup.
+
+- 2026-10-19: Đổi tiêu đề chính phần thống kê thành TỔNG QUAN & THỐNG KÊ, bỏ dòng Biểu đồ và nhãn nhỏ cũ. Tiêu đề in đậm 800, 26px desktop/20px điện thoại, giữ aria-labelledby và màu chữ chính sáng/tối. Cache CSS statistics-overview-heading-20261019. Backup ba file tại Bin/session_1_latest/files/followup_statistics_overview_heading_20261019; manifest statisticsOverviewHeading20261019Followup.
+
+- 2026-10-19: Đưa số chênh lệch và tên kỳ đối chiếu (hôm qua/ngày trước/tuần trước/tháng trước/năm trước) lên cùng một hàng trong năm ô thống kê; bỏ chữ so với, tự co chữ theo bề rộng ô. Giữ màu và phép tính. Cache CSS/JS statistics-inline-deltas-20261019. Backup bốn file tại Bin/session_1_latest/files/followup_statistics_inline_deltas_20261019; manifest statisticsInlineDeltas20261019Followup.
+
+- 2026-10-19: Thêm chênh lệch dưới năm ô thống kê khi chọn Ngày/Tuần/Tháng/Năm. So kỳ lịch đang chọn với kỳ liền trước, cùng loại/phương pháp/bậc theo giờ Việt Nam; ngày hiện tại ghi hôm qua, tuần bắt đầu thứ Hai. Dương có + xanh, âm có − đỏ, 0 trung tính; đơn vị ₫/vé, tooltip ghi ngày của kỳ đối chiếu. Tổng ẩn so sánh. Thiếu dữ liệu thưởng/vé phân loại ở một trong hai kỳ thì giữ trạng thái Chưa đủ dữ liệu cho chỉ số liên quan. Python cộng hai kỳ từ cùng lượt đọc, không gọi nguồn hay ghi DB; endpoint Java dùng script mới ngay, không cần restart. Cache CSS/JS statistics-period-deltas-20261019.
+  Backup tám nguồn/test/tài liệu tại Bin/session_1_latest/files/followup_statistics_period_deltas_20261019. Mười test số liệu đạt 1,881 giây, gồm ranh giới ngày/tuần/tháng/năm, tháng nhuận, chuyển năm, số âm/0, thưởng thiếu và DB giữ nguyên. Kiểm thử API/Chrome đạt 1 test trong 23,087 giây, gồm 14 bố cục sáng/tối, màu tăng/giảm, trạng thái 0, chuyển bộ lọc và ẩn ở Tổng. Đã xem ảnh tối 1440px/sáng 390px trong account_statistics_period_deltas_images. Đọc tổng hợp dữ liệu thật kèm so sánh đạt 0,585 giây, hash ví trước/sau giữ nguyên. HTML/CSS/JS live HTTP 200 khớp nguồn; git diff --check đạt. Log/proof statistics_period_deltas_tests.log và statistics_period_deltas_verification.json; manifest statisticsPeriodDeltas20261019Followup.
+
+- 2026-10-19: Bỏ đoạn ghi chú cuối phần Biểu đồ theo yêu cầu. Backup hai file tại Bin/session_1_latest/files/followup_statistics_remove_footer_note_20261019; manifest statisticsRemoveFooterNote20261019Followup.
+
+- 2026-10-19: Đưa chú giải lên cùng hàng với tiêu đề và nhãn Nguồn Tiền/Tỉ Lệ ở đầu hai biểu đồ; bỏ khoảng trống của hàng chú giải cũ. Điện thoại tự đưa chú giải xuống hàng khi thiếu chỗ. Giữ bật/tắt đường, trạng thái nút và focus bàn phím; đăng xuất xóa cả chú giải. Cache CSS/JS statistics-inline-legends-20261019. Backup năm file tại Bin/session_1_latest/files/followup_statistics_inline_legends_20261019; manifest statisticsInlineLegends20261019Followup.
+  Kiểm thử API/Chrome đạt 1 test trong 23,749 giây, gồm 14 bố cục sáng/tối, chú giải cùng hàng nhãn ở desktop, bật/tắt cả hai biểu đồ, giữ focus và xóa khi đăng xuất. Đã xem ảnh tối 1440px/sáng 390px trong account_statistics_inline_legends_images. HTML/CSS/JS live HTTP 200 khớp nguồn; git diff --check đạt.
+
+- 2026-10-19: Đổi tiêu đề biểu đồ Vé mua / Vé trúng thành Tổng Vé. Backup hai file tại Bin/session_1_latest/files/followup_statistics_total_tickets_heading_20261019; manifest statisticsTotalTicketsHeading20261019Followup.
+
+- 2026-10-19: Đổi tiêu đề biểu đồ Tiền nạp · Tiền Vé · Tiền Thưởng thành Nguồn Tiền theo yêu cầu. Backup hai file tại Bin/session_1_latest/files/followup_statistics_fund_source_heading_20261019; manifest statisticsFundSourceHeading20261019Followup.
+
+- 2026-10-19: Đổi nhãn Dòng tiền thành Nguồn Tiền trên biểu đồ tiền. Backup hai file tại Bin/session_1_latest/files/followup_statistics_fund_source_label_20261019; manifest statisticsFundSourceLabel20261019Followup.
+
+- 2026-10-19: Đổi nhãn tỷ lệ trên biểu đồ vé thành Tỉ Lệ: n%, khi chưa có dữ liệu là Tỉ Lệ: —. Giữ nguyên cách tính vé trúng/vé đã phân loại và định dạng phần trăm. Cache JS statistics-rate-label-20261019. Backup ba file tại Bin/session_1_latest/files/followup_statistics_rate_label_20261019; manifest statisticsRateLabel20261019Followup.
+
+- 2026-10-19: Rút gọn năm chú giải của hai biểu đồ thành Tiền nạp, Tiền Vé, Tiền Thưởng, Vé mua, Vé trúng; bỏ hậu tố thực/mô phỏng. Giữ khóa dữ liệu, màu và thao tác bật/tắt đường. Cache JS statistics-short-legends-20261019. Backup ba file tại Bin/session_1_latest/files/followup_statistics_short_legends_20261019; manifest statisticsShortLegends20261019Followup.
+
+- 2026-10-19: Bỏ mô tả dưới tiêu đề Biểu đồ, dòng phạm vi dữ liệu/giờ Việt Nam và hai mô tả dưới tiêu đề biểu đồ tiền/vé. Thu khoảng trống dưới bộ lọc và tiêu đề biểu đồ; dòng trạng thái chỉ hiện khi tải/cần đăng nhập/có lỗi hoặc cảnh báo. Cache CSS/JS statistics-no-descriptions-20261019. Backup năm file tại Bin/session_1_latest/files/followup_statistics_remove_descriptions_20261019; manifest statisticsRemoveDescriptions20261019Followup.
+  Kiểm thử API/Chrome đạt 1 test trong 24,898 giây, gồm 14 bố cục sáng/tối, trạng thái thành công ẩn và không còn hai mô tả biểu đồ. Ảnh tại account_statistics_no_descriptions_images; đã xem tối 1440px. HTML/CSS/JS live HTTP 200 khớp nguồn; git diff --check đạt.
+
+- 2026-10-19: Tăng tiêu đề năm ô thống kê Biểu đồ (Tiền nạp, Tiền Vé, Tiền Thưởng, Vé mua, Vé trúng) từ 11px lên 14px, in đậm 700 và dùng màu chữ chính cho rõ hơn ở cả giao diện sáng/tối. Cache CSS statistics-bold-titles-20261019. Backup ba file tại Bin/session_1_latest/files/followup_statistics_bold_titles_20261019; manifest statisticsBoldTitles20261019Followup.
+
+- 2026-10-19: Bỏ dòng ghi chú dưới cả năm ô Tiền nạp/Tiền Vé/Tiền Thưởng/Vé mua/Vé trúng trong Biểu đồ. Thu chiều cao các ô về 92px desktop/86px điện thoại, giữ tên và giá trị. Cache CSS/JS statistics-no-card-notes-20261019. Backup năm file tại Bin/session_1_latest/files/followup_statistics_remove_card_notes_20261019; manifest statisticsRemoveCardNotes20261019Followup. Không đổi phép tính.
+
+- 2026-10-19: Thiết kế lại bố cục Biểu đồ: căn nhãn/bộ lọc cùng hàng, ô ngày/chọn/khoảng thời gian cao 40px, lưới cân đối khi đổi sang Keno và trên tablet/điện thoại. Thu gọn năm ô tổng, vạch màu ngắn và số tiền tự co vừa ô, giữ đầy đủ trên một dòng; ba ô tiền chiếm trọn hàng trên điện thoại. Hai biểu đồ dùng cột bằng nhau từ 1200px, thẳng vùng vẽ, chữ trục rõ với SVG theo bề rộng thực và ResizeObserver; màn hình nhỏ xếp dọc, giảm mốc ngang. Cache CSS/JS statistics-layout-20261019. Không thay phép tính hoặc backend.
+  Backup sáu nguồn/test/tài liệu tại Bin/session_1_latest/files/followup_statistics_layout_20261019. Kiểm thử API/Chrome đạt 1 test trong 20,445 giây, kiểm tra thêm số tiền hàng nghìn tỷ, biểu đồ một mốc, ô lọc cao đều, số không tràn, khung/vùng vẽ hai biểu đồ cân nhau và 14 bố cục sáng/tối tại 320/390/768/1000/1200/1440/1920px. Đã xem ảnh tối 1440px/sáng 390px trong account_statistics_layout_images. HTML/CSS/JS live HTTP 200 khớp nguồn, không cần khởi động lại backend; git diff --check đạt. Log/proof statistics_layout_tests.log và statistics_layout_verification.json; manifest statisticsLayout20261019Followup.
+
+- 2026-10-19: Thêm Tất Cả làm mặc định trong ô Loại xổ số của Biểu đồ, tổng hợp 5/35, Mega 6/45, Power 6/55 và đủ 10 bậc Keno. Giữ chọn riêng từng loại/bậc và phương pháp; tiền nạp tính một lần, quỹ Jackpot tách riêng theo loại/kỳ/hạng. Dùng một snapshot tracking khi đọc tổng hợp; chú thích vé nêu rõ phạm vi. Cache JS all-games-20261019.
+  Backup tám nguồn/test/tài liệu và 16 class tại Bin/session_1_latest/files/followup_statistics_all_games_20261019. Tám test số liệu đạt 1,616 giây, kiểm tra tổng qua các khoảng thời gian/phương pháp, Jackpot riêng quỹ, Keno đủ bậc và DB không đổi; test API/Chrome đạt 20,195 giây, kiểm tra mặc định/chuyển loại, ẩn hiện bậc Keno, quyền phiên và 10 bố cục. Đã xem ảnh tối 1440px/sáng 390px trong account_statistics_all_games_images. Đọc tổng hợp dữ liệu thật 1,912 giây. Nạp 16 class, khởi động lại đúng Java PID 4936 sang nền PID 9316 khi không có tác vụ xử lý vé. HTML/JS live HTTP 200 khớp nguồn, class khớp build, dữ liệu tài khoản/ví/giao dịch/run/score giữ nguyên. Log/proof statistics_all_games_tests.log và statistics_all_games_verification.json; manifest statisticsAllGames20261019Followup; git diff --check đạt.
+
+- 2026-10-19: Thêm Tất Cả làm mặc định trong ô Phương pháp của Biểu đồ, giữ chọn riêng Pipeline web/Ngẫu nhiên/Bayesian/EWMA. Tổng hợp vé/Tiền Vé/vé trúng từ bốn danh mục theo game/bậc/thời gian đang chọn, tiền nạp chỉ tính một lần. Cộng giải cố định; Độc Đắc/Jackpot gộp số vé trúng của bốn phương pháp trong cùng kỳ/hạng rồi chia một quỹ cùng số vé thực tế, không nhân quỹ bốn lần. Chú thích vé đổi theo lựa chọn. Cache JS all-methods-20261019.
+  Backup tám nguồn/test/tài liệu và 16 class tại Bin/session_1_latest/files/followup_statistics_all_methods_20261019. Sáu test số liệu đạt 0,764 giây, gồm tổng qua năm khoảng thời gian, tiền nạp một lần, Jackpot gộp và Keno riêng bậc; test API/Chrome đạt 19,872 giây, kiểm tra mặc định Tất Cả, chuyển riêng/quay lại, quyền phiên và 10 bố cục. Ảnh trong account_statistics_all_methods_images. Nạp 16 class, khởi động lại đúng Java PID 4072 sang nền PID 4936 sau khi xác minh chỉ có conhost và không có tác vụ xử lý vé. HTML/JS live HTTP 200 khớp nguồn; class khớp build, dữ liệu ví/giao dịch/run/score trước sau giữ nguyên. Log/proof statistics_all_methods_tests.log và statistics_all_methods_verification.json; manifest statisticsAllMethods20261019Followup; git diff --check đạt.
+
+- 2026-10-19: Đổi nhãn Tiền trúng thành Tiền Thưởng trong ô tổng, tiêu đề/chú giải/tooltip biểu đồ, bảng chi tiết và ghi chú của mục Biểu đồ. Giữ nguyên trường reward và phép tính. Cache JS reward-money-label-20261019; backup ba file tại Bin/session_1_latest/files/followup_reward_money_label_20261019.
+
+- 2026-10-19: Đổi nhãn Tiền tiêu thành Tiền Vé trong ô tổng, tiêu đề/chú giải/tooltip biểu đồ, bảng chi tiết và ghi chú của mục Biểu đồ. Giữ nguyên trường dữ liệu spent và cách tính chi phí mô phỏng. Cache JS ticket-money-label-20261019; backup ba file tại Bin/session_1_latest/files/followup_ticket_money_label_20261019.
+
+- 2026-10-18: Thay vị trí menu Quản lý tài khoản cũ bằng Biểu đồ `/bieu-do`: năm ô tổng Tiền nạp/Tiền tiêu/Tiền trúng/Vé mua/Vé trúng, hai đồ thị có bật/tắt đường và chi tiết theo thời gian. Theo xác nhận người dùng, vé là mô phỏng Dự Đoán & Thực Tế; chi phí/thưởng lấy cùng danh mục và ghi rõ mô phỏng hệ thống. Nạp tiền riêng tài khoản chỉ từ thanh toán thật PAID/production. Thêm Tổng/Ngày/Tuần/Tháng/Năm, ngày tham chiếu, game/phương pháp/bậc Keno; mọi mốc giờ Việt Nam. Vé chờ/chưa phân loại và thưởng chưa đủ được tách rõ, chia Jackpot theo quy ước đã chọn. API xác thực lấy username từ session; đọc toàn bộ lịch sử summary nhỏ trên DB riêng, không gọi nguồn/tạo/chấm vé/sửa dữ liệu. Giao diện sáng/tối, responsive, hủy request và xóa số liệu khi đổi phiên. Cache core/extra CSS/JS mới account-statistics-20261018. Backup sáu nguồn/tài liệu và 16 class cũ tại Bin/session_1_latest/files/followup_personal_statistics_20261018.
+  Năm test số liệu đạt 0,630 giây; test HTTP/Chrome đạt 17,966 giây; test menu đạt 0,014 giây. Thử đủ khoảng thời gian/biên nửa đêm và tuần chuyển năm, 0/unknown, Jackpot metadata, pending/void, legacy, Keno riêng bậc, nạp sandbox/pending, không đổi DB, không đọc chéo tiền nạp dù giả owner. Đo 10 bố cục sáng/tối 320/390/768/1440/1920px không tràn trang; đã xem ảnh tối1440/sáng390 trong account_statistics_images. Đọc dữ liệu thật bốn loại đạt 0,045–0,298 giây, không sửa DB. Biên dịch và nạp 16 class; PID cũ 1900 đã tự dừng trước bước nạp, xác nhận cổng trống và không còn worker rồi mở nền PID 18524. HTML `/bieu-do`, JS mới/core và CSS live HTTP 200 khớp nguồn; endpoint chưa đăng nhập trả 401. So trước/sau: users/stores/payments/audit, hash dữ liệu ví và 9.444 run/9.392 score giữ nguyên. Bằng chứng account_statistics_tests.log, account_statistics_verification.json và before/after_restart.json; manifest personalStatistics20261018Followup; git diff --check đạt.
+
+- 2026-10-18: Chuyển nút Quản lý tài khoản khỏi menu bên ngoài vào Admin → Người dùng, giữ một nút và handler hiện có; bỏ handler trùng của nút Admin cũ. Giữ kiểm tra quyền admin ở bộ mở bảng và API. Cache admin JS account-manager-admin-only-20261018. Backup sáu file tại Bin/session_1_latest/files/followup_account_manager_admin_only_20261018. Hai kiểm thử đạt 17,687 giây: vị trí nút duy nhất, admin mở qua điều hướng thật và chỉnh/lưu số dư, user không thấy hoặc mở được bảng kể cả URL trực tiếp, API user trả 403. HTML/admin JS live HTTP 200 khớp nguồn; không restart backend. Bằng chứng account_manager_admin_only_verification.json; manifest accountManagerAdminOnly20261018Followup; git diff --check đạt.
+
+- 2026-10-18: Sửa bảng tiền thưởng hiệu quả bị dừng ở Độc Đắc/Jackpot dù có kết quả. Bổ sung đọc quỹ/số lượng vé trúng đúng kỳ theo drawIds, đối chiếu kết quả ledger và thời gian Việt Nam trước khi ước tính; hỗ trợ Độc Đắc 5/35, Jackpot Mega và hai Jackpot Power. Mỗi phương pháp chia cùng số vé thực tế của kỳ, làm tròn xuống đồng; cộng lại đầy đủ các giải cố định và quỹ mô phỏng để tính tổng/lãi lỗ, ghi rõ trước thuế. Thiếu dữ liệu, kết quả khác hoặc lỗi mạng có lý do cụ thể; không giả 0, không nhân nguyên quỹ theo số vé và không ghi ledger/canonical. Yêu cầu có timeout/hủy theo phiên; cập nhật riêng khung tổng thưởng để giữ vé/phân trang đang xem. Cache effectiveness JS variable-prize-payouts-20261018. Backup năm file tại Bin/session_1_latest/files/followup_effectiveness_variable_prizes_20261018.
+  Chrome đầy đủ đạt 1 test trong 43,005 giây, gồm bốn giải quỹ, số vé thực tế 0/2/thiếu, làm tròn phần lẻ, sai kỳ/ngày/giờ/ĐB/bộ số, metadata boolean/âm và ví dụ 200.000 vé trong ảnh. Với quỹ giả lập 6 tỷ và 0 vé trúng thực tế, danh mục trong ảnh có tổng 6.320.210.000 ₫ và chênh lệch 4.320.210.000 ₫; đây là dữ liệu kiểm thử. Đã xem ảnh tối 1440px và sáng 390px trong variable_prize_images. HTML/effectiveness JS live HTTP 200 khớp nguồn, không restart backend. Log/proof variable_prize_tests.log, variable_prize_verification.json; manifest effectivenessVariablePrizes20261018Followup; git diff --check đạt.
+
 - 2026-10-18: Thiết kế bộ lọc giải Bảng Dữ Liệu theo từng loại xổ số. 5/35 giữ `Nổ` và `Chia giải`; Mega 6/45 chỉ hiện `Jackpot`; Power 6/55 chỉ hiện một nút tuần tự `Jackpot 1, 2` → `Jackpot 1` → `Jackpot 2` → trạng thái ban đầu, có ký hiệu chuyển trạng thái và chiều rộng ổn định. Mỗi trạng thái Power lọc đúng nhãn canonical tương ứng; lần bấm thứ tư tắt lọc và khôi phục toàn bộ kỳ. Keno/Max 3D/Pro ẩn cả nhóm lọc giải. Đổi loại tự xóa bộ lọc giải cũ. Trạng thái, thông báo rỗng, tóm tắt bộ lọc và tên file Excel dùng đúng nhãn/đuôi của từng game; Chia giải không còn xuất hiện ngoài 5/35. Mobile đưa nút đơn chiếm trọn hàng. Cache data/core đổi sang power-filter-reset-20261018.
   Backup tám file tại Bin/session_1_latest/files/followup_game_specific_prize_filters_20261017. Kiểm thử bộ lọc biệt lập đạt 1 test trong 1,903 giây; kiểm thử Chrome đầy đủ đạt 1 test trong 20,940 giây, gồm bố cục 18 kích thước/theme và ba trạng thái Jackpot Power. Đã xem ảnh 5/35, Mega và Power 1440px tối trong game_prize_filter_images. HTML `/`, CSS, data JS và core JS live HTTP 200 khớp nguồn; không cần restart backend. Log/proof game_prize_filters_tests.log và game_prize_filters_verification.json; manifest gameSpecificPrizeFilters20261018Followup; git diff --check đạt.
   Điều chỉnh theo xác nhận cuối: sau `Jackpot 2`, lần bấm thứ tư trở về trạng thái ban đầu thay vì bật lại bộ lọc `Jackpot 1, 2`. Trạng thái chọn, toàn bộ dòng và tên file Excel đều được khôi phục. Backup bảy file tại Bin/session_1_latest/files/followup_power_filter_returns_initial_20261018. Kiểm thử biệt lập đạt 1 test trong 1,898 giây; Chrome đầy đủ đạt 1 test trong 18,406 giây; tài nguyên HTML/data/core live HTTP 200 khớp nguồn. Log/proof power_filter_initial_tests.log và power_filter_initial_verification.json; manifest powerFilterReturnsInitial20261018Followup; git diff --check đạt.

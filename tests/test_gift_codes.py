@@ -139,7 +139,7 @@ class GiftCodeTests(AccountBalanceTests):
             browser.call('Network.enable',page=True)
             browser.call('Network.setCookie',dict(name='LOTTO_AUTH',value=self.admin.split(';')[0].split('=',1)[1],url=self.url),page=True)
             browser.call('Page.navigate',dict(url=self.url+'/'),page=True)
-            wait("typeof api==='function' && document.getElementById('openAccountBtn').style.display==='flex'")
+            wait("typeof api==='function' && !!document.getElementById('adminUsersEdit')")
             browser.value("document.getElementById('settingsBtn').click()")
             self.assertTrue(browser.value("document.getElementById('settingsCodeForm').hidden"))
             self.assertEqual(browser.value("document.getElementById('settingsCodeBtn').getAttribute('aria-expanded')"),'false')

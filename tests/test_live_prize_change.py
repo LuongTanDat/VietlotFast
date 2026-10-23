@@ -31,6 +31,8 @@ const getLiveResultsBoardSignature=()=>JSON.stringify(liveResultsState);
 const getLiveUpdateBadge=()=>({label:'Hoàn tất'});
 const liveUpdateBadgeClass=()=>'ok';
 const buildUpcomingLiveMetaParts=()=>['Kỳ #10','T7 17/10','18:00','12:08:13'];
+const buildLiveResultMetaParts=(type,item)=>['Kỳ #'+item.ky,item.date,item.time].filter(Boolean);
+const formatLiveKy=ky=>'#'+ky;
 const formatPredictNumber=(number,type)=>String(number).padStart(TYPES[type]?.threeDigit?3:2,'0');
 const updateLiveResultsCountdownText=()=>{};
 const api=url=>{calls.push(url);return new Promise((resolve,reject)=>pending.push({url,resolve,reject}));};

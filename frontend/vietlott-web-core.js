@@ -469,12 +469,12 @@
     const MAX_PAYPAL_TOPUPS = 24;
     const PAYPAL_REAL_RATE = 1.25;
     const PAYPAL_TOPUP_PACKAGES = [
-      { id: "mini", title: "10.000đ", amount: 10000, bonusRate: 0, bonus: "Gói thấp nhất để nạp nhanh" },
       { id: "small", title: "20.000đ", amount: 20000, bonusRate: 0, bonus: "Gói nhỏ, thao tác gọn" },
       { id: "starter", title: "50.000đ", amount: 50000, bonusRate: 0.01, bonus: "Thưởng thêm 1% PayPal" },
       { id: "boost", title: "100.000đ", amount: 100000, bonusRate: 0.015, bonus: "Thưởng thêm 1,5% PayPal" },
       { id: "plus", title: "200.000đ", amount: 200000, bonusRate: 0.02, bonus: "Thưởng thêm 2% PayPal" },
-      { id: "pro", title: "500.000đ", amount: 500000, bonusRate: 0.025, bonus: "Thưởng thêm 2,5% PayPal" }
+      { id: "pro", title: "500.000đ", amount: 500000, bonusRate: 0.025, bonus: "Thưởng thêm 2,5% PayPal" },
+      { id: "custom", title: "Giá Trị Khác", amount: null, bonusRate: 0, custom: true }
     ];
     const MAX_LUCKY_WHEEL_HISTORY = 30;
     const MAX_LUCKY_WHEEL_TOPUP_HISTORY = 12;
@@ -526,6 +526,7 @@
     });
 
     let currentUser = null;
+    let currentAccountId = "";
     let currentUserRole = "user";
     let store = emptyStore();
     let vipMembershipTimer = null;
@@ -704,7 +705,7 @@
     let vipPredictionHistoryLoadingType = "";
     let vipPredictionHistoryLoadingError = "";
     let vipPredictionHistoryRefreshToken = 0;
-    let selectedPaypalTopupPackageId = PAYPAL_TOPUP_PACKAGES[1]?.id || "";
+    let selectedPaypalTopupPackageId = PAYPAL_TOPUP_PACKAGES[0]?.id || "";
     let luckyWheelRotation = 0;
     let luckyWheelSpinning = false;
     let luckyWheelAutoMode = false;
@@ -789,6 +790,7 @@
       home: "/",
       wheel: "/vong-quay",
       deposit: "/nap-tien",
+      accountStats: "/bieu-do",
       data: "/bang-du-lieu",
       admin: "/admin"
     };
@@ -803,6 +805,7 @@
       if (normalized === "/nap-tien" || normalized === "/nap-tien.html") return "deposit";
       if (normalized === "/bang-du-lieu" || normalized === "/bang-du-lieu.html") return "data";
       if (normalized === "/admin") return "admin";
+      if (normalized === "/bieu-do") return "accountStats";
       return "home";
     }
 
@@ -842,6 +845,10 @@
 
     function applyAppPageMetadata() {
       const mode = getCurrentAppPageMode();
+      if (mode === "accountStats") {
+        document.title = `Biểu đồ | ${APP_SHORT_NAME}`;
+        return;
+      }
       if (mode === "admin") {
         document.title = `Admin Panel | ${APP_SHORT_NAME}`;
         return;
@@ -1875,6 +1882,7 @@
         String(item.jackpot1 ?? ""),
         String(item.jackpot2 ?? ""),
         String(item.prizeHit || ""),
+        JSON.stringify(item.prizeWinnerCounts || {}),
         String(item.updatedAt || "")
       ].join("|");
     }
@@ -1893,15 +1901,31 @@
       localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
     }
 
+    function renderAccountIdentity() {
+      const depositId = document.getElementById("depositManualAccountId");
+      if (depositId) depositId.value = currentAccountId;
+      document.querySelectorAll("[data-current-account-id]").forEach(node => {
+        node.hidden = !currentAccountId;
+        node.textContent = currentAccountId ? `ID: ${currentAccountId}` : "";
+      });
+    }
+    document.addEventListener("click", async event => {
+      const button = event.target.closest("[data-copy-account-id]");
+      if (!button || !currentAccountId) return;
+      const id = currentAccountId;
+      try {
+        await navigator.clipboard.writeText(id);
+        if (currentAccountId !== id) return;
+        button.textContent = `Đã chép · ${id}`;
+        setTimeout(() => { if (currentAccountId === id) renderAccountIdentity(); }, 1800);
+      } catch { button.title = `ID: ${id} — chọn và sao chép mã này`; }
+    });
     function syncSideAccountIdentity() {
       const identity = document.getElementById("whoami");
-      const accountManagerButton = document.getElementById("openAccountBtn");
+      renderAccountIdentity();
       if (identity) {
         const roleLabel = currentUserRole === "admin" ? "Quản trị viên" : "Người dùng";
         identity.textContent = currentUser ? `${currentUser} · ${roleLabel}` : "Chưa đăng nhập";
-      }
-      if (accountManagerButton) {
-        accountManagerButton.style.display = currentUserRole === "admin" ? "flex" : "none";
       }
       document.getElementById("settingsAdminBtn").hidden = currentUserRole !== "admin";
       if (currentUserRole !== "admin") window.adminPanel?.reset();
@@ -1942,7 +1966,7 @@
     }
 
     function collectHeaderNotifications() {
-      const items = [];
+      const items = [...(window.VietlottDepositNotifications?.items() || [])];
       for (const item of Object.values(liveResultsState || {})) {
         if (!item || typeof item !== "object") continue;
         const type = String(item.key || "").toUpperCase();
@@ -1974,11 +1998,13 @@
       const saved = readHeaderNotificationValue(HEADER_NOTIFICATION_HISTORY_KEY, []);
       const history = new Map();
       for (const item of Array.isArray(saved) ? saved : []) {
-        if (!item || typeof item.id !== "string" || !["live", "prediction"].includes(item.kind) || dismissedIds.has(item.id)) continue;
+        if (!item || typeof item.id !== "string" || !["live", "prediction", "deposit"].includes(item.kind) || dismissedIds.has(item.id)) continue;
+        if (item.kind === "deposit" && (!currentUser || item.recipientAccountId !== currentAccountId || (item.audience === "admin" && currentUserRole !== "admin"))) continue;
         history.set(item.id, {
           id: item.id, kind: item.kind,
           title: String(item.title || "Thông báo"), detail: String(item.detail || ""),
           timestamp: Number.isFinite(new Date(Number(item.timestamp)).getTime()) ? Number(item.timestamp) : 0,
+          ...(item.kind === "deposit" ? { audience: item.audience, action: item.action, recipientAccountId: item.recipientAccountId } : {}),
         });
       }
       for (const item of items) {
@@ -2012,6 +2038,7 @@
       const moreButton = document.getElementById("notificationMoreBtn");
       const pager = document.getElementById("notificationPager");
       if (!list || !badge || !button) return;
+      window.VietlottDepositNotifications?.renderUnread();
       const user = getHeaderNotificationStorageKey();
       if (headerNotificationView.user !== user) headerNotificationView = { user, expanded: false, page: 1 };
       const items = collectHeaderNotifications();
@@ -2067,7 +2094,7 @@
         content.className = "header-notification-content";
         content.title = `${item.title}\n${item.detail || ""}\n${isRead ? "Đã đọc" : "Bấm để đánh dấu đã đọc"}`;
         content.setAttribute("aria-label", `${item.title}. ${item.detail || ""}. ${isRead ? "Đã đọc" : "Đánh dấu đã đọc"}`);
-        content.onclick = () => markHeaderNotificationRead(item.id);
+        content.onclick = () => { markHeaderNotificationRead(item.id); if (item.kind === "deposit") window.VietlottDepositNotifications?.activate(item); };
         const title = document.createElement("strong");
         const detail = document.createElement("span");
         const time = document.createElement("time");
@@ -2489,15 +2516,15 @@
     function getPaypalBonusPackage(amount, preferredPackageId = "") {
       const numeric = Number(amount || 0);
       const preferred = getPaypalTopupPackageById(preferredPackageId);
-      if (preferred && Number(preferred.amount || 0) === numeric) return preferred;
-      return PAYPAL_TOPUP_PACKAGES.find(item => Number(item.amount || 0) === numeric) || null;
+      if (preferred && !preferred.custom && Number(preferred.amount || 0) === numeric) return preferred;
+      return PAYPAL_TOPUP_PACKAGES.find(item => !item.custom && Number(item.amount || 0) === numeric) || null;
     }
 
     function calculatePaypalCredit(amount, preferredPackageId = "") {
       const baseCredit = convertRealMoneyToPaypal(amount);
       const packageMeta = getPaypalBonusPackage(amount, preferredPackageId);
-      const bonusRate = Math.max(0, Number(packageMeta?.bonusRate || 0));
-      const bonusCredit = Math.round(baseCredit * bonusRate * 100) / 100;
+      const bonusRate = amount >= 1000000 && amount <= 100000000 && amount % 100000 === 0 ? 0.05 : Math.max(0, Number(packageMeta?.bonusRate || 0));
+      const bonusCredit = Math.round(baseCredit * bonusRate);
       const totalCredit = Math.round((baseCredit + bonusCredit) * 100) / 100;
       return { baseCredit, bonusRate, bonusCredit, totalCredit, packageMeta };
     }
@@ -2518,32 +2545,38 @@
       });
     }
 
+    function isValidPaypalDepositAmount(amount, packageId = selectedPaypalTopupPackageId) {
+      if (!Number.isSafeInteger(amount)) return false;
+      return (packageId !== "custom" && !!getPaypalBonusPackage(amount, packageId)) ||
+        (amount >= 1000000 && amount <= 100000000 && amount % 100000 === 0);
+    }
+
     function renderPaypalRatePreview(amountOverride = null) {
       const preview = document.getElementById("depositRatePreview");
       if (!preview) return;
       const amount = getPaypalDepositAmount(amountOverride);
       const packageMeta = getPaypalBonusPackage(amount, selectedPaypalTopupPackageId);
-      selectedPaypalTopupPackageId = packageMeta?.id || "";
       const selected = document.getElementById("depositSelectedPackage");
-      if (selected) selected.value = packageMeta?.title || (amount > 0 ? "Số tiền tự nhập" : "Chưa chọn gói");
+      if (selected) selected.value = selectedPaypalTopupPackageId === "custom" ? "Giá Trị Khác" : packageMeta?.title || (amount > 0 ? "Số tiền tự nhập" : "Chưa chọn gói");
       document.querySelectorAll(".deposit-package-item").forEach(button => {
         const active = button.dataset.packageId === selectedPaypalTopupPackageId;
         button.classList.toggle("active", active);
         button.setAttribute("aria-pressed", String(active));
+        if (button.dataset.packageId === "custom") button.setAttribute("aria-expanded", String(active));
       });
-      if (!Number.isFinite(amount) || amount <= 0) {
-        preview.innerHTML = '<div class="deposit-preview-empty">Nhập số tiền để xem PayPal dự kiến nhận.</div>';
+      if (!isValidPaypalDepositAmount(amount)) {
+        preview.innerHTML = '<div class="deposit-preview-total"><span>Dự kiến nhận</span><strong class="is-empty">— <small>PayPal</small></strong></div>';
         return;
       }
       const credit = calculatePaypalCredit(amount, selectedPaypalTopupPackageId);
-      preview.innerHTML = `<div class="deposit-preview-total"><span>Dự kiến nhận</span><strong>${formatPaypalCredit(credit.totalCredit)} <small>PayPal</small></strong></div><div class="deposit-preview-breakdown"><span>Quy đổi <b>${formatPaypalCredit(credit.baseCredit)}</b></span><span>Thưởng${credit.bonusRate > 0 ? ` ${formatPaypalPercent(credit.bonusRate * 100)}%` : ""} <b>+${formatPaypalCredit(credit.bonusCredit)}</b></span></div>`;
+      preview.innerHTML = `<div class="deposit-preview-row"><span>Nạp Tiền</span><strong>${formatPaypalCredit(credit.baseCredit)} <small>PayPal</small></strong></div><div class="deposit-preview-row deposit-preview-bonus"><span>Thưởng${credit.bonusRate > 0 ? ` ${formatPaypalPercent(credit.bonusRate * 100)}%` : ""}</span><strong>+${formatPaypalCredit(credit.bonusCredit)} <small>PayPal</small></strong></div><div class="deposit-preview-row deposit-preview-vip"><span>VIP — · —%</span><strong>+0 <small>PayPal</small></strong></div><div class="deposit-preview-total deposit-preview-final"><span>Dự kiến nhận</span><strong>${formatPaypalCredit(credit.totalCredit)} <small>PayPal</small></strong></div>`;
     }
 
     function getPaypalDepositAmount(rawValue = null) {
       const raw = String(rawValue ?? document.getElementById("depositAmount")?.value ?? "").trim();
       if (!raw) return 0;
       if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(raw)) return NaN;
-      const amount = Number(raw.replace(/\./g, ""));
+      const amount = Math.min(Number(raw.replace(/\./g, "")), 100000000);
       return Number.isSafeInteger(amount) ? amount : NaN;
     }
 
@@ -2558,11 +2591,15 @@
     function setSelectedPaypalTopupPackage(packageId) {
       const found = getPaypalTopupPackageById(packageId) || PAYPAL_TOPUP_PACKAGES[0] || null;
       if (!found) return;
+      const wasCustom = selectedPaypalTopupPackageId === "custom";
       selectedPaypalTopupPackageId = found.id;
-      const selectedInput = document.getElementById("depositSelectedPackage");
+      const field = document.getElementById("depositCustomAmountField");
       const amountInput = document.getElementById("depositAmount");
-      if (selectedInput) selectedInput.value = found.title;
-      if (amountInput && !String(amountInput.value || "").trim()) amountInput.value = formatLuckyWheelAmount(found.amount);
+      if (field) field.hidden = !found.custom;
+      if (amountInput) {
+        if (!found.custom) amountInput.value = formatLuckyWheelAmount(found.amount);
+        else if (!wasCustom) amountInput.value = "";
+      }
       renderPaypalRatePreview();
     }
 
@@ -2585,30 +2622,31 @@
       if (noteToggle) noteToggle.open = false;
       document.querySelectorAll("#paypalDepositSection [aria-invalid]").forEach(input => input.removeAttribute("aria-invalid"));
       showPaypalDepositMessage("");
-      setSelectedPaypalTopupPackage(PAYPAL_TOPUP_PACKAGES[1]?.id || PAYPAL_TOPUP_PACKAGES[0]?.id || "");
+      setSelectedPaypalTopupPackage(PAYPAL_TOPUP_PACKAGES[0]?.id || "");
     }
 
     function renderPaypalTopupPackages() {
       const host = document.getElementById("depositPackageGrid");
       if (!host) return;
       host.innerHTML = PAYPAL_TOPUP_PACKAGES.map(item => `
-        <button type="button" class="deposit-package-item" data-package-id="${item.id}">
+        <button type="button" class="deposit-package-item" data-package-id="${item.id}"${item.custom ? ' aria-controls="depositCustomAmountField" aria-expanded="false"' : ""}>
+          ${item.custom ? '<span class="deposit-package-custom-icon" aria-hidden="true">+</span>' : ""}
           <span class="deposit-package-top"><span class="deposit-package-amount">${item.title}</span><span class="deposit-package-check" aria-hidden="true">✓</span></span>
-          <span class="deposit-package-credit">${formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit)} PayPal</span>
-          <span class="deposit-package-bonus">${item.bonusRate > 0 ? `Thưởng +${formatPaypalPercent(item.bonusRate * 100)}%` : "Quy đổi tiêu chuẩn"}</span>
+          ${item.custom ? "" : `<span class="deposit-package-credit">${formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit)} PayPal</span><span class="deposit-package-bonus">${item.bonusRate > 0 ? `Thưởng +${formatPaypalPercent(item.bonusRate * 100)}%` : "Quy đổi tiêu chuẩn"}</span>`}
         </button>
       `).join("");
       host.querySelectorAll(".deposit-package-item").forEach(button => {
         button.onclick = () => {
           const amountInput = document.getElementById("depositAmount");
-          if (amountInput) amountInput.value = "";
           setSelectedPaypalTopupPackage(button.dataset.packageId || "");
+          if (button.dataset.packageId === "custom") amountInput?.focus();
         };
       });
-      setSelectedPaypalTopupPackage(selectedPaypalTopupPackageId || PAYPAL_TOPUP_PACKAGES[1]?.id || PAYPAL_TOPUP_PACKAGES[0]?.id || "");
+      setSelectedPaypalTopupPackage(selectedPaypalTopupPackageId || PAYPAL_TOPUP_PACKAGES[0]?.id || "");
     }
 
     function renderPaypalTopupHistory() {
+      if (window.VietlottBankTopup?.renderHistory) { window.VietlottBankTopup.renderHistory(); return; }
       ensurePaypalTopupState();
       const host = document.getElementById("depositHistoryList");
       const count = document.getElementById("depositHistoryCount");
@@ -2640,11 +2678,13 @@
       const amountInput = document.getElementById("depositAmount");
       if (!form || !amountInput || form.dataset.bound) return;
       form.dataset.bound = "true";
-      window.VietlottNumericInput.bind(amountInput);
+      window.VietlottNumericInput.bind(amountInput, { liveComposition: true, maximum: 100000000 });
       amountInput.addEventListener("input", () => renderPaypalRatePreview());
       window.VietlottBankTopup?.init({
         user: () => currentUser,
+        accountId: () => currentAccountId,
         amount: getPaypalDepositAmount,
+        validAmount: isValidPaypalDepositAmount,
         wallet: wallet => { applyServerWallet(wallet); renderCurrencyBar(); },
         legacy: () => store.paypalTopups || [],
         message: showPaypalDepositMessage
@@ -3679,9 +3719,15 @@
     }
 
     let pendingWheelRequest = null;
+    window.addEventListener('dvlf:prediction-wallet', event => {
+      const billing = event.detail;
+      if (!currentUser || billing?.owner !== currentUser) return;
+      applyServerWallet({ paypalBalance: billing.balance, walletVersion: billing.walletVersion });
+    });
     function applyServerWallet(serverStore) {
       if (!serverStore || typeof serverStore !== "object") return;
       if (Number(serverStore.walletVersion || 0) < Number(store.walletVersion || 0)) return;
+      if (/^[1-9][0-9]{11}$/.test(String(serverStore.accountId || ""))) { currentAccountId = String(serverStore.accountId); renderAccountIdentity(); }
       for (const [key, value] of Object.entries(serverStore)) {
         if (key === "diamondBalance" || key === "paypalBalance" || key.startsWith("vip") || key.startsWith("luckyWheel") || key === "walletVersion") store[key] = value;
       }
@@ -3785,7 +3831,7 @@
     }
 
     function setAuxiliarySectionsVisible(activeSectionId = "") {
-      ["luckyWheelSection", "paypalDepositSection", "dataTableSection", "adminPanelSection"].forEach(sectionId => {
+      ["luckyWheelSection", "paypalDepositSection", "dataTableSection", "adminPanelSection", "accountStatsSection"].forEach(sectionId => {
         const section = document.getElementById(sectionId);
         if (!section) return;
         section.hidden = sectionId !== activeSectionId;
@@ -3820,6 +3866,13 @@
       const mode = getCurrentAppPageMode();
       applyAppPageMetadata();
       document.body.dataset.appPage = mode;
+      window.VietlottAccountStats?.activate(mode === "accountStats");
+      if (mode === "accountStats") {
+        setPrimaryContentVisible(false);
+        setAuxiliarySectionsVisible("accountStatsSection");
+        setSideMenuActiveButton("accountStatsMenuBtn");
+        return;
+      }
       if (mode === "admin") {
         if (currentUserRole !== "admin") {
           window.history.replaceState({ appPageMode: "home" }, "", "/");
@@ -4124,7 +4177,10 @@
     const brandReloadBtn = document.getElementById("brandReloadBtn");
     if (brandReloadBtn) {
       brandReloadBtn.dataset.tooltip = `${APP_SHORT_NAME} là tên viết tắt của ${APP_FULL_NAME}`;
-      brandReloadBtn.onclick = () => window.location.reload();
+      brandReloadBtn.onclick = () => {
+        if (IS_LOCAL_MODE) window.location.reload();
+        else window.location.assign(APP_PAGE_PATHS.home);
+      };
     }
     document.getElementById("vipMembershipBtn").onclick = () => toggleHeaderPopover("vipMembershipBtn", "vipMembershipPanel");
     document.getElementById("vipMembershipRenewBtn").onclick = requestVipMembershipRenewal;
@@ -4222,6 +4278,7 @@
     document.getElementById("homeMenuBtn").onclick = () => {
       navigateToAppPage("home");
     };
+    document.getElementById("accountStatsMenuBtn").onclick = () => navigateToAppPage("accountStats");
     document.getElementById("paypalDepositMenuBtn").onclick = () => {
       navigateToAppPage("deposit");
     };
@@ -4298,8 +4355,9 @@
       setAuthMsg(isLogin ? "Đăng nhập để tiếp tục." : "Tạo tài khoản mới.");
     }
 
-    async function enterApp(user, role) {
+    async function enterApp(user, role, accountId = "") {
       currentUser = user;
+      currentAccountId = /^[1-9][0-9]{11}$/.test(String(accountId)) ? String(accountId) : "";
       currentUserRole = role === "admin" ? "admin" : "user";
       await loadStoreFromServer();
       const trainingCfg = saveKenoTrainingConfig({ enabled: false });
@@ -4334,12 +4392,13 @@
     async function logout() {
       try { await api("/api/logout", "POST"); } catch {}
       currentUser = null;
+      currentAccountId = ""; renderAccountIdentity();
       currentUserRole = "user";
       storeSaveGeneration += 1;
       pendingStoreSave = null;
       lastSavedStoreSnapshotText = "";
       store = emptyStore();
-      selectedPaypalTopupPackageId = PAYPAL_TOPUP_PACKAGES[1]?.id || PAYPAL_TOPUP_PACKAGES[0]?.id || "";
+      selectedPaypalTopupPackageId = PAYPAL_TOPUP_PACKAGES[0]?.id || "";
       luckyWheelRotation = 0;
       luckyWheelSpinning = false;
       luckyWheelAutoMode = false;
@@ -6093,7 +6152,7 @@
         const res = await api("/api/login", "POST", { username: user, password: pass });
         if (document.getElementById("rememberCreds").checked) saveRememberedCreds(user, pass);
         else clearRememberedCreds();
-        await enterApp(res.username, res.role);
+        await enterApp(res.username, res.role, res.accountId);
       } catch (e) {
         setAuthMsg(e.message, "warn");
       } finally {
@@ -6144,9 +6203,10 @@
           <option value="off" ${!info.enabled ? "selected" : ""}>Khóa</option>
         `;
         return `
-          <tr data-user="${escapeHtml(u)}" data-role="${escapeHtml(info.role)}" data-enabled="${info.enabled ? "1" : "0"}" data-diamond="${Number(info.diamondBalance || 0)}" data-paypal="${Number(info.paypalBalance || 0)}">
+          <tr data-user="${escapeHtml(u)}" data-account-id="${escapeHtml(info.accountId || "")}" data-role="${escapeHtml(info.role)}" data-enabled="${info.enabled ? "1" : "0"}" data-diamond="${Number(info.diamondBalance || 0)}" data-paypal="${Number(info.paypalBalance || 0)}">
             <td data-label="Tài khoản" class="account-user-cell">
               ${editable ? `<input class="acc-username" value="${escapeHtml(u)}" />` : `<strong class="account-username" title="${escapeHtml(u)}">${escapeHtml(u)}</strong>`}
+              <small class="account-id-text">ID: ${escapeHtml(info.accountId || "—")}</small>
               ${u === currentUser ? '<span class="account-self" title="Tài khoản đang đăng nhập; không đổi tên tại đây">Bạn</span>' : ""}
             </td>
             <td data-label="Vai trò">${editable ? `<select class="acc-role">${roleOptions}</select>` : `<span class="account-role">${info.role === "admin" ? "Admin" : "Người dùng"}</span>`}</td>
@@ -6165,11 +6225,18 @@
         `;
       }).join("");
       document.getElementById("accountRows").innerHTML = rows || `<tr><td colspan="7">Chưa có tài khoản.</td></tr>`;
+      filterAccountRows();
     }
 
+    function filterAccountRows() {
+      const query = (document.getElementById("accountSearch")?.value || "").trim().toLowerCase();
+      document.querySelectorAll("#accountRows tr[data-user]").forEach(row => row.hidden = !`${row.dataset.user} ${row.dataset.accountId}`.toLowerCase().includes(query));
+    }
+    document.getElementById("accountSearch")?.addEventListener("input", filterAccountRows);
     async function openAccountManager() {
       if (currentUserRole !== "admin") return;
       accountEditMode = false;
+      document.getElementById("accountSearch").value = "";
       updateEditModeButton();
       try {
         await renderAccountRows();
@@ -6194,10 +6261,6 @@
       if (s) { s.disabled = !accountEditMode; s.hidden = !accountEditMode; }
     }
 
-    document.getElementById("openAccountBtn").onclick = () => {
-      closeSideMenu();
-      openAccountManager();
-    };
     document.getElementById("closeAccountBtn").onclick = closeAccountManager;
     updateEditModeButton();
     document.getElementById("toggleAccountEditBtn").onclick = async () => {
@@ -6236,14 +6299,14 @@
 
           let targetUser = user;
           if (changedName) {
-            await api("/api/admin/rename-user", "POST", { username: user, newUsername: newUser });
+            await api("/api/admin/rename-user", "POST", { username: user, accountId: tr.dataset.accountId, newUsername: newUser });
             targetUser = newUser;
           }
           if (changedUser) {
-            await api("/api/admin/update-user", "POST", { username: targetUser, role: newRole, enabled: access });
+            await api("/api/admin/update-user", "POST", { username: targetUser, accountId: tr.dataset.accountId, role: newRole, enabled: access });
           }
           if (changedAsset) {
-            await api("/api/admin/update-assets", "POST", { username: targetUser, diamond, paypal });
+            await api("/api/admin/update-assets", "POST", { username: targetUser, accountId: tr.dataset.accountId, diamond, paypal });
             if (user === currentUser || targetUser === currentUser) {
               store.diamondBalance = diamond;
               store.paypalBalance = paypal;
@@ -6288,7 +6351,7 @@
         if (!Number.isInteger(days) || days < 0 || days > 3660) return updateAccountMsg("Số ngày cần từ 0 đến 3660.", "warn");
         try {
           const expiresAt = new Date(getSyncedNowMs() + days * 86400000).toISOString();
-          await api("/api/admin/vip", "POST", { username: user, expiresAt });
+          await api("/api/admin/vip", "POST", { username: user, accountId: tr.dataset.accountId, expiresAt });
           if (user === currentUser) applyServerWallet((await api("/api/store")).store);
           return updateAccountMsg(days ? `Đã cấp VIP ${days} ngày cho ${user}.` : `Đã thu hồi VIP của ${user}.`, "ok");
         } catch (error) { return updateAccountMsg(error.message, "warn"); }
@@ -6299,7 +6362,7 @@
         const nextPass = prompt(`Nhập mật khẩu mới cho ${user}:`) || "";
         if (nextPass.length < 4) return updateAccountMsg("Mật khẩu mới tối thiểu 4 ký tự.", "warn");
         try {
-          await api("/api/admin/reset-password", "POST", { username: user, newPassword: nextPass });
+          await api("/api/admin/reset-password", "POST", { username: user, accountId: tr.dataset.accountId, newPassword: nextPass });
           return updateAccountMsg(`Đã đổi mật khẩu cho ${user}.`, "ok");
         } catch (err) {
           return updateAccountMsg(err.message, "warn");
@@ -6310,7 +6373,7 @@
         if (user === currentUser) return updateAccountMsg("Không thể xóa tài khoản đang đăng nhập.", "warn");
         if (!confirm(`Xóa tài khoản ${user}?`)) return;
         try {
-          await api("/api/admin/delete-user", "POST", { username: user });
+          await api("/api/admin/delete-user", "POST", { username: user, accountId: tr.dataset.accountId });
           await renderAccountRows();
           return updateAccountMsg(`Đã xóa tài khoản ${user}.`, "ok");
         } catch (err) {
@@ -6343,7 +6406,7 @@
       try {
         const me = await api("/api/me");
         if (me.ok) {
-          await enterApp(me.username, me.role);
+          await enterApp(me.username, me.role, me.accountId);
           return;
         }
       } catch {}
@@ -6688,3 +6751,28 @@
       else stopKenoTrainingLoop();
     }
 
+
+// Authenticated presence is scoped to this tab; activity only changes display status.
+(() => {
+  const tabId=[...crypto.getRandomValues(new Uint8Array(12))].map(n=>n.toString(16).padStart(2,"0")).join("");
+  let owner="",timer=null,request=null,epoch=0,lastInput=Date.now(),lastSent="";
+  const identity=()=>currentUser?`${currentAccountId}:${currentUser}`:"";
+  const state=()=>!document.hidden&&Date.now()-lastInput<300000?"active":"idle";
+  function stop(){clearTimeout(timer);request?.abort();request=null;epoch++;lastSent="";}
+  async function send(){
+    const user=identity();if(user!==owner){stop();owner=user;lastInput=Date.now();}if(!user)return;
+    if(request)return;
+    clearTimeout(timer);const generation=epoch,controller=new AbortController();request=controller;
+    const timeout=setTimeout(()=>controller.abort(),10000),mode=state();
+    try{const response=await fetch("/api/presence",{method:"POST",credentials:"same-origin",cache:"no-store",signal:controller.signal,headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:new URLSearchParams({tabId,state:mode})});if(response.ok&&generation===epoch&&identity()===user)lastSent=mode;}
+    catch{}finally{clearTimeout(timeout);if(generation===epoch&&identity()===user){request=null;timer=setTimeout(send,25000);}}
+  }
+  function input(event){if(!event.isTrusted)return;lastInput=Date.now();if(lastSent==="idle"&&!document.hidden)void send();}
+  for(const event of ["pointerdown","pointermove","keydown","wheel","touchstart"])document.addEventListener(event,input,{passive:true});
+  document.addEventListener("visibilitychange",()=>void send());
+  window.addEventListener("pageshow",()=>void send());
+  window.addEventListener("online",()=>void send());
+  window.addEventListener("pagehide",()=>{stop();if(identity())navigator.sendBeacon("/api/presence",new URLSearchParams({tabId,state:"offline"}));});
+  window.addEventListener("dvlf:auth-changed",()=>{stop();owner=identity();lastInput=Date.now();if(owner)void send();});
+  void send();
+})();

@@ -8,11 +8,11 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
-  <link rel="stylesheet" href="/vietlott-web-extra.css?v=timeline-scale-button-20261017" />
+  <link rel="stylesheet" href="/vietlott-web-extra.css?v=live-jackpot-reset-20261023" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
-  <link rel="preload" href="/vietlott-web-data.js?v=power-filter-reset-20261018" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js?v=power-filter-reset-20261018" as="script" />
+  <link rel="preload" href="/vietlott-web-data.js?v=live-jackpot-reset-20261023" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=live-jackpot-reset-20261023" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -163,7 +163,7 @@
           class="brand-reload-btn"
           type="button"
           data-tooltip="DVLF là tên viết tắt của Deep Vietlott Fast"
-          aria-label="DVLF - Deep Vietlott Fast. Bấm để cập nhật lại trang."
+          aria-label="DVLF - Deep Vietlott Fast. Bấm để tải lại Trang chủ."
         >DVLF</button>
       </div>
       <div class="top-right">
@@ -278,6 +278,7 @@
               <span>Nhập Code</span><span class="settings-code-chevron" aria-hidden="true">›</span>
             </button>
             <form id="settingsCodeForm" class="settings-code-form" hidden>
+              <span class="account-id-text" data-current-account-id hidden></span>
               <label class="settings-code-label" for="settingsCodeInput">Code của bạn</label>
               <div class="settings-code-entry">
                 <input id="settingsCodeInput" type="text" placeholder="Nhập code…" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="64" required aria-describedby="settingsCodeMessage" />
@@ -306,9 +307,9 @@
       <div class="side-section-label">TÀI KHOẢN</div>
       <div class="side-account-card">
         <span class="side-account-icon" aria-hidden="true">👤</span>
-        <div><span>Đang đăng nhập</span><strong id="whoami">Chưa đăng nhập</strong></div>
+        <div><span>Đang đăng nhập</span><strong id="whoami">Chưa đăng nhập</strong><button type="button" class="account-id-chip" data-current-account-id data-copy-account-id hidden title="Sao chép ID tài khoản"></button></div>
       </div>
-      <button id="openAccountBtn" class="side-link" type="button" style="display:none;"><span class="icon">⚙</span><span>Quản lý tài khoản</span></button>
+      <button id="accountStatsMenuBtn" class="side-link" type="button"><span class="icon" aria-hidden="true">▥</span><span>Biểu đồ</span></button>
       <div class="side-section-label">THÔNG TIN</div>
       <button id="homeMenuBtn" class="side-link active" type="button"><span class="icon">🏠</span><span>Trang chủ</span></button>
       <button id="paypalDepositMenuBtn" class="side-link" type="button"><span class="icon">💳</span><span>Nạp tiền tài khoản</span></button>
@@ -329,7 +330,8 @@
         <nav class="admin-nav" aria-label="Menu quản trị">
           <button type="button" data-admin-view="overview"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Tổng quan</button>
           <button type="button" data-admin-view="codes" class="is-active"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="16" cy="8" r="5"/><path d="m12 12-9 9v-4l3-3h3l3-3"/><path d="m16 6 2 2"/></svg></span>Quản lý Code</button>
-          <button type="button" data-admin-view="users"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m1 3a6 6 0 0 1 4 6v1"/></svg></span>Người dùng</button>
+          <button type="button" data-admin-view="users"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m1 3a6 6 0 0 1 4 6v1"/></svg></span>Quản Lý Use</button>
+          <button type="button" data-admin-view="deposits"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span>Duyệt nạp tiền<small id="adminDepositNavBadge" hidden></small></button>
           <button type="button" data-admin-view="stats"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="10" y="7" width="5" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></span>Thống kê</button>
           <button type="button" data-admin-view="settings"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3L7 4Z" transform="translate(0 2)"/><circle cx="12" cy="12" r="3"/></svg></span>Cài đặt</button>
         </nav>
@@ -394,8 +396,31 @@
           </div>
         </section>
         <section data-admin-pane="overview" class="admin-card" hidden><h2>Tổng quan hệ thống</h2><div id="adminOverviewStats" class="admin-summary-grid"></div><button type="button" class="admin-primary" data-admin-view="codes">Quản lý Code →</button></section>
-        <section data-admin-pane="users" class="admin-card" hidden><div class="admin-list-head"><h2>Người dùng</h2><button id="adminManageUsersBtn" type="button">Quản lý tài khoản</button></div><div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Truy cập</th><th>Kim cương</th><th>PayPal</th></tr></thead><tbody id="adminUserRows"></tbody></table></div></section>
+        <section data-admin-pane="users" class="admin-card admin-users-card" hidden>
+          <div class="admin-list-head"><div><h2>Quản Lý Use</h2><p id="adminUsersCount" class="admin-users-count"></p></div><div class="admin-users-tools"><button id="adminUsersRefresh" type="button">↻ Làm mới</button><button id="adminUsersEditCancel" type="button" hidden>Hủy</button><button id="adminUsersEdit" type="button" aria-pressed="false">Chỉnh Sửa</button></div></div>
+          <p id="adminUsersEditMessage" class="admin-users-edit-message" role="status" hidden></p>
+          <div class="admin-users-metrics" id="adminUsersMetrics"></div>
+          <form id="adminUserSearchForm" class="admin-search"><input id="adminUserSearch" type="search" placeholder="Tìm tài khoản, ID hoặc địa chỉ mạng" aria-label="Tìm tài khoản, ID hoặc địa chỉ mạng" autocomplete="off" /><button id="adminUsersFilterToggle" type="button" aria-expanded="false" aria-controls="adminUsersFilters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10m-7 6h4"/></svg>Lọc<span id="adminUsersFilterBadge" hidden></span></button><button type="submit">Tìm kiếm</button></form>
+          <div id="adminUsersFilters" class="admin-users-filters" aria-label="Bộ lọc tài khoản" hidden>
+            <label for="adminUserRoleFilter">Vai trò<select id="adminUserRoleFilter"><option value="">Tất cả vai trò</option><option value="admin">Admin</option><option value="user">Người dùng</option></select></label>
+            <label for="adminUserVipFilter">VIP<select id="adminUserVipFilter"><option value="">Tất cả VIP</option><option value="active">VIP còn hiệu lực</option><option value="expired">VIP hết hạn</option><option value="none">Chưa có VIP</option></select></label>
+            <label for="adminUserAccessFilter">Truy cập<select id="adminUserAccessFilter"><option value="">Tất cả trạng thái</option><option value="active">Đang Hoạt Động</option><option value="idle">Đang Treo Máy</option><option value="offline">Đang offline</option></select></label>
+            <label for="adminUserDeviceFilter">Thiết bị<select id="adminUserDeviceFilter"><option value="">Tất cả thiết bị</option></select></label>
+            <label for="adminUserBrowserFilter">Trình duyệt<select id="adminUserBrowserFilter"><option value="">Tất cả trình duyệt</option></select></label>
+            <div class="admin-users-filter-footer"><span id="adminUsersFilterResult" role="status"></span><button id="adminUsersFilterClear" type="button" disabled>Xóa bộ lọc</button></div>
+          </div>
+          <div class="admin-user-legend" aria-label="Chú thích trạng thái"><span><i class="is-active"></i>Đang Hoạt Động</span><span><i class="is-idle"></i>Đang Treo Máy</span><span><i class="is-offline"></i>Đang offline</span></div>
+          <div class="admin-table-scroll"><table class="admin-table admin-users-table"><thead><tr><th>Tài khoản / ID</th><th>Vai trò</th><th>VIP</th><th>Truy Cập</th><th>Địa chỉ mạng</th><th>Thiết bị sử dụng</th><th>Trình duyệt</th><th>Kim cương</th><th>PayPal</th></tr></thead><tbody id="adminUserRows"></tbody></table></div>
+        </section>
         <section data-admin-pane="stats" class="admin-card" hidden><h2>Thống kê Code</h2><div id="adminCodeStats" class="admin-summary-grid"></div><p class="admin-note">Mã đang hoạt động: đã kích hoạt, còn hạn và còn lượt dùng.</p></section>
+        <section data-admin-pane="deposits" class="admin-card" hidden>
+          <div class="admin-list-head admin-deposit-head"><div><h2>Yêu cầu nạp tiền</h2><p>Đối chiếu chuyển khoản trước khi xác nhận.</p></div><div class="admin-deposit-tools"><button id="adminDepositNotifications" type="button" aria-label="Thông báo nạp tiền" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="adminDepositNotificationBadge" hidden></span></button><button id="adminDepositHistoryOpen" type="button" aria-label="Lịch sử duyệt nạp" aria-haspopup="dialog" aria-controls="adminDepositHistoryDialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v5l3 2"/></svg><span>Lịch sử</span></button><button id="adminDepositRefresh" type="button" aria-label="Làm mới yêu cầu nạp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7a9 9 0 0 0-15-2L3 8m0-5v5h5M4 17a9 9 0 0 0 15 2l2-3m0 5v-5h-5"/></svg><span>Làm mới</span></button></div></div>
+          <details class="admin-deposit-settings"><summary>Thông tin nhận chuyển khoản</summary><form id="adminDepositSettingsForm"><label for="adminDepositInstructions">Ngân hàng / Ví, số tài khoản, chủ tài khoản và hướng dẫn chuyển tiền</label><textarea id="adminDepositInstructions" maxlength="2000" rows="4" placeholder="Nhập thông tin nhận tiền để người chơi xem khi nạp thủ công"></textarea><button type="submit" class="admin-primary">Lưu hướng dẫn</button></form></details>
+          <div class="admin-deposit-toolbar"><span class="admin-deposit-pending-label"><i aria-hidden="true"></i>Chờ duyệt</span><select id="adminDepositStatus" aria-label="Trạng thái yêu cầu" hidden><option value="PENDING">Chờ duyệt</option></select><span id="adminDepositCount"></span></div>
+          <div id="adminDepositRows" class="admin-deposit-list" aria-live="polite"></div>
+          <div class="admin-pagination"><span id="adminDepositPage"></span><div><button id="adminDepositPrev" type="button" aria-label="Trang yêu cầu trước">‹</button><button id="adminDepositNext" type="button" aria-label="Trang yêu cầu tiếp">›</button></div></div>
+          <dialog id="adminDepositHistoryDialog" class="admin-deposit-dialog" aria-labelledby="adminDepositHistoryTitle"><div class="admin-deposit-dialog-head"><div><h2 id="adminDepositHistoryTitle">Lịch sử duyệt nạp</h2><p id="adminDepositHistoryCount"></p></div><button id="adminDepositHistoryClose" type="button" aria-label="Đóng lịch sử duyệt nạp">×</button></div><div class="admin-deposit-history-filter"><label for="adminDepositHistoryStatus">Kết quả</label><select id="adminDepositHistoryStatus"><option value="PAID">Đã cộng tiền</option><option value="REJECTED">Đã từ chối</option></select></div><div id="adminDepositHistoryRows" class="admin-deposit-history-scroll"></div><div class="admin-pagination"><span id="adminDepositHistoryPage"></span><div><button id="adminDepositHistoryPrev" type="button" aria-label="Trang lịch sử trước">‹</button><button id="adminDepositHistoryNext" type="button" aria-label="Trang lịch sử tiếp">›</button></div></div></dialog>
+        </section>
         <section data-admin-pane="settings" class="admin-card" hidden><h2>Cài đặt</h2><div class="admin-settings-row"><div><strong>Giao diện</strong><p>Sáng | Tối</p></div><button id="adminThemeBtn" type="button">Đổi giao diện</button></div><div class="admin-settings-row"><div><strong>Cài đặt web</strong><p>Âm lượng, nhạc nền và tài khoản</p></div><button id="adminWebSettingsBtn" type="button">Mở cài đặt</button></div></section>
       </div>
     </section>
@@ -407,6 +432,27 @@
       <div class="admin-reclaim-actions"><button id="adminReclaimYesBtn" type="button">Có</button><button id="adminReclaimNoBtn" type="button" autofocus>Không</button></div>
     </dialog>
     <div id="adminCodeSuccess" class="admin-code-success" role="status" aria-live="polite" aria-atomic="true" hidden><div class="admin-code-success-card"><span class="admin-code-success-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></span><strong>Đã Tạo</strong></div></div>
+    <section id="accountStatsSection" class="account-stats" hidden aria-labelledby="accountStatsTitle">
+      <header class="account-stats-head"><div><h1 id="accountStatsTitle">TỔNG QUAN & THỐNG KÊ</h1></div><button id="accountStatsRefresh" type="button" class="secondary">↻ Làm mới</button></header>
+      <div class="account-stats-toolbar">
+        <div class="account-stats-period-field"><span id="accountStatsPeriodLabel">Khoảng thời gian</span><div class="account-stats-periods" role="group" aria-labelledby="accountStatsPeriodLabel"><button type="button" data-account-period="all" aria-pressed="true">Tổng</button><button type="button" data-account-period="day" aria-pressed="false">Ngày</button><button type="button" data-account-period="week" aria-pressed="false">Tuần</button><button type="button" data-account-period="month" aria-pressed="false">Tháng</button><button type="button" data-account-period="year" aria-pressed="false">Năm</button></div></div>
+        <label>Ngày tham chiếu<input id="accountStatsDate" type="date" min="2000-01-01" max="2100-12-31" /></label>
+        <label>Loại xổ số<select id="accountStatsGame"><option value="all" selected>Tất Cả</option><option value="LOTO_5_35">Loto 5/35</option><option value="LOTO_6_45">Mega 6/45</option><option value="LOTO_6_55">Power 6/55</option><option value="KENO">Keno</option></select></label>
+        <label>Phương pháp<select id="accountStatsMethod"><option value="all" selected>Tất Cả</option><option value="web">Pipeline web</option><option value="random">Ngẫu nhiên</option><option value="bayesian">Bayesian</option><option value="ewma">EWMA</option></select></label>
+        <label id="accountStatsLevelLabel" hidden>Bậc Keno<select id="accountStatsLevel"><option value="1">Bậc 1</option><option value="2">Bậc 2</option><option value="3">Bậc 3</option><option value="4">Bậc 4</option><option value="5">Bậc 5</option><option value="6">Bậc 6</option><option value="7">Bậc 7</option><option value="8">Bậc 8</option><option value="9">Bậc 9</option><option value="10" selected>Bậc 10</option></select></label>
+      </div>
+      <p id="accountStatsStatus" class="account-stats-status" role="status" aria-live="polite" hidden></p>
+      <div id="accountStatsCards" class="account-stats-cards"></div>
+      <div class="account-stats-charts">
+        <article id="accountStatsCarousel" class="account-stats-chart-card account-stats-carousel" role="region" aria-roledescription="băng chuyền" aria-label="Nguồn Tiền và Nguồn Vé">
+          <div id="accountStatsMoneyPanel" class="account-stats-panel" role="group" aria-roledescription="trang biểu đồ" aria-label="1 / 2 · Nguồn Tiền"><header><h2>Nguồn Tiền</h2><div id="accountStatsMoneyChartLegend" class="account-stats-legend"></div></header><div id="accountStatsMoneyChart"></div></div>
+          <div id="accountStatsTicketPanel" class="account-stats-panel" role="group" aria-roledescription="trang biểu đồ" aria-label="2 / 2 · Nguồn Vé" hidden><header><h2>Nguồn Vé</h2><div id="accountStatsTicketChartLegend" class="account-stats-legend"></div><span id="accountStatsWinRate" class="account-stats-chip">Tỉ Lệ: —</span></header><div id="accountStatsTicketChart"></div></div>
+          <nav class="account-stats-carousel-nav" aria-label="Chuyển biểu đồ"><button id="accountStatsPrevious" type="button" aria-label="Biểu đồ trước" aria-controls="accountStatsMoneyPanel accountStatsTicketPanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><span id="accountStatsSlideLabel">1 / 2 · Nguồn Tiền</span><button id="accountStatsRotation" type="button" aria-label="Tạm dừng tự chuyển biểu đồ" aria-pressed="false" title="Tự chuyển mỗi 10 giây">Ⅱ</button><button id="accountStatsNext" type="button" aria-label="Biểu đồ tiếp theo" aria-controls="accountStatsMoneyPanel accountStatsTicketPanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button></nav>
+        </article>
+        <article class="account-stats-chart-card account-stats-method-card"><header><h2>Tỷ Lệ Vé</h2><span class="account-stats-chip">4 phương pháp</span></header><div id="accountStatsMethodChart" class="account-stats-method-chart"></div></article>
+      </div>
+      <details class="account-stats-table"><summary>Chi tiết theo thời gian</summary><div class="account-stats-table-scroll"><table><thead><tr><th scope="col">Thời gian</th><th scope="col">Tiền nạp (₫)</th><th scope="col">Tiền Vé (₫)</th><th scope="col">Tiền Thưởng (₫)</th><th scope="col">Vé mua</th><th scope="col">Vé trúng</th></tr></thead><tbody id="accountStatsRows"></tbody></table></div></details>
+    </section>
     <section id="dataTableSection" class="data-table-board" hidden>
       <div class="data-table-head">
         <div>
@@ -652,33 +698,58 @@
       <div class="deposit-head">
         <div class="deposit-heading">
           <span class="deposit-wallet-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v11H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13v2M20 10h-5v5h5M16 12.5h1" /></svg></span>
-          <div><h2 id="depositTitle">Nạp tiền PayPal</h2><p>Nạp PayPal tự động qua thanh toán ngân hàng.</p></div>
+          <div><h2 id="depositTitle">Nạp tiền PayPal</h2><button type="button" class="account-id-chip" data-current-account-id data-copy-account-id hidden title="Sao chép ID tài khoản"></button></div>
         </div>
-        <div class="deposit-balance-box"><span class="deposit-balance-label">Số dư hiện tại</span><div><strong id="depositPaypalBalance">0</strong><span>PayPal</span></div></div>
+        <div class="deposit-head-actions">
+          <div class="deposit-balance-box"><span class="deposit-balance-label">Số dư hiện tại</span><div><strong id="depositPaypalBalance">0</strong><span>PayPal</span></div></div>
+          <button id="depositHistoryOpen" type="button" class="deposit-history-button" aria-haspopup="dialog" aria-controls="depositHistoryDialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4zM8 3v4m8-4v4M8 11h8m-8 4h5"/></svg>Lịch Sử Nạp</button>
+        </div>
+      </div>
+      <div class="deposit-mode-tabs" role="tablist" aria-label="Hình thức nạp tiền">
+        <button id="depositManualTab" type="button" role="tab" aria-selected="true" aria-controls="depositManualPane" data-deposit-mode="manual">Nạp Thủ Công</button>
+        <button id="depositFastTab" type="button" role="tab" aria-selected="false" aria-controls="depositFastPane" data-deposit-mode="fast" tabindex="-1">Nạp Nhanh QR</button>
       </div>
       <div class="deposit-grid">
         <div class="deposit-package-card">
-          <div class="deposit-card-heading"><h3><span class="deposit-step">1</span>Chọn số tiền</h3><span class="deposit-bonus-hint">Thưởng đến 2,5%</span></div>
+          <div class="deposit-card-heading"><h3><span class="deposit-step">1</span>Chọn số tiền</h3><span class="deposit-bonus-hint">Thưởng đến 5%</span></div>
           <div class="deposit-rate-caption">Tỷ lệ quy đổi <strong>1 VNĐ = 1,25 PayPal</strong></div>
-          <div id="depositPackageGrid" class="deposit-package-grid" role="group" aria-label="Chọn gói nạp nhanh"></div>
-          <label class="deposit-field deposit-custom-amount" for="depositAmount"><span>Hoặc nhập số tiền <small>VNĐ</small></span><input id="depositAmount" form="paypalDepositForm" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" placeholder="Ví dụ: 50.000" aria-describedby="depositAmountHint" /><small id="depositAmountHint">Tối thiểu 10.000 VNĐ, bội số 1.000 VNĐ.</small></label>
-          <div class="deposit-selection-meta"><span>Lựa chọn hiện tại</span><output id="depositSelectedPackage">Chưa chọn gói</output></div>
-          <div id="depositRatePreview" class="deposit-rate-preview" aria-live="polite" aria-atomic="true"></div>
+          <div id="depositPackageGrid" class="deposit-package-grid" role="group" aria-label="Chọn gói nạp"></div>
+          <div class="deposit-amount-panel">
+            <label id="depositCustomAmountField" class="deposit-field deposit-custom-amount" for="depositAmount" hidden><span>Nhập số tiền</span><span class="deposit-amount-input"><input id="depositAmount" form="paypalDepositForm" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" placeholder="Min 1.000.000 - 100.000.000" aria-describedby="depositAmountHint" /><span aria-hidden="true">VNĐ</span></span><small id="depositAmountHint">Nạp tối thiểu Từ 1.000.000 đến tối đa 100.000.000 VNĐ, Bội số 100.000 VNĐ.</small></label>
+          </div>
         </div>
-        <form id="paypalDepositForm" class="deposit-form-card" novalidate>
+        <div class="deposit-form-card deposit-method-card">
+        <section id="depositManualPane" role="tabpanel" aria-labelledby="depositManualTab">
+          <div class="deposit-card-heading"><h3><span class="deposit-step">2</span>Thông tin chuyển tiền</h3><span class="deposit-required-hint">Admin xác nhận</span></div>
+          <div id="depositManualInstructions" class="deposit-request-note deposit-transfer-instructions" role="status">Đang tải thông tin nhận tiền…</div>
+          <form id="manualDepositForm">
+            <div class="deposit-transfer-memo">
+              <label for="depositManualAccountId">Nội dung chuyển khoản</label>
+              <div class="deposit-memo-input"><input id="depositManualAccountId" name="transferMemo" type="text" readonly autocomplete="off" aria-label="Nội dung chuyển khoản là ID tài khoản đang đăng nhập" /><button id="depositMemoCopy" type="button" class="deposit-bank-copy" aria-label="Sao chép nội dung chuyển khoản"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Sao chép</span></button></div>
+            </div>
+          </form>
+        </section>
+        <section id="depositFastPane" role="tabpanel" aria-labelledby="depositFastTab" hidden>
+        <form id="paypalDepositForm" novalidate>
           <div class="deposit-card-heading"><h3><span class="deposit-step">2</span>Thanh toán VNPAY-QR</h3><span id="depositGatewayBadge" class="deposit-required-hint">Đang kiểm tra kết nối…</span></div>
           <div class="deposit-vnpay-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M4 16V4h12M32 4h12v12M44 32v12H32M16 44H4V32M10 10h8v8h-8zM30 10h8v8h-8zM10 30h8v8h-8zM26 26h6v6h-6zM36 26v12M26 38h5" /></svg><strong>VNPAY<span>-QR</span></strong></div>
           <ol class="deposit-payment-steps"><li>Chọn gói nạp hoặc nhập số tiền.</li><li>Mở VNPAY-QR và quét mã bằng ứng dụng ngân hàng.</li><li>Số dư và thưởng tự cập nhật khi giao dịch được xác nhận.</li></ol>
           <div id="depositGatewayNotice" class="deposit-request-note" role="status">Đang kiểm tra dịch vụ thanh toán…</div>
           <div class="deposit-form-actions"><button id="depositCreateBtn" type="submit" disabled>Tiếp tục với VNPAY-QR <span aria-hidden="true">→</span></button><button id="depositClearBtn" type="button" class="secondary">Chọn lại</button></div>
           <div id="depositPaymentPanel" class="deposit-payment-panel" hidden></div>
-          <div id="depositMsg" class="deposit-message" role="status" aria-live="polite" hidden></div>
         </form>
+        </section>
+        </div>
       </div>
-      <div class="deposit-history-card">
-        <div class="deposit-history-head"><h3>Lịch sử nạp tiền</h3><span id="depositHistoryCount" class="deposit-history-count">0 yêu cầu</span></div>
+      <div class="deposit-checkout-card">
+        <div id="depositRatePreview" class="deposit-rate-preview" aria-live="polite" aria-atomic="true"></div>
+        <div class="deposit-form-actions deposit-checkout-actions"><button id="depositManualSubmit" type="submit" form="manualDepositForm" disabled>Gửi yêu cầu nạp <span aria-hidden="true">→</span></button></div>
+        <div id="depositMsg" class="deposit-message" role="status" aria-live="polite" hidden></div>
+      </div>
+      <dialog id="depositHistoryDialog" class="deposit-history-dialog" aria-labelledby="depositHistoryTitle">
+        <div class="deposit-history-head"><div><h3 id="depositHistoryTitle">Lịch Sử Nạp</h3><span id="depositHistoryCount" class="deposit-history-count">0 giao dịch</span></div><button id="depositHistoryClose" type="button" class="deposit-history-close" aria-label="Đóng lịch sử nạp">×</button></div>
         <div id="depositHistoryList" class="deposit-history-list"></div>
-      </div>
+      </dialog>
     </section>
     <section id="liveBoardSection" class="live-board">
       <div class="live-board-head">
@@ -737,13 +808,13 @@
           <button id="predictModeChartTab" type="button" class="predict-tab-btn" data-predict-mode-tab="charts">Biểu đồ</button>
           <button id="predictModeDashboardTab" type="button" class="predict-tab-btn" data-predict-mode-tab="dashboard">Dashboard</button>
           <button id="predictModeAnalysisTab" type="button" class="predict-tab-btn" data-predict-mode-tab="analysis">Phân tích</button>
-          <button id="predictModeEffectivenessTab" type="button" class="predict-tab-btn" data-predict-mode-tab="effectiveness"><span>Hiệu Quả Dự Đoán</span> <span>&amp; Thực Tế</span></button>
+          <button id="predictModeEffectivenessTab" type="button" class="predict-tab-btn" data-predict-mode-tab="effectiveness"><span>Dự Đoán</span> <span>&amp; Thực Tế</span></button>
         </div>
       </section>
       <section id="predictRootEffectiveness" class="card predict-card predict-root effectiveness-board" aria-labelledby="effectivenessTitle" hidden>
         <div class="effectiveness-overview">
           <div class="effectiveness-head">
-            <h2 id="effectivenessTitle">Hiệu Quả Dự Đoán &amp; Thực Tế</h2>
+            <h2 id="effectivenessTitle">Dự Đoán &amp; Thực Tế</h2>
           </div>
           <div class="effectiveness-toolbar">
             <label>Loại xổ số
@@ -782,13 +853,12 @@
                   <div class="effectiveness-admin-body">
                     <div class="effectiveness-admin-controls">
                       <label class="effectiveness-enable"><span>Theo Dõi Cấu Hình</span><span class="effectiveness-tracking-switch"><input id="effectivenessEnabled" type="checkbox" role="switch" aria-label="Theo Dõi Cấu Hình" /><span class="effectiveness-tracking-state" aria-hidden="true"></span></span></label>
-                      <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 1.000.000</small></span><input id="effectivenessTicketCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" max="1000000" value="1" placeholder="Max 1.000.000" aria-describedby="effectivenessTicketMax effectivenessTicketHint" /></label>
+                      <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 1.000.000</small></span><input id="effectivenessTicketCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" max="1000000" value="1" placeholder="Max 1.000.000" aria-describedby="effectivenessTicketMax" /></label>
                       <div class="effectiveness-admin-actions">
                         <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
                         <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
                       </div>
                     </div>
-                    <p id="effectivenessTicketHint" class="effectiveness-admin-copy">Tự khóa khi server chạy · Cấu hình mới áp dụng từ kỳ chưa khóa.</p>
                   </div>
                 </details>
                 <details id="effectivenessHelpPanel" class="effectiveness-help effectiveness-help-panel" role="dialog" aria-labelledby="effectivenessHelpTitle" tabindex="-1">
@@ -809,26 +879,6 @@
         <div id="effectivenessKenoOverview" hidden></div>
         <div id="effectivenessComparison"></div>
         <div id="effectivenessTimeline" class="effectiveness-timeline" hidden></div>
-        <details id="effectivenessLab" class="effectiveness-lab effectiveness-fold">
-          <summary title="Thử cấu hình · Theo dõi kỳ mới"><strong>Phòng thử thuật toán</strong><span class="effectiveness-fold-toggle" aria-hidden="true"><span class="when-closed">Mở rộng</span><span class="when-open">Thu gọn</span></span></summary>
-          <div class="effectiveness-lab-body">
-            <p class="effectiveness-lab-intro">So sánh 6 cấu hình cùng 4 đối chứng, chọn ứng viên bằng các kỳ đầu rồi kiểm tra ở các kỳ phía sau. Tiếp tục theo dõi ứng viên bằng bộ số khóa trước kỳ quay mới.</p>
-            <div id="effectivenessLabAdmin" class="effectiveness-lab-controls" hidden>
-              <label>Vé / phương pháp <input id="effectivenessLabTickets" type="number" min="1" max="10" step="1" value="3" /></label>
-              <label>Kỳ chọn cấu hình <input id="effectivenessLabValidation" type="number" min="5" max="50" step="1" value="20" /></label>
-              <label>Kỳ kiểm tra <input id="effectivenessLabTest" type="number" min="5" max="50" step="1" value="30" /></label>
-              <button id="effectivenessLabRun" type="button" class="secondary">Chạy thử</button>
-              <button id="effectivenessLabCancel" type="button" class="secondary" hidden>Hủy lượt thử</button>
-            </div>
-            <div id="effectivenessLabStatus" class="effectiveness-lab-status" role="status" aria-live="polite">Mở phòng thử để tải kết quả gần nhất của tài khoản.</div>
-            <div id="effectivenessLabResult"></div>
-            <div id="effectivenessLabTracking"></div>
-            <details id="effectivenessLabHistoryDetails" class="effectiveness-lab-detail effectiveness-lab-history">
-              <summary>Lượt thử đã lưu <span id="effectivenessLabHistoryCount">0 lượt</span></summary>
-              <div id="effectivenessLabHistory"></div>
-            </details>
-          </div>
-        </details>
         <div class="effectiveness-history-head">
           <h3>Dự Đoán &amp; Thực Tế</h3>
           <nav id="effectivenessKenoLevels" class="effectiveness-keno-levels" aria-label="Chọn bậc Keno cho đối chiếu từng kỳ" hidden>
@@ -1556,6 +1606,7 @@
           <button id="closeAccountBtn" type="button" class="secondary" style="width:auto;">Đóng</button>
         </div>
       </div>
+      <label class="account-search-label" for="accountSearch">Tìm tài khoản<input id="accountSearch" type="search" placeholder="Tên đăng nhập hoặc ID 12 số" autocomplete="off" /></label>
       <div class="account-table-wrap">
         <table class="account-table">
           <thead>
@@ -1622,13 +1673,14 @@
   <!-- ------ App Scripts --- -->
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
   <script defer src="/vietlott-web-stats.js"></script>
-  <script defer src="/vietlott-web-data.js?v=power-filter-reset-20261018"></script>
-  <script defer src="/vietlott-web-numeric.js?v=ime-unified-20261016"></script>
-  <script defer src="/vietlott-web-effectiveness.js?v=timeline-scale-toggle-20261017"></script>
-  <script defer src="/vietlott-web-payments.js?v=vnpay-automatic-20261017"></script>
-  <script defer src="/vietlott-web-core.js?v=power-filter-reset-20261018"></script>
+  <script defer src="/vietlott-web-data.js?v=live-jackpot-reset-20261023"></script>
+  <script defer src="/vietlott-web-numeric.js?v=deposit-input-cap-20261021-2"></script>
+  <script defer src="/vietlott-web-effectiveness.js?v=remove-algorithm-lab-20261020"></script>
+  <script defer src="/vietlott-web-payments.js?v=admin-deposit-notifications-20261022"></script>
+  <script defer src="/vietlott-web-core.js?v=live-jackpot-reset-20261023"></script>
+  <script defer src="/vietlott-web-account-stats.js?v=statistics-compact-chart-legends-20261020"></script>
   <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
-  <script defer src="/vietlott-web-admin.js?v=code-edit-mode-20261014"></script>
+  <script defer src="/vietlott-web-admin.js?v=inline-user-balances-20261023"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>
 
 </body>
