@@ -35,6 +35,8 @@ class PersonalPredictionWebTests(AccountBalanceTests):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        (cls.work / 'config').mkdir(exist_ok=True)
+        shutil.copy2(ROOT / 'config/tracking-bao-packing-v2.json', cls.work / 'config/tracking-bao-packing-v2.json')
         shutil.copytree(ROOT/'ai', cls.work/'ai', ignore=shutil.ignore_patterns('__pycache__', 'models', 'standalone_predictors'))
         shutil.copytree(ROOT/'backend', cls.work/'backend', ignore=shutil.ignore_patterns('__pycache__', 'bin', 'lib', '*.java'))
         canonical = cls.work/'data/canonical/mega_6_45_all_day.csv'

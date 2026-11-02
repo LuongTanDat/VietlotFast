@@ -55,7 +55,6 @@ public class LottoWebServer {
     private static final String EFFECTIVENESS_SYSTEM_USER = "__effectiveness_system__";
     private static final long LIVE_RESULTS_TIMEOUT_SECONDS = 600;
     private static final long LIVE_RESULTS_PROGRESS_STALE_SECONDS = 120;
-    private static final long KENO_SYNC_TIMEOUT_SECONDS = 150;
     private static final long KENO_PREDICT_TIMEOUT_SECONDS = 180;
     private static final long AI_PREDICT_TIMEOUT_SECONDS = 240;
     private static final long AI_SCORE_TIMEOUT_SECONDS = 420;
@@ -1847,35 +1846,14 @@ public class LottoWebServer {
             return;
         }
 
-        Path projectRoot = rootDir.getParent() == null ? rootDir : rootDir.getParent();
-        Path scriptFile = projectRoot.resolve("Test").resolve("L1.py").normalize();
         Path csvFile = resolveRegistryDataPath(
                 "canonical.KENO.csv",
                 "data/canonical/keno_all_day.csv",
-                projectRoot.resolve("keno_all_day.csv")
+                rootDir.resolve("CSV/canonical/keno_all_day.csv")
         );
-        if (!Files.exists(scriptFile)) {
-            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy Test/L1.py\"}");
-            return;
-        }
-
-        List<String> command = buildPythonCommand(scriptFile);
-        command.add("sync");
-        String syncPayload = runPythonJsonCommand(
-                ex,
-                projectRoot,
-                command,
-                KENO_SYNC_TIMEOUT_SECONDS,
-                "Đồng bộ CSV Keno quá thời gian chờ",
-                null,
-                "Python sync exited with error",
-                "Tiến trình sync CSV Keno bị gián đoạn",
-                "Không chạy được Python sync: ",
-                "{}"
-        );
-        if (syncPayload == null) return;
-        if (!Files.exists(csvFile)) {
-            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Đã sync nhưng chưa tạo được keno_all_day.csv\"}");
+        // Reading prediction history must not trigger backfill, training or CSV writes.
+        if (!Files.isRegularFile(csvFile)) {
+            sendJson(ex, 503, "{\"ok\":false,\"message\":\"Chưa có CSV Keno; hãy cập nhật kết quả trước.\"}");
             return;
         }
 
@@ -1883,7 +1861,7 @@ public class LottoWebServer {
         sendJson(
                 ex,
                 200,
-                "{\"ok\":true,\"status\":" + syncPayload
+                "{\"ok\":true,\"status\":{\"source\":\"canonical\",\"new_rows\":0}"
                 + ",\"csvFileName\":\"" + esc(csvFile.getFileName().toString()) + "\""
                 + ",\"csvText\":\"" + esc(csvText) + "\"}"
         );
@@ -1917,21 +1895,21 @@ public class LottoWebServer {
             return;
         }
 
-        Path projectRoot = rootDir.getParent() == null ? rootDir : rootDir.getParent();
-        Path scriptFile = projectRoot.resolve("Test").resolve("L1.py").normalize();
+        Path scriptFile = rootDir.resolve("ai/predictors/ai_predict.py");
         if (!Files.exists(scriptFile)) {
-            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy Test/L1.py\"}");
+            sendJson(ex, 500, "{\"ok\":false,\"message\":\"Không tìm thấy ai_predict.py\"}");
             return;
         }
 
         List<String> command = buildPythonCommand(scriptFile);
-        command.add("predict_json");
-        command.add(String.valueOf(order));
+        command.add("keno_compat");
         command.add(String.valueOf(bundles));
+        command.add(String.valueOf(order));
+        command.add("--username=" + su.username);
 
         String payload = runPythonJsonCommand(
                 ex,
-                projectRoot,
+                rootDir,
                 command,
                 KENO_PREDICT_TIMEOUT_SECONDS,
                 "Dự đoán Keno quá thời gian chờ",
@@ -2205,6 +2183,7 @@ public class LottoWebServer {
             // Domain errors still carry valid JSON and a nonzero CLI exit code.
             Map<String, String> fields = jsonFields(payload);
             fields.put("canManage", "true");
+            fields.put("baoVersion", "1");
             sendJson(ex, "false".equals(fields.get("ok")) ? 400 : output.exitCode == 0 ? 200 : 500, fieldsJson(fields));
         } catch (IllegalArgumentException invalid) {
             sendJson(ex, 500, "{\"ok\":false,\"message\":\"Dữ liệu đánh giá không hợp lệ.\"}");
@@ -2339,6 +2318,20 @@ public class LottoWebServer {
             command.add("--enabled=" + enabled);
             command.add("--ticket-count=" + count);
             command.add("--actor=" + su.username);
+            String mode = isBlank(values.get("playMode")) ? "normal" : values.get("playMode");
+            if (!("normal".equals(mode) || "bao".equals(mode)) || ("KENO".equals(type) && "bao".equals(mode))) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Cơ cấu vé không hợp lệ cho loại xổ số này.\"}"); return;
+            }
+            command.add("--play-mode=" + mode);
+            for (String field : Arrays.asList("baoLevel", "baoCount")) {
+                if (!isBlank(values.get(field))) {
+                    int value = parseStrictPositiveInt(values.get(field));
+                    if (value < 1 || value > ("baoLevel".equals(field) ? 18 : 1000000)) {
+                        sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mức Bao và Số Bao phải là số nguyên trong giới hạn.\"}"); return;
+                    }
+                    command.add(("baoLevel".equals(field) ? "--bao-level=" : "--bao-count=") + value);
+                }
+            }
         }
         sendEffectivenessResult(ex, command);
     }
@@ -2361,6 +2354,12 @@ public class LottoWebServer {
         List<String> command = personalEffectivenessCommand("tickets", type, su);
         command.add("--prediction-id=" + predictionId);
         command.add("--page=" + page);
+        String view = isBlank(query.get("view")) ? "selected" : query.get("view");
+        if (!("selected".equals(view) || "tickets".equals(view) || "bao".equals(view))
+                || ("bao".equals(view) && "KENO".equals(type))) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Chế độ xem vé không hợp lệ.\"}"); return;
+        }
+        command.add("--view=" + view);
         String prizeCode = query.get("prizeCode");
         if (prizeCode != null) {
             if (!prizeCode.matches("[A-Z][A-Z0-9_]{0,39}")) {
@@ -2461,11 +2460,17 @@ public class LottoWebServer {
         Map<String, String> values = parseForm(ex);
         String type = normalizeLiveType(values.get("type"));
         if (!validateEffectivenessType(ex, type)) return;
+        String configurationHash = values.get("configurationHash");
+        if (!isBlank(configurationHash) && !configurationHash.matches("[0-9a-f]{64}")) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Mã cấu hình không hợp lệ. Hãy tải lại trước khi khóa kỳ.\"}"); return;
+        }
         if (!effectivenessJobRunning.compareAndSet(false, true)) {
             sendJson(ex, 409, "{\"ok\":false,\"message\":\"Đang xử lý đánh giá. Vui lòng tải lại sau.\"}"); return;
         }
         try {
-            sendEffectivenessResult(ex, personalEffectivenessCommand("cycle", type, su));
+            List<String> command = personalEffectivenessCommand("cycle", type, su);
+            if (!isBlank(configurationHash)) command.add("--configuration-hash=" + configurationHash);
+            sendEffectivenessResult(ex, command);
         } finally {
             effectivenessJobRunning.set(false);
         }

@@ -17,6 +17,8 @@ class AccountStatisticsWebTests(AccountBalanceTests):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        (cls.work / 'config').mkdir(exist_ok=True)
+        shutil.copy2(ROOT / 'config/tracking-bao-packing-v2.json', cls.work / 'config/tracking-bao-packing-v2.json')
         shutil.copytree(ROOT/'ai', cls.work/'ai', ignore=shutil.ignore_patterns('__pycache__','models','standalone_predictors','predictors'))
         (cls.work/'backend').mkdir(exist_ok=True)
         shutil.copy2(ROOT/'backend/file_guard.py',cls.work/'backend/file_guard.py')

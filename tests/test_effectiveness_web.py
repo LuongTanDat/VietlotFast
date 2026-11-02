@@ -28,6 +28,8 @@ class EffectivenessWebTests(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory(prefix='effectiveness-http-', dir=ROOT / 'runtime')
         cls.work = Path(cls.temp.name)
         (cls.work / 'runtime').mkdir()
+        (cls.work / 'config').mkdir(exist_ok=True)
+        shutil.copy2(ROOT / 'config/tracking-bao-packing-v2.json', cls.work / 'config/tracking-bao-packing-v2.json')
         shutil.copytree(ROOT / 'frontend', cls.work / 'frontend')
         shutil.copytree(ROOT / 'ai', cls.work / 'ai',
                         ignore=shutil.ignore_patterns('__pycache__', 'models', 'standalone_predictors', 'predictors'))

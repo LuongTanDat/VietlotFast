@@ -167,3 +167,21 @@ Các quy tắc riêng của Keno trong Hiệu quả dự đoán:
 - Excel trên 10.000 vé/phương pháp được backend tạo thành file XLSX nén, gửi trực tiếp; không đẩy toàn bộ vé/nhãn/chuỗi XML vào trình duyệt. Vẫn có đủ năm sheet, AutoFilter và hàng đầu cố định, chỉ dùng actual đã ghi. Chỉ một tác vụ nặng tạo/chấm/xuất file chạy cùng lúc trong server. API JSON export từ chối danh mục lớn; quá trình bị lỗi không trả workbook dở.
 
 - Dữ liệu theo dõi khối lượng lớn được tách khỏi DB tài khoản: sau khi chuyển snapshot, runtime/tracking-storage.json kích hoạt runtime/tracking_ledger.db. Chỉ sao chép dự đoán actor hệ thống, điểm và các bảng theo dõi; không sao chép tài khoản, mật khẩu hay dự đoán cá nhân. DB nguồn giữ nguyên. Thiếu DB đã cấu hình phải báo lỗi, không tự mở lịch sử trống. Khóa/chấm/xuất lớn dùng DB riêng để không giữ khóa ghi DB ví/tài khoản. Chừa 20 GB ổ đĩa cùng dự trù dữ liệu/WAL/file tạm; thiếu dung lượng thì dừng tạo kỳ mới và báo rõ, không xóa lịch sử.
+
+## Sức chứa Bao và khôi phục mã nguồn
+
+- Bộ tạo `tracking_bao_full_ticket_v3` chặn trùng vé đầy đủ trong mỗi phương pháp/cùng kỳ: 5/35 dùng khóa (5 số chính đã sắp xếp, số ĐB); Mega/Power dùng bộ 6 số chính. Số thứ bảy dự đoán của Power không làm thành vé mới. Các phương pháp và các kỳ so sánh độc lập, không khử trùng chéo làm thay ngân sách đối chứng.
+- Với 5/35, dùng 12 họ Bao riêng theo 12 số ĐB; mỗi họ không trùng số chính bằng cấu trúc modulo/mẫu đã kiểm chứng, ánh xạ số theo seed/xác suất. Cho phép chồng số chính giữa hai họ khác ĐB. Một ĐB cố định cho mọi vé con trong cùng Bao; phân bổ số nhóm theo ĐB chênh nhau không quá một. Mega/Power giữ cấu trúc không trùng số chính.
+- API trả `maxBaoCounts` theo từng mức; sức chứa được bảo đảm của hệ thống có thể thấp hơn chặn trên toán học. Giao diện giới hạn ngay khi gõ/dán/IME. Cấu hình cũ vượt mức phải được người dùng lưu lại; không tự giảm cấu hình DB hay phí của danh mục đã khóa.
+- Mã nguồn/mẫu nhóm được fingerprint khi tạo. Chỉ khóa đủ bốn phương pháp, kiểm tra lại canonical/deadline/cấu hình; sai thì hủy toàn bộ và xử lý reservation theo receipt hiện có. Không tạo lại/thu lại cùng kỳ.
+- Khi khôi phục, tải GitHub riêng, kiểm tra commit, chỉ bổ sung file thiếu; sao lưu trước khi ghép phiên bản cục bộ. Không thay DB/ví/dự đoán, không huấn luyện lại model chỉ để khôi phục source. Bản sao lưu khôi phục trong `Bin/session_1_latest/files/followup_github_recovery_20261101/`.
+
+- Giữ ngân sách tối đa 324.632 vé con/phương pháp cho 5/35; Bao 6 hỗ trợ lại 54.105 nhóm theo quy tắc vé đầy đủ. Mega/Power giữ giới hạn 1.000.000 vé con/phương pháp và sức chứa đã kiểm chứng từng mức. Không tự tăng số Bao đang lưu khi giới hạn tăng. Bộ kiểm tra vé thường cũng dùng định danh vé đầy đủ; cơ chế phân bổ vé thường hiện có được giữ lại.
+
+
+## Hai lớp vé được chọn độc lập
+
+- Vé Thường và Vé Bao là hai lớp lựa chọn loại trừ nhau cho mỗi kỳ/phương pháp. Cấu hình được lưu và xác nhận trước khi khóa quyết định lớp duy nhất được sinh, lưu, hiển thị và xuất Excel. Không có nút Bao / Vé con hoặc Xem vé con, không sinh thêm danh mục Vé Thường khi người chơi chọn Bao, không gọi bộ tạo Bao khi chọn Thường.
+- Bao mới lưu `ticketClass=bao`, `predictionMode=bao`, `ticketStorage=bao_parents_v1`, `bao.parents` chứa đúng số nhóm đã chọn; `tickets=[]`, không có khối vé thường bổ sung. Tổ hợp quy đổi chỉ dùng nội bộ để xác minh không trùng, tính phí và chấm giải; không trở thành một lớp vé đã mua khác. Phí mỗi Bao vẫn theo số tổ hợp và mức phí hiện có, không thu hai lần.
+- Bảng và API kỳ Bao chỉ trả bộ Bao gốc, phân trang 10 Bao, số chính trùng và tổng hợp giải của mỗi Bao. API từ chối yêu cầu đổi sang loại khác cấu hình đã khóa. Excel chỉ xuất các Bao gốc cùng tổng hợp kết quả; kỳ Thường giữ vé thường. Thống kê xác suất/trùng/giải vẫn tính theo tổ hợp quy đổi để giữ cơ sở đối chứng, không gán giải trực tiếp chỉ từ số trùng của bộ gốc.
+- Kỳ cũ giữ nguyên payload/checksum/ví/kết quả. Với Bao cũ đã lưu tổ hợp mở rộng, chỉ đọc bộ Bao gốc để hiển thị/xuất; không xóa hoặc biến đổi lịch sử. Thay cấu hình áp dụng cho kỳ chưa khóa; không tạo lại hay thu lại kỳ đã khóa.

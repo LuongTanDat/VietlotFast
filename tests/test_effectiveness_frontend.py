@@ -674,6 +674,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 browser.call('Emulation.setTouchEmulationEnabled', {'enabled':False}, page=True)
                 browser.call('Emulation.setDeviceMetricsOverride', {'width':1440,'height':900,'deviceScaleFactor':1,'mobile':False}, page=True)
                 browser.value("document.body.classList.remove('light-theme')")
+                wait(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent==={json.dumps(summary_text)}")
                 self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 summary_posts = sum(method == 'POST' for method, _, _ in requests)
                 for key, ticket_index, prize_code in [('web',37,'POWER_JACKPOT_1'),('random',73,'FIRST'),('bayesian',95,'POWER_JACKPOT_1'),('ewma',9994,'POWER_JACKPOT_1')]:
@@ -714,9 +715,11 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 select_method('web')
                 browser.value(f"document.querySelector('{selector} [data-ticket-page=\"2\"]').click()")
                 wait(f"document.querySelector('{selector} .effectiveness-ticket-label')?.textContent==='Vé 11'")
+                wait(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent==={json.dumps(summary_text)}")
                 self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 browser.value("document.getElementById('effectivenessRefresh').click()")
                 wait("!document.getElementById('effectivenessRefresh').disabled")
+                wait(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent==={json.dumps(summary_text)}")
                 self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 self.assertEqual(sum(method == 'POST' for method, _, _ in requests), summary_posts)
                 # Ticket pagination belongs to the method, not the carousel.
@@ -736,6 +739,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                 self.assertEqual(selected_method(), 'web')
                 self.assertEqual(browser.value(f"document.querySelector('{random_selector} [data-ticket-jump]').value"), '3')
                 select_method('web')
+                wait(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent==={json.dumps(summary_text)}")
                 self.assertEqual(browser.value(f"document.querySelector('{selector} .effectiveness-prize-summary').textContent"), summary_text)
                 self.assertEqual(sum(method == 'POST' for method, _, _ in requests), summary_posts)
                 carousel_artifacts = os.environ.get('LOTTO_METHOD_CAROUSEL_ARTIFACT_DIR')
@@ -1040,7 +1044,7 @@ class EffectivenessFrontendTests(unittest.TestCase):
                     self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-code={code}]').dataset.prizeUnit"), '1500000000')
                     self.assertEqual(browser.value(f"document.querySelector('{selector} [data-prize-net]').dataset.prizeNet"), '2999800000')
                     self.assertIn('Tổng thưởng ước tính', browser.value(f"document.querySelector('{selector}').textContent"))
-                    self.assertIn('2 vé thực tế + 2 vé mô phỏng', browser.value(f"document.querySelector('{selector}').textContent"))
+                    self.assertNotIn('2 vé thực tế + 2 vé mô phỏng', browser.value(f"document.querySelector('{selector}').textContent"))
                     # Explicit zero winners is valid; missing is never zero.
                     draw['prizeWinnerCounts'][field] = 0
                     browser.value("document.getElementById('effectivenessRefresh').click()")

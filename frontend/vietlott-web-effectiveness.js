@@ -14,6 +14,7 @@
   const methodPairs = [{ key: "web", methods: methods.slice(0, 2) }, { key: "bayesian", methods: methods.slice(2) }];
   const state = { active: false, authenticated: false, generation: 0, report: null, busy: false, loading: false, controller: null, prizeController: null, ticketController: null, exportController: null, exportCycleId: null, ticketPages: new Map(), prizeCursors: new Map(), selectedMethods: new Map(), timer: null, page: 1, lines: new Set(methods.map(item => item.key)), timelineFullScale: false, openDetails: new Map() };
   const activity = { progress: null, type: "", controller: null, timer: null, receivedAt: 0, serverTime: 0, requestStarted: 0, reportEstimate: 3, localPhase: "updating", error: "", message: "Đăng nhập để xem báo cáo.", kind: "" };
+  state.draftPlayMode = "normal";
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const closePrizeRewardHelp = setupPrizeRewardHelp();
   const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -53,7 +54,7 @@
     const working = inProgress && !stale;
     const el = byId("effectivenessActivity");
     let phase = working ? progress.phase : (state.loading || state.busy || !state.report ? activity.localPhase : "idle");
-    const automationError = state.report?.type === type ? (state.report.automation?.lastError || state.report.automation?.sourceSync?.error) : "";
+    const automationError = state.report?.type === type ? (state.report.settings?.configurationError || state.report.automation?.lastError || state.report.automation?.sourceSync?.error) : "";
     const error = working ? "" : (stale ? "Tiến trình bị gián đoạn. Bấm Làm mới để kiểm tra." : progress?.error || activity.error || automationError || (activity.kind === "error" ? activity.message : ""));
     if (error) phase = "error";
     el.dataset.phase = phase;
@@ -103,6 +104,117 @@
       activity.timer = setInterval(() => { renderActivity(); if (++ticks % 3 === 0) void pollActivity(); }, 1000);
     }
     renderActivity();
+  }
+
+  function supportsBao() {
+    return state.report?.baoVersion === 1 && !isKeno();
+  }
+
+  function baoChildren() {
+    const game = byId("effectivenessType").value;
+    const level = Number(byId("effectivenessBaoLevel").value);
+    const size = game === "LOTO_5_35" ? 5 : 6;
+    if (!Number.isInteger(level) || level < 1) return 0;
+    if (level < size) return (game === "LOTO_5_35" ? 35 : game === "LOTO_6_45" ? 45 : 55) - level;
+    let count = 1;
+    for (let i = 1; i <= size; i++) count = count * (level - size + i) / i;
+    return Math.round(count);
+  }
+
+  function baoMaximum() {
+    const cap = state.report?.settings?.maxBaoCounts?.[byId("effectivenessBaoLevel").value];
+    return Number.isInteger(cap) && cap > 0 ? cap : Math.floor(ticketMaximum() / Math.max(1, baoChildren()));
+  }
+
+  function normalizeBaoCount(commit = false) {
+    window.VietlottNumericInput.normalize({ target: byId("effectivenessBaoCount"), type: commit ? "change" : "input" }, { maximum: baoMaximum, minimum: 1, rejectMalformed: false });
+  }
+
+  function renderSettingsSummary() {
+    const settings = state.report?.settings;
+    if (!settings) return;
+    const baoMode = supportsBao() && state.draftPlayMode === "bao";
+    const enabled = byId("effectivenessEnabled").checked;
+    const input = byId(baoMode ? "effectivenessBaoCount" : "effectivenessTicketCount");
+    const raw = Number(input.value.replace(/\./g, ""));
+    const count = raw > 0 ? Math.min(raw, baoMode ? baoMaximum() : ticketMaximum()) : null;
+    const level = Number(byId("effectivenessBaoLevel").value);
+    const savedBao = settings.playMode === "bao";
+    const changed = settings.configurationValid === false || enabled !== settings.enabled || baoMode !== savedBao ||
+      (baoMode ? count !== Number(settings.baoCount) || level !== Number(settings.baoLevel)
+        : count !== Math.min(Number(settings.normalTicketCount ?? settings.ticketCount), ticketMaximum()));
+    const label = baoMode ? `${number(count, 0)} Bao ${level}` : `${number(count, 0)} vé`;
+    const summary = byId("effectivenessAdminSummary");
+    summary.textContent = `${changed ? "Chưa lưu" : enabled ? "Đang bật" : "Đang tắt"} · ${label}`;
+    summary.dataset.unsaved = String(changed);
+    const savedLabel = savedBao ? `${number(settings.baoCount, 0)} Bao ${settings.baoLevel}` : `${number(settings.normalTicketCount ?? settings.ticketCount, 0)} vé`;
+    summary.title = changed ? `Đang chỉnh: ${enabled ? "Bật" : "Tắt"} · ${label}. Đã lưu: ${settings.enabled ? "Bật" : "Tắt"} · ${savedLabel}. Bấm Lưu cấu hình để áp dụng.` : "Cấu hình đã lưu";
+  }
+
+  function renderStructureControls() {
+    const enabled = supportsBao();
+    if (!enabled) state.draftPlayMode = "normal";
+    const baoMode = enabled && state.draftPlayMode === "bao";
+    byId("effectivenessPlayMode").hidden = !enabled;
+    byId("effectivenessNormalBudget").hidden = baoMode;
+    byId("effectivenessBaoFields").hidden = !baoMode;
+    byId("effectivenessTicketQuote").hidden = !baoMode;
+    const blocked = !state.authenticated || !state.report?.canManage || state.loading || state.busy;
+    byId("effectivenessPlayMode").querySelectorAll("button").forEach(button => {
+      button.disabled = blocked;
+      button.setAttribute("aria-pressed", String(button.dataset.effectivenessMode === state.draftPlayMode));
+    });
+    const game = byId("effectivenessType").value;
+    const select = byId("effectivenessBaoLevel");
+    if (select.dataset.game !== game) {
+      const levels = game === "LOTO_5_35" ? [4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] : [5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18];
+      select.innerHTML = levels.map(level => `<option value="${level}">Bao ${level}</option>`).join("");
+      select.value = game === "LOTO_5_35" ? "6" : "7";
+      select.dataset.game = game;
+    }
+    select.disabled = blocked;
+    if (select.__syncCustomSelect) select.__syncCustomSelect();
+    const input = byId("effectivenessBaoCount");
+    const maximum = baoMaximum();
+    input.placeholder = `Tối đa ${number(maximum, 0)} Vé Bao ${select.value}`;
+    input.title = `${input.placeholder} · ${game === "LOTO_5_35" ? "Không trùng cả 5 số chính và số đặc biệt" : "Không trùng bộ 6 số chính"}`;
+    if (input.max !== String(maximum)) { input.max = String(maximum); normalizeBaoCount(); }
+    input.disabled = blocked;
+    renderSettingsSummary();
+    if (!baoMode) return;
+    const count = Math.min(maximum, Number(input.value.replace(/\./g, "")));
+    const valid = Number.isInteger(count) && count >= 1 && count <= maximum;
+    if (!valid) {
+      byId("effectivenessTicketQuote").innerHTML = '<small>Nhập Số Bao trong giới hạn để xem tổng vé và phí.</small>';
+      byId("effectivenessLock").disabled = true;
+      return;
+    }
+    const perBao = baoChildren();
+    const amount = perBao * Number(state.report?.billing?.unitPayPal || 10000);
+    const totalBao = count * methods.length;
+    const cost = totalBao * amount;
+    const balance = state.report?.billing?.balance;
+    const missing = finite(balance) ? Math.max(0, cost - Number(balance)) : 0;
+    byId("effectivenessTicketQuote").innerHTML = `<div data-quote-quantity title="${number(count, 0)} Bao ${select.value} / phương pháp × ${methods.length} phương pháp"><span>Số lượng vé</span><strong>${number(totalBao, 0)} <small>Bao ${select.value} · ${methods.length} phương pháp</small></strong></div><div data-quote-amount><span>Số tiền</span><strong>${number(amount, 0)} <small>PayPal / Bao ${select.value}</small></strong></div><div class="effectiveness-quote-total" title="Tổng phí của ${methods.length} phương pháp"><span>Phí mỗi kỳ</span><strong>${number(cost, 0)} <small>PayPal</small></strong></div>${finite(balance) ? `<div><span>Số dư</span><strong>${number(balance, 0)} <small>PayPal</small></strong></div>` : ""}${missing ? `<small class="effectiveness-quote-insufficient">Còn thiếu ${number(missing, 0)} PayPal.</small>` : ""}`;
+    if (missing) byId("effectivenessLock").disabled = true;
+  }
+
+  function settingsForm() {
+    normalizeTicketCount(true);
+    const ticketCount = Number(byId("effectivenessTicketCount").value.replace(/\./g, ""));
+    if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > ticketMaximum()) throw new Error(`Số vé phải từ 1 đến ${number(ticketMaximum(), 0)}.`);
+    const form = { type: byId("effectivenessType").value, enabled: String(byId("effectivenessEnabled").checked), ticketCount: String(ticketCount) };
+    if (supportsBao()) {
+      form.playMode = state.draftPlayMode;
+      if (form.playMode === "bao") {
+        normalizeBaoCount(true);
+        const count = Number(byId("effectivenessBaoCount").value.replace(/\./g, ""));
+        if (!Number.isInteger(count) || count < 1 || count > baoMaximum()) throw new Error("Số Bao không hợp lệ.");
+        form.baoLevel = byId("effectivenessBaoLevel").value;
+        form.baoCount = String(count);
+      }
+    }
+    return form;
   }
 
   function ticketMaximum() {
@@ -179,6 +291,7 @@
     byId("effectivenessKenoNext").disabled = state.loading || state.busy || cyclePages.page >= cyclePages.totalPages;
     byId("effectivenessCyclePages").querySelectorAll("button").forEach(button => { button.disabled = state.loading || state.busy || !state.authenticated; });
     ["effectivenessEnabled", "effectivenessTicketCount", "effectivenessSave", "effectivenessLock"].forEach(id => { byId(id).disabled = !canManage || state.busy || state.loading; });
+    renderStructureControls();
     root.setAttribute("aria-busy", state.loading || state.busy ? "true" : "false");
   }
 
@@ -218,15 +331,20 @@
     const cards = [
       ["Đã chấm", number(counts.scored, 0), "kỳ có kết quả"],
       ["Chờ kết quả", number(counts.locked, 0), "kỳ đã khóa"],
-      ["Ngân sách", finite(effectiveBudget) ? `${number(effectiveBudget, 0)} vé` : "—", report.type === "KENO" ? `Kỳ mới · mỗi phương pháp / bậc ${reportSize(report)}` : "Kỳ mới · mỗi phương pháp"],
+      ["Ngân sách", settings.playMode === "bao" ? `${number(settings.baoCount, 0)} Bao` : finite(effectiveBudget) ? `${number(effectiveBudget, 0)} vé` : "—", settings.playMode === "bao" ? `Bao ${settings.baoLevel} · ${number(effectiveBudget, 0)} vé con / phương pháp` : report.type === "KENO" ? `Kỳ mới · mỗi phương pháp / bậc ${reportSize(report)}` : "Kỳ mới · mỗi phương pháp"],
       ["Theo dõi", settings.enabled ? "Bật" : "Tắt", "Tự động khi server đang chạy"],
     ];
     byId("effectivenessSummary").innerHTML = cards.map(([label, value, note]) => `<div class="effectiveness-metric${String(value).length >= 8 ? ' is-wide' : ''}" title="${escape(`${label}: ${value} · ${note}`)}"><span>${escape(label)}</span><strong>${escape(value)}</strong><small>${escape(note)}</small></div>`).join("");
     if (!byId("effectivenessAdmin").open) {
       byId("effectivenessEnabled").checked = settings.enabled === true;
-      byId("effectivenessTicketCount").value = finite(settings.ticketCount) ? number(Math.min(Number(settings.ticketCount), ticketMaximum()), 0) : "1";
+      byId("effectivenessTicketCount").value = finite(settings.normalTicketCount ?? settings.ticketCount) ? number(Math.min(Number(settings.normalTicketCount ?? settings.ticketCount), ticketMaximum()), 0) : "1";
+      state.draftPlayMode = supportsBao() && settings.playMode === "bao" ? "bao" : "normal";
+      renderStructureControls();
+      if (settings.baoLevel) byId("effectivenessBaoLevel").value = String(settings.baoLevel);
+      byId("effectivenessBaoCount").value = number(settings.baoCount || 1, 0);
+      normalizeBaoCount(true);
     }
-    byId("effectivenessAdminSummary").textContent = `${settings.enabled ? "Đang bật" : "Đang tắt"} · ${number(Math.min(Number(settings.ticketCount), ticketMaximum()), 0)} vé`;
+    renderStructureControls();
     if (report.billing) window.dispatchEvent(new CustomEvent('dvlf:prediction-wallet', { detail: report.billing }));
   }
 
@@ -329,7 +447,9 @@
     const resultStatus = ["won", "lost", "unknown", "pending", "unsupported", "invalid"].includes(result?.status) ? result.status : "unknown";
     const prizeLabel = result?.prizeLabel || (hits === null ? "Chờ kết quả" : "Chưa có phân loại giải");
     const specialMatched = actual.size > 0 && finite(actualSpecial) && finite(ticket.special) && Number(ticket.special) === Number(actualSpecial);
-    return `<div class="effectiveness-ticket-row" data-ticket-index="${index + 1}" data-ticket-prize-code="${escape(result?.prizeCode || "")}"><span class="effectiveness-ticket-label">Vé ${String(index + 1).padStart(2, "0")}</span>${ticketHtml(ticket, actual, { power, showSpecial: power || mainCount === 5, specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span><span class="effectiveness-ticket-prize" data-prize-status="${resultStatus}"${result?.reason ? ` title="${escape(result.reason)}"` : ""}>${escape(prizeLabel)}</span></div>`;
+    const group = ticket.bao;
+    const groupLabel = group ? `Bao ${group.parentIndex} · Vé con ${group.childIndex}` : "";
+    return `<div class="effectiveness-ticket-row" data-ticket-index="${index + 1}" data-ticket-prize-code="${escape(result?.prizeCode || "")}"><span class="effectiveness-ticket-label"${groupLabel ? ` title="${escape(groupLabel)}"` : ""}>${group ? "Vé con" : "Vé"} ${String(index + 1).padStart(2, "0")}${group ? `<small>B${escape(group.parentIndex)} · ${escape(group.childIndex)}</small>` : ""}</span>${ticketHtml(ticket, actual, { power, showSpecial: (power && !group) || mainCount === 5, specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span><span class="effectiveness-ticket-prize" data-prize-status="${resultStatus}"${result?.reason ? ` title="${escape(result.reason)}"` : ""}>${escape(prizeLabel)}</span></div>`;
   }
 
   function actualSpecialHtml(cycle, game) {
@@ -571,7 +691,7 @@
     const complete = !uncertain && rows.every(row => row.amount !== null && Number.isSafeInteger(row.amount)) && Number.isSafeInteger(reward) && Number.isSafeInteger(cost);
     const net = reward - cost;
     const estimated = rows.some(row => row.estimated);
-    const notes = [...new Set(rows.map(row => row.reason).filter(Boolean)), estimated ? "Ước tính từng phương pháp riêng, theo quỹ công bố của kỳ, chưa trừ thuế; không xác nhận tiền lĩnh thưởng thực tế" : ""].filter(Boolean).join(" · ");
+    const notes = [...new Set(rows.filter(row => row.amount === null).map(row => row.reason).filter(Boolean))].join(" · ");
     return `<div class="effectiveness-prize-counts" role="list" aria-label="Chi tiết giải thưởng, số lượng giảm dần">${rows.map(row => `<div class="effectiveness-prize-detail" role="listitem" data-prize-code="${escape(row.code)}" data-prize-unit="${row.unit ?? ''}" data-prize-subtotal="${row.amount ?? ''}"><span class="effectiveness-prize-name">${escape(row.label)}</span><span class="effectiveness-prize-equation"><b>${number(row.count, 0)}</b><i>×</i><span>${row.unit === null ? "Chờ mức trả/vé" : money(row.unit)}</span><i>=</i><strong>${row.amount === null ? "Chưa xác định" : money(row.amount)}</strong></span></div>`).join("")}</div><div class="effectiveness-prize-total"><span class="effectiveness-prize-total-label">${complete ? estimated ? "Tổng thưởng ước tính" : "Tổng tiền thưởng" : "Thưởng đã tính"}<button type="button" class="effectiveness-prize-help-button" data-prize-reward-help="${escape(game)}" popovertarget="effectivenessPrizeRewardHelp" aria-label="Giải thích cơ cấu thưởng và thuế TNCN" aria-haspopup="dialog" aria-expanded="false">?</button></span><strong data-prize-reward="${reward}">${money(reward)}</strong></div><div class="effectiveness-prize-total effectiveness-ticket-total"><span>Tổng tiền vé</span><strong data-total-ticket-cost="${cost}">${money(cost)}</strong></div><div class="effectiveness-prize-net${complete ? net > 0 ? ' is-positive' : net < 0 ? ' is-negative' : ' is-even' : ' is-incomplete'}"><span class="effectiveness-prize-net-label">Tiền thưởng − Tiền vé</span><span class="effectiveness-prize-net-equation"><span>${complete ? money(reward) : 'Chưa đủ tổng thưởng'}</span><span>− ${money(cost)}</span><span>=</span><strong data-prize-net="${complete ? net : ''}" data-ticket-cost="${cost}">${complete ? money(net) : "Chưa tính đủ"}</strong></span></div>${notes ? `<small>${escape(notes)}</small>` : ""}`;
   }
 
@@ -619,21 +739,66 @@
     return `<div class="effectiveness-prize-summary" aria-label="Vé trúng và tiền thưởng mô phỏng của toàn bộ ${escape(label)} trong kỳ này"><div class="effectiveness-prize-best"><span>Cao nhất</span><button type="button" class="effectiveness-prize-jump" data-prize-jump="${escape(highest.code)}" title="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}" aria-label="Đến vé tiếp theo trúng ${escape(highest.label)} của ${escape(label)}"><strong>${escape(highest.label)}</strong></button><span>SL <b>${number(highest.count, 0)}</b></span></div>${prizeMoneyHtml(groups, total, uncertain, game, cycle.prizeContext)}${uncertain ? `<small>Còn ${number(uncertain, 0)} vé chưa xác định giải</small>` : ""}</div>`;
   }
 
+  function cycleMethodHeaderHtml(cycle, method, game, mainCount, entry) {
+    const gameLabel = ({ LOTO_5_35: "5/35", LOTO_6_45: "6/45", LOTO_6_55: "6/55" })[game] || `Keno · Bậc ${mainCount}`;
+    const actual = Array.isArray(cycle.actualMain) ? cycle.actualMain : [];
+    const drawDate = new Date(cycle.deadline);
+    const hasDrawTime = !!cycle.deadline && Number.isFinite(drawDate.getTime());
+    const drawTime = hasDrawTime ? drawDate.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false, hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+    const specialLabel = game === "LOTO_5_35" ? "Số đặc biệt" : game === "LOTO_6_55" ? "Bóng 7" : "";
+    const specialValue = finite(cycle.actualSpecial) ? escape(String(cycle.actualSpecial).padStart(2, "0")) : "—";
+    const result = actual.length ? `<span class="effectiveness-method-result-numbers">${actual.map(value => `<span class="effectiveness-method-result-ball">${escape(String(value).padStart(2, "0"))}</span>`).join("")}${specialLabel ? `<span class="effectiveness-method-result-special">${game === "LOTO_6_55" ? specialLabel + " " : ""}<b class="effectiveness-method-result-ball is-special" role="img" aria-label="${specialLabel} ${specialValue}" title="${specialLabel} ${specialValue}">${specialValue}</b></span>` : ""}</span>` : '<span class="effectiveness-method-result-pending">Chờ kết quả</span>';
+    return `<div class="effectiveness-cycle-method-head" tabindex="0" role="region" aria-label="Thông tin ${escape(method.label)} · Kỳ ${escape(cycle.targetDrawId)} · Cuộn ngang để xem đầy đủ"><div class="effectiveness-method-head-row">
+      <div class="effectiveness-method-identity"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span class="effectiveness-method-game">${escape(gameLabel)}</span></div>
+      <div class="effectiveness-method-context"><span class="effectiveness-method-draw">Kỳ #${escape(cycle.targetDrawId)}</span><time${hasDrawTime ? ` datetime="${escape(cycle.deadline)}"` : ""} title="Thời gian quay · Giờ Việt Nam">${escape(drawTime)}</time><div class="effectiveness-method-result" aria-label="Kết quả thực tế"><span>Kết quả</span>${result}</div></div>
+      <span class="effectiveness-method-average">TB ${actual.length ? number(entry.meanHits, 2) : "—"} số / vé</span>
+    </div></div>`;
+  }
+
   function cycleMethodHtml(cycle, method, game, mainCount) {
     const entry = cycle.methods?.[method.key] || {};
     const actual = new Set((cycle.actualMain || []).map(Number));
     const tickets = Array.isArray(entry.tickets) ? entry.tickets : [];
-    const pagination = entry.ticketPagination;
+    const view = ticketView(entry, cycle);
+    const pagination = view === 'bao' ? entry.baoPagination : entry.ticketPagination;
     const offset = Number(pagination?.offset || 0);
     const total = Number(entry.ticketCount ?? pagination?.total ?? tickets.length);
-    const pager = pagination?.totalPages > 1 ? `<nav class="effectiveness-ticket-pager" aria-label="Phân trang vé ${escape(method.label)}"><span class="effectiveness-ticket-range">Vé ${number(offset + 1, 0)}–${number(offset + tickets.length, 0)} / ${number(total, 0)}</span><div class="effectiveness-ticket-page-controls"><button type="button" class="secondary" data-ticket-page="${pagination.page - 1}"${pagination.page <= 1 ? " disabled" : ""} aria-label="Trang vé trước">‹</button><label><span>Trang</span><input type="number" data-ticket-jump min="1" max="${pagination.totalPages}" step="1" value="${pagination.page}" aria-label="Trang vé ${escape(method.label)}" /><span>/ ${number(pagination.totalPages, 0)}</span></label><button type="button" class="secondary" data-ticket-page="${pagination.page + 1}"${pagination.page >= pagination.totalPages ? " disabled" : ""} aria-label="Trang vé tiếp theo">›</button></div></nav>` : "";
+    const items = view === 'bao' ? (entry.baoParents || []) : tickets;
+    const unit = view === 'bao' ? 'Bao' : 'Vé';
+    const itemTotal = view === 'bao' ? Number(pagination?.total || cycle.config.baoCount) : total;
+    const range = items.length ? `${unit} ${number(offset + 1, 0)}–${number(offset + items.length, 0)} / ${number(itemTotal, 0)}` : '';
+    const pager = pagination?.totalPages > 1 ? `<nav class="effectiveness-ticket-pager" aria-label="Phân trang ${unit} ${escape(method.label)}"><span class="effectiveness-ticket-range">${range}</span><div class="effectiveness-ticket-page-controls"><button type="button" class="secondary" data-ticket-page="${pagination.page - 1}"${pagination.page <= 1 ? " disabled" : ""} aria-label="Trang ${unit} trước">‹</button><label><span>Trang</span><input type="number" data-ticket-jump min="1" max="${pagination.totalPages}" step="1" value="${pagination.page}" aria-label="Trang ${unit} ${escape(method.label)}" /><span>/ ${number(pagination.totalPages, 0)}</span></label><button type="button" class="secondary" data-ticket-page="${pagination.page + 1}"${pagination.page >= pagination.totalPages ? " disabled" : ""} aria-label="Trang ${unit} tiếp theo">›</button></div></nav>` : range ? `<div class="effectiveness-ticket-range">${range}</div>` : '';
     const summary = methodPrizeSummaryHtml(cycle, entry, game, total, method.label);
     const footer = pager || summary ? `<div class="effectiveness-ticket-footer">${pager}${summary}</div>` : "";
-    return `<div class="effectiveness-cycle-method-head"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span>${actual.size ? `TB ${number(entry.meanHits, 2)} số / vé` : `${number(total, 0)} vé đã khóa`}</span></div><div class="effectiveness-ticket-columns" aria-hidden="true"><span>Vé</span><span>Bộ số dự đoán</span><span>Trùng</span><span>Kết quả</span></div><div class="effectiveness-ticket-list">${tickets.length ? tickets.map((ticket, ticketIndex) => ticketRowHtml(ticket, actual, offset + ticketIndex, mainCount, (entry.ticketResults || []).find(result => Number(result.ticketIndex) === offset + ticketIndex + 1), game === "LOTO_6_55", cycle.actualSpecial)).join("") : '<span class="muted">Chưa có bộ số</span>'}</div>${footer}`;
+    const rows = view === 'bao' ? items.map(parent => baoRowHtml(parent, cycle, game)).join('')
+      : tickets.map((ticket, ticketIndex) => ticketRowHtml(ticket, actual, offset + ticketIndex, mainCount, (entry.ticketResults || []).find(result => Number(result.ticketIndex) === offset + ticketIndex + 1), game === "LOTO_6_55", cycle.actualSpecial)).join('');
+    const empty = view === 'bao' ? '<button type="button" class="secondary effectiveness-bao-retry" data-bao-reload>Tải bộ Bao gốc</button>' : '<span class="muted">Chưa có bộ số</span>';
+    return `${cycleMethodHeaderHtml(cycle, method, game, mainCount, entry)}<div class="effectiveness-ticket-columns${view === 'bao' ? ' effectiveness-bao-columns' : ''}" aria-hidden="true"><span>${unit}</span><span>${view === 'bao' ? 'Bộ số Bao gốc' : 'Bộ số dự đoán'}</span><span>Trùng</span><span>Kết quả</span></div><div class="effectiveness-ticket-list${view === 'bao' ? ' effectiveness-bao-list' : ''}">${rows || empty}</div>${footer}`;
+  }
+
+  function ticketView(entry, cycle) {
+    return cycle.config?.playMode === 'bao' ? 'bao' : 'tickets';
+  }
+
+  function baoRowHtml(parent, cycle, game) {
+    const actual = new Set((cycle.actualMain || []).map(Number));
+    const hits = actual.size ? parent.main.filter(value => actual.has(Number(value))).length : null;
+    const specialMatched = actual.size > 0 && Number(parent.special) === Number(cycle.actualSpecial);
+    const result = parent.result || { status: actual.size ? 'unknown' : 'pending', label: actual.size ? 'Chưa xác định' : 'Chờ kết quả' };
+    return `<div class="effectiveness-ticket-row effectiveness-bao-row" data-bao-index="${escape(parent.parentIndex)}"><span class="effectiveness-ticket-label">Bao ${escape(parent.parentIndex)}</span>${ticketHtml(parent, actual, { showSpecial: game === 'LOTO_5_35', specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? ' has-hit' : ''}" aria-label="${hits === null ? 'Chờ kết quả' : `${hits} số chính của Bao trùng kết quả`}">${hits === null ? '—' : hits}</span><span class="effectiveness-ticket-prize" data-prize-status="${escape(result.status)}" title="${escape(result.details || result.label)}">${escape(result.label)}</span></div>`;
+  }
+
+  async function loadVisibleBaoPages() {
+    if (state.loading || state.busy || state.ticketController || !state.active || !state.authenticated) return;
+    for (const panel of root.querySelectorAll('.effectiveness-cycle-method')) {
+      if (!panel.isConnected || panel.dataset.baoAutoFailed || !panel.getClientRects().length || !panel.querySelector('.effectiveness-bao-retry')) continue;
+      if (state.loading || state.busy || state.ticketController || !state.active || !state.authenticated) return;
+      await loadTicketPage(panel, 1);
+    }
   }
 
   function focusPrizeTicket(panel, ticketIndex) {
-    const row = panel.querySelector(`[data-ticket-index="${ticketIndex}"]`);
+    const row = panel.querySelector(`[data-ticket-index="${ticketIndex}"], [data-bao-index="${ticketIndex}"]`);
     if (!row) return;
     panel.querySelectorAll(".is-prize-target").forEach(item => item.classList.remove("is-prize-target"));
     row.classList.add("is-prize-target");
@@ -658,7 +823,7 @@
     const cursorKey = prizeCursorKey(cycle, entry, method, code);
     const afterTicketIndex = state.prizeCursors.get(cursorKey) || 0;
     const total = Number(entry.ticketCount ?? entry.ticketPagination?.total ?? entry.tickets?.length);
-    if (entry.tickets?.length === total) {
+    if (ticketView(entry, cycle) === 'tickets' && entry.tickets?.length === total) {
       const winners = (entry.ticketResults || []).filter(item => item.prizeCode === code && item.status === "won").sort((a, b) => a.ticketIndex - b.ticketIndex);
       const result = winners.find(item => Number(item.ticketIndex) > afterTicketIndex) || winners[0];
       if (result) {
@@ -677,37 +842,54 @@
     const method = methods.find(item => item.key === panel.dataset.method);
     const cycle = report.cycles?.find(item => item.methods?.[method?.key]?.predictionId === predictionId);
     const entry = cycle?.methods?.[method?.key];
-    if (!entry || !predictionId || page < 1 || page > Number(entry.ticketPagination?.totalPages || 1) || (!prizeCode && page === Number(entry.ticketPagination?.page))) return;
+    if (!entry || !predictionId) return;
+    const view = ticketView(entry, cycle);
+    const pagination = view === 'bao' ? entry.baoPagination : entry.ticketPagination;
+    const pageLimit = view === 'bao' ? Math.ceil(Number(cycle.config?.baoCount || 0) / 10) : Number(pagination?.totalPages || 1);
+    const loaded = view === 'bao' ? Array.isArray(entry.baoParents) : Array.isArray(entry.tickets);
+    if (page < 1 || page > pageLimit || (!prizeCode && loaded && view === ticketView(entry, cycle) && page === Number(pagination?.page))) return;
     state.ticketController?.abort();
     const controller = new AbortController();
     state.ticketController = controller;
     const generation = state.generation;
     closePrizeRewardHelp();
     panel.setAttribute("aria-busy", "true");
-    panel.querySelectorAll(".effectiveness-ticket-pager button, .effectiveness-ticket-pager input, [data-prize-jump]").forEach(input => { input.disabled = true; });
+    delete panel.dataset.baoAutoFailed;
+    const placeholder = panel.querySelector('.effectiveness-bao-retry');
+    if (placeholder && view === 'bao') placeholder.textContent = 'Đang tải bộ Bao…';
+    panel.querySelectorAll(".effectiveness-ticket-pager button, .effectiveness-ticket-pager input, [data-prize-jump], [data-bao-reload]").forEach(input => { input.disabled = true; });
     try {
-      const result = await request(`/api/ml/effectiveness-tickets?type=${encodeURIComponent(report.type)}&predictionId=${encodeURIComponent(predictionId)}&page=${page}${prizeCode ? `&prizeCode=${encodeURIComponent(prizeCode)}${afterTicketIndex ? `&afterTicketIndex=${afterTicketIndex}` : ""}` : ""}`, { signal: controller.signal });
+      const result = await request(`/api/ml/effectiveness-tickets?type=${encodeURIComponent(report.type)}&predictionId=${encodeURIComponent(predictionId)}&page=${page}&view=${view}${prizeCode ? `&prizeCode=${encodeURIComponent(prizeCode)}${afterTicketIndex ? `&afterTicketIndex=${afterTicketIndex}` : ""}` : ""}`, { signal: controller.signal });
       if (generation !== state.generation || state.ticketController !== controller || state.report !== report) return;
       if (result.type !== report.type || result.predictionId !== predictionId) throw new Error("Trang vé không khớp dự đoán đã khóa.");
-      if (prizeCode && (!Number.isInteger(result.jumpTicketIndex) || !result.ticketResults?.some(item => item.ticketIndex === result.jumpTicketIndex && item.prizeCode === prizeCode && item.status === "won"))) throw new Error("Không tìm thấy vé trúng giải này trong trang trả về.");
-      Object.assign(entry, { tickets: result.tickets, ticketResults: result.ticketResults, ticketPagination: result.ticketPagination });
-      state.ticketPages.set(predictionId, { tickets: result.tickets, ticketResults: result.ticketResults, ticketPagination: result.ticketPagination, scoreKey: JSON.stringify([cycle.status, cycle.actualMain, cycle.actualSpecial]) });
+      if (prizeCode && (view === 'bao'
+        ? !Number.isInteger(result.jumpBaoIndex) || !result.baoParents?.some(parent => parent.parentIndex === result.jumpBaoIndex && parent.result?.prizeCounts?.[prizeCode] > 0 && parent.result?.status === 'won')
+        : !Number.isInteger(result.jumpTicketIndex) || !result.ticketResults?.some(item => item.ticketIndex === result.jumpTicketIndex && item.prizeCode === prizeCode && item.status === 'won'))) throw new Error('Không tìm thấy vé đã chọn trúng giải này trong trang trả về.');
+      if (view === 'bao') {
+        if (!Array.isArray(result.baoParents) || !result.baoPagination) throw new Error('Chưa đọc được bộ Bao gốc đã khóa.');
+        Object.assign(entry, { baoParents: result.baoParents, baoPagination: result.baoPagination });
+      } else Object.assign(entry, { tickets: result.tickets, ticketResults: result.ticketResults, ticketPagination: result.ticketPagination });
+      state.ticketPages.set(predictionId, { tickets: entry.tickets, ticketResults: entry.ticketResults, ticketPagination: entry.ticketPagination, baoParents: entry.baoParents, baoPagination: entry.baoPagination, scoreKey: JSON.stringify([cycle.status, cycle.actualMain, cycle.actualSpecial]) });
       panel.innerHTML = cycleMethodHtml(cycle, method, report.type, reportSize(report));
       if (prizeCode) {
-        focusPrizeTicket(panel, result.jumpTicketIndex);
-        state.prizeCursors.set(prizeCursorKey(cycle, entry, method.key, prizeCode), result.jumpTicketIndex);
+        const selectedIndex = view === 'bao' ? result.jumpBaoIndex : result.jumpTicketIndex;
+        focusPrizeTicket(panel, selectedIndex);
+        state.prizeCursors.set(prizeCursorKey(cycle, entry, method.key, prizeCode), selectedIndex);
       }
     } catch (error) {
       if (error.name === "AbortError" || generation !== state.generation || state.report !== report) return;
       if (error.status === 401) { expireSession(); return; }
+      if (view === 'bao') panel.dataset.baoAutoFailed = 'true';
       showStatus(error.message, "error");
       panel.innerHTML = cycleMethodHtml(cycle, method, report.type, reportSize(report));
     } finally {
       panel.removeAttribute("aria-busy");
       if (state.ticketController === controller) state.ticketController = null;
       panel.querySelectorAll(".effectiveness-ticket-pager input").forEach(input => { input.disabled = false; });
-      panel.querySelectorAll("[data-prize-jump]").forEach(button => { button.disabled = false; });
-      panel.querySelectorAll("[data-ticket-page]").forEach(button => { const target = Number(button.dataset.ticketPage); button.disabled = target < 1 || target > Number(entry.ticketPagination?.totalPages || 1); });
+      panel.querySelectorAll("[data-prize-jump], [data-bao-reload]").forEach(button => { button.disabled = false; });
+      const currentPagination = ticketView(entry, cycle) === 'bao' ? entry.baoPagination : entry.ticketPagination;
+      panel.querySelectorAll("[data-ticket-page]").forEach(button => { const target = Number(button.dataset.ticketPage); button.disabled = target < 1 || target > Number(currentPagination?.totalPages || 1); });
+      if (generation === state.generation && state.report === report) setTimeout(() => { void loadVisibleBaoPages(); }, 0);
     }
   }
 
@@ -756,6 +938,7 @@
       if (selected && focusTab) tab.focus({ preventScroll: true });
     });
     view.querySelectorAll("[data-method-pair]").forEach(panel => { panel.hidden = panel.dataset.methodPair !== pair.key; });
+    void loadVisibleBaoPages();
   }
 
   function cycleExportHtml(cycle, report) {
@@ -794,7 +977,7 @@
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         showStatus(`Đã tải Excel kỳ ${cycle.targetDrawId} · toàn bộ vé của bốn phương pháp.`);
       };
-      if (Object.values(cycle.methods || {}).some(entry => Number(entry.ticketCount ?? entry.ticketPagination?.total) > 10000)) {
+      if (cycle.config?.playMode === 'bao' || Object.values(cycle.methods || {}).some(entry => Number(entry.ticketCount ?? entry.ticketPagination?.total) > 10000)) {
         const response = await fetch(`/api/ml/effectiveness-export?type=${encodeURIComponent(report.type)}&cycleId=${encodeURIComponent(cycle.cycleId)}&level=${encodeURIComponent(report.level || 10)}&format=xlsx`, { credentials: 'same-origin', signal: controller.signal });
         if (!response.ok) {
           const problem = await response.json().catch(() => ({}));
@@ -879,14 +1062,16 @@
       const methodId = `cycle-method-${encodeURIComponent(cycleKey)}`;
       const lockedBudget = cycle.config?.ticketCountsByLevel?.[report.level] ?? cycle.config?.actualTicketCount ?? cycle.config?.ticketCount;
       const budget = finite(lockedBudget) ? number(lockedBudget, 0) : Array.isArray(cycle.methods?.web?.tickets) ? String(cycle.methods.web.tickets.length) : "—";
-      return `<details class="effectiveness-cycle${game === "KENO" ? " effectiveness-keno-cycle" : ""}" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>${game === "KENO" ? `Bậc ${mainCount} · Giờ quay` : "Hạn khóa"} ${escape(dateTime(cycle.deadline))}</small></span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${escape(budget)} vé / phương pháp đã khóa`}</span>${actual.size ? actualNumbersHtml(cycle, game) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span>${cycleExportHtml(cycle, report)}</summary><div class="effectiveness-cycle-body"><div class="effectiveness-method-view" data-method-cycle="${escape(cycleKey)}">${methodNavigationHtml(cycleKey, selected)}${methodPairs.map(pair => `<div class="effectiveness-cycle-methods effectiveness-paired-methods" id="${methodId}-${pair.key}-pair" role="tabpanel" aria-labelledby="${methodId}-${pair.key}-tab" data-method-pair="${pair.key}"${pair.key === selected ? "" : " hidden"}>${pair.methods.map(method => {
+      const structureLabel = cycle.config?.playMode === "bao" ? `Bao ${cycle.config.baoLevel} · ${number(cycle.config.baoCount, 0)} Bao / phương pháp` : "";
+      return `<details class="effectiveness-cycle${game === "KENO" ? " effectiveness-keno-cycle" : ""}" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>${game === "KENO" ? `Bậc ${mainCount} · Giờ quay` : "Hạn khóa"} ${escape(dateTime(cycle.deadline))}</small>${structureLabel ? `<small class="effectiveness-cycle-structure">${escape(structureLabel)}</small>` : ""}</span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${cycle.config?.playMode === "bao" ? `${number(cycle.config.baoCount, 0)} Bao` : `${escape(budget)} vé`} / phương pháp đã khóa`}</span>${actual.size ? actualNumbersHtml(cycle, game) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span>${cycleExportHtml(cycle, report)}</summary><div class="effectiveness-cycle-body"><div class="effectiveness-method-view" data-method-cycle="${escape(cycleKey)}">${methodNavigationHtml(cycleKey, selected)}${methodPairs.map(pair => `<div class="effectiveness-cycle-methods effectiveness-paired-methods" id="${methodId}-${pair.key}-pair" role="tabpanel" aria-labelledby="${methodId}-${pair.key}-tab" data-method-pair="${pair.key}"${pair.key === selected ? "" : " hidden"}>${pair.methods.map(method => {
         const entry = cycle.methods?.[method.key] || {};
         const cached = state.ticketPages.get(entry.predictionId);
-        if (cached?.scoreKey === JSON.stringify([cycle.status, cycle.actualMain, cycle.actualSpecial])) Object.assign(entry, { tickets: cached.tickets, ticketResults: cached.ticketResults, ticketPagination: cached.ticketPagination });
+        if (cached?.scoreKey === JSON.stringify([cycle.status, cycle.actualMain, cycle.actualSpecial])) Object.assign(entry, { tickets: cached.tickets, ticketResults: cached.ticketResults, ticketPagination: cached.ticketPagination, baoParents: cached.baoParents, baoPagination: cached.baoPagination });
         else state.ticketPages.delete(entry.predictionId);
         return `<div class="effectiveness-cycle-method" id="${methodId}-${method.key}-panel" role="region" aria-label="${escape(method.label)}" data-prediction-id="${escape(entry.predictionId || '')}" data-method="${method.key}">${cycleMethodHtml(cycle, method, game, mainCount)}</div>`;
       }).join("")}</div>`).join("")}</div>${game === "KENO" ? `<p class="effectiveness-cycle-note">Chỉ mở bộ số bậc ${mainCount}. Các bậc còn lại đã được khóa cùng kỳ; đổi bậc để xem.</p>` : ""}${cycleInfoHtml(cycle, cycleKey, budget)}</div></details>`;
     }).join("");
+    setTimeout(() => { void loadVisibleBaoPages(); }, 0);
   }
 
   function renderKeno(report) {
@@ -1000,6 +1185,7 @@
         state.controller = null;
         setControls();
         renderActivity();
+        void loadVisibleBaoPages();
       }
     }
   }
@@ -1009,13 +1195,10 @@
     const generation = state.generation;
     const type = byId("effectivenessType").value;
     const form = { type };
-    if (action === "settings") {
-      normalizeTicketCount(true);
-      const ticketCount = Number(byId("effectivenessTicketCount").value.replace(/\./g, ""));
-      const maximum = ticketMaximum();
-      if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > maximum) { showStatus(`Số vé phải là số nguyên từ 1 đến ${maximum}.`, "error"); return; }
-      form.enabled = String(byId("effectivenessEnabled").checked);
-      form.ticketCount = String(ticketCount);
+    const saveBeforeLock = action === "cycle" && supportsBao();
+    if (action === "settings" || saveBeforeLock) {
+      try { Object.assign(form, settingsForm()); }
+      catch (error) { showStatus(error.message, "error"); return; }
     }
     state.busy = true;
     activity.localPhase = action === "settings" ? "updating" : "creating";
@@ -1023,10 +1206,16 @@
     showStatus(action === "settings" ? "Đang lưu cấu hình…" : "Đang tạo và khóa bộ số của bốn phương pháp…");
     let message = "", failed = false;
     try {
+      if (saveBeforeLock) {
+        const saved = await request('/api/ml/effectiveness-settings', { method: "POST", form });
+        if (generation !== state.generation) return;
+        if (saved.settings?.playMode !== form.playMode || !/^[0-9a-f]{64}$/.test(saved.settings?.configurationHash || "")) throw new Error("Cấu hình chưa được xác nhận. Hãy làm mới trước khi khóa kỳ.");
+        form.configurationHash = saved.settings.configurationHash;
+      }
       const response = await request(`/api/ml/effectiveness-${action === "settings" ? "settings" : "cycle"}`, { method: "POST", form });
       if (generation !== state.generation) return;
       if (response.billing) window.dispatchEvent(new CustomEvent('dvlf:prediction-wallet', { detail: response.billing }));
-      message = action === "settings" ? "Đã lưu cấu hình. Kỳ đã khóa giữ nguyên bộ số và số vé." : String(response.message || "Đã xử lý khóa kỳ tiếp theo. Mở nhật ký để xem bộ số.");
+      message = action === "settings" ? "Đã lưu cấu hình. Kỳ đã khóa giữ nguyên bộ số và số vé." : response.status === "already_locked" ? "Kỳ này đã khóa. Cơ cấu đã lưu và phí của kỳ được giữ nguyên." : String(response.message || "Đã xử lý khóa kỳ tiếp theo. Mở nhật ký để xem bộ số.");
     } catch (error) {
       if (generation !== state.generation) return;
       failed = true;
@@ -1080,6 +1269,7 @@
   });
   root.addEventListener("toggle", event => {
     if (event.target.matches("details[data-effectiveness-state]") && root.contains(event.target)) state.openDetails.set(event.target.dataset.effectivenessState, event.target.open);
+    if (event.target.open) void loadVisibleBaoPages();
   }, true);
   ["effectivenessType", "effectivenessLimit"].forEach(id => byId(id).addEventListener("change", () => {
     setSettingsOpen(false);
@@ -1124,6 +1314,8 @@
     if (exportButton) { event.preventDefault(); event.stopPropagation(); void downloadCycleExcel(exportButton); return; }
     const prizeButton = event.target.closest("[data-prize-jump]");
     if (prizeButton) { jumpToPrizeTicket(prizeButton); return; }
+    const retry = event.target.closest('[data-bao-reload]');
+    if (retry && !retry.disabled) { void loadTicketPage(retry.closest('.effectiveness-cycle-method'), 1); return; }
     const methodButton = event.target.closest("[data-cycle-method], [data-method-step]");
     if (methodButton) {
       const view = methodButton.closest(".effectiveness-method-view");
@@ -1169,7 +1361,22 @@
     if (event.key === "Escape" && byId("effectivenessHelpPanel").open) { event.preventDefault(); setHelpOpen(false, true); }
   });
   byId("effectivenessSave").addEventListener("click", () => void mutate("settings"));
+  byId("effectivenessPlayMode").addEventListener("click", event => {
+    const button = event.target.closest("[data-effectiveness-mode]");
+    if (!button || button.disabled || !supportsBao()) return;
+    state.draftPlayMode = button.dataset.effectivenessMode;
+    setControls();
+  });
+  byId("effectivenessBaoLevel").addEventListener("change", () => { normalizeBaoCount(); setControls(); });
+  // Format and clamp before rendering the quote for this same input event.
+  window.VietlottNumericInput.bind(byId("effectivenessBaoCount"), { maximum: baoMaximum, minimum: 1, rejectMalformed: false, liveComposition: true });
+  byId("effectivenessBaoCount").addEventListener("input", () => setControls());
+  byId("effectivenessBaoCount").addEventListener("change", () => setControls());
+  byId("effectivenessBaoCount").addEventListener("compositionend", () => requestAnimationFrame(() => setControls()));
   window.VietlottNumericInput.bind(byId("effectivenessTicketCount"), { maximum: ticketMaximum, minimum: 1, rejectMalformed: false });
+  byId("effectivenessTicketCount").addEventListener("input", renderSettingsSummary);
+  byId("effectivenessTicketCount").addEventListener("change", renderSettingsSummary);
+  byId("effectivenessEnabled").addEventListener("change", renderSettingsSummary);
   byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
   byId("effectivenessTimeline").addEventListener("click", event => {
     const scaleButton = event.target.closest("[data-effectiveness-scale-toggle]");

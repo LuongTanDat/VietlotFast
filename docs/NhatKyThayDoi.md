@@ -1,5 +1,90 @@
 # Nhật Ký Thay Đổi
 
+## 02/11/2026 — Sửa lỗi git add do file cục bộ không đọc được
+
+- Git báo `read error while indexing lotto_web.secdb: Invalid argument`, làm toàn bộ git add thất bại và không có thay đổi để commit. Bổ sung `/lotto_web.secdb` và `/data/canonical/*.tmp` vào .gitignore, giữ file gốc tại chỗ. Không đổi dữ liệu vận hành hoặc thiết lập LF/CRLF.
+- Kiểm tra file được ignore, git add và write-tree thành công trên index/object store tạm riêng; index gốc giữ nguyên. Kiểm tra kết nối origin/main và push --dry-run thành công. Không tạo commit hay đẩy thay đổi lên remote từ thao tác sửa này.
+
+
+## 02/11/2026 — Đồng nhất số lượng Bao, đơn giá và phí mỗi kỳ
+
+- Số lượng vé hiển thị tổng số Bao được chọn cho cả bốn phương pháp; Số tiền là giá một Bao của mức đang chọn. Tích hai giá trị khớp trực tiếp Phí mỗi kỳ. Ví dụ 54.105 Bao/phương pháp → 216.420 Bao 6 × 60.000 PayPal/Bao = 12.985.200.000 PayPal.
+- Ghi rõ phạm vi bốn phương pháp cạnh số lượng, tooltip có phép nhân từ số Bao mỗi phương pháp. Chỉ chỉnh phạm vi hiển thị, giữ đúng tổng phí đã tính trước đó.
+
+
+## 02/11/2026 — Số lượng vé và giá của một Bao
+
+- Hai dòng trong khung báo giá hiển thị Số lượng vé quy đổi của một Bao và Số tiền cho một Bao thuộc mức đang chọn, thay cho tổng mỗi phương pháp. Ví dụ 5/35 Bao 6: 6 vé quy đổi, 60.000 PayPal/Bao; Bao 7: 21 vé quy đổi, 210.000 PayPal/Bao.
+- Đổi mức Bao cập nhật hai dòng; đổi số Bao chỉ thay tổng Phí mỗi kỳ. Phí mỗi kỳ giữ nguyên công thức số Bao × giá một Bao × bốn phương pháp. Chỉ sửa giao diện, không thay phí thực, cấu hình hay ví.
+
+
+## 02/11/2026 — Thêm số lượng và số tiền trong khung báo giá Bao
+
+- Thêm hai dòng Số lượng (Bao/mức Bao mỗi phương pháp) và Số tiền (PayPal mỗi phương pháp), cập nhật theo bản nháp đang nhập. Phí mỗi kỳ vẫn là tổng đủ bốn phương pháp, giữ dòng Số dư và cảnh báo thiếu tiền. Không thay đơn giá, cấu hình đã lưu, bộ sinh hoặc ví.
+- Sửa nhỏ giao diện, kiểm tra JavaScript và trình duyệt trên báo giá mẫu; sao lưu tại Bin/session_1_latest/files/followup_quote_details_20261102/.
+
+
+## 02/11/2026 — Tách riêng Vé Thường và Vé Bao theo cấu hình
+
+- Mỗi kỳ chỉ có một lớp vé đã chọn. Nhánh Bao mới tạo/lưu trực tiếp bộ Bao gốc (`bao_parents_v1`), không lưu thêm mảng hoặc chunks vé thường. Nhánh Thường không gọi bộ tạo Bao. Khóa đủ bốn phương pháp cùng lớp, cùng ngân sách đã xác nhận.
+- Bỏ bộ chuyển Bao / Vé con và nút Xem vé con. API, bảng và Excel chỉ xuất lớp đã khóa; từ chối yêu cầu xem loại khác. Bao hiển thị tổng hợp kết quả trên từng bộ gốc, tìm giải dẫn tới đúng Bao trúng. Tổ hợp nội bộ chỉ phục vụ tính phí, xác minh và chấm; mức phí/quy tắc giải giữ nguyên.
+- Giữ bất biến kỳ cũ và đọc tương thích Bao cũ; đổi cấu hình không tạo lại/thu lại kỳ đã khóa. Cập nhật kiểm thử lớp dữ liệu, tính giải bằng hệ số tổ hợp, thu/hoàn phí, lưu cấu hình, API quyền sở hữu, trình duyệt và Excel. Bằng chứng tại `runtime/selected_ticket_class_20261102/`.
+
+
+## 02/11/2026 — Hiển thị đúng bộ Bao đã mua
+
+- Sửa nguyên nhân giao diện Bao trông như vé thường: trước đây bảng chỉ liệt kê từng vé con. Mặc định hiện bộ Bao gốc, nhãn Bao và số vé con; thêm Bao / Vé con và nút mở các vé con của từng Bao. Áp dụng 5/35, Mega và Power, gồm kỳ đã khóa có metadata gốc.
+- API phân trang 10 Bao từ payload bất biến, xác thực đúng dự đoán và loại game; chỉ tải panel đang xem. Giữ số thứ tự/phân trang/chấm giải vé con, chuyển về vé con khi tìm vé trúng. Không tạo lại danh mục, thay ngân sách hoặc thu phí.
+- Kiểm chứng trên dữ liệu riêng tại `runtime/bao_display_20261102/`; bản trước sửa trong Bin/session_1_latest/files/followup_bao_display_20261102/.
+
+
+## 01/11/2026 — Không trùng vé đầy đủ cho cả ba loại Bao
+
+- Theo lựa chọn mới, 5/35 cho phép cùng 5 số chính khi khác ĐB, chặn khi trùng toàn bộ. Mega/Power chặn cùng bộ 6 số chính; số thứ bảy dự đoán Power không tạo danh tính vé mới. Dùng cùng hàm định danh ở bộ kiểm tra khóa kỳ; giữ bộ phân bổ vé thường hiện có.
+- Dựng 12 họ Bao độc lập theo ĐB, số nhóm mỗi họ cân bằng, một ĐB cố định cho mỗi Bao. Mẫu trong mỗi họ được kiểm chứng không trùng; chỉ chồng số chính giữa các họ khác ĐB. Phiên bản `tracking_bao_full_ticket_v3`, ghi `uniqueBy` trong cấu hình và nguồn gốc vé.
+- Bao 6 5/35 hỗ trợ 54.105 nhóm/phương pháp trong ngân sách 324.632 vé con; Bao 7 Mega/Power giữ 142.857 nhóm. API/giao diện/placeholder/báo phí lấy cùng hạn mức. Không tăng ngân sách đã lưu, sửa ví, tạo lại hay thay kết quả kỳ đã khóa chỉ vì đổi quy tắc.
+- Kiểm tra tất cả mức Bao tại sức chứa công bố, khóa/chấm/xuất vé cùng chính khác ĐB, từ chối vé trùng hoàn toàn, thu đủ phí từng vé con/hoàn phí khi lỗi/không thu lại cùng kỳ; xác nhận luồng trình duyệt → Java → Python trên dữ liệu thử riêng. Bằng chứng tại `runtime/full_ticket_uniqueness_20261101/`.
+
+
+## 01/11/2026 — Đồng bộ nhãn cấu hình với giá trị đang chỉnh
+
+- Nhãn trong khung cấu hình dùng đúng số Bao/mức Bao hoặc số vé của ô nhập. Khi bản nháp khác cấu hình server (gồm cấu hình cũ bị giới hạn lại), hiện Chưa lưu thay vì báo Đang bật theo dữ liệu cũ. Tooltip giữ thông tin đã lưu để đối chiếu.
+- Khi lưu thành công và tải lại xác nhận, nhãn trở về Đang bật/Đang tắt. Chỉ cập nhật giao diện; không tự thay cấu hình DB, ngân sách, ví hay kỳ đã khóa. Kiểm tra bằng luồng trình duyệt/API trên tài khoản thử riêng.
+
+## 01/11/2026 — Khôi phục dự án và sửa bộ tạo Bao
+
+- Khôi phục 141 file bị mất từ GitHub `LuongTanDat/VietlotFast`, commit `7bf467f` (23/10), giữ 164 file còn lại và sao lưu trước khi ghép mã mới hơn từ Bin. Khôi phục Git object/index, không push hoặc thay nhánh. Database, ví, cấu hình và dự đoán đã khóa được giữ lại.
+- Dựng lại phần Bao chưa có trên GitHub: nhóm đầy đủ, vé con không trùng theo số chính trong từng phương pháp; 5/35 giữ một số đặc biệt mỗi nhóm. Giới hạn bằng sức chứa cấu trúc đã kiểm chứng, không dùng phép chia ngân sách làm cam kết khả năng tạo nhóm. Bao 6 5/35 hỗ trợ 46.376; Bao 7 Mega/Power hỗ trợ 142.857. Đây là giới hạn hệ thống bảo đảm, không khẳng định tối ưu tổ hợp toán học.
+- Cấu hình cũ vượt mức vẫn đọc được, từ chối tạo trước khi giữ phí. Giao diện giới hạn bản nháp theo `maxBaoCounts`, hiển thị báo giá mới; chỉ lưu khi người dùng bấm Lưu/Khóa. Hash cấu hình xác nhận trước khi khóa và receipt cùng giao dịch giữ cơ chế thu/hoàn phí.
+- Khôi phục các thay đổi giao diện gần đây từ snapshot, sửa thiếu hộp tài khoản khiến core dừng khởi tạo; khôi phục launcher nền và phát hiện chủ cổng qua CIM. Đồng bộ canonical gần đây bằng luồng không huấn luyện model; không tạo dự đoán thật trong kiểm thử.
+- Kiểm chứng: bộ kiểm thử Bao/mức tối đa và ledger, launcher, giao diện, thanh toán riêng và HTTP Java → Python → ví thử; probe predictor thật cả ba loại không khóa/thu phí. Bằng chứng tại `runtime/recovery_github_20261101/`.
+
+
+## 24/10/2026 — Bao Vé trong Dự Đoán & Thực Tế
+
+- Thêm Cơ Cấu Vé: Vé Thường / Bao Vé cho Loto 5/35, Mega 6/45 và Power 6/55. Chọn mức Bao và Số Bao / phương pháp; hiện tổng vé con, phí bốn phương pháp và số dư trước khi khóa. Keno giữ cơ chế hiện tại.
+- Tách từng Bao thành nhóm vé con đầy đủ, không trùng bộ số chính trong cùng phương pháp. Bao 4 của 5/35 tạo 31 vé con và giữ một số đặc biệt cho mỗi Bao; Bao 5 của Mega/Power tạo 40/50 vé con. Bao lớn tạo các tổ hợp 5/6 số tương ứng. Không tạo đủ nhóm nguyên vẹn thì hủy kỳ và hoàn phí đã giữ.
+- Chốt cấu hình bằng checksum khi khóa, từ chối cấu hình đã thay đổi ở tab khác. Chỉ một danh mục cho cùng tài khoản/loại/kỳ; đổi cơ cấu không tạo lại vé hoặc thu phí lần hai. Lịch sử, trang vé và Excel giữ nguồn gốc Bao, số lượng vé con và cấu hình đã khóa; báo cáo không tải toàn bộ bộ số Bao khi chưa xuất file.
+- Nâng cấp bảng cấu hình theo hướng bổ sung cột, giữ ngân sách vé thường và dữ liệu đã khóa. Java cung cấp phiên bản khả năng hỗ trợ để giao diện chỉ mở Bao khi backend đã sẵn sàng.
+- Tuần tự hóa bước khởi tạo schema theo tài khoản để các báo cáo mở đồng thời lần đầu không tranh khóa WAL/DDL. Tạm ẩn nút trợ lý nổi khi khung cấu hình đang mở để nút khóa kỳ không bị che.
+- Hoàn tất 90 kiểm thử riêng biệt; có kiểm tra thanh toán/hoàn phí, 12 báo cáo đồng thời trên bốn tài khoản thử và tám bố cục sáng/tối ở 320/390/768/1440px. Backend đã cập nhật; fingerprint tài khoản, ví, yêu cầu nạp và tracking ngay trước/sau restart khớp nhau. Bằng chứng và các lần chạy đã sửa lỗi được tổng hợp tại `runtime/tracking_bao_20261024/completion.json`.
+
+## 24/10/2026 — Bỏ dòng kỳ kết quả dưới tiêu đề Live
+
+- Bỏ dòng chữ Kết quả · Kỳ… trên các thẻ Live theo yêu cầu; giữ thông tin nhận diện kết quả trong nhãn hỗ trợ trình đọc màn hình. Dòng kỳ sắp quay/đếm ngược, bộ số và giá trị giải vẫn dùng dữ liệu hiện tại. Gỡ CSS của dòng đã bỏ và cập nhật phiên bản asset.
+
+## 24/10/2026 — Đưa thông tin kỳ lên cùng hàng với Loto 5/35
+
+- Khi thẻ đủ rộng, đặt kỳ/ngày/giờ/đếm ngược cạnh tên Loto 5/35 và giữ nút cập nhật ở bên phải. Thẻ nhỏ giữ cách xuống dòng để đọc đủ thông tin. Cập nhật phiên bản CSS; không đổi lịch quay, đếm ngược hay dữ liệu kết quả.
+
+## 23–24/10/2026 — Rà soát và tối ưu toàn dự án
+
+- Bỏ khung quản lý tài khoản cũ không còn đường mở, giữ các API quản trị và chỉnh số dư trực tiếp. Đồng bộ ô số về bộ định dạng dùng chung, kiểm tra asset phiên bản và cập nhật tài liệu theo luồng đang chạy.
+- API Keno dùng CSV/pipeline trong repo thay vì phụ thuộc `../Test/L1.py`; kiểm tra tham số trước cả champion và fallback, từ chối CLI thừa. Launcher biên dịch trước khi restart, xác minh PID/worker và chạy nền có log.
+- Thêm `scripts/verify_project.py` để chạy toàn bộ kiểm thử, bỏ lần chạy lặp do import fixture và tách ba package standalone. Kiểm tra đóng Chrome sạch trước dọn profile thử. Đầu ra kiểm thử cũ và backup lớn được nén/kiểm SHA-256 trước khi bỏ bản rời; database/canonical/model vận hành giữ nguyên. Chi tiết và số liệu cuối ở `docs/KiemTraTongThe20261023.md`.
+- Giữ focus nút chú giải biểu đồ thống kê khi thay đổi kích thước cửa sổ; cập nhật phiên bản asset. Fixture dùng DB/profile tạm hệ thống, làm mới cả hai phiên sau restart và không dựa vào dữ liệu của bài kiểm thử chạy trước. Dọn bản rời đã nén giảm ròng khoảng 21,61 GB.
+- Hoàn tất 527 bài gốc và 14 bài standalone. Một lỗi fixture thông báo sau reload đã được tái hiện, sửa và chạy lại toàn bộ 14 bài liên quan đạt; giữ nguyên log gốc và tổng hợp kết quả có nguồn gốc trong `runtime/project_audit_20261024/final_verified/`. Không bỏ qua bài kiểm thử nào.
+
 ## 23/10/2026 — Jackpot kỳ tiếp theo trở về mốc khởi điểm sau khi trúng
 
 - Giữ tiêu đề kỳ sắp quay theo yêu cầu. Bộ số kỳ đã quay có nhãn Kết quả và đúng mã kỳ riêng. Tiền thưởng trên thẻ Live của kỳ tiếp theo trở về mức khởi điểm khi nhãn Nổ hoặc số vé trúng xác nhận giải đã trúng: Mega 12 tỷ, Power Jackpot 1 30 tỷ / Jackpot 2 3 tỷ, Lotto 5/35 6 tỷ (gồm kỳ đã xác nhận Chia Giải). Không đặt lại Power Jackpot còn lại khi chỉ một giải trúng, không suy từ tiền giảm hay dữ liệu trống.

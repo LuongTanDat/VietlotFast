@@ -8,11 +8,11 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
-  <link rel="stylesheet" href="/vietlott-web-extra.css?v=live-jackpot-reset-20261023" />
+    <link rel="stylesheet" href="/vietlott-web-extra.css?v=selected-ticket-class-20261102" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
-  <link rel="preload" href="/vietlott-web-data.js?v=live-jackpot-reset-20261023" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js?v=live-jackpot-reset-20261023" as="script" />
+  <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=project-audit-20261023" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -376,8 +376,8 @@
               <section class="admin-form-section admin-reward-section" aria-label="Phần quà">
               <div class="admin-reward-head"><h3>Giá trị mỗi phần quà</h3><span>Có thể chọn nhiều loại quà</span></div>
               <div class="admin-form-grid admin-rewards">
-                <label class="admin-field">PayPal<input id="settingsCodePaypal" data-empty-zero class="acc-paypal" type="text" inputmode="numeric" value="0" required /></label>
-                <label class="admin-field">Kim cương<input id="settingsCodeDiamond" data-empty-zero class="acc-diamond" type="text" inputmode="numeric" value="0" required /></label>
+                <label class="admin-field">PayPal<input id="settingsCodePaypal" data-empty-zero data-grouped-integer type="text" inputmode="numeric" value="0" required /></label>
+                <label class="admin-field">Kim cương<input id="settingsCodeDiamond" data-empty-zero data-grouped-integer type="text" inputmode="numeric" value="0" required /></label>
                 <label class="admin-field">Ngày VIP<input id="settingsCodeVipDays" data-empty-zero data-grouped-integer type="text" inputmode="numeric" min="0" max="3660" step="1" value="0" required /></label>
                 <label class="admin-field">Lượt quay<input id="settingsCodeSpins" data-empty-zero data-grouped-integer type="text" inputmode="numeric" min="0" max="60" step="1" value="0" required /></label>
               </div>
@@ -853,7 +853,19 @@
                   <div class="effectiveness-admin-body">
                     <div class="effectiveness-admin-controls">
                       <label class="effectiveness-enable"><span>Theo Dõi Cấu Hình</span><span class="effectiveness-tracking-switch"><input id="effectivenessEnabled" type="checkbox" role="switch" aria-label="Theo Dõi Cấu Hình" /><span class="effectiveness-tracking-state" aria-hidden="true"></span></span></label>
-                      <label class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 1.000.000</small></span><input id="effectivenessTicketCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" max="1000000" value="1" placeholder="Max 1.000.000" aria-describedby="effectivenessTicketMax" /></label>
+                      <div id="effectivenessPlayMode" class="effectiveness-play-mode" hidden>
+                        <span class="effectiveness-field-label">Cơ Cấu Vé</span>
+                        <div class="effectiveness-mode-switch" role="group" aria-label="Cơ Cấu Vé">
+                          <button type="button" data-effectiveness-mode="normal" aria-pressed="true">Vé Thường</button>
+                          <button type="button" data-effectiveness-mode="bao" aria-pressed="false">Bao Vé</button>
+                        </div>
+                      </div>
+                      <label id="effectivenessNormalBudget" class="effectiveness-budget"><span>Vé / phương pháp <small id="effectivenessTicketMax">Tối đa 1.000.000</small></span><input id="effectivenessTicketCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" max="1000000" value="1" placeholder="Max 1.000.000" aria-describedby="effectivenessTicketMax" /></label>
+                      <div id="effectivenessBaoFields" class="effectiveness-bao-fields" hidden>
+                        <label for="effectivenessBaoLevel"><span>Chọn Bao</span><select id="effectivenessBaoLevel"></select></label>
+                        <label for="effectivenessBaoCount"><span>Số Bao / phương pháp</span><span class="effectiveness-bao-input"><input id="effectivenessBaoCount" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" min="1" value="1" /></span></label>
+                      </div>
+                      <div id="effectivenessTicketQuote" class="effectiveness-ticket-quote" aria-live="polite" hidden></div>
                       <div class="effectiveness-admin-actions">
                         <button id="effectivenessSave" type="button" class="secondary">Lưu cấu hình</button>
                         <button id="effectivenessLock" type="button">Khóa kỳ tiếp theo</button>
@@ -1673,12 +1685,12 @@
   <!-- ------ App Scripts --- -->
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
   <script defer src="/vietlott-web-stats.js"></script>
-  <script defer src="/vietlott-web-data.js?v=live-jackpot-reset-20261023"></script>
-  <script defer src="/vietlott-web-numeric.js?v=deposit-input-cap-20261021-2"></script>
-  <script defer src="/vietlott-web-effectiveness.js?v=remove-algorithm-lab-20261020"></script>
+  <script defer src="/vietlott-web-data.js?v=recovery-bao-v2-20261101"></script>
+  <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
+    <script defer src="/vietlott-web-effectiveness.js?v=bao-total-quote-20261102"></script>
   <script defer src="/vietlott-web-payments.js?v=admin-deposit-notifications-20261022"></script>
-  <script defer src="/vietlott-web-core.js?v=live-jackpot-reset-20261023"></script>
-  <script defer src="/vietlott-web-account-stats.js?v=statistics-compact-chart-legends-20261020"></script>
+  <script defer src="/vietlott-web-core.js?v=project-audit-20261023"></script>
+  <script defer src="/vietlott-web-account-stats.js?v=statistics-legend-focus-20261024"></script>
   <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
   <script defer src="/vietlott-web-admin.js?v=inline-user-balances-20261023"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>

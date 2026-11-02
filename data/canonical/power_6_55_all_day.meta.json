@@ -2,7 +2,7 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-23T14:35:38",
+  "lastSyncAt": "2026-11-01T21:54:54",
   "lastBootstrapAt": "2026-03-17T19:34:02",
   "effectiveEarliestKy": "5",
   "effectiveEarliestDate": "01/08/2017",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-23T14:35:38",
+    "updatedAt": "2026-11-01T21:54:54",
     "complete": true,
-    "totalRows": 1410,
-    "completeRows": 1410,
+    "totalRows": 1414,
+    "completeRows": 1414,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -70,7 +70,7 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-10-23T14:35:38",
+    "updatedAt": "2026-11-01T21:54:54",
     "countsByDraw": {
       "1406": {
         "identity": "03/10/2026||7,11,13,16,18,54|41",
@@ -16990,6 +16990,54 @@
           "third": 45639
         },
         "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-10-2026.html",
+        "checkedAt": ""
+      },
+      "1418": {
+        "identity": "31/10/2026||12,18,22,26,28,55|11",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 10,
+          "second": 822,
+          "third": 17591
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-31-10-2026.html",
+        "checkedAt": ""
+      },
+      "1417": {
+        "identity": "29/10/2026||9,29,33,38,45,46|53",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 18,
+          "second": 837,
+          "third": 16183
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-29-10-2026.html",
+        "checkedAt": ""
+      },
+      "1416": {
+        "identity": "27/10/2026||9,18,27,28,31,35|50",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 29,
+          "second": 1197,
+          "third": 22422
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-27-10-2026.html",
+        "checkedAt": ""
+      },
+      "1415": {
+        "identity": "24/10/2026||6,7,18,41,44,50|53",
+        "counts": {
+          "jackpot1": 1,
+          "jackpot2": 0,
+          "first": 24,
+          "second": 1818,
+          "third": 43703
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-24-10-2026.html",
         "checkedAt": ""
       }
     }

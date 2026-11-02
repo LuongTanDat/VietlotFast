@@ -45,3 +45,26 @@ Chi tiết `Bin/`:
 - ai/keno_effectiveness.py chuẩn bị và chấm danh mục bằng tối đa bốn tiến trình, tối đa nửa số luồng CPU. Worker tạo không ghi DB; worker chấm chỉ mở DB read-only. Parent kiểm tra checksum/deadline/nguồn/cấu hình, ghi đủ 40 dự đoán hoặc toàn bộ điểm trong một giao dịch.
 - effectiveness_ticket_index và effectiveness_ticket_chunks là dữ liệu phụ trợ bất biến, ghi cùng vé gốc; danh mục trên 10.000 vé chia khối 1.000 để đọc trang nhỏ. Dự đoán/điểm đã khóa giữ nguyên.
 - ai/effectiveness_xlsx.py tạo XLSX nén trực tiếp ở backend cho danh mục lớn; Java gửi file theo luồng và dọn đúng file tạm. Trình duyệt tải file, không dựng hàng triệu dòng JSON/XML. File có Tổng quan và bốn phương pháp, AutoFilter và hàng đầu cố định.
+
+## Bộ tạo Bao sau khôi phục 01/11/2026
+
+- `ai/tracking_bao.py`: sức chứa từng mức, tạo nhóm nguyên vẹn và ánh xạ số theo phương pháp; không ghi ví/DB.
+- `config/tracking-bao-packing-v2.json`: mẫu cấu trúc nhóm xác định, kiểm tra không trùng trước khi dùng; ghi nhận cùng execution manifest.
+- `scripts/build_tracking_bao_packing.py`: tái tạo mẫu vào file runtime riêng để đối chiếu, không tự thay mẫu đang chạy.
+- `ai/prediction_effectiveness.py`: schema cộng thêm cột Bao, cấu hình/hash, kiểm tra trước thu phí và ghi bốn phương pháp nguyên tử; lịch sử giữ bất biến.
+- `frontend/vietlott-web-effectiveness.js`: chọn mức/Số Bao, hạn mức từ server, báo phí và xác nhận hash trước khóa.
+
+## Định danh vé đầy đủ — v3
+
+- `tracking_bao.ticket_key` dùng thống nhất khi kiểm tra khóa kỳ: 5/35 gồm số chính và ĐB; Mega/Power chỉ gồm số chính. Không dùng số thứ bảy dự đoán Power để né trùng.
+- `tracking_bao._parent_groups` tạo luân phiên 12 luồng độc lập theo ĐB cho 5/35. Mỗi luồng dùng cấu trúc cơ sở đã kiểm chứng trong `tracking-bao-packing-v2.json`; định dạng mẫu cơ sở không đổi. `maxBaoCounts` nhân sức chứa họ với 12 cho 5/35 rồi giới hạn theo ngân sách vé con.
+- `uniqueBy` và `baoRuleVersion` được đóng băng cùng cấu hình/payload/checksum của kỳ mới. Kỳ cũ giữ nguyên phiên bản, bộ số, số tiền và kết quả chấm; phần so sánh số trùng/Brier vẫn chấm số chính, phần giải chấm đúng ĐB.
+
+
+## Lưu và đọc đúng lớp vé đã chọn
+
+- `tracking_bao.build` tạo trực tiếp các nhóm Bao gốc từ vector/seed của phương pháp; không gọi `expand` để tạo một mảng vé thường. `ticketStorage=bao_parents_v1` ghi nhận biểu diễn mới, không đổi thuật toán khử trùng v3. `expand` giữ làm công cụ đối chiếu tương thích, không nằm trong nhánh khóa Bao mới.
+- `prediction_effectiveness.cycle` dùng nhánh normal/bao riêng, xác minh kiểu và số lượng trước khóa, đóng băng lớp trong config và payload. Bao chỉ ghi mảng nhóm gốc; chỉ mục giữ số tổ hợp tương đương phục vụ tính phí/đối chứng, không ghi chunks của vé thường. Chấm giải có thể dựng tổ hợp nội bộ tạm từ nhóm bất biến, không lưu thành prediction hoặc danh mục khác.
+- `tracking_bao.parent_prizes` đếm số tổ hợp theo nhóm số trúng/số phụ bằng hệ số tổ hợp; không dựng toàn bộ các vé thường để phân loại từng Bao trên API/Excel. Kiểm chứng với bộ phân loại chính xác cho cả 3 game, cả mức Bao thấp hơn/cao hơn cỡ vé chuẩn và Power Jackpot 2.
+- `ticket_page(view=selected)` chọn đúng loại theo config kỳ; yêu cầu view trái loại bị từ chối. Tìm giải trong kỳ Bao dẫn tới Bao gốc, không sang trang vé thường. Báo cáo Bao không tải hoặc trả mảng vé thường; frontend không có bộ chuyển loại trong nhật ký.
+- `effectiveness_xlsx` xuất đúng loại: mỗi dòng Bao là một nhóm gốc, gồm số tổ hợp quy đổi và tổng hợp giải. Dữ liệu Bao cũ đọc tương thích từ `bao.parents`; không sửa DB lịch sử hoặc ví.

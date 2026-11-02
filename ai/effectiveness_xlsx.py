@@ -82,8 +82,10 @@ def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
                 ['Phạm vi', 'Toàn bộ vé đã khóa của bốn phương pháp trong kỳ được chọn.']]
     for key, label in METHODS:
         entry = data['methods'][key]
-        overview.extend([[f'{label} · Số vé', entry['ticketCount']],
-                         [f'{label} · Số vé trúng', entry['prizeStatistics']['winningTicketCount']],
+        if entry.get('ticketClass') == 'bao':
+            overview.extend([[f'{label} · Số tổ hợp quy đổi', entry['equivalentTicketCount']]])
+        overview.extend([[f'{label} · Số Bao' if entry.get('ticketClass') == 'bao' else f'{label} · Số vé', entry['ticketCount']],
+                         [f'{label} · Số Bao trúng' if entry.get('ticketClass') == 'bao' else f'{label} · Số vé trúng', entry.get('winningBaoCount', entry['prizeStatistics']['winningTicketCount'])],
                          [f'{label} · Mã dự đoán', entry['predictionId']], [f'{label} · Engine', entry['engine']],
                          [f'{label} · Model', entry['modelId']], [f'{label} · Seed', str(entry['seed'])],
                          [f'{label} · Checksum dự đoán', entry['payloadChecksum']]])
@@ -101,6 +103,16 @@ def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
                 write_sheet(archive, 1, ['Thông tin', 'Giá trị'], overview, len(overview), [40, 88])
                 for sheet, (key, _) in enumerate(METHODS, 2):
                     entry = data['methods'].pop(key)
+                    if entry.get('ticketClass') == 'bao':
+                        headers = ['Bao', 'Bộ số Bao gốc', 'Số đặc biệt', 'Số tổ hợp quy đổi', 'Số chính trùng', 'SL số chính trùng', 'Kết quả', 'Chi tiết giải']
+                        def rows():
+                            for parent in entry['baoParents']:
+                                yield [parent['parentIndex'], balls(parent['main']), special(parent.get('special')), parent['childCount'],
+                                       balls([n for n in parent['main'] if n in actual]), len(set(parent['main']) & actual) if actual else '',
+                                       parent['result']['label'], parent['result']['details']]
+                        write_sheet(archive, sheet, headers, rows(), entry['ticketCount'], [9, 55, 15, 22, 30, 22, 25, 70])
+                        del entry
+                        continue
                     def rows():
                         for index, (ticket, result) in enumerate(zip(entry['tickets'], entry['ticketResults']), 1):
                             yield [index, balls(ticket['main']), special(ticket.get('special')),

@@ -4734,7 +4734,7 @@
           const pendingMetaParts = buildUpcomingLiveMetaParts(meta.key, null, nowValue);
           return `
             <article class="${cardClass} pending" data-live-type="${escapeHtml(meta.key)}">
-              <div class="live-card-top">
+              <div class="live-card-top" tabindex="0" role="group" aria-label="Thông tin kỳ quay · Cuộn ngang để xem đầy đủ">
                 <div class="live-card-info-row">
                   <span class="live-card-chip">Live</span>
                   <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
@@ -4754,7 +4754,7 @@
         ).join("");
         return `
           <article class="${cardClass}" data-live-type="${meta.key}">
-            <div class="live-card-top">
+            <div class="live-card-top" tabindex="0" role="group" aria-label="Thông tin kỳ quay · Cuộn ngang để xem đầy đủ">
               <div class="live-card-info-row">
                 <span class="live-card-chip">Live</span>
                 <h3 class="live-card-title">${escapeHtml(meta.label)}</h3>
@@ -4762,7 +4762,6 @@
               </div>
               ${refreshButton}
             </div>
-            ${metaParts.length ? `<div class="live-card-result-label">Kết quả · ${escapeHtml(metaParts.join(" • "))}</div>` : ""}
             <div class="live-card-main">${lines}</div>
             ${prizeLines ? `<div class="live-card-amounts">${prizeLines}</div>` : ""}
           </article>
@@ -5294,7 +5293,7 @@
       if (IS_LOCAL_MODE) {
         if (!silent) {
           updateKenoCsvStatus(
-            "Hãy mở trang qua http://localhost:8080 để web tự đồng bộ CSV Keno. Khi chạy qua server, mục này không cần tải file thủ công nữa.",
+            "Hãy mở trang qua http://localhost:8080 để đọc dữ liệu Keno của hệ thống. Dữ liệu mới được cập nhật tại Kết Quả Trực Tiếp.",
             "warn"
           );
         }
@@ -5306,7 +5305,7 @@
       const csvText = String(res.csvText || "");
       if (!csvText.trim()) {
         if (!silent) {
-          updateKenoCsvStatus("Server đã trả về trạng thái sync nhưng chưa có nội dung CSV Keno.", "warn");
+          updateKenoCsvStatus("Hệ thống chưa có dữ liệu Keno. Hãy cập nhật tại Kết Quả Trực Tiếp.", "warn");
         }
         return { validRows: 0, skippedRows: 0, loadedSources: [] };
       }
@@ -5339,7 +5338,7 @@
 
     async function predictKenoWithPython(order, bundles) {
       if (IS_LOCAL_MODE) {
-        throw new Error("Hãy mở trang qua http://localhost:8080 để dùng thuật toán Keno từ Test/L1.py.");
+        throw new Error("Hãy mở trang qua http://localhost:8080 để dùng thuật toán Keno nội bộ.");
       }
 
       const params = new URLSearchParams({
@@ -7383,7 +7382,7 @@
           return line(out, formatKenoPythonPrediction(result));
         } catch (err) {
           predictLastDisplayResult = null;
-          return line(out, `Không thể dự đoán Keno từ Test/L1.py: ${err.message}`, "warn");
+          return line(out, `Không thể dự đoán Keno: ${err.message}`, "warn");
         }
       }
 

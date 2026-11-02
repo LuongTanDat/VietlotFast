@@ -5,3 +5,7 @@ runtime/logs/
 *.class
 Bin/
 runtime/
+
+# Local state and incomplete canonical writes
+/lotto_web.secdb
+/data/canonical/*.tmp

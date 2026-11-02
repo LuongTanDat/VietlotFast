@@ -2,7 +2,7 @@
   "type": "LOTO_6_45",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-10-23T14:35:35",
+  "lastSyncAt": "2026-11-01T21:54:51",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "2",
   "effectiveEarliestDate": "20/07/2016",
@@ -13,10 +13,10 @@
     },
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-10-23T14:35:35",
+    "updatedAt": "2026-11-01T21:54:51",
     "complete": true,
-    "totalRows": 1577,
-    "completeRows": 1577,
+    "totalRows": 1582,
+    "completeRows": 1582,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -68,7 +68,7 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-10-23T14:35:35",
+    "updatedAt": "2026-11-01T21:54:51",
     "countsByDraw": {
       "1570": {
         "identity": "02/10/2026||1,6,20,27,31,41|",
@@ -17415,6 +17415,61 @@
           "third": 28104
         },
         "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-21-10-2026.html",
+        "checkedAt": ""
+      },
+      "1583": {
+        "identity": "01/11/2026||5,9,17,18,34,36|",
+        "counts": {
+          "jackpot": 0,
+          "first": 35,
+          "second": 1481,
+          "third": 25743
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-01-11-2026.html",
+        "checkedAt": ""
+      },
+      "1582": {
+        "identity": "30/10/2026||7,21,22,40,41,45|",
+        "counts": {
+          "jackpot": 0,
+          "first": 25,
+          "second": 1160,
+          "third": 22278
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-30-10-2026.html",
+        "checkedAt": ""
+      },
+      "1581": {
+        "identity": "28/10/2026||1,9,11,28,33,42|",
+        "counts": {
+          "jackpot": 0,
+          "first": 25,
+          "second": 1431,
+          "third": 24461
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-28-10-2026.html",
+        "checkedAt": ""
+      },
+      "1580": {
+        "identity": "25/10/2026||4,13,22,25,40,41|",
+        "counts": {
+          "jackpot": 0,
+          "first": 30,
+          "second": 1303,
+          "third": 19825
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-25-10-2026.html",
+        "checkedAt": ""
+      },
+      "1579": {
+        "identity": "23/10/2026||2,5,11,22,32,40|",
+        "counts": {
+          "jackpot": 0,
+          "first": 21,
+          "second": 1064,
+          "third": 19027
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-23-10-2026.html",
         "checkedAt": ""
       }
     }

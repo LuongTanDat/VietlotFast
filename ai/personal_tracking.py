@@ -103,9 +103,10 @@ class Scope:
     def prepare(self, allow_disabled=False):
         self.validate(allow_disabled)
         from ai import keno_effectiveness as ke
-        with closing(ke._connect(self.database)) as connection:
-            connection.execute('CREATE TABLE IF NOT EXISTS paid_cycle_receipts '
-                               '(charge_id TEXT PRIMARY KEY, cycle_id TEXT NOT NULL UNIQUE, ticket_count INTEGER NOT NULL)')
+        with resource_lock(self.database.parent / 'schema'):
+            with closing(ke._connect(self.database)) as connection:
+                connection.execute('CREATE TABLE IF NOT EXISTS paid_cycle_receipts '
+                                   '(charge_id TEXT PRIMARY KEY, cycle_id TEXT NOT NULL UNIQUE, ticket_count INTEGER NOT NULL)')
 
     def validate(self, allow_disabled=False):
         with closing(account_connection(self.account_db)) as connection:
@@ -238,7 +239,11 @@ def execute(args):
         result = pe.dispatch(args)
     if args.command in ('report', 'settings', 'configure', 'cycle'):
         settings = pe.settings(args.game, scope.database)['settings']
-        result['billing'] = scope.details(args.game, settings['ticketCount'])
+        valid_count = min(settings['ticketCount'], settings['maxTicketCount'])
+        result['billing'] = scope.details(args.game, valid_count)
+        if not settings.get('configurationValid', True):
+            result['billing']['configurationValid'] = False
+            result['billing']['configurationError'] = settings['configurationError']
     return result
 
 
