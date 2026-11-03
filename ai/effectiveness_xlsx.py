@@ -69,6 +69,7 @@ def write_sheet(archive, index, headers, rows, count, widths):
 
 def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
     from ai import prediction_effectiveness as pe
+    from ai import tracking_ticket_seed as seeds
     # One DB snapshot, recorded actual only; no model, canonical or rescoring.
     data = pe.export_cycle(game, cycle_id, db_path, level, allow_large=True)
     destination = Path(destination)
@@ -82,6 +83,11 @@ def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
                 ['Phạm vi', 'Toàn bộ vé đã khóa của bốn phương pháp trong kỳ được chọn.']]
     for key, label in METHODS:
         entry = data['methods'][key]
+        if entry.get('seedSchedule'):
+            overview.extend([[f'{label} · Seed gốc', entry['seedSchedule']['rootSeed']],
+                             [f'{label} · Phiên bản seed vé', entry['seedSchedule']['version']],
+                             [f'{label} · Công thức seed vé', entry['seedSchedule']['derivation']],
+                             [f'{label} · Tái lập', 'Cần cấu hình, xác suất và thứ tự phân bổ/khử trùng đã khóa; seed không dự báo kết quả quay.']])
         if entry.get('ticketClass') == 'bao':
             overview.extend([[f'{label} · Số tổ hợp quy đổi', entry['equivalentTicketCount']]])
         overview.extend([[f'{label} · Số Bao' if entry.get('ticketClass') == 'bao' else f'{label} · Số vé', entry['ticketCount']],
@@ -103,14 +109,18 @@ def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
                 write_sheet(archive, 1, ['Thông tin', 'Giá trị'], overview, len(overview), [40, 88])
                 for sheet, (key, _) in enumerate(METHODS, 2):
                     entry = data['methods'].pop(key)
+                    seed_schedule = entry.get('seedSchedule')
+                    seed_headers = ['Seed vé', 'Seed gốc'] if seed_schedule else []
+                    seed_widths = [68, 24] if seed_schedule else []
                     if entry.get('ticketClass') == 'bao':
-                        headers = ['Bao', 'Bộ số Bao gốc', 'Số đặc biệt', 'Số tổ hợp quy đổi', 'Số chính trùng', 'SL số chính trùng', 'Kết quả', 'Chi tiết giải']
+                        headers = ['Bao', 'Bộ số Bao gốc', 'Số đặc biệt', 'Số tổ hợp quy đổi', 'Số chính trùng', 'SL số chính trùng', 'Kết quả', 'Chi tiết giải'] + seed_headers
                         def rows():
                             for parent in entry['baoParents']:
                                 yield [parent['parentIndex'], balls(parent['main']), special(parent.get('special')), parent['childCount'],
                                        balls([n for n in parent['main'] if n in actual]), len(set(parent['main']) & actual) if actual else '',
-                                       parent['result']['label'], parent['result']['details']]
-                        write_sheet(archive, sheet, headers, rows(), entry['ticketCount'], [9, 55, 15, 22, 30, 22, 25, 70])
+                                       parent['result']['label'], parent['result']['details'],
+                                       *([seeds.derive(seed_schedule, parent['parentIndex']), seed_schedule['rootSeed']] if seed_schedule else [])]
+                        write_sheet(archive, sheet, headers, rows(), entry['ticketCount'], [9, 55, 15, 22, 30, 22, 25, 70] + seed_widths)
                         del entry
                         continue
                     def rows():
@@ -119,8 +129,9 @@ def write_cycle_xlsx(game, cycle_id, destination, db_path=None, level=10):
                                    balls([n for n in ticket['main'] if n in actual]),
                                    result['mainHits'] if result['mainHits'] is not None else '',
                                    'Có' if result['specialMatched'] is True else 'Không' if result['specialMatched'] is False else '',
-                                   STATUS.get(result['status'], result['status']), result['prizeLabel'], result['prizeCode'], result['reason']]
-                    write_sheet(archive, sheet, HEADERS, rows(), entry['ticketCount'], [9, 34, 15, 30, 22, 27, 20, 25, 25, 55])
+                                   STATUS.get(result['status'], result['status']), result['prizeLabel'], result['prizeCode'], result['reason'],
+                                   *([seeds.derive(seed_schedule, index), seed_schedule['rootSeed']] if seed_schedule else [])]
+                    write_sheet(archive, sheet, HEADERS + seed_headers, rows(), entry['ticketCount'], [9, 34, 15, 30, 22, 27, 20, 25, 25, 55] + seed_widths)
                     del entry
         except BaseException:
             file.close()

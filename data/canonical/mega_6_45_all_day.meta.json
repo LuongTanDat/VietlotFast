@@ -2,7 +2,7 @@
   "type": "LOTO_6_45",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-01T21:54:51",
+  "lastSyncAt": "2026-11-03T21:19:44",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "2",
   "effectiveEarliestDate": "20/07/2016",
@@ -13,7 +13,7 @@
     },
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-01T21:54:51",
+    "updatedAt": "2026-11-03T21:19:44",
     "complete": true,
     "totalRows": 1582,
     "completeRows": 1582,
@@ -68,7 +68,7 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-01T21:54:51",
+    "updatedAt": "2026-11-03T21:19:44",
     "countsByDraw": {
       "1570": {
         "identity": "02/10/2026||1,6,20,27,31,41|",

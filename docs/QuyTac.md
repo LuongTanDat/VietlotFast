@@ -1,5 +1,49 @@
 # Quy Tắc
 
+## Thẻ tài khoản và nơi nhận thưởng (03/11/2026)
+
+- Hộp tài chính có hai tab `Lịch sử giao dịch | Thẻ của bạn`. Thẻ nội bộ DVLF Bank hiển thị ID công khai cố định, tên đăng nhập và số dư riêng bằng PayPal; không liên kết hoặc tự chuyển đến ngân hàng bên ngoài. Lịch sử thẻ có bộ lọc Tất cả/Chuyển/Nạp/Rút/Thưởng và phân trang 20 dòng. Đây là bộ lọc lịch sử, chưa bổ sung nghiệp vụ chuyển/nạp/rút mới chỉ vì có tên bộ lọc.
+- Theo điều chỉnh của người dùng, thưởng dự đoán mới trả thẳng vào thẻ thay vì ví. Giữ 1 VNĐ thưởng = 1,25 PayPal và cách làm tròn/quyết toán đã chọn; phí dự đoán, nạp và hoàn phí tiếp tục dùng ví như trước. `account_cards` tách khỏi store, client không thể tự ghi số dư thẻ bằng POST store.
+- Các khoản thưởng đã cộng vào ví được chuyển đúng số PayPal đã nhận sang thẻ: trừ ví/cộng thẻ trong cùng transaction, không quy đổi lần hai và không thay tổng ví + thẻ. Giữ nguyên biên nhận thưởng/audit cũ; thêm chứng từ đối ứng và khóa chống chuyển lặp theo charge. Thiếu tiền trong ví hoặc chứng từ không khớp thì hủy cả giao dịch chuyển của tài khoản, không tạo thêm tiền.
+- Khoản chuyển thưởng cũ vào thẻ thuộc loại Chuyển; thưởng mới trả trực tiếp thuộc loại Thưởng. Các bộ lọc Nạp/Rút chỉ hiện giao dịch thực sự đã ghi, không sinh giao dịch mẫu. `card_transactions`, `prediction_payout_routes`, `reward_card_migrations` bất biến. ID thẻ theo account_id không đổi khi đổi tên, không chuyển dữ liệu sang tài khoản mới trùng tên.
+- Xem thẻ/lịch sử chỉ đọc và chỉ lấy chủ sở hữu từ phiên đăng nhập. Đóng hộp, chuyển tab hoặc đổi tài khoản hủy request cũ; số dư thẻ không ghi đè số dư ví trên thanh đầu trang.
+
+## Quyết toán thưởng dự đoán vào ví (03/11/2026)
+
+- Theo lựa chọn người dùng: 1 VNĐ thưởng = 1,25 PayPal; cộng bù cả kỳ cũ đã trả phí và áp dụng cho kỳ mới. Dùng tổng thưởng mô phỏng trước thuế đang hiển thị, tính độc lập từng phương pháp rồi cộng đủ bốn phương pháp/các bậc Keno đã mua. Quy đổi tổng mỗi bộ đã mua bằng số nguyên `rewardVnd * 5 // 4`, làm tròn xuống một lần; không quy đổi tiền lãi sau trừ phí và không trừ phí vé lần nữa.
+- Chỉ quyết toán danh mục cá nhân có charge `charged`, biên nhận nguyên tử khớp cycle/số vé/phí/loại/kỳ và đủ kết quả chấm hợp lệ, khóa trước giờ quay. Loại các khoản đã hoàn phí, danh mục không mua, thiếu phương pháp/bậc, UNKNOWN/PENDING hoặc số vé không khớp. Bao dùng kết quả tổ hợp quy đổi đã chấm, không sinh lại vé để tính tiền.
+- Jackpot/Đặc biệt dùng quỹ và số vé trúng thực tế đã đối chiếu đúng kỳ/ngày/giờ/bộ số; chia riêng theo số vé trúng của từng phương pháp như bảng mô phỏng. Keno 8/8–10/10 dùng đúng cơ chế quỹ riêng từng bậc. Thiếu dữ liệu thì chờ bổ sung, không đoán 0, không cộng tạm; khi đủ dữ liệu worker thử lại. Mức đã quyết toán được đóng băng, không cộng lại theo nguồn về sau.
+- `prediction_payouts` giữ biên nhận bất biến, duy nhất theo tài khoản nội bộ + cycle và charge. Cộng ví, tăng walletVersion, biên nhận và audit `prediction_reward` trong cùng transaction; lỗi/giới hạn số dư hủy toàn bộ khoản đó. Không sinh vé, sửa điểm/lịch sử/biên nhận phí để cộng thưởng. Bộ không trúng được chốt 0 mà không tạo khoản cộng giả.
+- Worker hoặc thao tác tạo/chấm quyết toán tự động khi `config/prediction-rewards.json` bật. Đọc báo cáo/lịch sử/trang vé không quyết toán hay thay số dư. Nút Trúng thưởng trong lịch sử ví tách tiền trúng khỏi Hoàn tiền; số dư thanh đầu trang cập nhật theo walletVersion của server. Đây là cộng đơn vị PayPal của dự án theo chính sách mô phỏng đã chọn, không xác nhận vé đã mua/lĩnh tại Vietlott.
+
+## Lịch sử ví của tài khoản (03/11/2026)
+
+- Nút History nằm giữa số dư PayPal và chuông, mở bảng chỉ đọc với bộ lọc và phân trang 20 giao dịch. API lấy chủ sở hữu từ phiên, không nhận accountId/tên tài khoản client để chọn ví; sự kiện audit gắn ID bất biến, giao dịch vòng quay theo chủ sở hữu đã được đổi tên cùng tài khoản.
+- Nạp chỉ gồm khoản đã cộng thật, không gồm yêu cầu chờ/từ chối và QR thử nghiệm. Phí dự đoán ghi ở thời điểm trừ/tạm giữ, xác nhận charged không tính lần hai; khoản hoàn hiện riêng. Giữ khoản đổi lượt quay, thưởng, Code/thu hồi và điều chỉnh admin. Không suy ra giao dịch giả từ số dư hiện tại; điều chỉnh cũ thiếu mức chênh lệch hiện — cùng số dư đã đặt. Điều chỉnh mới lưu số dư trước/chênh lệch nguyên tử.
+- Mở/lọc/chuyển trang/làm mới/đóng bảng không thay ví, sinh vé, tính lại lịch sử hoặc thu phí. Không đưa gift code/mật khẩu/payload ví nội bộ ra bảng; đóng/đổi phiên hủy request và xóa dữ liệu đang hiển thị. Số tiền thay đổi trả dạng chuỗi số nguyên để giữ chính xác cả chênh lệch lớn.
+
+## Tra cứu và tái lập seed đã lưu (03/11/2026)
+
+- `scripts/tra_seed.bat` hoặc `python scripts/tra_seed.py` mở chế độ nhập liên tục; nhập seed đầy đủ 64 ký tự, Enter trống/q để thoát. Có thể truyền một seed ngay sau tên script; `--json` trả dữ liệu có cấu trúc.
+- Công cụ tra mọi seed riêng phiên bản đang hỗ trợ đã có trong danh mục đã chọn của 5/35, Mega, Power, đủ bốn phương pháp, Vé Thường và Bao. Không giải ngược SHA256, không đoán seed ngoài dữ liệu, không gán seed riêng cho vé cũ.
+- Chỉ mở DB hiện có bằng `mode=ro` và `query_only`, không gọi API mua/khóa dự đoán hoặc billing, không dùng CSV/kết quả quay hiện tại. Tìm mã qua lịch seed metadata nhỏ, lấy bộ số và đầu vào đã đóng băng, tái lập trong bộ nhớ rồi đối chiếu. Mã nguồn/template lệch fingerprint hoặc thiếu dữ liệu phải báo chưa xác nhận, không trả trạng thái khớp giả.
+- Máy có một danh mục cá nhân tự chọn danh mục đó. Có nhiều tài khoản phải dùng `--owner TEN_DANG_NHAP` hoặc `--db DUONG_DAN`; không tự đọc/gộp tài khoản khác. Có thể lọc `--type`, `--draw`, `--method` để giảm thời gian quét; `--no-replay` chỉ lấy bộ số đã lưu.
+
+## Seed riêng cho vé mới (03/11/2026)
+
+- Chỉ áp dụng cho các bộ Vé Thường/Bao mới của 5/35, Mega 6/45 và Power 6/55, đủ bốn phương pháp. Mỗi vé/Bao có luồng ngẫu nhiên riêng suy ra bằng SHA256 từ seed gốc + loại xổ số + kỳ + phương pháp + loại vé/cấp Bao + số thứ tự. Seed của Bao là của nhóm Bao gốc, không tạo thêm lớp vé thường.
+- Seed riêng phải thực sự tham gia chọn số/nhóm; không chỉ gắn mã sau khi có bộ số. Giữ vector xác suất của từng phương pháp, số lượng đã xác nhận, hạn quay và các ràng buộc không trùng. Seed dùng truy vết/tái lập, không phải quy luật dự báo kết quả quay.
+- Đóng băng seed gốc, phiên bản, ngữ cảnh, số lượng và dữ liệu đầu vào cần thiết cùng payload và cấu hình. Tái lập cần cấu hình/xác suất và thứ tự phân bổ/khử trùng đã khóa; seed riêng không đứng độc lập với các đầu vào đó.
+- Vé cũ giữ nguyên bộ số, payload/checksum, kết quả và phí. Không gán seed riêng ngược cho lịch sử và không sinh lại kỳ đã khóa để đổi thuật toán. Keno giữ nguyên bộ sinh hiện tại.
+- Bảng/trang vé mới có mã seed dưới số thứ tự; bấm sao chép đầy đủ, xem seed gốc trong Thông tin dự đoán. Excel mới có cột Seed vé/Seed gốc dạng text. Xem, chuyển trang, sao chép và xuất không tạo vé hay thu thêm phí.
+
+## Khóa nhiều cơ cấu vé trong cùng kỳ (02/11/2026)
+
+- Với 5/35, Mega 6/45 và Power 6/55, mỗi tài khoản được khóa riêng Vé Thường và từng cấp Bao trước giờ quay của kỳ kế tiếp. Mỗi bộ chỉ sinh loại vé đã chọn.
+- Khóa chống trùng theo tài khoản + loại xổ số + kỳ + loại vé/cấp Bao, không theo số lượng. Bao cùng cấp đã có thì trả lại đúng bộ, số lượng và phí cũ; đổi số lượng hoặc bấm lại không sinh lại và không trừ thêm. Bao cấp khác chưa có được tạo và thu phí riêng theo cấu hình đã xác nhận.
+- Mỗi bộ mới thu một lần cho đủ bốn phương pháp; lỗi trước khi khóa hoàn tất phải hoàn phí. Sau hạn quay không tạo thêm cơ cấu. Các bộ cũ, biên nhận và điểm chấm giữ nguyên.
+- Nhật ký/Excel/trang Bao dùng cycleId riêng. Thống kê ghép các cơ cấu cùng kỳ theo số vé trước khi tính trung bình và CI theo kỳ; không coi hai Bao trong cùng kỳ là hai lần quay độc lập. Keno giữ nguyên khóa một lần cho toàn bộ các bậc.
+
 Tài liệu quy tắc vận hành và nghiệp vụ dự án VietlotFast.
 ## Quy tắc Thùng Rác (Bin)
 
@@ -136,7 +180,7 @@ Tài liệu quy tắc vận hành và nghiệp vụ dự án VietlotFast.
 - Trước thao tác Khóa kỳ tiếp theo và worker tự động của 5/35, Mega, Power, đồng bộ kết quả canonical còn thiếu nếu kỳ kế tiếp đã đến giờ hoặc có vé chờ thiếu kết quả. Chỉ lấy tối đa hai ngày cần thiết từ trang nguồn theo loại, không quét lịch sử/huấn luyện/xuất điểm. Dùng timeout ngắn, không retry HTTP trong cùng lượt; throttle chung mỗi loại 55 giây. Kiểm tra loại/mã kỳ/bộ số/ĐB/ngày giờ và chuỗi kỳ liên tiếp; chỉ thêm kết quả đã quay, giữ dữ liệu cũ khi xung đột, rebase khi writer khác cập nhật. Có kết quả mới mới xét khóa kỳ tương lai; vẫn kiểm tra deadline sau sinh vé và trước commit. Nguồn lỗi hoặc chưa có kết quả thì không tạo vé quá hạn và không thu phí. Mở/xem/làm mới báo cáo vẫn chỉ đọc.
 
 - Dashboard hiệu quả chỉ dùng chu kỳ hệ thống có đủ bốn phương pháp web/ngẫu nhiên/Bayesian/EWMA đã khóa trước giờ quay. Không tạo ngược dự đoán lịch sử hoặc gộp prediction cá nhân vào báo cáo chung.
-- Một game/kỳ chỉ khóa một lần; bốn prediction và mapping được ghi trong cùng giao dịch. Tất cả dùng cùng cutoff/snapshot, số vé và cỡ vé; kiểm tra lại canonical, config, manifest và deadline ngay trước khi ghi. Đổi cấu hình chỉ tác động kỳ mới.
+- Mỗi game/kỳ/loại vé hoặc cấp Bao chỉ khóa một lần; bốn prediction và mapping của mỗi bộ được ghi trong cùng giao dịch. Tất cả dùng cùng cutoff/snapshot, số vé và cỡ vé; kiểm tra lại canonical, config, manifest và deadline ngay trước khi ghi. Đổi số lượng cùng loại chỉ tác động kỳ mới; cấp Bao khác chưa có được khóa thêm trước giờ quay.
 - Tự động theo dõi do admin bật theo game, mặc định tắt; chấm chu kỳ pending vẫn tiếp tục khi tắt tạo dự đoán. Worker chạy khi server sống và khi có kết quả canonical. Không bỏ qua kết quả chưa cập nhật để dự đoán cho kỳ xa hơn hoặc bù các kỳ đã quay.
 - Số trùng/Brier/log loss/CI của báo cáo vẫn chấm số chính; hạng giải của từng vé được phân loại riêng theo thể lệ vé chuẩn. Jackpot 2 Power cần 5 số chính trùng và bóng thứ bảy thực tế nằm trong 6 số đã chọn; số phụ dự đoán riêng không quyết định giải. Xác suất biên chưa hiệu chỉnh phải ghi đúng trạng thái. Không dùng Nổ/tiền thưởng của kỳ mục tiêu làm feature.
 - Thống kê dùng mọi chu kỳ hoàn chỉnh đã chấm với trọng số bằng nhau theo kỳ; giới hạn nhật ký chỉ giới hạn chi tiết hiển thị. CI dùng cặp chênh lệch theo kỳ, so cùng ngân sách. Dưới 30 kỳ ghi chưa đủ bằng chứng; CI dương chỉ là dấu hiệu trong mẫu, không tự promote hoặc cam kết lợi thế.
@@ -173,7 +217,7 @@ Các quy tắc riêng của Keno trong Hiệu quả dự đoán:
 - Bộ tạo `tracking_bao_full_ticket_v3` chặn trùng vé đầy đủ trong mỗi phương pháp/cùng kỳ: 5/35 dùng khóa (5 số chính đã sắp xếp, số ĐB); Mega/Power dùng bộ 6 số chính. Số thứ bảy dự đoán của Power không làm thành vé mới. Các phương pháp và các kỳ so sánh độc lập, không khử trùng chéo làm thay ngân sách đối chứng.
 - Với 5/35, dùng 12 họ Bao riêng theo 12 số ĐB; mỗi họ không trùng số chính bằng cấu trúc modulo/mẫu đã kiểm chứng, ánh xạ số theo seed/xác suất. Cho phép chồng số chính giữa hai họ khác ĐB. Một ĐB cố định cho mọi vé con trong cùng Bao; phân bổ số nhóm theo ĐB chênh nhau không quá một. Mega/Power giữ cấu trúc không trùng số chính.
 - API trả `maxBaoCounts` theo từng mức; sức chứa được bảo đảm của hệ thống có thể thấp hơn chặn trên toán học. Giao diện giới hạn ngay khi gõ/dán/IME. Cấu hình cũ vượt mức phải được người dùng lưu lại; không tự giảm cấu hình DB hay phí của danh mục đã khóa.
-- Mã nguồn/mẫu nhóm được fingerprint khi tạo. Chỉ khóa đủ bốn phương pháp, kiểm tra lại canonical/deadline/cấu hình; sai thì hủy toàn bộ và xử lý reservation theo receipt hiện có. Không tạo lại/thu lại cùng kỳ.
+- Mã nguồn/mẫu nhóm được fingerprint khi tạo. Chỉ khóa đủ bốn phương pháp, kiểm tra lại canonical/deadline/cấu hình; sai thì hủy toàn bộ và xử lý reservation theo receipt hiện có. Không tạo lại/thu lại cùng loại vé hoặc cấp Bao trong cùng kỳ.
 - Khi khôi phục, tải GitHub riêng, kiểm tra commit, chỉ bổ sung file thiếu; sao lưu trước khi ghép phiên bản cục bộ. Không thay DB/ví/dự đoán, không huấn luyện lại model chỉ để khôi phục source. Bản sao lưu khôi phục trong `Bin/session_1_latest/files/followup_github_recovery_20261101/`.
 
 - Giữ ngân sách tối đa 324.632 vé con/phương pháp cho 5/35; Bao 6 hỗ trợ lại 54.105 nhóm theo quy tắc vé đầy đủ. Mega/Power giữ giới hạn 1.000.000 vé con/phương pháp và sức chứa đã kiểm chứng từng mức. Không tự tăng số Bao đang lưu khi giới hạn tăng. Bộ kiểm tra vé thường cũng dùng định danh vé đầy đủ; cơ chế phân bổ vé thường hiện có được giữ lại.
@@ -184,4 +228,4 @@ Các quy tắc riêng của Keno trong Hiệu quả dự đoán:
 - Vé Thường và Vé Bao là hai lớp lựa chọn loại trừ nhau cho mỗi kỳ/phương pháp. Cấu hình được lưu và xác nhận trước khi khóa quyết định lớp duy nhất được sinh, lưu, hiển thị và xuất Excel. Không có nút Bao / Vé con hoặc Xem vé con, không sinh thêm danh mục Vé Thường khi người chơi chọn Bao, không gọi bộ tạo Bao khi chọn Thường.
 - Bao mới lưu `ticketClass=bao`, `predictionMode=bao`, `ticketStorage=bao_parents_v1`, `bao.parents` chứa đúng số nhóm đã chọn; `tickets=[]`, không có khối vé thường bổ sung. Tổ hợp quy đổi chỉ dùng nội bộ để xác minh không trùng, tính phí và chấm giải; không trở thành một lớp vé đã mua khác. Phí mỗi Bao vẫn theo số tổ hợp và mức phí hiện có, không thu hai lần.
 - Bảng và API kỳ Bao chỉ trả bộ Bao gốc, phân trang 10 Bao, số chính trùng và tổng hợp giải của mỗi Bao. API từ chối yêu cầu đổi sang loại khác cấu hình đã khóa. Excel chỉ xuất các Bao gốc cùng tổng hợp kết quả; kỳ Thường giữ vé thường. Thống kê xác suất/trùng/giải vẫn tính theo tổ hợp quy đổi để giữ cơ sở đối chứng, không gán giải trực tiếp chỉ từ số trùng của bộ gốc.
-- Kỳ cũ giữ nguyên payload/checksum/ví/kết quả. Với Bao cũ đã lưu tổ hợp mở rộng, chỉ đọc bộ Bao gốc để hiển thị/xuất; không xóa hoặc biến đổi lịch sử. Thay cấu hình áp dụng cho kỳ chưa khóa; không tạo lại hay thu lại kỳ đã khóa.
+- Kỳ cũ giữ nguyên payload/checksum/ví/kết quả. Với Bao cũ đã lưu tổ hợp mở rộng, chỉ đọc bộ Bao gốc để hiển thị/xuất; không xóa hoặc biến đổi lịch sử. Thay số lượng áp dụng cho kỳ mới; không tạo lại hay thu lại bộ đã khóa. Trước giờ quay được khóa thêm cấp Bao khác chưa có.

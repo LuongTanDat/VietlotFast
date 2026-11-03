@@ -63,6 +63,13 @@ def migrate_tracking(source, destination):
                           'effectiveness_ticket_index', 'effectiveness_ticket_chunks']:
                 if table not in tables:
                     continue
+                if table == 'effectiveness_cycles':
+                    columns = 'cycle_id,game_type,target_draw_id,cutoff_draw_id,created_at,deadline,data_hash,source_version_json,config_json'
+                    for row in connection.execute(f'SELECT {columns} FROM legacy.effectiveness_cycles').fetchall():
+                        connection.execute(f'INSERT INTO main.effectiveness_cycles({columns},selection_key) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                                           (*row, pe.cycle_selection_key(json.loads(row[-1]))))
+                    counts[table] = connection.execute(f'SELECT COUNT(*) FROM main.{table}').fetchone()[0]
+                    continue
                 verb = 'INSERT OR REPLACE' if table == 'effectiveness_settings' else 'INSERT'
                 scope = ' WHERE prediction_id IN (SELECT prediction_id FROM main.prediction_runs)' if table in ('effectiveness_ticket_index','effectiveness_ticket_chunks') else ''
                 connection.execute(f'{verb} INTO main.{table} SELECT * FROM legacy.{table}{scope}')

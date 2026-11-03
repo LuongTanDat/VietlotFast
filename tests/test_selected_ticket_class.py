@@ -1,4 +1,4 @@
-"""Only one purchased ticket class may exist for a locked cycle."""
+"""Each purchased batch stores only its selected ticket class."""
 import json
 import sqlite3
 import zipfile
@@ -62,6 +62,7 @@ class SelectedTicketClassTests(PredictionEffectivenessTests):
         with self.assertRaisesRegex(ValueError, 'đúng loại vé'):
             pe.ticket_page(self.GAME, entry['predictionId'], db_path=self.db, view='tickets')
         pe.configure(self.GAME, False, 2, 'fixture', self.db, play_mode='normal')
+        self.assertEqual(pe.cycle(self.GAME, self.db)['status'], 'locked')
         self.assertEqual(pe.cycle(self.GAME, self.db)['status'], 'already_locked')
         self.assertEqual(pe.ticket_page(self.GAME, entry['predictionId'], db_path=self.db)['ticketClass'], 'bao')
 

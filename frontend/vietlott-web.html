@@ -8,8 +8,9 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
-    <link rel="stylesheet" href="/vietlott-web-extra.css?v=selected-ticket-class-20261102" />
+    <link rel="stylesheet" href="/vietlott-web-extra.css?v=ticket-seeds-20261102" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
+  <link rel="stylesheet" href="/vietlott-web-wallet.css?v=account-card-inline-20261103" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
   <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
   <link rel="preload" href="/vietlott-web-core.js?v=project-audit-20261023" as="script" />
@@ -213,6 +214,9 @@
             <span class="currency-icon" aria-hidden="true">P</span>
             <span id="paypalBalance">0</span>
           </span>
+        </div>
+        <div class="header-tool-wrap">
+          <button id="walletHistoryOpen" class="header-icon-btn" type="button" title="Lịch sử ví" aria-label="Mở lịch sử ví" aria-haspopup="dialog" aria-controls="walletHistoryDialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg></button>
         </div>
         <div class="header-tool-wrap">
           <button id="notificationBtn" class="header-icon-btn" type="button" title="Thông báo" aria-label="Mở thông báo" aria-expanded="false" aria-controls="notificationPanel">
@@ -1683,13 +1687,41 @@
     </section>
   </div>
   <!-- ------ App Scripts --- -->
+  <dialog id="walletHistoryDialog" class="wallet-history-dialog" aria-labelledby="walletHistoryTitle" aria-describedby="walletHistoryNote">
+    <div class="wallet-history-head"><div><span class="wallet-history-eyebrow">TÀI KHOẢN CỦA BẠN</span><h2 id="walletHistoryTitle" class="wallet-visually-hidden">Ví và thẻ tài khoản</h2><div class="wallet-finance-tabs" role="tablist" aria-label="Ví và thẻ"><button id="walletTransactionsTab" class="wallet-finance-tab" role="tab" type="button" aria-selected="true" aria-controls="walletTransactionsPanel">Lịch sử giao dịch</button><span aria-hidden="true">|</span><button id="walletCardTab" class="wallet-finance-tab" role="tab" type="button" aria-selected="false" tabindex="-1" aria-controls="walletCardPanel">Thẻ của bạn</button></div></div><button id="walletHistoryClose" type="button" aria-label="Đóng ví và thẻ">×</button></div>
+    <div id="walletTransactionsPanel" role="tabpanel" aria-labelledby="walletTransactionsTab">
+    <div class="wallet-history-summary"><span>Số dư PayPal hiện tại</span><strong><span id="walletHistoryBalance">—</span><small>PayPal</small></strong></div>
+    <div class="wallet-history-tools"><div id="walletHistoryFilters" class="wallet-history-filters" role="group" aria-label="Lọc giao dịch"><button type="button" data-wallet-kind="all" aria-pressed="true">Tất cả</button><button type="button" data-wallet-kind="topup" aria-pressed="false">Nạp tiền</button><button type="button" data-wallet-kind="spend" aria-pressed="false">Chi tiêu</button><button type="button" data-wallet-kind="reward" aria-pressed="false">Trúng thưởng</button><button type="button" data-wallet-kind="refund" aria-pressed="false">Hoàn tiền</button><button type="button" data-wallet-kind="other" aria-pressed="false">Khác</button></div><button id="walletHistoryRefresh" type="button" title="Làm mới lịch sử" aria-label="Làm mới lịch sử"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5m-4 8a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/></svg></button></div>
+    <p id="walletHistoryStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
+    <div id="walletHistoryTable" class="wallet-history-table" aria-busy="false"><table><thead><tr><th>Thời gian</th><th>Giao dịch</th><th>Loại</th><th>Biến động PayPal</th></tr></thead><tbody id="walletHistoryRows"></tbody></table></div>
+    <div class="wallet-history-footer"><span id="walletHistoryCount"></span><div><button id="walletHistoryPrev" type="button" aria-label="Trang giao dịch trước">‹</button><span id="walletHistoryPage">1 / 1</span><button id="walletHistoryNext" type="button" aria-label="Trang giao dịch tiếp">›</button></div></div>
+    <p id="walletHistoryNote" class="wallet-history-note">Các khoản nạp, chi tiêu và hoàn tiền của ví. Xem tiền thưởng mới tại Thẻ của bạn.</p>
+    </div>
+    <div id="walletCardPanel" role="tabpanel" aria-labelledby="walletCardTab" hidden>
+      <p id="accountCardStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
+      <div class="account-bank-card" aria-label="Thẻ tài khoản nội bộ">
+        <div class="account-bank-card-top"><span class="account-bank-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5H3m2 3v7m5-7v7m4-7v7m5-7v7M3 21h18"/></svg>DVLF BANK</span><span class="account-bank-type">THẺ TÀI KHOẢN</span></div>
+        <div class="account-bank-balance"><span>Số dư thẻ</span><strong id="accountCardBalance">—</strong><small id="accountCardCurrency">PayPal</small></div>
+        <div class="account-bank-card-bottom"><div><span>ID NGƯỜI DÙNG</span><strong id="accountCardId">—</strong></div><div><span>TÊN NGƯỜI DÙNG</span><strong id="accountCardHolder">—</strong></div><svg class="account-bank-chip" viewBox="0 0 40 30" aria-hidden="true"><rect x="1" y="1" width="38" height="28" rx="6"/><path d="M14 1v28m12-28v28M1 10h13m12 0h13M1 20h13m12 0h13M14 8h12v14H14"/></svg></div>
+      </div>
+      <div class="account-card-actions"><span>Thẻ nội bộ · Số dư tách riêng với ví</span><button id="accountCardHistoryToggle" type="button" aria-expanded="false" aria-controls="accountCardHistory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg>Lịch sử thẻ</button></div>
+      <div id="accountCardHistory" hidden>
+        <div class="wallet-history-tools"><div id="cardHistoryFilters" class="wallet-history-filters" role="group" aria-label="Lọc lịch sử thẻ"><button type="button" data-card-kind="all" aria-pressed="true">Tất cả</button><button type="button" data-card-kind="transfer" aria-pressed="false">Chuyển</button><button type="button" data-card-kind="topup" aria-pressed="false">Nạp</button><button type="button" data-card-kind="withdraw" aria-pressed="false">Rút</button><button type="button" data-card-kind="reward" aria-pressed="false">Thưởng</button></div><button id="cardHistoryRefresh" type="button" aria-label="Làm mới lịch sử thẻ">↻</button></div>
+        <p id="cardHistoryStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
+        <div id="cardHistoryTable" class="wallet-history-table" aria-busy="false"><table><thead><tr><th>Thời gian</th><th>Giao dịch</th><th>Loại</th><th id="cardHistoryAmountTitle">Số tiền</th></tr></thead><tbody id="cardHistoryRows"></tbody></table></div>
+        <div class="wallet-history-footer"><span id="cardHistoryCount"></span><div><button id="cardHistoryPrev" type="button" aria-label="Trang thẻ trước">‹</button><span id="cardHistoryPage">1 / 1</span><button id="cardHistoryNext" type="button" aria-label="Trang thẻ tiếp">›</button></div></div>
+      </div>
+      <p class="wallet-history-note">Tiền thưởng được trả trực tiếp vào thẻ sau khi quyết toán.</p>
+    </div>
+  </dialog>
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
   <script defer src="/vietlott-web-stats.js"></script>
   <script defer src="/vietlott-web-data.js?v=recovery-bao-v2-20261101"></script>
   <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
-    <script defer src="/vietlott-web-effectiveness.js?v=bao-total-quote-20261102"></script>
+    <script defer src="/vietlott-web-effectiveness.js?v=ticket-seeds-20261102"></script>
   <script defer src="/vietlott-web-payments.js?v=admin-deposit-notifications-20261022"></script>
   <script defer src="/vietlott-web-core.js?v=project-audit-20261023"></script>
+  <script defer src="/vietlott-web-wallet.js?v=account-card-20261103"></script>
   <script defer src="/vietlott-web-account-stats.js?v=statistics-legend-focus-20261024"></script>
   <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
   <script defer src="/vietlott-web-admin.js?v=inline-user-balances-20261023"></script>

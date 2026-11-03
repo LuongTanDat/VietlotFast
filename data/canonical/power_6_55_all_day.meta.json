@@ -2,7 +2,7 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-01T21:54:54",
+  "lastSyncAt": "2026-11-03T21:19:47",
   "lastBootstrapAt": "2026-03-17T19:34:02",
   "effectiveEarliestKy": "5",
   "effectiveEarliestDate": "01/08/2017",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-01T21:54:54",
+    "updatedAt": "2026-11-03T21:19:47",
     "complete": true,
-    "totalRows": 1414,
-    "completeRows": 1414,
+    "totalRows": 1415,
+    "completeRows": 1415,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -70,7 +70,7 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-01T21:54:54",
+    "updatedAt": "2026-11-03T21:19:47",
     "countsByDraw": {
       "1406": {
         "identity": "03/10/2026||7,11,13,16,18,54|41",
@@ -17038,6 +17038,18 @@
           "third": 43703
         },
         "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-24-10-2026.html",
+        "checkedAt": ""
+      },
+      "1419": {
+        "identity": "03/11/2026||10,22,31,39,43,54|14",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 19,
+          "second": 1013,
+          "third": 19076
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-03-11-2026.html",
         "checkedAt": ""
       }
     }

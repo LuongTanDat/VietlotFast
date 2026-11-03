@@ -1,5 +1,61 @@
 # Nhật Ký Thay Đổi
 
+## 03/11/2026 — Số dư thẻ và PayPal cùng hàng
+
+- Đưa giá trị số dư thẻ và đơn vị PayPal lên cùng một hàng, căn theo chân chữ; giữ đủ số tiền và điều chỉnh cỡ chữ trên màn hình nhỏ. Cập nhật phiên bản CSS để trình duyệt nhận bố cục mới. Kiểm tra Chrome ở chiều rộng 1.360, 390 và 320 px: số tiền 4.553.502.331.749 PayPal cùng hàng, không tràn khung.
+
+## 03/11/2026 — Thẻ của bạn và thưởng trả trực tiếp vào thẻ
+
+- Thêm tab Thẻ của bạn cạnh Lịch sử giao dịch; thẻ DVLF Bank nội bộ có ID, tên người dùng, số dư PayPal và nút mở lịch sử Chuyển/Nạp/Rút/Thưởng, hỗ trợ màn hình nhỏ và bàn phím.
+- Theo lựa chọn người dùng, chuyển nơi nhận thưởng mới từ ví sang thẻ riêng; giữ tỷ lệ 1 VNĐ = 1,25 PayPal. Thêm sổ thẻ và route biên nhận nguyên tử/chống lặp, không sửa vé/điểm/biên nhận thưởng cũ, không đổi ví cho khoản trả thẳng vào thẻ.
+- Chuyển toàn bộ thưởng cũ đã vào ví sang thẻ với trừ/cộng đối ứng, kiểm tra đủ tiền/chứng từ/ID và không đổi tổng tài sản. Ghi lịch sử Chuyển trên thẻ, chứng từ trừ trên ví; thưởng mới ghi loại Thưởng. Các bộ lọc không tự tạo thêm luồng giao dịch nạp/rút bên ngoài.
+- Kiểm thử nhận thưởng riêng, chuyển cũ, không đủ tiền, ghi lỗi rollback, đồng thời, đổi tên, API chỉ đọc/cách ly, lọc/phân trang và giao diện thật trên Chrome; giữ kiểm thử hồi quy ví và phí dự đoán.
+
+## 03/11/2026 — Cộng thưởng dự đoán và cộng bù lịch sử đã trả phí
+
+- Trước đây hệ thống chỉ trừ/hoàn phí; tiền trúng trong báo cáo không cập nhật ví. Bổ sung quyết toán theo lựa chọn người dùng: 1 VNĐ thưởng = 1,25 PayPal, gồm các kỳ cũ có biên nhận đã thu phí và kỳ mới, dùng công thức thưởng mô phỏng đang hiển thị. Tính riêng từng phương pháp, đủ các bậc Keno, quy đổi tổng mỗi bộ và làm tròn xuống PayPal nguyên.
+- Thêm biên nhận thưởng bất biến/chống cộng hai lần trong DB ví. Thiếu kết quả hoặc dữ liệu quỹ đã xác minh thì chờ; khoản đã hoàn phí, vé không mua hoặc số vé không khớp không được cộng. Lỗi ghi/giới hạn ví rollback nguyên tử, không sửa vé/điểm đã khóa và không thu thêm phí.
+- Nối worker và luồng tạo/chấm sau đối soát phí; có công tắc bật riêng để hoàn tất kiểm thử trước khi cộng bù. Thêm lọc Trúng thưởng, nội dung khoản thưởng/quy đổi và đồng bộ số dư header từ lịch sử. Các API đọc vẫn chỉ đọc.
+- Kiểm thử ví tạm, giải cố định ba game/Vé Thường/Bao, Jackpot/Keno theo từng phương pháp, thiếu dữ liệu rồi thử lại, đồng thời, rollback, mức 0, tràn số dư và luồng Java/Python/Chrome; giữ kiểm thử hồi quy phí dự đoán/thống kê.
+
+## 03/11/2026 — Lịch sử ví trên thanh đầu trang
+
+- Thêm nút History giữa số dư PayPal và chuông thông báo; mở bảng giao dịch riêng có số dư hiện tại, lọc Tất cả/Nạp tiền/Chi tiêu/Hoàn tiền/Khác, 20 dòng mỗi trang, làm mới và bố cục gọn trên điện thoại.
+- API GET `/api/account/wallet-history` chỉ đọc tài khoản đã xác thực: nạp thủ công/QR thành công, khoản trừ và hoàn phí dự đoán, đổi lượt quay, thưởng vòng quay, quà Code/thu hồi và điều chỉnh của admin. Không hiện yêu cầu nạp chờ/từ chối hoặc thanh toán thử như tiền đã nhận; không đếm xác nhận phí lần hai. Giữ dữ liệu lịch sử/ví, không gọi bộ tạo dự đoán hoặc thu phí khi xem.
+- Sự kiện điều chỉnh tài sản mới lưu thêm số dư PayPal trước và chênh lệch trong cùng giao dịch. Sự kiện cũ thiếu chênh lệch giữ số dư đã đặt, không suy diễn tiền cộng/trừ. UI hủy yêu cầu và xóa bảng khi đổi phiên/đóng, bỏ phản hồi cũ và hỗ trợ Escape.
+
+## 03/11/2026 — Tra cứu chung mọi seed đã lưu
+
+- Thêm `ai/seed_lookup.py`, `scripts/tra_seed.py` và `scripts/tra_seed.bat` thay cho việc sửa đầu vào cố định của từng ví dụ: dán seed → tự tìm bộ → lấy đúng dữ liệu đóng băng → tái lập/đối chiếu. Hỗ trợ ba game, bốn phương pháp, Vé Thường và Bao; có nhập liên tục, JSON và bộ lọc.
+- Dùng SQLite chỉ đọc, không tạo file DB mới khi sai đường dẫn, không cập nhật ví/biên nhận/lịch sử. Không tự chọn giữa nhiều tài khoản. Seed lạ/vé cũ không có lịch/phiên bản chưa hỗ trợ/thiếu dữ liệu/mã nguồn lệch đều báo rõ; kết quả tái lập sai không được đánh dấu khớp.
+- Bổ sung kiểm thử toàn bộ game × loại vé × phương pháp, vé đầu/cuối, khối vé lớn và pool dày, CLI tương tác/JSON/exit code, chọn owner, nguồn thay đổi và thiếu dữ liệu.
+
+## 03/11/2026 — Seed riêng từ seed gốc cho từng vé mới
+
+- Thêm luồng ngẫu nhiên riêng theo SHA256 seed gốc/ngữ cảnh/số thứ tự cho Vé Thường và Bao của ba game 5/35, Mega, Power, đủ bốn phương pháp. Seed tham gia quá trình chọn số/nhóm, giữ ngân sách và kiểm tra trùng; nhánh pool dày bảo đảm đủ toàn bộ sức chứa.
+- Lưu lịch seed nhỏ trong payload/config bất biến, hỗ trợ tái lập với dữ liệu đầu vào đã khóa. Giữ toàn bộ vé cũ và không gán seed riêng cho lịch sử theo lựa chọn của người dùng; Keno không đổi bộ sinh.
+- Thêm nút sao chép mã seed ngắn dưới mỗi vé/Bao mới, seed đầy đủ trong tooltip và Excel; Thông tin dự đoán có seed gốc/phiên bản. Các thao tác đọc không thu phí.
+- Kiểm thử tính quyết định, tham gia thực sự của seed, số lượng tối đa, không trùng, tái lập normal/Bao, phân trang theo chỉ số toàn cục, lịch sử bất biến, xuất Excel và thao tác browser/ví tạm.
+
+## 02/11/2026 — Cho phép khóa thêm cấp Bao khác trước giờ quay
+
+- Sửa khóa chống trùng từ mã kỳ sang kỳ + loại vé/cấp Bao. Chọn Bao khác chưa có trong kỳ thì tạo bộ mới và thu đúng phí; cùng Bao đã có giữ bộ/số lượng cũ, giao diện hiện phí bổ sung 0 và nút Dùng bộ đã có, không trừ thêm kể cả đổi số lượng hoặc bấm đồng thời. Giữ kiểm tra cấu hình, hạn quay, giao dịch đủ bốn phương pháp và hoàn phí khi lỗi.
+- Nâng cấp metadata SQLite có giao dịch, giữ dự đoán/biên nhận/khóa ngoại/trigger cũ; tương thích chuyển dữ liệu từ schema cũ. Chấm và xuất riêng từng cycle, CI vẫn tính theo kỳ độc lập.
+- Giao diện phân biệt các bộ cùng kỳ bằng cycleId, ghi rõ cấp Bao/Vé Thường, thông báo dùng bộ cũ không thu thêm và tên Excel riêng theo cơ cấu.
+- Kiểm thử ví/DB tạm, nâng cấp schema, lỗi/hoàn phí, quá giờ, đồng thời, chấm nhiều bộ cùng kỳ; kiểm tra luồng Java → Python → SQLite → trình duyệt và ví với hai cấp Bao.
+
+## 02/11/2026 — Căn giữa thông tin kỳ quay và kết quả trên một hàng
+
+- Kỳ, thời gian, nhãn Kết quả và các bóng số nằm chung một hàng, căn giữa dưới tên phương pháp. Giữ tên/loại và TB ở hàng tiêu đề. Không xuống dòng cụm kết quả; khung hẹp cho lướt ngang trong riêng hàng thông tin để giữ đủ bộ số.
+- Chỉ sửa CSS và phiên bản CSS, không sửa dữ liệu hay logic dự đoán. Kiểm tra một hàng/căn giữa khi đủ rộng và giữ đủ bóng số ở màn hình hẹp.
+
+
+## 02/11/2026 — Gọn phần kỳ quay và kết quả trong mỗi phương pháp
+
+- Đầu mỗi phương pháp giữ tên/loại và TB ở hàng đầu; thông tin kỳ và thời gian cùng hàng, kết quả là hàng ngay dưới với các bóng tròn. Bỏ yêu cầu cuộn ngang ở phần đầu, cho bộ số dài tự xuống hàng khi hẹp để giữ đủ nội dung.
+- Giữ thời gian Việt Nam, màu số chính/số đặc biệt và trạng thái chờ kết quả. Chỉ sửa JS/CSS và phiên bản asset, không sửa bộ số hoặc dữ liệu đã khóa.
+
+
 ## 02/11/2026 — Sửa lỗi git add do file cục bộ không đọc được
 
 - Git báo `read error while indexing lotto_web.secdb: Invalid argument`, làm toàn bộ git add thất bại và không có thay đổi để commit. Bổ sung `/lotto_web.secdb` và `/data/canonical/*.tmp` vào .gitignore, giữ file gốc tại chỗ. Không đổi dữ liệu vận hành hoặc thiết lập LF/CRLF.

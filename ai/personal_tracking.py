@@ -199,6 +199,35 @@ class Scope:
         return {**quote(game, count), 'owner': owner, 'balance': wallet.get('paypalBalance', 0),
                 'walletVersion': wallet.get('walletVersion', 0), 'charges': recent}
 
+    def settle_rewards(self, refresh_context=False):
+        try:
+            return self._settle_rewards(refresh_context)
+        except (sqlite3.Error, OSError, ValueError, TypeError, KeyError) as error:
+            # A deferred reward must not turn a successfully purchased portfolio
+            # into an apparent failed purchase after its fee has been committed.
+            return {'status':'pending', 'errors':[{'reason':str(error)}]}
+
+    def _settle_rewards(self, refresh_context):
+        from ai import prediction_rewards
+        policy = dp.PROJECT_ROOT / 'config/prediction-rewards.json'
+        if not policy.is_file() or json.loads(policy.read_text(encoding='utf-8')).get('enabled') is not True:
+            return {'status':'disabled'}
+        result = prediction_rewards.settle(self, apply=True)
+        if refresh_context and any(row['game'] == 'KENO' and row['reason'].startswith('Chờ dữ liệu quỹ') for row in result['waiting']):
+            from ai import keno_prize_context
+            try:
+                synced = keno_prize_context.refresh(self.database, limit=1)
+                if synced.get('updated'):
+                    retried = prediction_rewards.settle(self, apply=True)
+                    retried['credited'] += result['credited']
+                    retried['creditedPayPal'] += result['creditedPayPal']
+                    retried['errors'] = result['errors'] + retried['errors']
+                    result = retried
+                result['prizeSync'] = synced
+            except Exception as error:
+                result['prizeSync'] = {'error':str(error)}
+        return prediction_rewards.summary(result)
+
 
 def reserve(game, target, tickets):
     scope = _scope.get()
@@ -237,6 +266,8 @@ def execute(args):
             result = pe.dispatch(args)
     else:
         result = pe.dispatch(args)
+    if args.command in ('configure', 'cycle', 'score', 'tick'):
+        result['rewards'] = scope.settle_rewards(refresh_context=True)
     if args.command in ('report', 'settings', 'configure', 'cycle'):
         settings = pe.settings(args.game, scope.database)['settings']
         valid_count = min(settings['ticketCount'], settings['maxTicketCount'])
@@ -262,6 +293,7 @@ def tick_all():
                     for game in pe.GAMES:
                         pe.score_cycles(game, scope.database)
                     ke.score_cycles(scope.database)
+                    results.append({'accountId':row['id'], 'rewards':scope.settle_rewards(refresh_context=True)})
                     continue
                 with closing(pe._connect(scope.database)) as connection:
                     enabled = connection.execute('SELECT 1 FROM effectiveness_settings WHERE enabled=1 LIMIT 1').fetchone()
@@ -269,6 +301,7 @@ def tick_all():
                     keno_active = connection.execute("SELECT enabled FROM effectiveness_settings WHERE game_type='KENO'").fetchone()[0]
                     keno_pending = connection.execute("SELECT 1 FROM keno_effectiveness_cycles WHERE status='locked' LIMIT 1").fetchone()
                 if not enabled and not pending:
+                    results.append({'accountId':row['id'], 'rewards':scope.settle_rewards(refresh_context=True)})
                     continue
                 # Canonical is shared, portfolios and charges are private.
                 if not synced and (keno_active or keno_pending):
@@ -282,7 +315,9 @@ def tick_all():
                     result['prizeSync'] = ke.prize_contexts.refresh(scope.database, limit=1)
                 except Exception as error:
                     result['prizeSync'] = {'error': str(error)}
-                results.append({'accountId': row['id'], 'result': result})
+            # job() has reconciled newly committed fee receipts before payout.
+            result['rewards'] = scope.settle_rewards(refresh_context=True)
+            results.append({'accountId': row['id'], 'result': result})
         except Exception as error:
             results.append({'accountId': row['id'], 'error': str(error)})
     return {'ok': True, 'accounts': results}

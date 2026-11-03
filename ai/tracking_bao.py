@@ -149,7 +149,36 @@ def _parent_groups(game, level, count, probabilities, original, first_special, r
         except StopIteration as error:
             raise RuntimeError('Bộ cấu trúc Bao không đủ số nhóm đã xác nhận.') from error
 
-def build(payload, game, level, count, maximum=1000000):
+def _seeded_parent_groups(game, level, count, probabilities, original, first_special, rng, seed_schedule):
+    from ai import tracking_ticket_seed as seeds
+    specials = [first_special]
+    if game == 'LOTO_5_35':
+        rest = [number for number in range(1, 13) if number != first_special]
+        rng.shuffle(rest)
+        specials += rest
+    else:
+        specials = [None]
+    pools = []
+    for slot, special in enumerate(specials[:count]):
+        needed = (count - 1 - slot) // len(specials) + 1
+        # A verified family remains compatible after reordering. Each slot's
+        # own seed selects a remaining parent; first-slot seeds also map numbers.
+        mapping_rng = random.Random(int(seeds.derive(seed_schedule, slot + 1), 16))
+        pool = list(itertools.islice(_mapped_parents(game, level, probabilities, original, mapping_rng), needed))
+        if len(pool) != needed:
+            raise RuntimeError('Bộ cấu trúc Bao không đủ số nhóm có seed riêng.')
+        pools.append((special, pool))
+    for index in range(count):
+        special, pool = pools[index % len(pools)]
+        stream = seeds.Stream(seeds.derive(seed_schedule, index + 1))
+        position = stream.below(len(pool))
+        parent = pool[position]
+        pool[position] = pool[-1]
+        pool.pop()
+        yield parent, special
+
+
+def build(payload, game, level, count, maximum=1000000, *, seed_schedule=None):
     structure = configuration(game, 'bao', level, count, maximum)
     n, t, _ = GAMES[game]
     source = payload.get('tickets') or []
@@ -160,6 +189,10 @@ def build(payload, game, level, count, maximum=1000000):
         raise ValueError('Thiếu vé gốc hoặc xác suất hợp lệ để tạo Bao.')
     encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False)
     seed = int(hashlib.sha256(f'{RULE_VERSION}:{game}:{level}:{count}:{encoded}'.encode()).hexdigest()[:16], 16)
+    if seed_schedule:
+        if seed_schedule['selectionCount'] != count or seed_schedule['baoLevel'] != level or seed_schedule['ticketClass'] != 'bao':
+            raise ValueError('Lịch seed Bao không khớp cấu hình đã chọn.')
+        seed = int(seed_schedule['rootSeed'])
     rng = random.Random(seed)
     original = source[0].get('main') or []
     if len(original) != t or len(set(original)) != t or any(type(v) is not int or not 1 <= v <= n for v in original):
@@ -168,7 +201,8 @@ def build(payload, game, level, count, maximum=1000000):
     if game == 'LOTO_5_35' and (type(first_special) is not int or not 1 <= first_special <= 12):
         raise ValueError('Thiếu số đặc biệt hợp lệ cho Bao 5/35.')
     parents = []
-    groups = _parent_groups(game, level, count, probabilities, original, first_special, rng)
+    groups = (_seeded_parent_groups(game, level, count, probabilities, original, first_special, rng, seed_schedule)
+              if seed_schedule else _parent_groups(game, level, count, probabilities, original, first_special, rng))
     for index, (parent, special) in enumerate(groups, 1):
         parents.append({'parentIndex': index, 'main': list(parent), 'special': special,
                         'childCount': structure['childrenPerBao']})
@@ -177,6 +211,7 @@ def build(payload, game, level, count, maximum=1000000):
     # Purchased Bao groups are the sole stored selection class. There is no
     # second normal-ticket portfolio and no persisted child-ticket array.
     return {**payload, 'tickets': [], 'ticketClass': 'bao', 'predictionMode': 'bao',
+            **({'ticketSeedSchedule': seed_schedule} if seed_schedule else {}),
             'ticketStorage': 'bao_parents_v1', 'randomSeed': seed % 2147483647,
             'allocationPolicy': RULE_VERSION,
             'bao': {**structure, 'ruleVersion': RULE_VERSION, 'parents': parents,

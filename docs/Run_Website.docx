@@ -8,3 +8,12 @@ git add .
 git commit -m "update"
 git push
 
+git add .
+git commit -m "update"
+git push origin main
+
+Đã làm xong bản tra seed chung cho Vé Thường và Bao của 5/35, 6/45, 6/55.
+Trong Terminal tại thư mục Lotto, chạy:
+.\scripts\tra_seed.bat
+
+au đó dán seed đầy đủ 64 ký tự → Enter. Công cụ sẽ tìm vé, lấy cấu hình gốc và tái lập để đối chiếu.

@@ -174,6 +174,11 @@
     }
     select.disabled = blocked;
     if (select.__syncCustomSelect) select.__syncCustomSelect();
+    const existing = state.report?.cycles?.find(cycle => cycle.status === 'locked' &&
+      Date.parse(cycle.deadline) > Date.now() && (cycle.config?.playMode || 'normal') === (baoMode ? 'bao' : 'normal') &&
+      (!baoMode || Number(cycle.config?.baoLevel) === Number(select.value)));
+    byId('effectivenessLock').textContent = existing ? 'Dùng bộ đã có' : 'Khóa kỳ tiếp theo';
+    byId('effectivenessLock').title = existing ? `Kỳ #${existing.targetDrawId} đã có loại vé này; giữ bộ số, số lượng đã mua và không thu thêm phí.` : 'Tạo bộ số và thu phí cho loại vé đã chọn trước giờ quay';
     const input = byId("effectivenessBaoCount");
     const maximum = baoMaximum();
     input.placeholder = `Tối đa ${number(maximum, 0)} Vé Bao ${select.value}`;
@@ -191,11 +196,11 @@
     }
     const perBao = baoChildren();
     const amount = perBao * Number(state.report?.billing?.unitPayPal || 10000);
-    const totalBao = count * methods.length;
-    const cost = totalBao * amount;
+    const totalBao = (existing ? Number(existing.config.baoCount) : count) * methods.length;
+    const cost = existing ? 0 : totalBao * amount;
     const balance = state.report?.billing?.balance;
     const missing = finite(balance) ? Math.max(0, cost - Number(balance)) : 0;
-    byId("effectivenessTicketQuote").innerHTML = `<div data-quote-quantity title="${number(count, 0)} Bao ${select.value} / phương pháp × ${methods.length} phương pháp"><span>Số lượng vé</span><strong>${number(totalBao, 0)} <small>Bao ${select.value} · ${methods.length} phương pháp</small></strong></div><div data-quote-amount><span>Số tiền</span><strong>${number(amount, 0)} <small>PayPal / Bao ${select.value}</small></strong></div><div class="effectiveness-quote-total" title="Tổng phí của ${methods.length} phương pháp"><span>Phí mỗi kỳ</span><strong>${number(cost, 0)} <small>PayPal</small></strong></div>${finite(balance) ? `<div><span>Số dư</span><strong>${number(balance, 0)} <small>PayPal</small></strong></div>` : ""}${missing ? `<small class="effectiveness-quote-insufficient">Còn thiếu ${number(missing, 0)} PayPal.</small>` : ""}`;
+    byId("effectivenessTicketQuote").innerHTML = `<div data-quote-quantity title="${number(existing ? existing.config.baoCount : count, 0)} Bao ${select.value} / phương pháp × ${methods.length} phương pháp"><span>Số lượng vé</span><strong>${number(totalBao, 0)} <small>Bao ${select.value} · ${methods.length} phương pháp</small></strong></div><div data-quote-amount><span>Số tiền</span><strong>${number(amount, 0)} <small>PayPal / Bao ${select.value}</small></strong></div><div class="effectiveness-quote-total" title="${existing ? 'Loại Bao đã có, không thu thêm phí' : `Tổng phí của ${methods.length} phương pháp`}"><span>${existing ? 'Phí bổ sung' : 'Phí mỗi kỳ'}</span><strong>${number(cost, 0)} <small>PayPal</small></strong></div>${finite(balance) ? `<div><span>Số dư</span><strong>${number(balance, 0)} <small>PayPal</small></strong></div>` : ""}${existing ? `<small>Bao ${select.value} · kỳ #${escape(existing.targetDrawId)} đã có. Giữ số lượng đã mua, không thu thêm phí.</small>` : ''}${missing ? `<small class="effectiveness-quote-insufficient">Còn thiếu ${number(missing, 0)} PayPal.</small>` : ""}`;
     if (missing) byId("effectivenessLock").disabled = true;
   }
 
@@ -441,6 +446,22 @@
     return `<span class="effectiveness-ticket">${values.map(value => `<span class="effectiveness-ball${actual.has(Number(value)) ? " is-hit" : ""}">${escape(String(value).padStart(2, "0"))}${actual.has(Number(value)) ? '<span class="sr-only"> trùng</span>' : ""}</span>`).join("")}${options.showSpecial !== false && ticket.special !== null && ticket.special !== undefined && ticket.special !== "" ? `<span class="effectiveness-special-group"><span class="effectiveness-special-separator" aria-hidden="true">|</span><span class="effectiveness-ball effectiveness-special${specialMatched ? " is-matched" : ""}" aria-label="${specialLabel} ${special}${specialMatched ? " trùng" : ""}" title="${specialLabel} ${special}${specialMatched ? " · trùng số thực tế" : ""}${options.power ? " · Số phụ dự đoán; giải Power xét sáu số trên vé và bóng thứ 7 thực tế" : ""}">${special}</span></span>` : ""}</span>`;
   }
 
+  function ticketSeedHtml(seed) {
+    return /^[0-9a-f]{64}$/.test(seed || '') ? `<button type="button" class="effectiveness-seed-copy" data-copy-ticket-seed="${seed}" title="Seed vé: ${seed} · Bấm để sao chép đầy đủ" aria-label="Sao chép seed vé ${seed}">${seed.slice(0, 6)}</button>` : '';
+  }
+
+  async function copyTicketSeed(button) {
+    const seed = button.dataset.copyTicketSeed;
+    if (!/^[0-9a-f]{64}$/.test(seed || '')) return;
+    try {
+      await navigator.clipboard.writeText(seed);
+      if (!button.isConnected) return;
+      button.textContent = 'Đã chép';
+      button.dataset.copied = 'true';
+      setTimeout(() => { if (button.isConnected) { button.textContent = seed.slice(0, 6); delete button.dataset.copied; } }, 1800);
+    } catch { showStatus('Không sao chép được seed. Bạn có thể xem mã đầy đủ khi di chuột lên nút Seed hoặc tải Excel.', 'error'); }
+  }
+
   function ticketRowHtml(ticket, actual, index, mainCount, result = null, power = false, actualSpecial = null) {
     const values = Array.isArray(ticket.main) ? ticket.main : [];
     const hits = actual.size ? [...new Set(values.map(Number))].filter(value => actual.has(value)).length : null;
@@ -449,7 +470,7 @@
     const specialMatched = actual.size > 0 && finite(actualSpecial) && finite(ticket.special) && Number(ticket.special) === Number(actualSpecial);
     const group = ticket.bao;
     const groupLabel = group ? `Bao ${group.parentIndex} · Vé con ${group.childIndex}` : "";
-    return `<div class="effectiveness-ticket-row" data-ticket-index="${index + 1}" data-ticket-prize-code="${escape(result?.prizeCode || "")}"><span class="effectiveness-ticket-label"${groupLabel ? ` title="${escape(groupLabel)}"` : ""}>${group ? "Vé con" : "Vé"} ${String(index + 1).padStart(2, "0")}${group ? `<small>B${escape(group.parentIndex)} · ${escape(group.childIndex)}</small>` : ""}</span>${ticketHtml(ticket, actual, { power, showSpecial: (power && !group) || mainCount === 5, specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span><span class="effectiveness-ticket-prize" data-prize-status="${resultStatus}"${result?.reason ? ` title="${escape(result.reason)}"` : ""}>${escape(prizeLabel)}</span></div>`;
+    return `<div class="effectiveness-ticket-row" data-ticket-index="${index + 1}" data-ticket-prize-code="${escape(result?.prizeCode || "")}"><span class="effectiveness-ticket-label"${groupLabel ? ` title="${escape(groupLabel)}"` : ""}>${group ? "Vé con" : "Vé"} ${String(index + 1).padStart(2, "0")}${group ? `<small>B${escape(group.parentIndex)} · ${escape(group.childIndex)}</small>` : ""}${ticketSeedHtml(ticket.ticketSeed)}</span>${ticketHtml(ticket, actual, { power, showSpecial: (power && !group) || mainCount === 5, specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? " has-hit" : ""}" aria-label="${hits === null ? "Chờ kết quả" : `${hits} trên ${mainCount} số chính trùng`}">${hits === null ? "—" : `${hits}/${mainCount}`}</span><span class="effectiveness-ticket-prize" data-prize-status="${resultStatus}"${result?.reason ? ` title="${escape(result.reason)}"` : ""}>${escape(prizeLabel)}</span></div>`;
   }
 
   function actualSpecialHtml(cycle, game) {
@@ -469,7 +490,7 @@
     const infoKey = `${cycleKey}:info`;
     return `<details class="effectiveness-provenance" data-effectiveness-state="${escape(infoKey)}"${opened(infoKey)}><summary>Thông tin dự đoán</summary><dl class="effectiveness-info-list"><div><dt>Dữ liệu đến</dt><dd>Kỳ ${escape(cycle.cutoffDrawId)}</dd></div><div><dt>Đã khóa lúc</dt><dd>${escape(dateTime(cycle.createdAt))} (giờ Việt Nam)</dd></div><div><dt>Giờ quay / hạn khóa</dt><dd>${escape(dateTime(cycle.deadline))} (giờ Việt Nam)</dd></div>${cycle.scoredAt ? `<div><dt>Ghi nhận điểm lúc</dt><dd>${escape(dateTime(cycle.scoredAt))} (giờ Việt Nam)</dd></div>` : ""}<div><dt>Ngân sách đã khóa</dt><dd>${escape(budget)} vé / phương pháp${cycle.level ? " / bậc" : ""}</dd></div>${methods.map(method => {
       const entry = cycle.methods?.[method.key] || {};
-      const fields = [["Engine", entry.engine], ["Model", entry.modelId], ["Mã dự đoán", entry.predictionId], ["Seed", entry.seed], ["Trung bình số trùng / vé", entry.meanHits], ["Số trùng tốt nhất", entry.bestHits]];
+      const fields = [["Engine", entry.engine], ["Model", entry.modelId], ["Mã dự đoán", entry.predictionId], [entry.seedSchedule ? "Seed gốc" : "Seed", entry.seedSchedule?.rootSeed ?? entry.seed], ...(entry.seedSchedule ? [["Phiên bản seed vé", entry.seedSchedule.version], ["Sinh seed vé", "SHA256 từ seed gốc, loại xổ số, kỳ, phương pháp, loại vé/Bao và số thứ tự. Tái lập dùng thêm xác suất/cấu hình và thứ tự phân bổ đã khóa."]] : []), ["Trung bình số trùng / vé", entry.meanHits], ["Số trùng tốt nhất", entry.bestHits]];
       return fields.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => `<div><dt>${escape(method.label)} · ${label}</dt><dd>${escape(value)}</dd></div>`).join("");
     }).join("")}</dl></details>`;
   }
@@ -748,7 +769,7 @@
     const specialLabel = game === "LOTO_5_35" ? "Số đặc biệt" : game === "LOTO_6_55" ? "Bóng 7" : "";
     const specialValue = finite(cycle.actualSpecial) ? escape(String(cycle.actualSpecial).padStart(2, "0")) : "—";
     const result = actual.length ? `<span class="effectiveness-method-result-numbers">${actual.map(value => `<span class="effectiveness-method-result-ball">${escape(String(value).padStart(2, "0"))}</span>`).join("")}${specialLabel ? `<span class="effectiveness-method-result-special">${game === "LOTO_6_55" ? specialLabel + " " : ""}<b class="effectiveness-method-result-ball is-special" role="img" aria-label="${specialLabel} ${specialValue}" title="${specialLabel} ${specialValue}">${specialValue}</b></span>` : ""}</span>` : '<span class="effectiveness-method-result-pending">Chờ kết quả</span>';
-    return `<div class="effectiveness-cycle-method-head" tabindex="0" role="region" aria-label="Thông tin ${escape(method.label)} · Kỳ ${escape(cycle.targetDrawId)} · Cuộn ngang để xem đầy đủ"><div class="effectiveness-method-head-row">
+    return `<div class="effectiveness-cycle-method-head" tabindex="0" role="region" aria-label="Thông tin ${escape(method.label)} · Kỳ ${escape(cycle.targetDrawId)}"><div class="effectiveness-method-head-row">
       <div class="effectiveness-method-identity"><strong><span class="effectiveness-method-dot" style="background:${method.color}"></span>${escape(method.label)}</strong><span class="effectiveness-method-game">${escape(gameLabel)}</span></div>
       <div class="effectiveness-method-context"><span class="effectiveness-method-draw">Kỳ #${escape(cycle.targetDrawId)}</span><time${hasDrawTime ? ` datetime="${escape(cycle.deadline)}"` : ""} title="Thời gian quay · Giờ Việt Nam">${escape(drawTime)}</time><div class="effectiveness-method-result" aria-label="Kết quả thực tế"><span>Kết quả</span>${result}</div></div>
       <span class="effectiveness-method-average">TB ${actual.length ? number(entry.meanHits, 2) : "—"} số / vé</span>
@@ -785,7 +806,7 @@
     const hits = actual.size ? parent.main.filter(value => actual.has(Number(value))).length : null;
     const specialMatched = actual.size > 0 && Number(parent.special) === Number(cycle.actualSpecial);
     const result = parent.result || { status: actual.size ? 'unknown' : 'pending', label: actual.size ? 'Chưa xác định' : 'Chờ kết quả' };
-    return `<div class="effectiveness-ticket-row effectiveness-bao-row" data-bao-index="${escape(parent.parentIndex)}"><span class="effectiveness-ticket-label">Bao ${escape(parent.parentIndex)}</span>${ticketHtml(parent, actual, { showSpecial: game === 'LOTO_5_35', specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? ' has-hit' : ''}" aria-label="${hits === null ? 'Chờ kết quả' : `${hits} số chính của Bao trùng kết quả`}">${hits === null ? '—' : hits}</span><span class="effectiveness-ticket-prize" data-prize-status="${escape(result.status)}" title="${escape(result.details || result.label)}">${escape(result.label)}</span></div>`;
+    return `<div class="effectiveness-ticket-row effectiveness-bao-row" data-bao-index="${escape(parent.parentIndex)}"><span class="effectiveness-ticket-label">Bao ${escape(parent.parentIndex)}${ticketSeedHtml(parent.ticketSeed)}</span>${ticketHtml(parent, actual, { showSpecial: game === 'LOTO_5_35', specialMatched })}<span class="effectiveness-ticket-hits${hits > 0 ? ' has-hit' : ''}" aria-label="${hits === null ? 'Chờ kết quả' : `${hits} số chính của Bao trùng kết quả`}">${hits === null ? '—' : hits}</span><span class="effectiveness-ticket-prize" data-prize-status="${escape(result.status)}" title="${escape(result.details || result.label)}">${escape(result.label)}</span></div>`;
   }
 
   async function loadVisibleBaoPages() {
@@ -816,7 +837,7 @@
     const panel = button.closest(".effectiveness-cycle-method");
     const method = panel?.dataset.method;
     const cycleKey = panel.closest("[data-method-cycle]")?.dataset.methodCycle;
-    const cycle = state.report?.cycles?.find(item => (state.report.type === "KENO" ? `${state.report.type}:${state.report.level}:cycle:${item.targetDrawId}` : `${state.report.type}:cycle:${item.targetDrawId}`) === cycleKey);
+    const cycle = state.report?.cycles?.find(item => cycleStateKey(item, state.report) === cycleKey);
     const entry = cycle?.methods?.[method];
     if (!entry) return;
     const code = button.dataset.prizeJump;
@@ -970,14 +991,14 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `du_doan_thuc_te_${report.type.toLowerCase()}_ky_${cycle.targetDrawId}${report.type === 'KENO' ? `_bac_${report.level}` : ''}.xlsx`;
+        link.download = `du_doan_thuc_te_${report.type.toLowerCase()}_ky_${cycle.targetDrawId}${report.type === 'KENO' ? `_bac_${report.level}` : cycle.config?.playMode === 'bao' ? `_bao_${cycle.config.baoLevel}` : '_ve_thuong'}.xlsx`;
         document.body.append(link);
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         showStatus(`Đã tải Excel kỳ ${cycle.targetDrawId} · toàn bộ vé của bốn phương pháp.`);
       };
-      if (cycle.config?.playMode === 'bao' || Object.values(cycle.methods || {}).some(entry => Number(entry.ticketCount ?? entry.ticketPagination?.total) > 10000)) {
+      if (cycle.config?.playMode === 'bao' || Object.values(cycle.methods || {}).some(entry => entry.seedSchedule || Number(entry.ticketCount ?? entry.ticketPagination?.total) > 10000)) {
         const response = await fetch(`/api/ml/effectiveness-export?type=${encodeURIComponent(report.type)}&cycleId=${encodeURIComponent(cycle.cycleId)}&level=${encodeURIComponent(report.level || 10)}&format=xlsx`, { credentials: 'same-origin', signal: controller.signal });
         if (!response.ok) {
           const problem = await response.json().catch(() => ({}));
@@ -1041,6 +1062,11 @@
     }
   }
 
+  function cycleStateKey(cycle, report) {
+    const game = reportGame(report);
+    return game === 'KENO' ? `${game}:${report.level}:cycle:${cycle.targetDrawId}` : `${game}:cycle:${cycle.cycleId || cycle.targetDrawId}`;
+  }
+
   function renderCycles(report) {
     const pagination = cyclePagination(report);
     state.page = pagination.page;
@@ -1057,12 +1083,12 @@
       const actual = new Set(actualList.map(Number));
       const scored = cycle.status === "scored" || cycle.status === "complete" || actual.size > 0;
       const scoredText = scored ? "Đã chấm" : "Chờ kết quả";
-      const cycleKey = game === "KENO" ? `${game}:${report.level}:cycle:${cycle.targetDrawId}` : `${game}:cycle:${cycle.targetDrawId}`;
+      const cycleKey = cycleStateKey(cycle, report);
       const selected = state.selectedMethods.get(cycleKey) || methods[0].key;
       const methodId = `cycle-method-${encodeURIComponent(cycleKey)}`;
       const lockedBudget = cycle.config?.ticketCountsByLevel?.[report.level] ?? cycle.config?.actualTicketCount ?? cycle.config?.ticketCount;
       const budget = finite(lockedBudget) ? number(lockedBudget, 0) : Array.isArray(cycle.methods?.web?.tickets) ? String(cycle.methods.web.tickets.length) : "—";
-      const structureLabel = cycle.config?.playMode === "bao" ? `Bao ${cycle.config.baoLevel} · ${number(cycle.config.baoCount, 0)} Bao / phương pháp` : "";
+      const structureLabel = cycle.config?.playMode === "bao" ? `Bao ${cycle.config.baoLevel} · ${number(cycle.config.baoCount, 0)} Bao / phương pháp` : game === 'KENO' ? '' : `Vé Thường · ${budget} vé / phương pháp`;
       return `<details class="effectiveness-cycle${game === "KENO" ? " effectiveness-keno-cycle" : ""}" data-effectiveness-state="${escape(cycleKey)}"${opened(cycleKey)}><summary><span class="effectiveness-cycle-identity"><span><strong>Kỳ ${escape(cycle.targetDrawId)}</strong><span class="effectiveness-cycle-status${scored ? " is-scored" : ""}">${scoredText}</span></span><small>${game === "KENO" ? `Bậc ${mainCount} · Giờ quay` : "Hạn khóa"} ${escape(dateTime(cycle.deadline))}</small>${structureLabel ? `<small class="effectiveness-cycle-structure">${escape(structureLabel)}</small>` : ""}</span><span class="effectiveness-cycle-preview"><span class="effectiveness-preview-label">${actual.size ? "Số chính thực tế" : `${cycle.config?.playMode === "bao" ? `${number(cycle.config.baoCount, 0)} Bao` : `${escape(budget)} vé`} / phương pháp đã khóa`}</span>${actual.size ? actualNumbersHtml(cycle, game) : '<span class="effectiveness-waiting">Chờ dữ liệu kỳ quay</span>'}</span>${cycleExportHtml(cycle, report)}</summary><div class="effectiveness-cycle-body"><div class="effectiveness-method-view" data-method-cycle="${escape(cycleKey)}">${methodNavigationHtml(cycleKey, selected)}${methodPairs.map(pair => `<div class="effectiveness-cycle-methods effectiveness-paired-methods" id="${methodId}-${pair.key}-pair" role="tabpanel" aria-labelledby="${methodId}-${pair.key}-tab" data-method-pair="${pair.key}"${pair.key === selected ? "" : " hidden"}>${pair.methods.map(method => {
         const entry = cycle.methods?.[method.key] || {};
         const cached = state.ticketPages.get(entry.predictionId);
@@ -1215,7 +1241,8 @@
       const response = await request(`/api/ml/effectiveness-${action === "settings" ? "settings" : "cycle"}`, { method: "POST", form });
       if (generation !== state.generation) return;
       if (response.billing) window.dispatchEvent(new CustomEvent('dvlf:prediction-wallet', { detail: response.billing }));
-      message = action === "settings" ? "Đã lưu cấu hình. Kỳ đã khóa giữ nguyên bộ số và số vé." : response.status === "already_locked" ? "Kỳ này đã khóa. Cơ cấu đã lưu và phí của kỳ được giữ nguyên." : String(response.message || "Đã xử lý khóa kỳ tiếp theo. Mở nhật ký để xem bộ số.");
+      const selection = response.playMode === 'bao' ? `Bao ${response.baoLevel}` : 'Loại vé này';
+      message = action === "settings" ? "Đã lưu cấu hình. Trước giờ quay có thể khóa thêm loại Bao khác; bộ đã mua giữ nguyên." : response.status === "already_locked" ? `${selection} của kỳ #${response.targetDrawId} đã có. Giữ nguyên bộ số, số lượng và không trừ thêm phí.` : String(response.message || "Đã tạo bộ số và thu phí cho cơ cấu vừa chọn. Mở nhật ký để xem.");
     } catch (error) {
       if (generation !== state.generation) return;
       failed = true;
@@ -1310,6 +1337,8 @@
   });
   byId("effectivenessRefresh").addEventListener("click", () => { syncActivity(); void refresh(); });
   byId("effectivenessCycles").addEventListener("click", event => {
+    const seedButton = event.target.closest('[data-copy-ticket-seed]');
+    if (seedButton) { event.preventDefault(); event.stopPropagation(); void copyTicketSeed(seedButton); return; }
     const exportButton = event.target.closest('[data-cycle-export]');
     if (exportButton) { event.preventDefault(); event.stopPropagation(); void downloadCycleExcel(exportButton); return; }
     const prizeButton = event.target.closest("[data-prize-jump]");
