@@ -2,7 +2,7 @@
   "type": "LOTO_5_35",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-03T21:19:41",
+  "lastSyncAt": "2026-11-06T22:48:49+07:00",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "29/06/2025",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-03T21:19:41",
+    "updatedAt": "2026-11-06T13:07:19",
     "complete": true,
-    "totalRows": 986,
-    "completeRows": 986,
+    "totalRows": 991,
+    "completeRows": 991,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -66,9 +66,29 @@
     "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
   },
   "prizeSharing": {
-    "updatedAt": "2026-11-03T21:19:41",
+    "updatedAt": "2026-11-06T22:48:51",
     "rule": "Confirmed zero special-prize winners and a lower positive pool in the immediate next draw; mark the preceding draw",
     "winnerEvidenceByDraw": {
+      "991": {
+        "identity": "06/11/2026|13:00|1,16,24,29,33|5",
+        "count": 0
+      },
+      "990": {
+        "identity": "05/11/2026|21:00|1,2,10,27,30|10",
+        "count": 0
+      },
+      "989": {
+        "identity": "05/11/2026|13:00|6,8,15,25,29|7",
+        "count": 0
+      },
+      "988": {
+        "identity": "04/11/2026|21:00|6,10,15,20,24|4",
+        "count": 1
+      },
+      "987": {
+        "identity": "04/11/2026|13:00|2,7,8,13,14|7",
+        "count": 0
+      },
       "986": {
         "identity": "03/11/2026|21:00|12,25,26,33,35|6",
         "count": 0
@@ -4012,6 +4032,10 @@
       "1": {
         "identity": "29/06/2025|13:00|7,9,10,16,19|9",
         "count": 0
+      },
+      "992": {
+        "identity": "06/11/2026|21:00|18,20,25,27,31|1",
+        "count": 0
       }
     },
     "sharedDraws": [
@@ -4035,7 +4059,7 @@
     ]
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-03T21:19:41",
+    "updatedAt": "2026-11-06T22:48:51",
     "countsByDraw": {
       "925": {
         "identity": "04/10/2026|13:00|2,19,22,32,35|4",
@@ -17839,6 +17863,90 @@
           "consolation": 31301
         },
         "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-03-11-2026.html",
+        "checkedAt": ""
+      },
+      "987": {
+        "identity": "04/11/2026|13:00|2,7,8,13,14|7",
+        "counts": {
+          "specialPrize": 0,
+          "first": 2,
+          "second": 23,
+          "third": 205,
+          "fourth": 713,
+          "fifth": 5681,
+          "consolation": 49546
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-04-11-2026.html",
+        "checkedAt": ""
+      },
+      "988": {
+        "identity": "04/11/2026|21:00|6,10,15,20,24|4",
+        "counts": {
+          "specialPrize": 1,
+          "first": 6,
+          "second": 122,
+          "third": 1473,
+          "fourth": 3370,
+          "fifth": 36861,
+          "consolation": 216729
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-04-11-2026.html",
+        "checkedAt": ""
+      },
+      "990": {
+        "identity": "05/11/2026|21:00|1,2,10,27,30|10",
+        "counts": {
+          "specialPrize": 0,
+          "first": 0,
+          "second": 14,
+          "third": 95,
+          "fourth": 250,
+          "fifth": 2523,
+          "consolation": 18658
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-05-11-2026.html",
+        "checkedAt": ""
+      },
+      "989": {
+        "identity": "05/11/2026|13:00|6,8,15,25,29|7",
+        "counts": {
+          "specialPrize": 0,
+          "first": 0,
+          "second": 13,
+          "third": 104,
+          "fourth": 327,
+          "fifth": 3582,
+          "consolation": 23429
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-05-11-2026.html",
+        "checkedAt": ""
+      },
+      "991": {
+        "identity": "06/11/2026|13:00|1,16,24,29,33|5",
+        "counts": {
+          "specialPrize": 0,
+          "first": 0,
+          "second": 5,
+          "third": 47,
+          "fourth": 161,
+          "fifth": 1611,
+          "consolation": 15321
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-06-11-2026.html",
+        "checkedAt": ""
+      },
+      "992": {
+        "identity": "06/11/2026|21:00|18,20,25,27,31|1",
+        "counts": {
+          "specialPrize": 0,
+          "first": 1,
+          "second": 3,
+          "third": 116,
+          "fourth": 206,
+          "fifth": 3087,
+          "consolation": 13590
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-06-11-2026.html",
         "checkedAt": ""
       }
     }

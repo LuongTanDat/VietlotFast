@@ -10,10 +10,10 @@
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
     <link rel="stylesheet" href="/vietlott-web-extra.css?v=ticket-seeds-20261102" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
-  <link rel="stylesheet" href="/vietlott-web-wallet.css?v=account-card-inline-20261103" />
+  <link rel="stylesheet" href="/vietlott-web-wallet.css?v=card-daily-interest-20261104" />
   <link rel="preload" href="/vietlott-web-stats.js" as="script" />
   <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js?v=project-audit-20261023" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=finance-notifications-20261105" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -313,7 +313,7 @@
         <span class="side-account-icon" aria-hidden="true">👤</span>
         <div><span>Đang đăng nhập</span><strong id="whoami">Chưa đăng nhập</strong><button type="button" class="account-id-chip" data-current-account-id data-copy-account-id hidden title="Sao chép ID tài khoản"></button></div>
       </div>
-      <button id="accountStatsMenuBtn" class="side-link" type="button"><span class="icon" aria-hidden="true">▥</span><span>Biểu đồ</span></button>
+      <button id="accountStatsMenuBtn" class="side-link" type="button"><span class="icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto" focusable="false"><path d="M4 4v15a1 1 0 0 0 1 1h15M7 14l4-4 4 3 5-7"/><g fill="currentColor" stroke="none"><circle cx="7" cy="14" r="1.4"/><circle cx="11" cy="10" r="1.4"/><circle cx="15" cy="13" r="1.4"/><circle cx="20" cy="6" r="1.4"/></g></svg></span><span>Biểu đồ</span></button>
       <div class="side-section-label">THÔNG TIN</div>
       <button id="homeMenuBtn" class="side-link active" type="button"><span class="icon">🏠</span><span>Trang chủ</span></button>
       <button id="paypalDepositMenuBtn" class="side-link" type="button"><span class="icon">💳</span><span>Nạp tiền tài khoản</span></button>
@@ -1700,13 +1700,20 @@
     <div id="walletCardPanel" role="tabpanel" aria-labelledby="walletCardTab" hidden>
       <p id="accountCardStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
       <div class="account-bank-card" aria-label="Thẻ tài khoản nội bộ">
-        <div class="account-bank-card-top"><span class="account-bank-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5H3m2 3v7m5-7v7m4-7v7m5-7v7M3 21h18"/></svg>DVLF BANK</span><span class="account-bank-type">THẺ TÀI KHOẢN</span></div>
+        <div class="account-bank-card-top"><span class="account-bank-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5H3m2 3v7m5-7v7m4-7v7m5-7v7M3 21h18"/></svg>DVLF BANK</span><span class="account-bank-type"><span>Tỷ giá 1 VNĐ = 1.25 PayPal</span><span class="account-bank-interest" title="Lãi tính trên số dư chốt lúc 00:00 giờ Việt Nam và cộng trực tiếp vào thẻ">Lãi Suất +0.025% Ngày</span></span></div>
         <div class="account-bank-balance"><span>Số dư thẻ</span><strong id="accountCardBalance">—</strong><small id="accountCardCurrency">PayPal</small></div>
         <div class="account-bank-card-bottom"><div><span>ID NGƯỜI DÙNG</span><strong id="accountCardId">—</strong></div><div><span>TÊN NGƯỜI DÙNG</span><strong id="accountCardHolder">—</strong></div><svg class="account-bank-chip" viewBox="0 0 40 30" aria-hidden="true"><rect x="1" y="1" width="38" height="28" rx="6"/><path d="M14 1v28m12-28v28M1 10h13m12 0h13M1 20h13m12 0h13M14 8h12v14H14"/></svg></div>
       </div>
-      <div class="account-card-actions"><span>Thẻ nội bộ · Số dư tách riêng với ví</span><button id="accountCardHistoryToggle" type="button" aria-expanded="false" aria-controls="accountCardHistory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg>Lịch sử thẻ</button></div>
+      <div class="account-card-actions"><span>Thẻ nội bộ · Số dư tách riêng với ví</span><div class="account-card-action-buttons"><button id="accountCardTopup" type="button" aria-expanded="false" aria-controls="accountCardTransfer" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Nạp thẻ</button><button id="accountCardWithdraw" type="button" aria-expanded="false" aria-controls="accountCardTransfer" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M4 16v5h16v-5"/></svg>Rút thẻ</button><button id="accountCardHistoryToggle" type="button" aria-expanded="false" aria-controls="accountCardHistory"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7M12 7v5l3 2"/></svg>Lịch sử thẻ</button></div></div>
+      <form id="accountCardTransfer" class="account-card-transfer" aria-labelledby="cardTransferTitle" novalidate hidden>
+        <div class="card-transfer-heading"><strong id="cardTransferTitle">Nạp thẻ</strong><span id="cardTransferDirection">Ví → Thẻ · 1:1 PayPal</span></div>
+        <div class="card-transfer-amount-head"><label for="cardTransferAmount">Số tiền PayPal</label><p id="cardTransferAvailable" class="card-transfer-available"></p></div><input id="cardTransferAmount" type="text" inputmode="numeric" autocomplete="off" maxlength="24" placeholder="Nhập số tiền" aria-describedby="cardTransferAvailable cardTransferStatus" />
+        <div id="cardTransferPresets" class="card-transfer-presets" role="group" aria-label="Mốc đề xuất theo số dư nguồn"><button type="button" data-transfer-percent="10" aria-pressed="false" disabled>10%</button><button type="button" data-transfer-percent="20" aria-pressed="false" disabled>20%</button><button type="button" data-transfer-percent="25" aria-pressed="false" disabled>25%</button><button type="button" data-transfer-percent="50" aria-pressed="false" disabled>50%</button><button type="button" data-transfer-percent="75" aria-pressed="false" disabled>75%</button><button type="button" data-transfer-percent="100" aria-pressed="false" disabled>100%</button></div>
+        <p id="cardTransferStatus" class="card-transfer-status" role="status" aria-live="polite"></p>
+        <div class="card-transfer-buttons"><button id="cardTransferCancel" type="button">Hủy</button><button id="cardTransferSubmit" type="submit">Xác nhận nạp</button></div>
+      </form>
       <div id="accountCardHistory" hidden>
-        <div class="wallet-history-tools"><div id="cardHistoryFilters" class="wallet-history-filters" role="group" aria-label="Lọc lịch sử thẻ"><button type="button" data-card-kind="all" aria-pressed="true">Tất cả</button><button type="button" data-card-kind="transfer" aria-pressed="false">Chuyển</button><button type="button" data-card-kind="topup" aria-pressed="false">Nạp</button><button type="button" data-card-kind="withdraw" aria-pressed="false">Rút</button><button type="button" data-card-kind="reward" aria-pressed="false">Thưởng</button></div><button id="cardHistoryRefresh" type="button" aria-label="Làm mới lịch sử thẻ">↻</button></div>
+        <div class="wallet-history-tools"><div id="cardHistoryFilters" class="wallet-history-filters" role="group" aria-label="Lọc lịch sử thẻ"><button type="button" data-card-kind="all" aria-pressed="true">Tất cả</button><button type="button" data-card-kind="transfer" aria-pressed="false">Chuyển</button><button type="button" data-card-kind="topup" aria-pressed="false">Nạp</button><button type="button" data-card-kind="withdraw" aria-pressed="false">Rút</button><button type="button" data-card-kind="reward" aria-pressed="false">Thưởng</button><button type="button" data-card-kind="interest" aria-pressed="false">Lãi suất</button></div><button id="cardHistoryRefresh" type="button" aria-label="Làm mới lịch sử thẻ">↻</button></div>
         <p id="cardHistoryStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
         <div id="cardHistoryTable" class="wallet-history-table" aria-busy="false"><table><thead><tr><th>Thời gian</th><th>Giao dịch</th><th>Loại</th><th id="cardHistoryAmountTitle">Số tiền</th></tr></thead><tbody id="cardHistoryRows"></tbody></table></div>
         <div class="wallet-history-footer"><span id="cardHistoryCount"></span><div><button id="cardHistoryPrev" type="button" aria-label="Trang thẻ trước">‹</button><span id="cardHistoryPage">1 / 1</span><button id="cardHistoryNext" type="button" aria-label="Trang thẻ tiếp">›</button></div></div>
@@ -1720,8 +1727,9 @@
   <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
     <script defer src="/vietlott-web-effectiveness.js?v=ticket-seeds-20261102"></script>
   <script defer src="/vietlott-web-payments.js?v=admin-deposit-notifications-20261022"></script>
-  <script defer src="/vietlott-web-core.js?v=project-audit-20261023"></script>
-  <script defer src="/vietlott-web-wallet.js?v=account-card-20261103"></script>
+  <script defer src="/vietlott-web-core.js?v=finance-notifications-20261105"></script>
+  <script defer src="/vietlott-web-wallet.js?v=finance-notifications-20261105"></script>
+  <script defer src="/vietlott-web-notifications.js?v=finance-notifications-20261105"></script>
   <script defer src="/vietlott-web-account-stats.js?v=statistics-legend-focus-20261024"></script>
   <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
   <script defer src="/vietlott-web-admin.js?v=inline-user-balances-20261023"></script>

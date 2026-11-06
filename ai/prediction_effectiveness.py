@@ -679,6 +679,9 @@ def _index_tickets(connection, prediction_id, payload):
                                for start in range(0, len(tickets), chunk_size)))
 
 
+TICKET_COUNT_SQL = "CASE WHEN ti.chunk_size>0 THEN ti.ticket_count ELSE json_array_length(pr.tickets_json) END"
+
+
 def _ticket_total(connection, prediction_id):
     indexed = connection.execute("SELECT ticket_count FROM effectiveness_ticket_index WHERE prediction_id=?", (prediction_id,)).fetchone()
     return indexed[0] if indexed else connection.execute("SELECT json_array_length(tickets_json) FROM prediction_runs WHERE prediction_id=?", (prediction_id,)).fetchone()[0]
@@ -874,11 +877,11 @@ def export_cycle(game, cycle_id, db_path=None, level=10, allow_large=False):
         if cycle is None:
             raise ValueError("Không tìm thấy kỳ thuộc báo cáo hiệu quả.")
         if game == "KENO":
-            predictions = connection.execute("SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,json_array_length(pr.tickets_json) ticket_count FROM keno_effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id WHERE ep.cycle_id=? AND ep.level=?", (cycle_id, level)).fetchall()
+            predictions = connection.execute(f"SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,{TICKET_COUNT_SQL} ticket_count FROM keno_effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id LEFT JOIN effectiveness_ticket_index ti ON ti.prediction_id=pr.prediction_id WHERE ep.cycle_id=? AND ep.level=?", (cycle_id, level)).fetchall()
             scored = cycle["status"] == "scored"
             actual = json.loads(cycle["actual_json"]) if scored else None
         else:
-            predictions = connection.execute("SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,json_array_length(pr.tickets_json) ticket_count,ps.metrics_json FROM effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id LEFT JOIN prediction_scores ps ON ps.prediction_id=pr.prediction_id AND ps.scoring_version=? WHERE ep.cycle_id=?", (ledger.SCORING_VERSION, cycle_id)).fetchall()
+            predictions = connection.execute(f"SELECT ep.method,pr.prediction_id,pr.username,pr.game_type,pr.status,pr.engine,pr.model_id,pr.random_seed,pr.payload_checksum,{TICKET_COUNT_SQL} ticket_count,ps.metrics_json FROM effectiveness_predictions ep JOIN prediction_runs pr ON pr.prediction_id=ep.prediction_id LEFT JOIN effectiveness_ticket_index ti ON ti.prediction_id=pr.prediction_id LEFT JOIN prediction_scores ps ON ps.prediction_id=pr.prediction_id AND ps.scoring_version=? WHERE ep.cycle_id=?", (ledger.SCORING_VERSION, cycle_id)).fetchall()
             scored = len(predictions) == 4 and all(p["status"] == "scored" and p["metrics_json"] for p in predictions)
             recorded = [json.loads(p["metrics_json"]) for p in predictions] if scored else []
             if recorded and any((m.get("actual_main"), m.get("actual_special")) !=

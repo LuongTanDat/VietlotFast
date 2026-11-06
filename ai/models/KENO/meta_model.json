@@ -2,125 +2,29 @@
   "type": "KENO",
   "modelVersion": "online_meta_v1_stable",
   "historyFile": "keno_all_day.csv",
-  "historyCount": 27719,
-  "latestKy": "301681",
-  "latestDate": "03/11/2026",
-  "latestTime": "21:12",
-  "lastLearnedKy": "301681",
-  "lastLearnedAt": "2026-11-03T21:25:18",
+  "historyCount": 28015,
+  "latestKy": "301977",
+  "latestDate": "06/11/2026",
+  "latestTime": "13:04",
+  "lastLearnedKy": "301977",
+  "lastLearnedAt": "2026-11-06T13:11:58",
   "metaState": "volatile",
-  "stabilityScore": 0.358865,
-  "driftScore": 0.696886,
+  "stabilityScore": 0.503353,
+  "driftScore": 0.539834,
   "rankingOverlap": 0.0,
   "preferredEngine": "gen_local",
   "weights": {
-    "gen_local": 0.467241,
-    "luan_so": 0.223346,
-    "both_combo": 0.309413
+    "gen_local": 0.462503,
+    "luan_so": 0.226813,
+    "both_combo": 0.310684
   },
-  "weightShift": 0.000152,
+  "weightShift": 0.004728,
   "rewards": {
-    "gen_local": 0.388428,
+    "gen_local": 0.339427,
     "luan_so": 0.0,
-    "both_combo": 0.17153
+    "both_combo": 0.149891
   },
   "rewardHistory": [
-    {
-      "ky": "288508",
-      "learnedAt": "2026-07-16T10:18:07",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.353982,
-        "luan_so": 0.0,
-        "both_combo": 0.156318
-      },
-      "weights": {
-        "gen_local": 0.267775,
-        "luan_so": 0.423248,
-        "both_combo": 0.308977
-      },
-      "weightShift": 0.081147
-    },
-    {
-      "ky": "288514",
-      "learnedAt": "2026-07-16T11:02:10",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.336128,
-        "luan_so": 0.871086,
-        "both_combo": 0.536478
-      },
-      "weights": {
-        "gen_local": 0.244893,
-        "luan_so": 0.453003,
-        "both_combo": 0.302105
-      },
-      "weightShift": 0.029755
-    },
-    {
-      "ky": "288515",
-      "learnedAt": "2026-07-16T11:07:58",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.329777,
-        "luan_so": 0.871086,
-        "both_combo": 0.542516
-      },
-      "weights": {
-        "gen_local": 0.228226,
-        "luan_so": 0.474392,
-        "both_combo": 0.297382
-      },
-      "weightShift": 0.021389
-    },
-    {
-      "ky": "288516",
-      "learnedAt": "2026-07-16T11:17:11",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.33449,
-        "luan_so": 0.870955,
-        "both_combo": 0.542727
-      },
-      "weights": {
-        "gen_local": 0.217062,
-        "luan_so": 0.489441,
-        "both_combo": 0.293497
-      },
-      "weightShift": 0.015049
-    },
-    {
-      "ky": "288554",
-      "learnedAt": "2026-07-16T16:27:19",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.386278,
-        "luan_so": 0.0,
-        "both_combo": 0.17058
-      },
-      "weights": {
-        "gen_local": 0.280208,
-        "luan_so": 0.409458,
-        "both_combo": 0.310334
-      },
-      "weightShift": 0.079983
-    },
-    {
-      "ky": "288596",
-      "learnedAt": "2026-07-16T22:56:49",
-      "metaState": "volatile",
-      "rewards": {
-        "gen_local": 0.377332,
-        "luan_so": 0.0,
-        "both_combo": 0.16663
-      },
-      "weights": {
-        "gen_local": 0.329356,
-        "luan_so": 0.353857,
-        "both_combo": 0.316788
-      },
-      "weightShift": 0.055601
-    },
     {
       "ky": "288616",
       "learnedAt": "2026-07-17T08:45:19",
@@ -1944,43 +1848,139 @@
         "both_combo": 0.309413
       },
       "weightShift": 0.000152
+    },
+    {
+      "ky": "301686",
+      "learnedAt": "2026-11-04T00:44:36",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.370882,
+        "luan_so": 0.0,
+        "both_combo": 0.163782
+      },
+      "weights": {
+        "gen_local": 0.465617,
+        "luan_so": 0.224531,
+        "both_combo": 0.309852
+      },
+      "weightShift": 0.001624
+    },
+    {
+      "ky": "301747",
+      "learnedAt": "2026-11-04T14:11:07",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.390634,
+        "luan_so": 0.0,
+        "both_combo": 0.172504
+      },
+      "weights": {
+        "gen_local": 0.466399,
+        "luan_so": 0.22396,
+        "both_combo": 0.309641
+      },
+      "weightShift": 0.000782
+    },
+    {
+      "ky": "301802",
+      "learnedAt": "2026-11-04T21:41:24",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.376837,
+        "luan_so": 0.0,
+        "both_combo": 0.166411
+      },
+      "weights": {
+        "gen_local": 0.465599,
+        "luan_so": 0.224544,
+        "both_combo": 0.309857
+      },
+      "weightShift": 0.0008
+    },
+    {
+      "ky": "301837",
+      "learnedAt": "2026-11-05T10:26:46",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.368219,
+        "luan_so": 0.0,
+        "both_combo": 0.162605
+      },
+      "weights": {
+        "gen_local": 0.464172,
+        "luan_so": 0.225588,
+        "both_combo": 0.31024
+      },
+      "weightShift": 0.001427
+    },
+    {
+      "ky": "301948",
+      "learnedAt": "2026-11-06T09:24:09",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.409594,
+        "luan_so": 0.0,
+        "both_combo": 0.180877
+      },
+      "weights": {
+        "gen_local": 0.467231,
+        "luan_so": 0.223353,
+        "both_combo": 0.309416
+      },
+      "weightShift": 0.003059
+    },
+    {
+      "ky": "301977",
+      "learnedAt": "2026-11-06T13:11:58",
+      "metaState": "volatile",
+      "rewards": {
+        "gen_local": 0.339427,
+        "luan_so": 0.0,
+        "both_combo": 0.149891
+      },
+      "weights": {
+        "gen_local": 0.462503,
+        "luan_so": 0.226813,
+        "both_combo": 0.310684
+      },
+      "weightShift": 0.004728
     }
   ],
   "snapshots": {
     "gen_local": {
-      "confidence": 0.437274,
+      "confidence": 0.405045,
       "backtest": {
-        "avgHits": 1.2958,
-        "avgHitRate": 0.259167,
-        "veryRecentAvgHitRate": 0.27,
-        "recentAvgHitRate": 0.283333,
-        "mediumRecentAvgHitRate": 0.26,
+        "avgHits": 1.2792,
+        "avgHitRate": 0.255833,
+        "veryRecentAvgHitRate": 0.21,
+        "recentAvgHitRate": 0.2625,
+        "mediumRecentAvgHitRate": 0.251667,
         "samples": 240,
-        "stability": 0.62406,
-        "recentConsistency": 0.955,
-        "agreementScore": 0.486111,
-        "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.995,
-        "adaptiveScore": 0.475914
+        "stability": 0.618515,
+        "recentConsistency": 0.8125,
+        "agreementScore": 0.606667,
+        "cooldownPenalty": 0.948333,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.427167
       },
       "champion": {
-        "key": "gap_recovery",
-        "label": "Gap recovery",
+        "key": "hybrid_ai_lite",
+        "label": "Hybrid AI-lite",
         "samples": 240,
-        "avgHits": 1.2958,
-        "avgHitRate": 0.259167,
-        "veryRecentAvgHitRate": 0.27,
-        "recentAvgHitRate": 0.283333,
-        "mediumRecentAvgHitRate": 0.26,
-        "stability": 0.62406,
-        "recentConsistency": 0.955,
-        "agreementScore": 0.486111,
+        "avgHits": 1.2792,
+        "avgHitRate": 0.255833,
+        "veryRecentAvgHitRate": 0.21,
+        "recentAvgHitRate": 0.2625,
+        "mediumRecentAvgHitRate": 0.251667,
+        "stability": 0.618515,
+        "recentConsistency": 0.8125,
+        "agreementScore": 0.606667,
         "sampleFactor": 1.0,
-        "cooldownPenalty": 1.0,
-        "shortSpikePenalty": 0.995,
-        "adaptiveScore": 0.475914,
-        "learnedWeight": 0.259939,
-        "rawScore": 0.475914
+        "cooldownPenalty": 0.948333,
+        "shortSpikePenalty": 1.0,
+        "adaptiveScore": 0.427167,
+        "learnedWeight": 0.260183,
+        "rawScore": 0.427167
       }
     },
     "luan_so": {

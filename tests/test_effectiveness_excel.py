@@ -149,7 +149,7 @@ class ExcelBrowserTests(unittest.TestCase):
                 deadline=time.monotonic()+15
                 while not list(download.glob('*.xlsx'))and time.monotonic()<deadline:time.sleep(.05)
                 files=list(download.glob('*.xlsx'));self.assertEqual(len(files),1)
-                self.assertEqual(files[0].name,'du_doan_thuc_te_loto_5_35_ky_947.xlsx')
+                self.assertEqual(files[0].name,'du_doan_thuc_te_loto_5_35_ky_947_ve_thuong.xlsx')
                 ns={'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
                 with zipfile.ZipFile(files[0])as book:
                     self.assertIsNone(book.testzip())
@@ -207,11 +207,14 @@ class ExcelHttpTests(unittest.TestCase):
         cls.bridge=EffectivenessWebTests;cls.bridge.setUpClass()
     @classmethod
     def tearDownClass(cls):cls.bridge.tearDownClass()
-    def test_authenticated_shared_cycle_complete_export_and_invalid_scope(self):
+    def test_authenticated_private_cycle_complete_export_and_invalid_scope(self):
         t=self.bridge
         fixture=NumericFixture();fixture.setUp()
         try:
-            fixture.db=t.work/'runtime/lotto_web.db'
+            self.assertEqual(t.request('/api/ml/effectiveness?type='+fixture.GAME,cookie=t.member)[0],200)
+            with closing(sqlite3.connect(t.work/'runtime/lotto_web.db')) as accounts:
+                account=accounts.execute("SELECT id FROM personal_tracking_accounts WHERE username='member_fixture'").fetchone()[0]
+            fixture.db=t.work/'runtime/personal_tracking'/account/'tracking.db'
             fixture.csv=t.work/'data/canonical/loto_5_35_all_day.csv'
             fixture.csv.parent.mkdir(parents=True,exist_ok=True);fixture._write()
             pe.configure(fixture.GAME,True,10000,'owner_fixture',fixture.db)
@@ -226,6 +229,7 @@ class ExcelHttpTests(unittest.TestCase):
             self.assertEqual(t.request('/api/ml/effectiveness-export?type=LOTO_5_35&cycleId=bad',cookie=t.member)[0],400)
             self.assertEqual(t.request(path.replace('LOTO_5_35','LOTO_6_45'),cookie=t.member)[0],400)
             self.assertEqual(t.request(path.replace(cycle['cycleId'],cycle['methods']['web']['predictionId']),cookie=t.member)[0],400)
+            self.assertEqual(t.request(path,cookie=t.admin)[0],400)
             before=fixture._counts()
             status,data,headers=t.request(path,cookie=t.member)
             self.assertEqual(status,200,data)

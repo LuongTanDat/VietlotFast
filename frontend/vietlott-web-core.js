@@ -1966,7 +1966,7 @@
     }
 
     function collectHeaderNotifications() {
-      const items = [...(window.VietlottDepositNotifications?.items() || [])];
+      const items = [...(window.VietlottDepositNotifications?.items() || []), ...(window.VietlottFinancialNotifications?.items() || [])];
       for (const item of Object.values(liveResultsState || {})) {
         if (!item || typeof item !== "object") continue;
         const type = String(item.key || "").toUpperCase();
@@ -1998,13 +1998,13 @@
       const saved = readHeaderNotificationValue(HEADER_NOTIFICATION_HISTORY_KEY, []);
       const history = new Map();
       for (const item of Array.isArray(saved) ? saved : []) {
-        if (!item || typeof item.id !== "string" || !["live", "prediction", "deposit"].includes(item.kind) || dismissedIds.has(item.id)) continue;
-        if (item.kind === "deposit" && (!currentUser || item.recipientAccountId !== currentAccountId || (item.audience === "admin" && currentUserRole !== "admin"))) continue;
+        if (!item || typeof item.id !== "string" || !["live", "prediction", "deposit", "finance"].includes(item.kind) || dismissedIds.has(item.id)) continue;
+        if (["deposit", "finance"].includes(item.kind) && (!currentUser || item.recipientAccountId !== currentAccountId || (item.audience === "admin" && currentUserRole !== "admin"))) continue;
         history.set(item.id, {
           id: item.id, kind: item.kind,
           title: String(item.title || "Thông báo"), detail: String(item.detail || ""),
           timestamp: Number.isFinite(new Date(Number(item.timestamp)).getTime()) ? Number(item.timestamp) : 0,
-          ...(item.kind === "deposit" ? { audience: item.audience, action: item.action, recipientAccountId: item.recipientAccountId } : {}),
+          ...(["deposit", "finance"].includes(item.kind) ? { audience: item.audience, action: item.action, recipientAccountId: item.recipientAccountId } : {}),
         });
       }
       for (const item of items) {
@@ -2094,7 +2094,11 @@
         content.className = "header-notification-content";
         content.title = `${item.title}\n${item.detail || ""}\n${isRead ? "Đã đọc" : "Bấm để đánh dấu đã đọc"}`;
         content.setAttribute("aria-label", `${item.title}. ${item.detail || ""}. ${isRead ? "Đã đọc" : "Đánh dấu đã đọc"}`);
-        content.onclick = () => { markHeaderNotificationRead(item.id); if (item.kind === "deposit") window.VietlottDepositNotifications?.activate(item); };
+        content.onclick = () => {
+          markHeaderNotificationRead(item.id);
+          if (item.kind === "deposit") window.VietlottDepositNotifications?.activate(item);
+          if (item.kind === "finance") window.VietlottFinancialNotifications?.activate(item);
+        };
         const title = document.createElement("strong");
         const detail = document.createElement("span");
         const time = document.createElement("time");
@@ -2173,6 +2177,7 @@
         headerNotificationView.expanded = false;
         headerNotificationView.page = 1;
         renderHeaderNotifications();
+        void window.VietlottFinancialNotifications?.refresh();
       }
       if (willOpen && panelId === "vipMembershipPanel") renderVipMembership();
     }

@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "version": "card_daily_interest_v1",
+  "method": "midnight_balance",
+  "dailyDenominator": 4000,
+  "timeZone": "Asia/Ho_Chi_Minh"
+}

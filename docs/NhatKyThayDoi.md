@@ -1,5 +1,72 @@
 # Nhật Ký Thay Đổi
 
+## 06/11/2026 — Chính sách và công cụ tối ưu dung lượng bảo toàn dữ liệu
+
+- Theo ủy quyền người dùng, lưu quy tắc ưu tiên toàn vẹn dữ liệu/vận hành; giữ vé, seed, checksum, tài chính, lịch sử và mốc xử lý. Phân biệt dung lượng logic với cấp phát vật lý, thử trên dữ liệu riêng và lưu bằng chứng trước áp dụng.
+- Thêm công cụ audit/benchmark/apply/undo NTFS LZNT1 có giới hạn đường dẫn, kiểm chính sách, dự phòng dung lượng, đối chiếu hash, SQLite/WAL và sức khỏe server; không viết lại database hoặc đổi giao thức đọc của ứng dụng. File mới kế thừa nén từ thư mục được quản lý.
+- Tối ưu truy vấn số lượng khi chuẩn bị xuất bằng chỉ mục chunk sẵn có, giữ fallback cho danh mục nhỏ/legacy/Bao. Thêm kiểm thử số lượng tương thích và không phân tích JSON lớn khi đã có index; không thay cách sinh/chấm vé hoặc phí.
+- Đã áp dụng nén 165 tệp được giữ lại, tiết kiệm khoảng 75,82 GB thực. Snapshot cuối: toàn dự án 159,967 GB logic / 84,147 GB trên đĩa; runtime 152,379 / 79,582 GB, Bin 5,036 / 2,012 GB. DB cá nhân 102,628 → 61,681 GB; ledger chung 44,232 → 15,648 GB. Không suy tỷ lệ nén mẫu thành kết quả toàn bộ; trường Size của các DB vẫn giữ nguyên.
+- Bản sao lưu tài chính được đối chiếu SHA-256 toàn file và quick_check; schema của ba DB cùng 152 mốc rowid/seed/checksum/chứng từ đã lưu đều khớp sau áp dụng. 54 ca nghiệp vụ trên SQLite có nén và 6 ca lưu trữ sau áp dụng đều đạt; HTTP trang chủ/time và bảo vệ ba API tài chính đúng. Bộ dữ liệu ban đầu qua 218/220 ca; hai fixture Excel cũ đã được cập nhật theo private ledger/tên file loại vé và chạy lại đều qua, có lượt đối chứng trước tối ưu tái hiện cùng lỗi fixture.
+- Lượt đầu bị ngắt đã được kiểm tra tiến trình và hoàn tất đúng tệp đang dở, giữ nguyên báo cáo cũ. Xử lý phần fixture/64 thuộc tính thư mục bằng tài khoản đã có quyền, không sửa ACL; ghép metadata bao phủ đủ 31 thư mục khó đọc và không đếm trùng. Báo cáo hoàn tác phần tài khoản máy và phần tài khoản kiểm thử được tách đúng quyền.
+- Dọn sáu DB benchmark do lượt thử này tạo cùng 12 WAL rỗng/SHM đi kèm, sau kiểm tra đường dẫn/schema/hard-link; loại bỏ 1,918 GB logic / 0,666 GB thực của bản thử, giữ dữ liệu gốc và báo cáo. Không xóa DB vận hành, CSV/model hoặc bản sao lưu tài chính. Hồ sơ kết quả, phép đo và lệnh hoàn tác ở `runtime/logs/storage_optimization_20261106/Verification.md`.
+
+## 05/11/2026 — Thông báo nạp/rút, thưởng, lãi và biến động tài sản
+
+- Bổ sung nguồn chỉ đọc từ sổ ví/thẻ vào chuông: số tiền chính xác, nơi nhận/trừ và mở lịch sử tương ứng. Gộp chứng từ đối ứng, dùng chung ID duyệt nạp thủ công; không báo nhận tiền từ yêu cầu chờ/từ chối, khoản lỗi/thử/0.
+- Tải phần thiếu theo ba mốc ghi sổ và phân lô; lưu tin cùng cursor để không mất lịch sử khi đóng trình duyệt, giữ đọc/xóa qua tải lại và cách ly tài khoản. Hỏi mỗi 15 giây khi tab hiện, làm mới khi mở chuông/nạp rút thẻ xong; không thay số dư hoặc dữ liệu đã khóa.
+- Audit điều chỉnh mới lưu thêm số dư/chênh lệch kim cương để khoản chỉ đổi kim cương cũng có tin đúng; không suy ngược chênh lệch của bản ghi cũ. Đã kiểm chứng 19 ca riêng biệt qua các lượt API/SQLite/Chrome và hồi quy chuông/duyệt nạp; gồm nhiều trang, chứng từ ghi muộn, chống lặp, cách ly và tải lại. Launcher đã nạp backend mới, kiểm tra tài nguyên/route xác thực trên localhost; bằng chứng tại `runtime/logs/financial_notifications_20261105/verification.json`.
+
+## 04/11/2026 — Tự cộng lãi 0,025%/ngày vào thẻ
+
+- Theo lựa chọn người dùng, tính trên số dư thẻ ngay trước 00:00 giờ Việt Nam và cộng vào thẻ; lãi trở thành số dư ngày sau, giữ phần lẻ để cộng dồn. Kích hoạt có mốc nền, không cộng ngược ngày trước khi bật. Worker riêng chốt ngày/cộng bù sau gián đoạn.
+- Thêm biên nhận ngày bất biến, checkpoint và chính sách đóng băng; kiểm sổ đối ứng/giới hạn và khóa SQLite chung với nạp/rút/thưởng. Cập nhật số dư + sổ thẻ + audit + checkpoint nguyên tử, chống cộng trùng và hoàn tác toàn bộ tài khoản khi lỗi.
+- Thêm lọc Lãi suất trong lịch sử thẻ, tách khỏi thưởng dự đoán và ví; giữ API xem chỉ đọc. Không sửa biên nhận cũ hoặc bảng giao dịch thẻ bất biến.
+- Kiểm thử hồi quy 48 lượt và bộ lãi cuối 15 ca đều qua, gồm biên nano giây, thời gian sau chờ khóa, đồng thời, lãi kép/phần lẻ, 40 ngày gián đoạn, rollback/giới hạn, identity và Chrome. Đã sao lưu DB, bật config và xác nhận worker thật kích hoạt trên server; lần chốt đầu 00:00 ngày 05/11/2026, không phát sinh lãi ngay khi bật.
+
+## 04/11/2026 — Nhãn lãi suất trên thẻ
+
+- Thêm dòng “Lãi Suất +0.025% Ngày” ngay dưới tỷ giá, căn phải và dùng màu xanh dịu; chú thích áp dụng trên tổng tài sản đã gửi trong thẻ. Cập nhật phiên bản CSS. Đã kiểm tra trên Chrome ở 1.360/390/320 px: đúng vị trí, đủ nội dung, không tràn và số dư/PayPal vẫn cùng hàng.
+
+## 04/11/2026 — Icon menu Biểu đồ
+
+- Thay ký tự ▥ bằng SVG biểu đồ đường có điểm dữ liệu và trục, nét bo tròn 22 px. Icon căn giữa, theo màu chữ của menu và giữ nhãn Biểu đồ. Đã kiểm tra trực tiếp trên Chrome ở trạng thái thường/được chọn: căn giữa, nhận đúng màu và HTML mới đã được server phục vụ.
+
+## 04/11/2026 — Bổ sung mốc 75% và 100%
+
+- Thêm 75% và 100% vào gợi ý nạp/rút thẻ, tiếp tục tính theo số dư nguồn và chỉ điền ô nhập. Căn sáu mốc trên cùng hàng, điều chỉnh đệm/cỡ chữ trên điện thoại; cập nhật phiên bản JS/CSS. Đã kiểm tra đủ sáu tỷ lệ với ví số lớn/thẻ số lẻ, đúng số nguyên và không chuyển tiền khi chọn; sáu nút cùng hàng, đủ chữ ở 1.360/390/320 px. Cú pháp JS và tài nguyên trên server đều hợp lệ.
+
+## 04/11/2026 — Mốc đề xuất nạp/rút thẻ
+
+- Thêm bốn nút 10%/20%/25%/50% ngay dưới ô nhập; tính từ số dư ví khi nạp và số dư thẻ khi rút, làm tròn xuống bằng số nguyên chính xác. Chọn mốc chỉ điền tiền để người dùng xác nhận; có trạng thái chọn và mô tả số tiền.
+- Sửa tay hoặc đổi chức năng bỏ chọn mốc; khóa mốc khi không đủ 1 PayPal, đang tải/gửi hoặc có giao dịch chờ kiểm tra. Cập nhật phiên bản JS/CSS.
+- Kiểm tra Chrome/DB tạm: đủ bốn tỷ lệ ở cả hai nguồn, số dư lẻ/lớn/0, bỏ chọn khi sửa tay, khóa khi chờ kiểm tra; bấm mốc không tạo giao dịch. Bố cục 1.360/390/320 px, luồng nạp/rút/giới hạn/khôi phục giao dịch cũ và cú pháp JS đều qua. Server đã phục vụ bản mới.
+
+## 04/11/2026 — Chọn riêng từng chức năng thẻ
+
+- Bỏ màu xanh cố định của nút Nạp thẻ; chỉ nút đang mở chức năng mới sáng theo aria-expanded. Chọn Nạp/Rút ẩn lịch sử, chọn Lịch sử ẩn form và bỏ chọn nút nạp/rút. Hủy form, đóng hoặc đổi tab đưa các nút về trạng thái chưa chọn.
+- Không cho đổi sang lịch sử khi đang gửi giao dịch; giữ cơ chế khôi phục giao dịch chờ và chống chuyển lặp. Cập nhật phiên bản JS/CSS trong HTML.
+- Đã kiểm tra 12 trạng thái chọn trên Chrome bằng DB tạm: chỉ một nút sáng và một chức năng mở, hủy/đổi tab/đóng mở lại đều bỏ chọn. Luồng nạp/rút, giới hạn nhập, khôi phục giao dịch mất phản hồi và bố cục di động vẫn qua; JS hợp lệ và server đã phục vụ tài nguyên mới.
+
+## 04/11/2026 — Số dư nguồn cùng hàng nhãn nhập tiền
+
+- Đưa số dư nguồn lên cùng hàng với nhãn Số tiền PayPal: nhãn căn sát trái, số dư căn sát phải theo mép ô nhập. Dùng chung cho cả Nạp thẻ và Rút thẻ; giữ đầy đủ số dư và điều chỉnh chữ ở màn hình nhỏ. Kiểm tra Chrome đủ hai chế độ với hai số dư lớn ở 1.360/390/320 px: cùng hàng, căn đúng hai mép và không tràn khung.
+
+## 04/11/2026 — Giới hạn tức thời số tiền nạp/rút thẻ
+
+- Sửa lỗi gõ thêm chữ số vào giá trị đã có dấu chấm làm dừng định dạng. Khi gõ/dán vượt số dư nguồn, ô nhập hiển thị ngay số dư ví (Nạp thẻ) hoặc số dư thẻ (Rút thẻ), giữ chính xác số nguyên lớn và vị trí con trỏ.
+- Áp dụng lại giới hạn khi làm mới số dư; giữ nguyên số tiền bất biến của giao dịch đang kiểm tra lại để chống chuyển lặp. Cập nhật phiên bản JS trong HTML.
+- Đã kiểm thử Chrome: gõ tiếp số có dấu chấm, dán chuỗi quá lớn, nạp/rút, số dư 0 và 992.987.351.987.875, không ghi tiền chỉ vì nhập; giữ nguyên giao dịch rút toàn bộ đang chờ kiểm tra sau khi mất phản hồi. Kiểm tra 1.360/390/320 px và cú pháp JS; HTML/JS mới đã được server phục vụ.
+
+## 04/11/2026 — Nút Nạp thẻ và Rút thẻ
+
+- Thêm hai nút cạnh Lịch sử thẻ, cùng một hàng; form nhập tiền/xác nhận và hiển thị số dư nguồn. Nạp chuyển từ ví vào thẻ, rút chuyển từ thẻ về ví theo 1:1 PayPal; cập nhật số dư và lịch sử hai phía.
+- Thêm API chuyển nội bộ nguyên tử, kiểm chủ sở hữu/đủ tiền/giới hạn, chống chuyển lặp và hoàn tác khi lỗi. Form giữ mã giao dịch chưa rõ kết quả để kiểm tra lại sau khi mất phản hồi hoặc tải lại trang; hủy cập nhật giao diện từ phản hồi của phiên cũ.
+- Đã qua 14 trường hợp kiểm thử API/Chrome/hồi quy thẻ và lịch sử ví trên DB tạm, gồm đồng thời với writer thưởng Python, tiền lớn, rollback và mất phản hồi. Kiểm tra bố cục 1.360/390/320 px; đồng bộ số dư ví bằng số nguyên an toàn đúng hợp đồng frontend. Server cục bộ đã nhận bản mới.
+
+## 04/11/2026 — Hiển thị tỷ giá trên thẻ
+
+- Thay nhãn THẺ TÀI KHOẢN ở góc phải trên thẻ bằng “Tỷ giá 1 VNĐ = 1.25 PayPal”; căn phải và điều chỉnh chữ trên điện thoại. Cập nhật phiên bản CSS để nhận bố cục mới. Đã kiểm tra trên Chrome ở chiều rộng 1.360, 390 và 320 px: đủ nhãn, không tràn khung; số dư và PayPal vẫn cùng hàng.
+
 ## 03/11/2026 — Số dư thẻ và PayPal cùng hàng
 
 - Đưa giá trị số dư thẻ và đơn vị PayPal lên cùng một hàng, căn theo chân chữ; giữ đủ số tiền và điều chỉnh cỡ chữ trên màn hình nhỏ. Cập nhật phiên bản CSS để trình duyệt nhận bố cục mới. Kiểm tra Chrome ở chiều rộng 1.360, 390 và 320 px: số tiền 4.553.502.331.749 PayPal cùng hàng, không tràn khung.

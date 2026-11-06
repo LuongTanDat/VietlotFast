@@ -439,8 +439,11 @@ public class LottoWebServer {
         server.createContext("/api/store", this::handleStore);
         server.createContext("/api/account/statistics", this::handleAccountStatistics);
         server.createContext("/api/account/wallet-history", this::handleWalletHistory);
+        server.createContext("/api/account/financial-notifications", this::handleFinancialNotifications);
         server.createContext("/api/account/card", this::handleAccountCard);
+        server.createContext("/api/account/card-transfer", this::handleCardTransfer);
         server.createContext("/vietlott-web-wallet.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-wallet.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-notifications.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-notifications.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-wallet.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-wallet.css"), "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web-account-stats.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-account-stats.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/api/payments/vnpay", this::handleVnpay);
@@ -488,6 +491,7 @@ public class LottoWebServer {
                 new ArrayBlockingQueue<Runnable>(64), new ThreadPoolExecutor.CallerRunsPolicy()));
         server.start();
         startEffectivenessWorker();
+        startCardInterestWorker();
 
         System.out.println("Lotto Web Server chạy tại http://localhost:" + PORT + "/");
         System.out.println("DB file: " + dbFile.toAbsolutePath());
@@ -2506,6 +2510,36 @@ public class LottoWebServer {
         }, 15, 60, TimeUnit.SECONDS);
     }
 
+    private void startCardInterestWorker() {
+        if (!Boolean.parseBoolean(System.getProperty("lotto.cardInterestWorker", "true"))) return;
+        Executors.newSingleThreadScheduledExecutor(task -> {
+            Thread thread = new Thread(task, "card-daily-interest");
+            thread.setDaemon(true); return thread;
+        }).scheduleWithFixedDelay(() -> {
+            Process process = null;
+            try {
+                Path config = rootDir.resolve("config/card-interest.json");
+                Path script = rootDir.resolve("ai/card_interest.py");
+                if (!Files.isRegularFile(config) || !Files.isRegularFile(script)) return;
+                if (!"true".equals(jsonFields(new String(Files.readAllBytes(config), StandardCharsets.UTF_8)).get("enabled"))) return;
+                List<String> command = buildPythonCommand(script); command.add("--apply");
+                process = new ProcessBuilder(command).directory(rootDir.toFile()).start();
+                ProcessOutput output = waitForProcessOutput(process, 120, TimeUnit.SECONDS);
+                String payload = new String(output.stdout, StandardCharsets.UTF_8).trim();
+                if (!output.finished || output.exitCode != 0) {
+                    System.err.println("Card interest worker: " + payload + " " + new String(output.stderr, StandardCharsets.UTF_8));
+                } else {
+                    Map<String,String> report = jsonFields(payload);
+                    if (!"[]".equals(report.getOrDefault("errors", "[]"))) System.err.println("Card interest pending: " + payload);
+                    else if ("true".equals(report.get("activated")) || !"0".equals(report.getOrDefault("credited", "0"))) System.out.println("Card interest: " + payload);
+                }
+            } catch (Exception failure) {
+                if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
+                System.err.println("Card interest worker: " + rootCauseMsg(failure));
+            } finally { if (process != null) process.destroy(); }
+        }, 1, 60, TimeUnit.SECONDS);
+    }
+
     private static boolean validPredictionCycleId(String id) {
         return id.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     }
@@ -2775,6 +2809,33 @@ public class LottoWebServer {
         sendJson(ex, 200, sb.toString());
     }
 
+    private String accountCardCurrency() throws IOException {
+        Path file = rootDir.resolve("config/prediction-rewards.json");
+        if (Files.isRegularFile(file)) {
+            String currency = jsonString(jsonFields(new String(Files.readAllBytes(file), StandardCharsets.UTF_8)).get("cardCurrency"));
+            if ("VNĐ".equals(currency)) return "VNĐ";
+        }
+        return "PayPal";
+    }
+
+    private void handleCardTransfer(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        SessionUser user = requireAuth(ex, true); if (user == null) return;
+        if (!"/api/account/card-transfer".equals(ex.getRequestURI().getPath())) { sendJson(ex,404,"{\"ok\":false}"); return; }
+        if (!"POST".equals(ex.getRequestMethod())) { sendJson(ex,405,"{\"ok\":false}"); return; }
+        try {
+            Map<String,String> form = parseForm(ex);
+            String kind = form.getOrDefault("kind",""), requestId = form.getOrDefault("requestId","");
+            if (!Arrays.asList("topup","withdraw").contains(kind) || !requestId.matches("[a-f0-9]{32}"))
+                throw new IllegalStateException("Yêu cầu chuyển tiền không hợp lệ.");
+            long amount = parseAccountBalance(form.get("amount"),"Số tiền");
+            if (amount == 0) throw new IllegalStateException("Số tiền phải lớn hơn 0 PayPal.");
+            sendJson(ex,200,repo.transferCard(user.username,user.account.accountId,kind,amount,requestId,accountCardCurrency()));
+        } catch (IllegalStateException invalid) { sendJson(ex,400,"{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        catch (RuntimeException | IOException failure) { sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa xác nhận được giao dịch. Hãy thử lại.\"}"); }
+    }
+
     private void handleAccountCard(HttpExchange ex) throws IOException {
         if (handleOptions(ex)) return;
         ex.getResponseHeaders().set("Cache-Control", "no-store");
@@ -2782,18 +2843,32 @@ public class LottoWebServer {
         if (!"GET".equals(ex.getRequestMethod())) { sendJson(ex, 405, "{\"ok\":false}"); return; }
         Map<String,String> query = parseQuery(ex.getRequestURI().getRawQuery());
         String kind = query.getOrDefault("kind","all"), page = query.getOrDefault("page","1"), history = query.getOrDefault("history","0");
-        if (!Arrays.asList("all","transfer","topup","withdraw","reward").contains(kind) || !page.matches("[1-9][0-9]{0,6}") || !Arrays.asList("0","1").contains(history)) {
+        if (!Arrays.asList("all","transfer","topup","withdraw","reward","interest").contains(kind) || !page.matches("[1-9][0-9]{0,6}") || !Arrays.asList("0","1").contains(history)) {
             sendJson(ex,400,"{\"ok\":false,\"message\":\"Bộ lọc lịch sử thẻ không hợp lệ.\"}"); return;
         }
         try {
-            String currency = "PayPal";
-            Path file = rootDir.resolve("config/prediction-rewards.json");
-            if (Files.isRegularFile(file)) {
-                String configured = jsonString(jsonFields(new String(Files.readAllBytes(file), StandardCharsets.UTF_8)).get("cardCurrency"));
-                if ("VNĐ".equals(configured)) currency = "VNĐ";
-            }
-            sendJson(ex,200,repo.accountCard(user.username,kind,Integer.parseInt(page),"1".equals(history),currency));
+            sendJson(ex,200,repo.accountCard(user.username,kind,Integer.parseInt(page),"1".equals(history),accountCardCurrency()));
         } catch (RuntimeException | IOException failure) { sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa tải được thẻ của bạn. Hãy thử lại.\"}"); }
+    }
+
+    private void handleFinancialNotifications(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        SessionUser user = requireAuth(ex, true); if (user == null) return;
+        if (!"/api/account/financial-notifications".equals(ex.getRequestURI().getPath())) { sendJson(ex,404,"{\"ok\":false}"); return; }
+        if (!"GET".equals(ex.getRequestMethod())) { sendJson(ex,405,"{\"ok\":false}"); return; }
+        Map<String,String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        long[] cursors = new long[3];
+        String[] names = {"auditAfter","cardAfter","wheelAfter"};
+        try {
+            for (int i=0;i<names.length;i++) {
+                String value=query.getOrDefault(names[i],"0");
+                if (!value.matches("0|[1-9][0-9]{0,18}")) throw new NumberFormatException();
+                cursors[i]=Long.parseLong(value);
+            }
+        } catch (NumberFormatException invalid) { sendJson(ex,400,"{\"ok\":false,\"message\":\"Mốc thông báo không hợp lệ.\"}"); return; }
+        try { sendJson(ex,200,repo.financialNotifications(user.username,cursors)); }
+        catch (RuntimeException failure) { sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa tải được thông báo giao dịch.\"}"); }
     }
 
     private void handleWalletHistory(HttpExchange ex) throws IOException {
@@ -4141,6 +4216,74 @@ public class LottoWebServer {
 
         // Read only the authenticated account's linked money events. Confirmation of
         // a reserved prediction is deliberately excluded: the debit happened earlier.
+        synchronized String transferCard(String user, String accountId, String kind, long amount, String requestId, String defaultCurrency) {
+            final long max = 9007199254740991L;
+            String source = "card_wallet_transfer:" + accountId + ":" + requestId;
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    // Acquire the SQLite write lock before reading either balance.
+                    // The reward worker uses the same DB and can update cards too.
+                    try (Statement lock = c.createStatement()) { lock.executeUpdate("UPDATE account_cards SET version=version WHERE 0"); }
+                    try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM users u JOIN account_identities i ON i.username=u.username WHERE u.username=? AND i.account_id=? AND u.enabled=1 AND i.deleted_at=''")) {
+                        ps.setString(1,user); ps.setString(2,accountId);
+                        try (ResultSet rs = ps.executeQuery()) { if (!rs.next()) throw new IllegalStateException("Tài khoản đã thay đổi. Hãy đăng nhập lại."); }
+                    }
+                    Map<String,String> wallet = new LinkedHashMap<>();
+                    try (PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                        ps.setString(1,user); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) wallet=jsonFields(rs.getString(1)); }
+                    }
+                    long walletBalance = parseAccountBalance(wallet.getOrDefault("paypalBalance","0"),"Số dư ví");
+                    long walletVersion = parseAccountBalance(wallet.getOrDefault("walletVersion","0"),"Phiên bản ví");
+                    long cardBalance = 0, cardVersion = 0; String currency = defaultCurrency;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT currency,balance,version FROM account_cards WHERE account_id=?")) {
+                        ps.setString(1,accountId); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) { currency=rs.getString(1); cardBalance=rs.getLong(2); cardVersion=rs.getLong(3); } }
+                    }
+                    boolean replayed = false;
+                    try (PreparedStatement ps = c.prepareStatement("SELECT kind,amount,currency FROM card_transactions WHERE source_key=?")) {
+                        ps.setString(1,source); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) {
+                            long signed = kind.equals("topup") ? amount : -amount;
+                            if (!kind.equals(rs.getString(1)) || signed != rs.getLong(2) || !"PayPal".equals(rs.getString(3)))
+                                throw new IllegalStateException("Mã giao dịch đã dùng cho số tiền hoặc thao tác khác.");
+                            replayed = true;
+                        } }
+                    }
+                    if (!replayed) {
+                        if (!"PayPal".equals(currency)) throw new IllegalStateException("Chỉ chuyển giữa ví và thẻ cùng đơn vị PayPal.");
+                        if (cardBalance < 0 || cardBalance > max || cardVersion < 0 || cardVersion >= max || walletVersion >= max)
+                            throw new IllegalStateException("Số dư hoặc phiên bản tài khoản vượt giới hạn.");
+                        boolean topup = kind.equals("topup");
+                        if (amount > (topup ? walletBalance : cardBalance)) throw new IllegalStateException(topup ? "Số dư ví không đủ để nạp thẻ." : "Số dư thẻ không đủ để rút.");
+                        if (amount > max - (topup ? cardBalance : walletBalance)) throw new IllegalStateException("Số dư nơi nhận vượt giới hạn.");
+                        long walletBefore = walletBalance, cardBefore = cardBalance;
+                        walletBalance += topup ? -amount : amount; cardBalance += topup ? amount : -amount;
+                        walletVersion++; cardVersion++;
+                        String now = Instant.now().toString();
+                        wallet.put("paypalBalance",Long.toString(walletBalance)); wallet.put("walletVersion",Long.toString(walletVersion));
+                        try (PreparedStatement ps = c.prepareStatement("INSERT OR REPLACE INTO stores(username,store_json) VALUES(?,?)")) {
+                            ps.setString(1,user); ps.setString(2,fieldsJson(wallet)); ps.executeUpdate();
+                        }
+                        try (PreparedStatement ps = c.prepareStatement("INSERT INTO account_cards VALUES(?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET balance=excluded.balance,version=excluded.version,updated_at=excluded.updated_at")) {
+                            ps.setString(1,accountId); ps.setString(2,"PayPal"); ps.setLong(3,cardBalance); ps.setLong(4,cardVersion); ps.setString(5,now); ps.setString(6,now); ps.executeUpdate();
+                        }
+                        String details = "{\"label\":" + quoteJson(topup ? "Nạp thẻ từ ví" : "Rút thẻ về ví") + ",\"description\":" + quoteJson(topup ? "Ví → Thẻ · 1:1 PayPal" : "Thẻ → Ví · 1:1 PayPal")
+                            + ",\"id\":" + quoteJson(requestId) + ",\"paypal\":" + amount + ",\"cardAccountId\":" + quoteJson(accountId)
+                            + ",\"walletBefore\":" + walletBefore + ",\"walletAfter\":" + walletBalance + ",\"cardBefore\":" + cardBefore + ",\"cardAfter\":" + cardBalance + "}";
+                        try (PreparedStatement ps = c.prepareStatement("INSERT INTO card_transactions VALUES(?,?,?,?,?,?,?,?,?,?)")) {
+                            ps.setString(1,source); ps.setString(2,accountId); ps.setString(3,"PayPal"); ps.setString(4,kind); ps.setLong(5,topup ? amount : -amount); ps.setLong(6,cardBalance);
+                            ps.setString(7,requestId); ps.setString(8,details); ps.setString(9,now); ps.setString(10,source); ps.executeUpdate();
+                        }
+                        auditAccount(c,user,user,topup ? "card_topup" : "card_withdraw",details);
+                    }
+                    String result = "{\"ok\":true,\"owner\":" + quoteJson(user) + ",\"accountId\":" + quoteJson(accountId) + ",\"kind\":" + quoteJson(kind)
+                        + ",\"requestId\":" + quoteJson(requestId) + ",\"amount\":" + quoteJson(Long.toString(amount)) + ",\"replayed\":" + replayed
+                        + ",\"balance\":" + quoteJson(Long.toString(walletBalance)) + ",\"walletVersion\":" + walletVersion
+                        + ",\"cardBalance\":" + quoteJson(Long.toString(cardBalance)) + ",\"cardVersion\":" + cardVersion + "}";
+                    c.commit(); return result;
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
         synchronized String accountCard(String user, String kind, int requestedPage, boolean history, String defaultCurrency) {
             Account account = getUser(user);
             if (account == null) throw new IllegalStateException("Không tìm thấy tài khoản.");
@@ -4152,7 +4295,7 @@ public class LottoWebServer {
                 }
                 int total = 0, page = 1, pages = 1; List<String> events = new ArrayList<>();
                 if (history) {
-                    String filter = " FROM card_transactions WHERE account_id=? AND (?='all' OR kind=?)";
+                    String filter = " FROM card_transactions WHERE account_id=? AND (?='all' OR (CASE WHEN substr(source_key,1,14)='card_interest:' THEN 'interest' ELSE kind END)=?)";
                     try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*)" + filter)) {
                         ps.setString(1,account.accountId); ps.setString(2,kind); ps.setString(3,kind);
                         try (ResultSet rs = ps.executeQuery()) { rs.next(); total=rs.getInt(1); }
@@ -4163,6 +4306,7 @@ public class LottoWebServer {
                         try (ResultSet rs = ps.executeQuery()) { while (rs.next()) {
                             Map<String,String> details = jsonFields(rs.getString("details_json"));
                             String rowKind=rs.getString("kind"), label=jsonString(details.get("label")), description=jsonString(details.get("description"));
+                            if (rs.getString("source_key").startsWith("card_interest:")) rowKind="interest";
                             if (label.isEmpty()) label = rowKind.equals("reward") ? "Thưởng dự đoán" : rowKind.equals("topup") ? "Nạp vào thẻ" : rowKind.equals("withdraw") ? "Rút từ thẻ" : "Chuyển tiền";
                             events.add("{\"id\":" + quoteJson(rs.getString("event_id")) + ",\"kind\":" + quoteJson(rowKind) + ",\"label\":" + quoteJson(label)
                                 + ",\"description\":" + quoteJson(description) + ",\"createdAt\":" + quoteJson(rs.getString("created_at")) + ",\"reference\":" + quoteJson(rs.getString("reference"))
@@ -4170,10 +4314,72 @@ public class LottoWebServer {
                         } }
                     }
                 }
+                long walletBalance = 0, walletVersion = 0;
+                try (PreparedStatement ps = c.prepareStatement("SELECT store_json FROM stores WHERE username=?")) {
+                    ps.setString(1,user); try (ResultSet rs = ps.executeQuery()) { if (rs.next()) { Map<String,String> wallet=jsonFields(rs.getString(1)); walletBalance=fieldLong(wallet,"paypalBalance",0); walletVersion=fieldLong(wallet,"walletVersion",0); } }
+                }
                 c.commit();
                 return "{\"ok\":true,\"owner\":" + quoteJson(user) + ",\"card\":{\"accountId\":" + quoteJson(account.accountId) + ",\"holder\":" + quoteJson(user)
                     + ",\"currency\":" + quoteJson(currency) + ",\"balance\":" + quoteJson(Long.toString(balance)) + ",\"version\":" + version + "},\"kind\":" + quoteJson(kind)
+                    + ",\"walletBalance\":" + quoteJson(Long.toString(walletBalance)) + ",\"walletVersion\":" + walletVersion
                     + ",\"page\":" + page + ",\"pages\":" + pages + ",\"total\":" + total + ",\"events\":[" + String.join(",",events) + "]}";
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        // Read committed receipts only. Independent append cursors also catch late/backdated postings.
+        synchronized String financialNotifications(String user, long[] after) {
+            Account account=getUser(user);
+            if (account==null) throw new IllegalStateException("Không tìm thấy tài khoản.");
+            String[] tables={"account_audit","card_transactions","wallet_events"};
+            String[] sources={
+                "SELECT a.rowid AS sequence,a.event_id AS id,'audit' AS source,a.action,a.details_json AS details,a.created_at,'other' AS kind FROM account_audit a JOIN account_activity_links l ON l.event_id=a.event_id WHERE l.target_account_id=? AND a.rowid>? AND a.action IN ('manual_topup_credit','vnpay_credit','prediction_reserve','prediction_refunded','prediction_reward','redeem_gift_code','reclaim_gift_code_rewards','update_assets') ORDER BY a.rowid LIMIT 101",
+                "SELECT rowid AS sequence,* FROM card_transactions WHERE account_id=? AND rowid>? ORDER BY rowid LIMIT 101",
+                "SELECT rowid AS sequence,'wheel:'||request_id AS id,'wheel' AS source,action,response_json AS details,created_at,'other' AS kind FROM wallet_events WHERE username=? AND rowid>? AND (action LIKE 'exchange:%' OR action LIKE 'spin:%') ORDER BY rowid LIMIT 101"
+            };
+            try (Connection c=conn()) {
+                c.setAutoCommit(false);
+                long[] next=new long[3]; boolean more=false; List<String> events=new ArrayList<>();
+                for (int source=0;source<3;source++) {
+                    try (Statement st=c.createStatement(); ResultSet rs=st.executeQuery("SELECT COALESCE(MAX(rowid),0) FROM "+tables[source])) { rs.next(); next[source]=Math.max(after[source],rs.getLong(1)); }
+                    try (PreparedStatement ps=c.prepareStatement(sources[source])) {
+                        ps.setString(1,source==2?user:account.accountId); ps.setLong(2,after[source]);
+                        int count=0; long last=after[source];
+                        try (ResultSet rs=ps.executeQuery()) { while (rs.next()) {
+                            if (++count>100) { next[source]=last; more=true; break; }
+                            last=rs.getLong("sequence");
+                            String id, title, description, created=rs.getString("created_at"), currency="PayPal", action="wallet-history", kind="finance";
+                            Long delta; long diamond=0;
+                            if (source==1) {
+                                Map<String,String> details=jsonFields(rs.getString("details_json"));
+                                String rowKind=rs.getString("source_key").startsWith("card_interest:")?"interest":rs.getString("kind");
+                                title=jsonString(details.get("label")); description=jsonString(details.get("description"));
+                                if (title.isEmpty()) title=rowKind.equals("topup")?"Nạp vào thẻ":rowKind.equals("withdraw")?"Rút từ thẻ về ví":rowKind.equals("interest")?"Lãi suất thẻ":rowKind.equals("reward")?"Thưởng dự đoán":"Chuyển tiền vào thẻ";
+                                id="finance:card:"+rs.getString("event_id"); delta=rs.getLong("amount"); currency=rs.getString("currency"); action="card-history";
+                                description="Thẻ"+(description.isEmpty()?"":" · "+description);
+                            } else {
+                                Map<String,String> row=jsonFields(walletHistoryRow(rs));
+                                id="finance:"+(source==0?"audit:":"wheel:")+rs.getString("id");
+                                title=jsonString(row.get("label")); description=jsonString(row.get("description"));
+                                delta="null".equals(row.get("delta"))?null:Long.valueOf(jsonString(row.get("delta")));
+                                diamond=fieldLong(row,"diamondDelta",0);
+                                if (source==0 && "manual_topup_credit".equals(rs.getString("action"))) {
+                                    String reference=jsonString(row.get("reference"));
+                                    if (!reference.isEmpty()) { id="deposit-result:"+reference+":PAID"; kind="deposit"; action="deposit-history"; title="Nạp tiền thành công"; }
+                                }
+                                description="Ví"+(description.isEmpty()?"":" · "+description);
+                            }
+                            if (delta!=null && delta==0 && diamond==0) continue;
+                            String amount=delta==null?"":(delta>0?"+":delta<0?"−":"")+walletNumber(Math.abs(delta))+" "+currency;
+                            if (diamond!=0) amount+=(amount.isEmpty()?"":" · ")+(diamond>0?"+":"−")+walletNumber(Math.abs(diamond))+" kim cương";
+                            String detail=amount+(amount.isEmpty()?"":" · ")+description;
+                            events.add("{\"id\":"+quoteJson(id)+",\"kind\":"+quoteJson(kind)+",\"audience\":\"user\",\"recipientAccountId\":"+quoteJson(account.accountId)
+                                +",\"action\":"+quoteJson(action)+",\"title\":"+quoteJson(title)+",\"detail\":"+quoteJson(detail)+",\"createdAt\":"+quoteJson(created)+"}");
+                        } }
+                    }
+                }
+                c.commit();
+                return "{\"ok\":true,\"owner\":"+quoteJson(user)+",\"accountId\":"+quoteJson(account.accountId)+",\"cursor\":{\"auditAfter\":"+quoteJson(Long.toString(next[0]))
+                    +",\"cardAfter\":"+quoteJson(Long.toString(next[1]))+",\"wheelAfter\":"+quoteJson(Long.toString(next[2]))+"},\"hasMore\":"+more+",\"events\":["+String.join(",",events)+"]}";
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
@@ -4183,7 +4389,7 @@ public class LottoWebServer {
             String source = "SELECT a.event_id AS id,'audit' AS source,a.action,a.details_json AS details,a.created_at,"
                     + "CASE WHEN a.action IN ('manual_topup_credit','vnpay_credit') THEN 'topup' WHEN a.action='prediction_reserve' THEN 'spend' WHEN a.action='prediction_reward' THEN 'reward' WHEN a.action='prediction_refunded' THEN 'refund' ELSE 'other' END AS kind "
                     + "FROM account_activity_links l JOIN account_audit a ON a.event_id=l.event_id WHERE l.target_account_id=? AND a.action IN "
-                    + "('manual_topup_credit','vnpay_credit','prediction_reserve','prediction_refunded','prediction_reward','card_reward_migration','redeem_gift_code','reclaim_gift_code_rewards','update_assets') "
+                    + "('manual_topup_credit','vnpay_credit','prediction_reserve','prediction_refunded','prediction_reward','card_reward_migration','card_topup','card_withdraw','redeem_gift_code','reclaim_gift_code_rewards','update_assets') "
                     + "UNION ALL SELECT 'wheel:'||request_id,'wheel',action,response_json,created_at,CASE WHEN action LIKE 'exchange:%' THEN 'spend' ELSE 'other' END FROM wallet_events "
                     + "WHERE username=? AND (action LIKE 'exchange:%' OR action LIKE 'spin:%')";
             String filter = "SELECT * FROM (" + source + ") WHERE (?='all' OR kind=?)";
@@ -4239,13 +4445,15 @@ public class LottoWebServer {
                         description = game + " · Kỳ #" + draw + " · " + walletNumber(fieldLong(details,"tickets",0)) + " vé"; break;
                     case "prediction_refunded": label = "Hoàn phí dự đoán"; delta = fieldLong(details,"paypal",0); description = "Đã hoàn vào ví"; break;
                     case "card_reward_migration": label = "Chuyển thưởng sang thẻ"; delta = -fieldLong(details,"paypal",0); description = "Chuyển " + fieldLong(details,"count",0) + " khoản thưởng đã nhận · Giữ nguyên tổng tiền"; break;
+                    case "card_topup": label = "Nạp vào thẻ"; delta = -fieldLong(details,"paypal",0); description = "Ví → Thẻ · 1:1 PayPal"; break;
+                    case "card_withdraw": label = "Rút từ thẻ về ví"; delta = fieldLong(details,"paypal",0); description = "Thẻ → Ví · 1:1 PayPal"; break;
                     case "prediction_reward":
                         label = "Thưởng dự đoán"; delta = fieldLong(details,"paypal",0);
                         description = jsonString(details.get("game")).replace("LOTO_5_35","Loto 5/35").replace("LOTO_6_45","Mega 6/45").replace("LOTO_6_55","Power 6/55")
                                 + " · Kỳ #" + jsonString(details.get("draw")) + " · " + walletNumber(fieldLong(details,"rewardVnd",0)) + " VNĐ × 1,25"; break;
                     case "redeem_gift_code": label = "Nhận quà từ Code"; Map<String,String> reward = jsonFields(details.get("reward")); delta = fieldLong(reward,"paypal",0); diamond = fieldLong(reward,"diamond",0); break;
                     case "reclaim_gift_code_rewards": label = "Thu hồi quà Code"; delta = -fieldLong(details,"paypal",0); diamond = -fieldLong(details,"diamond",0); break;
-                    case "update_assets": label = "Điều chỉnh số dư"; description = "Quản trị viên đặt số dư: " + walletNumber(fieldLong(details,"paypal",0)) + " PayPal"; if (details.containsKey("paypalDelta")) delta = fieldLong(details,"paypalDelta",0); break;
+                    case "update_assets": label = "Điều chỉnh số dư"; description = "Quản trị viên đặt số dư: " + walletNumber(fieldLong(details,"paypal",0)) + " PayPal"; if (details.containsKey("paypalDelta")) delta = fieldLong(details,"paypalDelta",0); diamond=fieldLong(details,"diamondDelta",0); break;
                     default: throw new IllegalStateException("Loại giao dịch không hỗ trợ.");
                 }
             }
@@ -5262,11 +5470,12 @@ public class LottoWebServer {
                     throw new IllegalStateException("Số dư đã thay đổi bởi giao dịch khác. Bấm Hủy rồi Chỉnh Sửa để tải số dư mới.");
                 }
                 long paypalBefore = fieldLong(fields, "paypalBalance", 0);
+                long diamondBefore = fieldLong(fields, "diamondBalance", 0);
                 fields.put("diamondBalance", Long.toString(diamond));
                 fields.put("paypalBalance", Long.toString(paypal));
                 fields.put("walletVersion", Long.toString(fieldLong(fields, "walletVersion", 0) + 1));
                 ps.setString(1, user); ps.setString(2, fieldsJson(fields)); ps.executeUpdate();
-                auditAccount(c, actor, user, "update_assets", "{\"diamond\":" + diamond + ",\"paypal\":" + paypal + ",\"paypalBefore\":" + paypalBefore + ",\"paypalDelta\":" + (paypal - paypalBefore) + "}");
+                auditAccount(c, actor, user, "update_assets", "{\"diamond\":" + diamond + ",\"paypal\":" + paypal + ",\"paypalBefore\":" + paypalBefore + ",\"paypalDelta\":" + (paypal - paypalBefore) + ",\"diamondBefore\":" + diamondBefore + ",\"diamondDelta\":" + (diamond-diamondBefore) + "}");
                 c.commit();
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }

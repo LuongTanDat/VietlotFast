@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "method": "ntfs-lznt1",
+  "managedRoots": ["runtime", "Bin"],
+  "minimumFileBytes": 1048576,
+  "excludedSuffixes": [".lock", ".db-wal", ".db-shm", ".part", ".tmp"],
+  "minimumFreeBytes": 5368709120,
+  "maxReadSlowdownRatio": 1.25,
+  "maxReadExtraMilliseconds": 10,
+  "healthUrl": "http://localhost:8080/api/time"
+}
