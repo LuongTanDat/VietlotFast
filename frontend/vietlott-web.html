@@ -8,12 +8,15 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
-    <link rel="stylesheet" href="/vietlott-web-extra.css?v=ticket-seeds-20261102" />
+    <link rel="stylesheet" href="/vietlott-web-extra.css?v=cycle-cost-preview-20261115" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="stylesheet" href="/vietlott-web-wallet.css?v=card-daily-interest-20261104" />
-  <link rel="preload" href="/vietlott-web-stats.js" as="script" />
+  <link rel="preload" href="/vietlott-web-stats.js?v=frequency-bar-marker-20261118" as="script" />
   <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
-  <link rel="preload" href="/vietlott-web-core.js?v=finance-notifications-20261105" as="script" />
+  <link rel="stylesheet" href="/vietlott-web-analysis.css?v=frequency-bar-marker-20261118" />
+  <link rel="stylesheet" href="/vietlott-web-vip.css?v=vip-chest-notice-20261109" />
+  <link rel="stylesheet" href="/vietlott-web-exchange.css?v=retention-50-20261109" />
+  <link rel="preload" href="/vietlott-web-core.js?v=frequency-delay-sort-20261118" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -171,39 +174,47 @@
         <div class="currency-bar">
           <div id="vipMembershipWrap" class="header-tool-wrap vip-membership-wrap is-expired" data-vip-tooltip="Đã hết hạn">
             <button id="vipMembershipBtn" class="vip-membership-btn" type="button" title="VIP đã hết hạn" aria-label="VIP đã hết hạn. Bấm để xem và gia hạn." aria-expanded="false" aria-controls="vipMembershipPanel">
-              <svg class="vip-membership-logo" viewBox="0 0 64 64" aria-hidden="true">
-                <defs>
-                  <linearGradient id="vipLogoGradient" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#fff7ba"></stop>
-                    <stop offset=".42" stop-color="#ffd44f"></stop>
-                    <stop offset="1" stop-color="#f08b22"></stop>
-                  </linearGradient>
-                </defs>
-                <path class="vip-membership-logo-frame" d="M32 3 55 16v32L32 61 9 48V16Z" fill="rgba(251,191,36,.12)" stroke="url(#vipLogoGradient)" stroke-width="2"></path>
-                <path class="vip-membership-logo-crown" d="m14 20 10 8 8-15 8 15 10-8-5 24H19Z" fill="url(#vipLogoGradient)" stroke="#fff3b0" stroke-width=".9" stroke-linejoin="round"></path>
-                <path class="vip-membership-logo-line" d="M20 48h24" fill="none" stroke="#ffd761" stroke-width="2.4" stroke-linecap="round"></path>
-                <text class="vip-membership-logo-text" x="32" y="58" text-anchor="middle">VIP</text>
-              </svg>
+              <span id="vipMembershipLevel" class="vip-membership-level" aria-hidden="true">V—</span>
             </button>
             <div id="vipMembershipPanel" class="header-popover vip-membership-popover" hidden>
               <div class="header-popover-head">
-                <div><strong>Thành viên VIP</strong><span id="vipMembershipPanelStatus">Trạng thái tài khoản</span></div>
+                <div><strong>Thành viên VIP</strong><button id="vipLevelsToggle" type="button" aria-label="Xem các cấp VIP" title="Xem các cấp VIP" aria-expanded="false" aria-controls="vipLevelsDetails">?</button></div>
                 <span id="vipMembershipStateBadge" class="vip-membership-state-badge is-expired">Hết hạn</span>
               </div>
-              <div class="vip-membership-card">
-                <div class="vip-membership-card-mark" aria-hidden="true">VIP</div>
-                <div class="vip-membership-card-copy">
-                  <span id="vipMembershipRemainingLabel">Thời gian còn lại</span>
-                  <strong id="vipMembershipRemaining">Đã hết hạn</strong>
-                  <time id="vipMembershipExpiry">Chưa có thời hạn VIP</time>
+              <div class="vip-progress-body">
+                <div id="vipProgressStatus" class="vip-progress-status" role="status" aria-live="polite">Đang tải tiến trình VIP…</div>
+                <button id="vipProgressRetry" class="header-panel-command" type="button" hidden>Thử lại</button>
+                <div id="vipProgressContent" hidden>
+                  <div class="vip-level-progress">
+                    <div class="vip-progress-main">
+                      <div class="vip-progress-caption">
+                        <strong id="vipProgressLevel">—</strong>
+                        <div class="vip-progress-points" title="Point hiện có / Mốc Point cấp kế tiếp"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 1 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L10 15.3l-5.6 2.9 1.1-6.2L1 7.6l6.2-.9L10 1Z"/></svg><strong id="vipProgressPoints">—</strong><span class="vip-progress-divider" aria-hidden="true">/</span><span id="vipProgressTarget">—</span></div>
+                      </div>
+                      <div id="vipProgressBar" class="vip-progress-track" role="progressbar" aria-label="Tiến trình lên cấp VIP" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="vipProgressFill" aria-hidden="true"></span></div>
+                    </div>
+                    <button id="vipDailyClaim" class="vip-daily-chest" type="button" aria-describedby="vipDailyStatus" disabled>
+                      <span class="vip-chest-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path class="vip-chest-lid" d="M6 18h36v9H6z"/><path d="M10 27h28v14H10zM24 18v23M24 18c-10 0-14-2-14-7a5 5 0 0 1 9-3l5 10Zm0 0c10 0 14-2 14-7a5 5 0 0 0-9-3l-5 10Z"/><path class="vip-chest-check" d="m17 32 5 5 10-11"/></svg></span>
+                      <span class="vip-chest-copy"><strong id="vipDailyClaimLabel">Nhận thưởng ngày</strong><small id="vipDailyClaimHint">Thưởng cộng vào thẻ</small></span>
+                    </button>
+                    <p id="vipProgressRemaining"></p>
+                  </div>
+                  <div class="vip-overview">
+                    <div class="vip-points-summary">
+                      <div><span id="vipCurrentDailyLabel">Hiện Tại · VIP —</span><strong id="vipCurrentDailyAmount">—</strong><small>PayPal / ngày</small></div>
+                      <div><span id="vipNextDailyLabel">Cấp Sau</span><strong id="vipNextDailyAmount">—</strong><small id="vipNextDailyUnit">PayPal / ngày</small></div>
+                    </div>
+                  </div>
+                  <p id="vipDailyStatus" class="vip-daily-status" role="status" aria-live="polite">1 rương/ngày · Đặt lại 00:00 giờ Việt Nam</p>
+                  <details id="vipLevelsDetails" class="vip-levels-details">
+                    <summary>Các cấp VIP <span class="vip-levels-ratio"><span id="vipPointRate">100.000 PayPal đã tiêu</span> = <strong>1 Point</strong></span></summary>
+                    <ol id="vipProgressLevels" class="vip-levels-grid" aria-label="Rương thưởng và mốc Point theo cấp VIP"></ol>
+                  </details>
+                  <p id="vipProgressDraft" class="vip-progress-draft" hidden>Mốc cấp đề xuất · Đang chờ duyệt</p>
                 </div>
+                <button id="vipMembershipRenewBtn" class="header-panel-command vip-membership-renew-btn" type="button"><span aria-hidden="true">↻</span><span>Gia hạn VIP</span></button>
+                <div id="vipMembershipRenewMessage" class="vip-membership-renew-message" aria-live="polite" hidden></div>
               </div>
-              <div class="vip-membership-access-note">
-                <span class="vip-membership-access-dot" aria-hidden="true"></span>
-                <div><strong id="vipMembershipAccessTitle">Quyền VIP đang khóa</strong><span>Các mục VIP tương ứng đã sẵn sàng để kết nối ở bản cập nhật sau.</span></div>
-              </div>
-              <button id="vipMembershipRenewBtn" class="header-panel-command vip-membership-renew-btn" type="button"><span aria-hidden="true">↻</span><span>Gia hạn VIP</span></button>
-              <div id="vipMembershipRenewMessage" class="vip-membership-renew-message" aria-live="polite" hidden></div>
             </div>
           </div>
           <span class="currency-chip">
@@ -337,6 +348,7 @@
           <button type="button" data-admin-view="users"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 3a4 4 0 0 1 0 8m1 3a6 6 0 0 1 4 6v1"/></svg></span>Quản Lý Use</button>
           <button type="button" data-admin-view="deposits"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="15" rx="2"/><path d="M2 10h20M6 15h4"/></svg></span>Duyệt nạp tiền<small id="adminDepositNavBadge" hidden></small></button>
           <button type="button" data-admin-view="stats"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="10" y="7" width="5" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></span>Thống kê</button>
+          <button type="button" data-admin-view="exchange"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17 8 12l4 3 8-10M15 5h5v5M3 21h18"/></svg></span>Tỉ giá</button>
           <button type="button" data-admin-view="settings"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v3l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2v-3l-1-2 2-3L7 4Z" transform="translate(0 2)"/><circle cx="12" cy="12" r="3"/></svg></span>Cài đặt</button>
         </nav>
         <div class="admin-sidebar-footer"><button id="adminBackBtn" type="button" class="admin-back" title="Quay lại trang web"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m11 5-7 7 7 7"/><path d="M4 12h16"/></svg><span>Về trang web</span></button></div>
@@ -424,6 +436,34 @@
           <div id="adminDepositRows" class="admin-deposit-list" aria-live="polite"></div>
           <div class="admin-pagination"><span id="adminDepositPage"></span><div><button id="adminDepositPrev" type="button" aria-label="Trang yêu cầu trước">‹</button><button id="adminDepositNext" type="button" aria-label="Trang yêu cầu tiếp">›</button></div></div>
           <dialog id="adminDepositHistoryDialog" class="admin-deposit-dialog" aria-labelledby="adminDepositHistoryTitle"><div class="admin-deposit-dialog-head"><div><h2 id="adminDepositHistoryTitle">Lịch sử duyệt nạp</h2><p id="adminDepositHistoryCount"></p></div><button id="adminDepositHistoryClose" type="button" aria-label="Đóng lịch sử duyệt nạp">×</button></div><div class="admin-deposit-history-filter"><label for="adminDepositHistoryStatus">Kết quả</label><select id="adminDepositHistoryStatus"><option value="PAID">Đã cộng tiền</option><option value="REJECTED">Đã từ chối</option></select></div><div id="adminDepositHistoryRows" class="admin-deposit-history-scroll"></div><div class="admin-pagination"><span id="adminDepositHistoryPage"></span><div><button id="adminDepositHistoryPrev" type="button" aria-label="Trang lịch sử trước">‹</button><button id="adminDepositHistoryNext" type="button" aria-label="Trang lịch sử tiếp">›</button></div></div></dialog>
+        </section>
+        <section id="adminExchangePane" data-admin-pane="exchange" hidden aria-label="Tỉ giá PayPal | VNĐ - DFVL">
+          <div id="exchangeStatus" class="exchange-status" role="status" aria-live="polite">Đang tải tỉ giá…</div>
+          <button id="exchangeRetry" type="button" hidden>Thử lại</button>
+          <div id="exchangeContent" hidden>
+            <div class="exchange-layout">
+              <article class="exchange-market">
+                <div class="exchange-market-head">
+                  <div class="exchange-symbol"><span class="exchange-logo" aria-hidden="true">P</span><div><h2>PayPal | VNĐ - DFVL</h2></div></div>
+                  <span id="exchangeMarketBadge" class="exchange-market-badge"><i aria-hidden="true"></i><span>Chốt Tỉ Giá Sau · 00h00 Hàng Ngày</span></span>
+                </div>
+                <div class="exchange-quote"><div><strong id="exchangeRateValue">—</strong><span>PayPal <small>/ 1 VNĐ</small></span></div><span id="exchangeChange" class="exchange-change">0,00%</span></div>
+                <div class="exchange-chart-toolbar">
+                  <div class="exchange-ranges" role="group" aria-label="Khoảng thời gian biểu đồ"><button type="button" data-exchange-range="1h" aria-pressed="false" title="1 giờ (60 phút)">1h</button><button type="button" data-exchange-range="3h" aria-pressed="false" title="3 giờ">3h</button><button type="button" data-exchange-range="6h" aria-pressed="false" title="6 giờ">6h</button><button type="button" data-exchange-range="12h" aria-pressed="false" title="12 giờ">12h</button><button type="button" data-exchange-range="1d" aria-pressed="true">1N</button><button type="button" data-exchange-range="7d" aria-pressed="false">7N</button><button type="button" data-exchange-range="1m" aria-pressed="false">1T</button><button type="button" data-exchange-range="3m" aria-pressed="false">3T</button><button type="button" data-exchange-range="all" aria-pressed="false">Tất cả</button></div>
+                  <div class="exchange-chart-actions"><div class="exchange-modes" role="group" aria-label="Kiểu biểu đồ"><button type="button" data-exchange-mode="line" aria-pressed="true" aria-label="Biểu đồ đường" title="Biểu đồ đường"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m2 14 5-5 4 3 7-8"/></svg></button><button type="button" data-exchange-mode="candles" aria-pressed="false" aria-label="Biểu đồ nến" title="Biểu đồ nến"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2v16m8-16v16"/><rect x="3.5" y="5" width="5" height="7" rx="1"/><rect x="11.5" y="8" width="5" height="6" rx="1"/></svg></button></div><button id="exchangeRefresh" type="button" aria-label="Làm mới tỉ giá" title="Làm mới tỉ giá"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 6a7 7 0 1 0 1 7M16 2v5h-5"/></svg></button></div>
+                </div>
+                <div class="exchange-ohlc" aria-label="Thông tin giá"><span>Mở <b id="exchangeOpen">—</b></span><span>Cao <b id="exchangeHigh">—</b></span><span>Thấp <b id="exchangeLow">—</b></span><span>Đóng <b id="exchangeClose">—</b></span></div>
+                <div id="exchangePlot" class="exchange-plot" tabindex="0" role="img" aria-label="Biểu đồ giá PayPal. Dùng phím mũi tên để xem các mốc giá."><svg id="exchangeChart" aria-hidden="true"></svg><div id="exchangeTooltip" class="exchange-tooltip" hidden></div><span id="exchangeNextTick"></span></div>
+                <div class="exchange-chart-foot"><span id="exchangeChartPeriod"></span><span>Giờ Việt Nam (UTC+7)</span></div>
+                <p class="exchange-chart-note">Biên độ tối đa ±1% mỗi phút.</p>
+              </article>
+              <aside class="exchange-side">
+                <article class="exchange-converter"><div class="exchange-section-title"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 6h15l-4-4M18 14H3l4 4"/></svg><h3>Quy đổi nhanh</h3></div><label for="exchangeConvertInput">Số tiền VNĐ</label><div class="exchange-amount-input"><input id="exchangeConvertInput" type="text" inputmode="numeric" autocomplete="off" value="100.000" aria-describedby="exchangeConvertNote"/><span>VNĐ</span></div><div class="exchange-convert-result"><span>Giá trị quy đổi thử</span><strong id="exchangeConvertResult">—</strong><small>PayPal</small></div><p id="exchangeConvertNote">Theo tỉ giá hiện tại, hiển thị đến 2 số lẻ.</p></article>
+                <article class="exchange-info"><h3>Thông tin PayPal | VNĐ - DFVL</h3><dl><div><dt>1 VNĐ</dt><dd id="exchangeInfoRate">—</dd></div><div><dt>1 PayPal</dt><dd id="exchangeInfoInverse">—</dd></div><div><dt>Biên độ</dt><dd>Tối đa ±1% / phút</dd></div><div><dt>Trạng thái</dt><dd><span id="exchangeActive" class="exchange-active">Đang Hoạt Động</span></dd></div></dl><p id="exchangeUpdatedAt"></p></article>
+              </aside>
+            </div>
+            <article class="exchange-history"><div class="exchange-history-head"><h3>Lịch sử tỉ giá</h3><span id="exchangeHistoryCount"></span></div><div class="exchange-table-scroll"><table><thead><tr><th>Thời điểm</th><th>Tỉ giá / 1 VNĐ</th><th title="Chênh lệch PayPal so với mốc trước">+/−</th><th>Thay đổi</th><th>Ghi nhận</th></tr></thead><tbody id="exchangeHistoryRows"></tbody></table></div><div class="exchange-history-foot"><p id="exchangeHistoryNote"></p><nav id="exchangeHistoryPager" class="exchange-history-pager" aria-label="Phân trang lịch sử tỉ giá" hidden><button id="exchangeHistoryPrevious" type="button">Trước</button><span id="exchangeHistoryPageInfo"></span><button id="exchangeHistoryNext" type="button">Sau</button></nav></div></article>
+          </div>
         </section>
         <section data-admin-pane="settings" class="admin-card" hidden><h2>Cài đặt</h2><div class="admin-settings-row"><div><strong>Giao diện</strong><p>Sáng | Tối</p></div><button id="adminThemeBtn" type="button">Đổi giao diện</button></div><div class="admin-settings-row"><div><strong>Cài đặt web</strong><p>Âm lượng, nhạc nền và tài khoản</p></div><button id="adminWebSettingsBtn" type="button">Mở cài đặt</button></div></section>
       </div>
@@ -716,7 +756,7 @@
       <div class="deposit-grid">
         <div class="deposit-package-card">
           <div class="deposit-card-heading"><h3><span class="deposit-step">1</span>Chọn số tiền</h3><span class="deposit-bonus-hint">Thưởng đến 5%</span></div>
-          <div class="deposit-rate-caption">Tỷ lệ quy đổi <strong>1 VNĐ = 1,25 PayPal</strong></div>
+          <div class="deposit-rate-caption">Tỷ lệ quy đổi <strong id="depositCurrentRate">Đang tải tỉ giá…</strong></div>
           <div id="depositPackageGrid" class="deposit-package-grid" role="group" aria-label="Chọn gói nạp"></div>
           <div class="deposit-amount-panel">
             <label id="depositCustomAmountField" class="deposit-field deposit-custom-amount" for="depositAmount" hidden><span>Nhập số tiền</span><span class="deposit-amount-input"><input id="depositAmount" form="paypalDepositForm" type="text" inputmode="numeric" pattern="[0-9.]*" autocomplete="off" placeholder="Min 1.000.000 - 100.000.000" aria-describedby="depositAmountHint" /><span aria-hidden="true">VNĐ</span></span><small id="depositAmountHint">Nạp tối thiểu Từ 1.000.000 đến tối đa 100.000.000 VNĐ, Bội số 100.000 VNĐ.</small></label>
@@ -1454,65 +1494,23 @@
           </div>
         </div>
       </section>
-      <section id="predictRootAnalysis" class="card predict-card predict-root predict-root-analysis" hidden>
-        <div class="predict-card-head">
-          <div>
-            <h2>Phân Tích</h2>
-            <p class="predict-card-subtitle">Phân tích sâu theo xác suất thống kê, pattern, khoảng cách, chuỗi lặp và mức bất thường. Kết quả chỉ mang tính tham khảo.</p>
+      <section id="predictRootAnalysis" class="card predict-card predict-root frequency-analysis" aria-labelledby="analysisTitle" hidden>
+        <div class="frequency-toolbar">
+          <div class="frequency-head">
+            <span class="frequency-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/></svg></span>
+            <div class="frequency-heading"><h2 id="analysisTitle">Phân tích</h2></div>
           </div>
-          <div class="predict-card-actions">
-            <span id="analysisUpdatedAt" class="predict-card-chip">Chưa tải</span>
-            <label class="analysis-auto-toggle">
-              <input id="analysisAutoRefresh" type="checkbox">
-              <span>Tự làm mới</span>
-            </label>
+          <p class="frequency-context" aria-live="polite"><span id="analysisScope" class="frequency-scope"></span><span id="analysisUpdatedAt" class="frequency-updated">Chưa có dữ liệu</span></p>
+          <div class="frequency-filters">
+          <label class="frequency-field"><span>Loại xổ số</span><select id="analysisTypeSelect" aria-label="Loại xổ số phân tích"></select></label>
+          <label class="frequency-field"><span>Số kỳ</span><select id="analysisDrawCountSelect" aria-label="Số kỳ gần nhất để phân tích"></select></label>
+          <label id="analysisCustomCountField" class="frequency-field" hidden><span>Số kỳ tùy chọn</span><input id="analysisCustomCountInput" type="number" min="1" max="2147483647" step="1" inputmode="numeric" placeholder="Nhập số kỳ" aria-label="Nhập số kỳ gần nhất"></label>
+          <div class="frequency-actions"><button id="analysisCaptureBtn" aria-label="Chụp hình" class="frequency-capture" type="button" data-analysis-export-ignore disabled title="Lưu toàn bộ Phân tích thành ảnh PNG rõ nét"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/></svg><span hidden>Chụp hình</span></button><button id="analysisRefreshBtn" class="frequency-refresh" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/></svg><span>Cập nhật</span></button></div>
           </div>
         </div>
-        <div class="analysis-shell">
-          <div class="analysis-toolbar">
-            <label class="analysis-control">
-              <span>Loại vé</span>
-              <select id="analysisTypeSelect" class="analysis-select"></select>
-            </label>
-            <label class="analysis-control">
-              <span>Khoảng thời gian</span>
-              <select id="analysisPeriodSelect" class="analysis-select"></select>
-            </label>
-            <label class="analysis-control">
-              <span>Chế độ phân tích</span>
-              <select id="analysisModeSelect" class="analysis-select"></select>
-            </label>
-            <label class="analysis-control">
-              <span>Limit</span>
-              <input id="analysisLimitInput" type="number" min="1" max="100" value="20" class="analysis-input">
-            </label>
-            <label class="analysis-control">
-              <span>K / Combo</span>
-              <div class="analysis-inline-inputs">
-                <input id="analysisKInput" type="number" min="1" max="20" value="5" class="analysis-input" aria-label="K gần nhất">
-                <input id="analysisComboSizeInput" type="number" min="1" max="3" value="2" class="analysis-input" aria-label="Combo size">
-              </div>
-            </label>
-            <div class="analysis-control analysis-custom-range" id="analysisCustomRange" hidden>
-              <span>Custom date</span>
-              <div class="analysis-inline-inputs">
-                <input id="analysisDateFrom" type="date" class="analysis-input" aria-label="Từ ngày Phân Tích">
-                <input id="analysisDateTo" type="date" class="analysis-input" aria-label="Đến ngày Phân Tích">
-              </div>
-            </div>
-            <div class="analysis-control analysis-action-group">
-              <span>Thao tác</span>
-              <div class="analysis-action-row">
-                <button id="analysisRefreshBtn" type="button" class="analysis-action-btn is-primary">Cập nhật</button>
-                <button id="analysisSaveBtn" type="button" class="analysis-action-btn">Lưu phân tích</button>
-              </div>
-            </div>
-          </div>
-          <div id="analysisStatus" class="analysis-warning" hidden></div>
-          <div id="analysisOut" class="analysis-explanation">Đây là phân tích thống kê tham khảo, không cam kết dự đoán trúng.</div>
-          <div id="analysisSummaryCards" class="analysis-grid"></div>
-          <div id="analysisDetailPanel" class="analysis-detail-panel muted">Chọn tab Phân Tích để tải dữ liệu.</div>
-        </div>
+        <p id="analysisStatus" class="frequency-status" role="status" hidden></p>
+        <p id="analysisCaptureStatus" class="frequency-capture-status" role="status" aria-live="polite" data-analysis-export-ignore hidden></p>
+        <div id="analysisFrequencyOut" aria-busy="false"><div class="frequency-empty">Chọn loại xổ số và số kỳ, rồi bấm Cập nhật.</div></div>
       </section>
       <!-- ---abc--- Prediction History Modal --- -->
       <div id="predictionHistoryOverlay" class="predict-history-overlay" hidden>
@@ -1700,7 +1698,7 @@
     <div id="walletCardPanel" role="tabpanel" aria-labelledby="walletCardTab" hidden>
       <p id="accountCardStatus" class="wallet-history-status" role="status" aria-live="polite"></p>
       <div class="account-bank-card" aria-label="Thẻ tài khoản nội bộ">
-        <div class="account-bank-card-top"><span class="account-bank-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5H3m2 3v7m5-7v7m4-7v7m5-7v7M3 21h18"/></svg>DVLF BANK</span><span class="account-bank-type"><span>Tỷ giá 1 VNĐ = 1.25 PayPal</span><span class="account-bank-interest" title="Lãi tính trên số dư chốt lúc 00:00 giờ Việt Nam và cộng trực tiếp vào thẻ">Lãi Suất +0.025% Ngày</span></span></div>
+        <div class="account-bank-card-top"><span class="account-bank-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-5 9 5H3m2 3v7m5-7v7m4-7v7m5-7v7M3 21h18"/></svg>DVLF BANK</span><span class="account-bank-type"><span>Tiền thưởng → Thẻ · 1:1</span><span class="account-bank-interest" title="Lãi tính trên số dư chốt lúc 00:00 giờ Việt Nam và cộng trực tiếp vào thẻ">Lãi Suất +0.025% Ngày</span></span></div>
         <div class="account-bank-balance"><span>Số dư thẻ</span><strong id="accountCardBalance">—</strong><small id="accountCardCurrency">PayPal</small></div>
         <div class="account-bank-card-bottom"><div><span>ID NGƯỜI DÙNG</span><strong id="accountCardId">—</strong></div><div><span>TÊN NGƯỜI DÙNG</span><strong id="accountCardHolder">—</strong></div><svg class="account-bank-chip" viewBox="0 0 40 30" aria-hidden="true"><rect x="1" y="1" width="38" height="28" rx="6"/><path d="M14 1v28m12-28v28M1 10h13m12 0h13M1 20h13m12 0h13M14 8h12v14H14"/></svg></div>
       </div>
@@ -1722,17 +1720,19 @@
     </div>
   </dialog>
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
-  <script defer src="/vietlott-web-stats.js"></script>
+  <script defer src="/vietlott-web-stats.js?v=frequency-bar-marker-20261118"></script>
   <script defer src="/vietlott-web-data.js?v=recovery-bao-v2-20261101"></script>
   <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
-    <script defer src="/vietlott-web-effectiveness.js?v=ticket-seeds-20261102"></script>
-  <script defer src="/vietlott-web-payments.js?v=admin-deposit-notifications-20261022"></script>
-  <script defer src="/vietlott-web-core.js?v=finance-notifications-20261105"></script>
-  <script defer src="/vietlott-web-wallet.js?v=finance-notifications-20261105"></script>
+    <script defer src="/vietlott-web-effectiveness.js?v=cycle-cost-preview-20261115"></script>
+  <script defer src="/vietlott-web-payments.js?v=daily-topup-rate-v2-20261109"></script>
+  <script defer src="/vietlott-web-core.js?v=frequency-delay-sort-20261118"></script>
+  <script defer src="/vietlott-web-vip.js?v=vip-current-full-rank-20261109"></script>
+  <script defer src="/vietlott-web-wallet.js?v=card-exact-input-20261115"></script>
   <script defer src="/vietlott-web-notifications.js?v=finance-notifications-20261105"></script>
   <script defer src="/vietlott-web-account-stats.js?v=statistics-legend-focus-20261024"></script>
   <script defer src="/vietlott-web-auth.js?v=social-auth-20261014"></script>
-  <script defer src="/vietlott-web-admin.js?v=inline-user-balances-20261023"></script>
+  <script defer src="/vietlott-web-admin.js?v=internal-rate-20261108"></script>
+  <script defer src="/vietlott-web-exchange.js?v=exchange-labels-20261109"></script>
   <script defer src="/vietlott-web-chatbot.js"></script>
 
 </body>

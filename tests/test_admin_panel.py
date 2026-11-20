@@ -401,8 +401,9 @@ class AdminPanelTests(GiftCodeTests):
             browser.call('Page.enable',page=True);browser.call('Network.enable',page=True)
             browser.call('Network.setCookie',dict(name='LOTTO_AUTH',value=self.admin.split(';')[0].split('=',1)[1],url=self.url),page=True)
             browser.call('Page.navigate',dict(url=self.url+'/'),page=True)
-            wait("!!window.adminPanel && !!document.getElementById('adminUsersEdit')")
+            wait("!!window.adminPanel && !!document.getElementById('adminUsersEdit') && typeof currentUserRole==='string' && currentUserRole==='admin' && document.getElementById('appShell').style.display==='block' && !document.getElementById('settingsAdminBtn').hidden")
             browser.value("document.getElementById('settingsBtn').click()")
+            wait("!document.getElementById('settingsPanel').hidden")
             self.assertTrue(browser.value("document.getElementById('settingsAdminBtn').getBoundingClientRect().top<document.getElementById('settingsCodeBtn').getBoundingClientRect().top"))
             browser.value("document.getElementById('settingsAdminBtn').click()")
             wait("location.pathname==='/admin' && document.getElementById('adminTotalCodes').textContent!=='—'")
@@ -492,7 +493,7 @@ class AdminPanelTests(GiftCodeTests):
             self.assertEqual(count_row['maxPerUser'],4);self.assertEqual(count_row['cooldownSeconds'],0)
             browser.value("document.getElementById('adminClaimLimit').value='once';document.getElementById('adminClaimLimit').dispatchEvent(new Event('change'))")
             self.assertTrue(browser.value("document.getElementById('adminClaimValue').disabled && document.getElementById('adminClaimValue').value==='1'"))
-            for view,title in [('overview','Tổng quan'),('users','Người dùng'),('stats','Thống kê'),('settings','Cài đặt')]:
+            for view,title in [('overview','Tổng quan'),('users','Quản Lý Use'),('stats','Thống kê'),('settings','Cài đặt')]:
                 browser.value(f"document.querySelector('.admin-nav [data-admin-view={view}]').click()")
                 self.assertEqual(browser.value("document.getElementById('adminPageTitle').textContent"),title)
                 if view == 'users':

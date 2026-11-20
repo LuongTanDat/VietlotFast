@@ -158,7 +158,6 @@
     byId("effectivenessPlayMode").hidden = !enabled;
     byId("effectivenessNormalBudget").hidden = baoMode;
     byId("effectivenessBaoFields").hidden = !baoMode;
-    byId("effectivenessTicketQuote").hidden = !baoMode;
     const blocked = !state.authenticated || !state.report?.canManage || state.loading || state.busy;
     byId("effectivenessPlayMode").querySelectorAll("button").forEach(button => {
       button.disabled = blocked;
@@ -186,21 +185,46 @@
     if (input.max !== String(maximum)) { input.max = String(maximum); normalizeBaoCount(); }
     input.disabled = blocked;
     renderSettingsSummary();
-    if (!baoMode) return;
-    const count = Math.min(maximum, Number(input.value.replace(/\./g, "")));
-    const valid = Number.isInteger(count) && count >= 1 && count <= maximum;
-    if (!valid) {
-      byId("effectivenessTicketQuote").innerHTML = '<small>Nhập Số Bao trong giới hạn để xem tổng vé và phí.</small>';
+    renderTicketQuote();
+  }
+
+  function renderTicketQuote() {
+    const out = byId("effectivenessTicketQuote");
+    const game = byId("effectivenessType").value;
+    if (!state.authenticated || !state.report || state.report.type !== game) { out.hidden = true; out.replaceChildren(); return; }
+    out.hidden = false;
+    const baoMode = supportsBao() && state.draftPlayMode === "bao";
+    const level = Number(byId("effectivenessBaoLevel").value);
+    const input = byId(baoMode ? "effectivenessBaoCount" : "effectivenessTicketCount");
+    const count = Number(input.value.replace(/\./g, ""));
+    const maximum = baoMode ? baoMaximum() : ticketMaximum();
+    if (!Number.isInteger(count) || count < 1 || count > maximum) {
+      out.innerHTML = `<small>Nhập ${baoMode ? "số Bao" : "số vé"} trong giới hạn để xem tổng tiền.</small>`;
       byId("effectivenessLock").disabled = true;
       return;
     }
-    const perBao = baoChildren();
-    const amount = perBao * Number(state.report?.billing?.unitPayPal || 10000);
-    const totalBao = (existing ? Number(existing.config.baoCount) : count) * methods.length;
-    const cost = existing ? 0 : totalBao * amount;
-    const balance = state.report?.billing?.balance;
-    const missing = finite(balance) ? Math.max(0, cost - Number(balance)) : 0;
-    byId("effectivenessTicketQuote").innerHTML = `<div data-quote-quantity title="${number(existing ? existing.config.baoCount : count, 0)} Bao ${select.value} / phương pháp × ${methods.length} phương pháp"><span>Số lượng vé</span><strong>${number(totalBao, 0)} <small>Bao ${select.value} · ${methods.length} phương pháp</small></strong></div><div data-quote-amount><span>Số tiền</span><strong>${number(amount, 0)} <small>PayPal / Bao ${select.value}</small></strong></div><div class="effectiveness-quote-total" title="${existing ? 'Loại Bao đã có, không thu thêm phí' : `Tổng phí của ${methods.length} phương pháp`}"><span>${existing ? 'Phí bổ sung' : 'Phí mỗi kỳ'}</span><strong>${number(cost, 0)} <small>PayPal</small></strong></div>${finite(balance) ? `<div><span>Số dư</span><strong>${number(balance, 0)} <small>PayPal</small></strong></div>` : ""}${existing ? `<small>Bao ${select.value} · kỳ #${escape(existing.targetDrawId)} đã có. Giữ số lượng đã mua, không thu thêm phí.</small>` : ''}${missing ? `<small class="effectiveness-quote-insufficient">Còn thiếu ${number(missing, 0)} PayPal.</small>` : ""}`;
+    const billing = state.report.billing;
+    const integer = value => /^(?:0|[1-9][0-9]*)$/.test(String(value)) && BigInt(value) <= 9007199254740991n;
+    if (!integer(billing?.unitPayPal) || BigInt(billing.unitPayPal) <= 0n) {
+      out.innerHTML = '<small>Chưa tải được giá vé. Bấm Làm mới để kiểm tra.</small>';
+      return;
+    }
+    const existing = state.report.cycles?.find(cycle => cycle.status === "locked" && Date.parse(cycle.deadline) > Date.now() &&
+      (cycle.config?.playMode || "normal") === (baoMode ? "bao" : "normal") && (!baoMode || Number(cycle.config?.baoLevel) === level));
+    const quantity = existing ? Number(baoMode ? existing.config.baoCount : existing.config?.ticketCount ?? count) : count;
+    if (!Number.isSafeInteger(quantity) || quantity < 1) { out.innerHTML = '<small>Chưa xác định được số vé đã khóa.</small>'; return; }
+    const unit = BigInt(billing.unitPayPal) * BigInt(baoMode ? baoChildren() : 1);
+    const total = game === "KENO"
+      ? methods.length * Array.from({ length: 10 }, (_, i) => Math.min(quantity, i === 0 ? 80 : i === 1 ? 3160 : i === 2 ? 82160 : kenoTicketMaximum)).reduce((sum, value) => sum + value, 0)
+      : quantity * methods.length;
+    const cost = existing ? 0n : BigInt(total) * unit;
+    const balance = integer(billing?.balance) ? BigInt(billing.balance) : null;
+    const remaining = balance === null ? null : balance - cost;
+    const missing = remaining !== null && remaining < 0n ? -remaining : 0n;
+    const format = value => value.toLocaleString("vi-VN");
+    const quantityLabel = baoMode ? `Bao ${level}` : "vé";
+    const scope = `${format(BigInt(quantity))} ${quantityLabel} / phương pháp · ${methods.length} phương pháp${game === "KENO" ? " · 10 bậc" : ""}`;
+    out.innerHTML = `<small class="effectiveness-quote-scope">${escape(scope)}</small><div data-quote-quantity><span>Số lượng / kỳ</span><strong>${format(BigInt(total))} <small>${quantityLabel}</small></strong></div><div data-quote-amount><span>${baoMode ? "Số Bao × giá Bao" : "Số vé × giá vé"}</span><strong>${format(BigInt(total))} × ${format(unit)}</strong></div><div class="effectiveness-quote-total" data-quote-cost="${cost}"><span>${existing ? "Phí bổ sung" : "Tổng tiền 1 kỳ"}</span><strong>${format(cost)} <small>PayPal</small></strong></div><div data-quote-balance="${balance ?? ""}"><span>Số dư hiện tại</span><strong>${balance === null ? "—" : format(balance)} <small>PayPal</small></strong></div><div class="effectiveness-quote-deduction"><span>Dự kiến trừ</span><strong>− ${format(cost)} <small>PayPal</small></strong></div><div class="effectiveness-quote-remaining${missing ? " is-negative" : ""}" data-quote-remaining="${remaining ?? ""}"><span>Số dư còn lại</span><strong>${remaining === null ? "—" : format(remaining)} <small>PayPal</small></strong></div>${existing ? `<small>Kỳ #${escape(existing.targetDrawId)} đã có bộ vé này, không thu thêm phí.</small>` : '<small>Chỉ trừ tiền khi xác nhận khóa kỳ.</small>'}${balance === null ? '<small>Chưa có số dư để tính phần còn lại.</small>' : ""}${missing ? `<small class="effectiveness-quote-insufficient">Còn thiếu ${format(missing)} PayPal.</small>` : ""}`;
     if (missing) byId("effectivenessLock").disabled = true;
   }
 
@@ -1294,6 +1318,16 @@
     syncTimer();
     if (state.active && state.authenticated) void refresh();
   });
+  window.addEventListener("dvlf:prediction-wallet", event => {
+    const next = event.detail, billing = state.report?.billing;
+    if (!state.authenticated || !billing || !billing.owner || next?.owner !== billing.owner ||
+      !/^(?:0|[1-9][0-9]*)$/.test(String(next.balance)) || !/^(?:0|[1-9][0-9]*)$/.test(String(next.walletVersion)) ||
+      !Number.isSafeInteger(Number(next.balance)) || Number(next.balance) < 0 ||
+      !Number.isSafeInteger(Number(next.walletVersion)) || Number(next.walletVersion) < Number(billing.walletVersion || 0)) return;
+    billing.balance = next.balance;
+    billing.walletVersion = Number(next.walletVersion);
+    setControls();
+  });
   root.addEventListener("toggle", event => {
     if (event.target.matches("details[data-effectiveness-state]") && root.contains(event.target)) state.openDetails.set(event.target.dataset.effectivenessState, event.target.open);
     if (event.target.open) void loadVisibleBaoPages();
@@ -1403,8 +1437,9 @@
   byId("effectivenessBaoCount").addEventListener("change", () => setControls());
   byId("effectivenessBaoCount").addEventListener("compositionend", () => requestAnimationFrame(() => setControls()));
   window.VietlottNumericInput.bind(byId("effectivenessTicketCount"), { maximum: ticketMaximum, minimum: 1, rejectMalformed: false });
-  byId("effectivenessTicketCount").addEventListener("input", renderSettingsSummary);
-  byId("effectivenessTicketCount").addEventListener("change", renderSettingsSummary);
+  byId("effectivenessTicketCount").addEventListener("input", () => setControls());
+  byId("effectivenessTicketCount").addEventListener("change", () => setControls());
+  byId("effectivenessTicketCount").addEventListener("compositionend", () => requestAnimationFrame(() => setControls()));
   byId("effectivenessEnabled").addEventListener("change", renderSettingsSummary);
   byId("effectivenessLock").addEventListener("click", () => void mutate("cycle"));
   byId("effectivenessTimeline").addEventListener("click", event => {

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "trackingStartedAt": "2026-11-08T05:16:51.857119Z",
+  "enabled": true,
+  "intervalSeconds": 60,
+  "maxStepBasisPoints": 100,
+  "appliesTo": "chart_preview_only"
+}

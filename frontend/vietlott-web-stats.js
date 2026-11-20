@@ -522,8 +522,6 @@
       window.VietlottEffectiveness?.activate(predictPageModeValue === PREDICTION_MODE_EFFECTIVENESS);
       syncStatsPanelAutoRefreshTimer();
       syncStatsV2AutoRefreshTimer();
-      if (predictPageModeValue === PREDICTION_MODE_ANALYSIS) startAnalysisAutoRefresh();
-      else stopAnalysisAutoRefresh();
     }
 
     function normalizeManualPredictionType(value) {
@@ -4383,592 +4381,847 @@
       return TYPE_KEYS.includes(normalized) ? normalized : "LOTO_5_35";
     }
 
-    function normalizeAnalysisPeriod(value) {
-      const normalized = String(value || "").trim().toLowerCase();
-      return ANALYSIS_PERIOD_OPTIONS.some(item => item.value === normalized) ? normalized : "30d";
-    }
-
-    function normalizeAnalysisMode(value) {
-      const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
-      return ANALYSIS_MODE_OPTIONS.some(item => item.value === normalized) ? normalized : "overview";
-    }
-
-    function clampAnalysisInt(value, fallback, min, max) {
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed)) return fallback;
-      return Math.max(min, Math.min(max, Math.floor(parsed)));
+    function normalizeAnalysisDrawPreset(value) {
+      const normalized = String(value || "").trim();
+      return ANALYSIS_DRAW_COUNT_OPTIONS.some(item => item.value === normalized) ? normalized : "30";
     }
 
     function restoreAnalysisUiState() {
       const saved = readJsonLocal(ANALYSIS_UI_KEY, {});
-      analysisState.type = normalizeAnalysisType(saved.type || analysisState.type);
-      analysisState.period = normalizeAnalysisPeriod(saved.period || analysisState.period);
-      analysisState.mode = normalizeAnalysisMode(saved.mode || analysisState.mode);
-      analysisState.from = String(saved.from || "");
-      analysisState.to = String(saved.to || "");
-      analysisState.limit = clampAnalysisInt(saved.limit, analysisState.limit, 1, 100);
-      analysisState.k = clampAnalysisInt(saved.k, analysisState.k, 1, 20);
-      analysisState.comboSize = clampAnalysisInt(saved.comboSize, analysisState.comboSize, 1, 3);
-      analysisState.includeSpecial = saved.includeSpecial !== false;
-      analysisState.autoRefresh = !!saved.autoRefresh;
+      analysisState.type = normalizeAnalysisType(saved?.type);
+      analysisState.drawPreset = normalizeAnalysisDrawPreset(saved?.drawPreset);
+      analysisState.customCount = String(saved?.customCount || "");
+      analysisState.sortMain = saved?.sortMain === "number" ? "number" : "frequency";
+      analysisState.sortSpecial = saved?.sortSpecial === "number" ? "number" : "frequency";
     }
 
     function saveAnalysisUiState() {
-      writeJsonLocal(ANALYSIS_UI_KEY, {
-        type: analysisState.type,
-        period: analysisState.period,
-        from: analysisState.from,
-        to: analysisState.to,
-        mode: analysisState.mode,
-        limit: analysisState.limit,
-        k: analysisState.k,
-        comboSize: analysisState.comboSize,
-        includeSpecial: !!analysisState.includeSpecial,
-        autoRefresh: !!analysisState.autoRefresh,
-      });
+      const { type, drawPreset, customCount, sortMain, sortSpecial } = analysisState;
+      writeJsonLocal(ANALYSIS_UI_KEY, { type, drawPreset, customCount, sortMain, sortSpecial });
+    }
+
+    function getAnalysisMaxDrawCount() {
+      const count = analysisState.availableDrawsByType[normalizeAnalysisType(analysisState.type)];
+      return Number.isSafeInteger(count) && count > 0 ? Math.min(count, 2147483647) : null;
+    }
+
+    function clampAnalysisCustomCount() {
+      const maximum = getAnalysisMaxDrawCount();
+      if (maximum !== null && Number(analysisState.customCount) > maximum) {
+        analysisState.customCount = String(maximum);
+        document.getElementById("analysisCustomCountInput").value = analysisState.customCount;
+        saveAnalysisUiState();
+      }
     }
 
     function initAnalysisPanel() {
-      analysisState.type = normalizeAnalysisType(analysisState.type);
-      analysisState.period = normalizeAnalysisPeriod(analysisState.period);
-      analysisState.mode = normalizeAnalysisMode(analysisState.mode);
       const typeSelect = document.getElementById("analysisTypeSelect");
-      if (typeSelect) {
+      const countSelect = document.getElementById("analysisDrawCountSelect");
+      if (typeSelect && !typeSelect.options.length) {
         typeSelect.innerHTML = TYPE_KEYS.map(key => `<option value="${escapeHtml(key)}">${escapeHtml(TYPES[key]?.label || key)}</option>`).join("");
+      }
+      if (countSelect && !countSelect.options.length) {
+        countSelect.innerHTML = ANALYSIS_DRAW_COUNT_OPTIONS.map(item => `<option value="${item.value}">${escapeHtml(item.label)}</option>`).join("");
+      }
+      if (typeSelect) {
         typeSelect.value = analysisState.type;
-        if (typeof typeSelect.__syncCustomSelect === "function") typeSelect.__syncCustomSelect();
+        typeSelect.__syncCustomSelect?.();
       }
-      const periodSelect = document.getElementById("analysisPeriodSelect");
-      if (periodSelect) {
-        periodSelect.innerHTML = ANALYSIS_PERIOD_OPTIONS.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("");
-        periodSelect.value = analysisState.period;
-        if (typeof periodSelect.__syncCustomSelect === "function") periodSelect.__syncCustomSelect();
+      if (countSelect) {
+        countSelect.value = analysisState.drawPreset;
+        countSelect.__syncCustomSelect?.();
       }
-      const modeSelect = document.getElementById("analysisModeSelect");
-      if (modeSelect) {
-        modeSelect.innerHTML = ANALYSIS_MODE_OPTIONS.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join("");
-        modeSelect.value = analysisState.mode;
-        if (typeof modeSelect.__syncCustomSelect === "function") modeSelect.__syncCustomSelect();
+      const customInput = document.getElementById("analysisCustomCountInput");
+      const maximum = getAnalysisMaxDrawCount();
+      clampAnalysisCustomCount();
+      customInput.max = maximum === null ? "2147483647" : String(maximum);
+      customInput.disabled = maximum === null;
+      customInput.placeholder = maximum === null ? "Chờ tải số kỳ…" : "Nhập số kỳ";
+      customInput.title = maximum === null ? "Đang xác định số kỳ hiện có" : `Tối đa ${maximum.toLocaleString("vi-VN")} kỳ`;
+      if (customInput.value !== analysisState.customCount) customInput.value = analysisState.customCount;
+      document.getElementById("analysisCustomCountField").hidden = analysisState.drawPreset !== "custom";
+      const refreshButton = document.getElementById("analysisRefreshBtn");
+      refreshButton.disabled = analysisState.loading;
+      refreshButton.setAttribute("aria-busy", String(analysisState.loading));
+      const captureButton = document.getElementById("analysisCaptureBtn");
+      if (captureButton) {
+        captureButton.disabled = analysisState.loading || !analysisState.lastPayload || !!analysisState.error || analysisState.captureBusy;
+        captureButton.setAttribute("aria-busy", String(analysisState.captureBusy));
+        captureButton.querySelector("span").textContent = analysisState.captureBusy ? "Đang chụp…" : "Chụp hình";
       }
-      const customRange = document.getElementById("analysisCustomRange");
-      if (customRange) customRange.hidden = analysisState.period !== "custom";
-      const fromInput = document.getElementById("analysisDateFrom");
-      const toInput = document.getElementById("analysisDateTo");
-      if (fromInput && fromInput.value !== analysisState.from) fromInput.value = analysisState.from;
-      if (toInput && toInput.value !== analysisState.to) toInput.value = analysisState.to;
-      const limitInput = document.getElementById("analysisLimitInput");
-      const kInput = document.getElementById("analysisKInput");
-      const comboInput = document.getElementById("analysisComboSizeInput");
-      if (limitInput) limitInput.value = String(analysisState.limit);
-      if (kInput) kInput.value = String(analysisState.k);
-      if (comboInput) comboInput.value = String(analysisState.comboSize);
-      const autoInput = document.getElementById("analysisAutoRefresh");
-      if (autoInput) autoInput.checked = !!analysisState.autoRefresh;
+    }
+
+    async function captureAnalysisImage() {
+      const source = document.getElementById("predictRootAnalysis");
+      if (!source || source.hidden || !currentUser || analysisState.captureBusy || analysisState.loading ||
+        analysisState.error || !analysisState.lastPayload) return;
+      const owner = analysisSessionKey(), serial = ++analysisState.captureSerial;
+      const type = normalizeAnalysisType(analysisState.type);
+      const themeClass = document.body.className;
+      const clone = source.cloneNode(true), controls = [...source.querySelectorAll("select,input")];
+      const controlText = controls.map(field => field.tagName === "SELECT" ? field.selectedOptions[0]?.textContent || "" : field.value);
+      clone.querySelectorAll("select,input").forEach((field, i) => {
+        if (field.tagName === "SELECT") field.value = controls[i].value;
+        else field.setAttribute("value", controls[i].value);
+      });
+      clone.querySelectorAll("[data-analysis-export-ignore],script").forEach(node => node.remove());
+      clone.hidden = false;
+      const status = document.getElementById("analysisCaptureStatus");
+      analysisState.captureBusy = true;
+      status.hidden = false; status.textContent = "Đang tạo ảnh toàn bộ Phân tích…";
+      initAnalysisPanel();
+      let frame = null, downloadUrl = "", image = null, canvas = null, imageTimer = null;
+      const stillCurrent = () => serial === analysisState.captureSerial && owner === analysisSessionKey();
+      try {
+        await document.fonts.ready;
+        if (!stillCurrent()) return;
+        const width = Math.max(1440, Math.min(1920, Math.ceil(source.getBoundingClientRect().width)));
+        const rules = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules].map(rule => rule.cssText)).join("\n");
+        frame = document.createElement("iframe");
+        frame.setAttribute("sandbox", "allow-same-origin");
+        frame.setAttribute("aria-hidden", "true"); frame.tabIndex = -1;
+        frame.style.cssText = `position:fixed;left:-100000px;top:0;width:${width}px;height:1000px;border:0;pointer-events:none;`;
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        doc.open();
+        doc.write("<!doctype html><html><head></head><body></body></html>");
+        doc.close();
+        doc.documentElement.lang = "vi";
+        doc.body.className = themeClass;
+        const style = doc.createElement("style");
+        style.textContent = rules + `
+          html,body{margin:0!important;padding:0!important;width:${width}px!important;height:auto!important;min-height:0!important;overflow:visible!important;}
+          *,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;}
+          #predictRootAnalysis{display:block!important;margin:0!important;width:${width}px!important;max-width:none!important;box-sizing:border-box!important;}
+          #predictRootAnalysis .frequency-table-wrap,#predictRootAnalysis .frequency-selected-numbers{overflow:visible!important;max-height:none!important;}
+          #predictRootAnalysis .frequency-table tr>:first-child{position:static!important;}
+          #predictRootAnalysis :focus{outline:none!important;}
+        `;
+        doc.head.appendChild(style);
+        doc.body.appendChild(doc.importNode(clone, true));
+        const root = doc.getElementById("predictRootAnalysis");
+        root.querySelectorAll("select,input").forEach((field, i) => {
+          const computed = frame.contentWindow.getComputedStyle(field), replacement = doc.createElement("div");
+          for (const property of computed) replacement.style.setProperty(property, computed.getPropertyValue(property));
+          replacement.style.display = "flex"; replacement.style.alignItems = "center";
+          replacement.id = field.id;
+          replacement.textContent = controlText[i];
+          field.replaceWith(replacement);
+        });
+        await doc.fonts.ready;
+        // Standards mode keeps table sizing identical in the iframe and SVG image.
+        // Keep native flex/grid layout rather than freezing rounded computed widths.
+        const height = Math.ceil(Math.max(root.scrollHeight, root.getBoundingClientRect().height));
+        if (!height || !stillCurrent()) return;
+        const background = frame.contentWindow.getComputedStyle(root).backgroundColor;
+        doc.body.style.cssText = `margin:0;padding:0;width:${width}px;height:${height}px;`;
+        doc.body.prepend(style.cloneNode(true));
+        const body = new XMLSerializer().serializeToString(doc.body);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><foreignObject width="100%" height="100%">${body}</foreignObject></svg>`;
+        image = new Image();
+        await new Promise((resolve, reject) => {
+          image.onload = resolve; image.onerror = () => reject(new Error("Chưa dựng được ảnh. Hãy thử chụp lại."));
+          imageTimer = setTimeout(() => reject(new Error("Tạo ảnh quá thời gian chờ. Hãy thử lại.")), 30000);
+          image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+        });
+        clearTimeout(imageTimer); imageTimer = null;
+        if (!stillCurrent()) return;
+        const scale = Math.min(2, 32760 / width, 32760 / height, Math.sqrt(48000000 / (width * height)));
+        canvas = document.createElement("canvas");
+        canvas.width = Math.floor(width * scale); canvas.height = Math.floor(height * scale);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Trình duyệt chưa thể tạo ảnh. Hãy thử lại.");
+        context.fillStyle = background; context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        if (!blob || !blob.size) throw new Error("Chưa lưu được ảnh PNG. Hãy thử lại.");
+        if (!stillCurrent()) return;
+        const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+        const time = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        const filename = `DVLF_Phan-tich_${type}_${time.year}${time.month}${time.day}_${time.hour}${time.minute}${time.second}.png`;
+        downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a"); link.href = downloadUrl; link.download = filename;
+        document.body.appendChild(link); link.click(); link.remove();
+        status.textContent = "Đã tải ảnh: " + filename;
+        const releaseUrl = downloadUrl; downloadUrl = "";
+        setTimeout(() => URL.revokeObjectURL(releaseUrl), 60000);
+      } catch (error) {
+        if (stillCurrent()) { status.hidden = false; status.textContent = error.message || "Chưa chụp được ảnh. Hãy thử lại."; }
+      } finally {
+        clearTimeout(imageTimer);
+        if (image) { image.onload = null; image.onerror = null; image.src = ""; }
+        if (canvas) { canvas.width = 0; canvas.height = 0; }
+        frame?.remove();
+        if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+        if (stillCurrent()) { analysisState.captureBusy = false; initAnalysisPanel(); }
+      }
     }
 
     function buildAnalysisQuery() {
-      const params = new URLSearchParams();
-      params.set("type", normalizeAnalysisType(analysisState.type));
-      params.set("period", normalizeAnalysisPeriod(analysisState.period));
-      params.set("mode", normalizeAnalysisMode(analysisState.mode));
-      params.set("limit", String(clampAnalysisInt(analysisState.limit, 20, 1, 100)));
-      params.set("k", String(clampAnalysisInt(analysisState.k, 5, 1, 20)));
-      params.set("comboSize", String(clampAnalysisInt(analysisState.comboSize, 2, 1, 3)));
-      params.set("includeSpecial", analysisState.includeSpecial ? "true" : "false");
-      if (analysisState.period === "custom") {
-        if (analysisState.from) params.set("from", analysisState.from);
-        if (analysisState.to) params.set("to", analysisState.to);
+      clampAnalysisCustomCount();
+      // Request the full available range, including draws added after this page was opened.
+      const raw = analysisState.drawPreset === "all" ? "2147483647"
+        : analysisState.drawPreset === "custom" ? analysisState.customCount : normalizeAnalysisDrawPreset(analysisState.drawPreset);
+      const drawCount = Number(raw);
+      if (!/^[0-9]+$/.test(raw) || !Number.isSafeInteger(drawCount) || drawCount < 1 || drawCount > 2147483647) {
+        throw new Error("Nhập số kỳ là số nguyên dương hợp lệ.");
       }
-      return params;
+      return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "all", mode: "frequency", drawCount: String(drawCount), drawMarkers: "2", delayVersion: "2" });
+    }
+
+    function analysisSessionKey() {
+      return String(currentUser || "") + ":" + String(currentAccountId || "");
+    }
+
+    function validateAnalysisFrequency(payload, type, drawCount) {
+      if (!payload || payload.ok !== true || payload.type !== type || payload.mode !== "frequency"
+        || !Number.isSafeInteger(payload.totalDraws) || payload.totalDraws < 1
+        || payload.requestedDrawCount !== drawCount || !Number.isSafeInteger(payload.availableDraws)
+        || payload.totalDraws !== Math.min(drawCount, payload.availableDraws)) {
+        throw new Error("Dữ liệu tần suất chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+      }
+      const cfg = TYPES[type];
+      const latest = payload.latestDraw;
+      const previous = payload.previousDraw;
+      if (!latest || !Array.isArray(latest.numbers) || !latest.numbers.length) {
+        throw new Error("Chưa có dữ liệu kỳ gần nhất để đánh dấu.");
+      }
+      if (previous !== null && (!previous || !Array.isArray(previous.numbers) || !previous.numbers.length)) {
+        throw new Error("Dữ liệu kỳ trước chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+      }
+      for (const special of [false, true]) {
+        const group = payload.data?.[special ? "special" : "main"];
+        const supported = !special || cfg.hasSpecial;
+        if (!group || group.supported !== supported || !Array.isArray(group.items)) throw new Error("Dữ liệu nhóm số chưa đầy đủ.");
+        if (!supported) {
+          if (group.items.length || group.totalOccurrences !== 0) throw new Error("Dữ liệu số đặc biệt chưa hợp lệ.");
+          continue;
+        }
+        const min = special ? cfg.specialMin : cfg.mainMin;
+        const max = special ? cfg.specialMax : cfg.mainMax;
+        const width = cfg.threeDigit ? 3 : 2;
+        const expected = new Set(Array.from({ length: max - min + 1 }, (_, i) => String(min + i).padStart(width, "0")));
+        const latestNumbers = special ? (latest.special ? [latest.special] : []) : latest.numbers;
+        if (latestNumbers.some(number => !expected.has(number))) throw new Error("Bộ số kỳ gần nhất chưa hợp lệ.");
+        const previousNumbers = previous ? (special ? (previous.special ? [previous.special] : []) : previous.numbers) : [];
+        if (previousNumbers.some(number => !expected.has(number))) throw new Error("Bộ số kỳ trước chưa hợp lệ.");
+        let total = 0;
+        for (const row of group.items) {
+          if (!expected.delete(row.number) || !Number.isSafeInteger(row.count) || row.count < 0) throw new Error("Dữ liệu bộ số hoặc số lượt chưa hợp lệ.");
+          if (!Number.isSafeInteger(row.currentDelay) || row.currentDelay < 0 || row.currentDelay > payload.totalDraws
+            || typeof row.delayLowerBound !== "boolean" || row.delayLowerBound !== (row.count === 0)
+            || (row.count === 0 ? row.currentDelay !== payload.totalDraws : row.currentDelay >= payload.totalDraws)
+            || (row.averageDelay !== null && (!Number.isFinite(row.averageDelay) || row.averageDelay < 0
+              || row.averageDelay > Math.max(0, payload.totalDraws - 2) || row.count < 2))) {
+            throw new Error("Dữ liệu độ trễ chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+          }
+          const previousCount = Math.min(drawCount, payload.availableDraws - 1);
+          if ((row.previousDelay !== null && (!Number.isSafeInteger(row.previousDelay) || row.previousDelay < 0 || row.previousDelay >= previousCount))
+            || (row.previousAverageDelay !== null && (!Number.isFinite(row.previousAverageDelay) || row.previousAverageDelay < 0
+              || row.previousAverageDelay > Math.max(0, previousCount - 2) || row.previousDelay === null || previousCount < 2))) {
+            throw new Error("Dữ liệu chuỗi kỳ trước chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+          }
+          total += row.count;
+        }
+        if (expected.size || !Number.isSafeInteger(total) || total !== group.totalOccurrences) throw new Error("Tổng lượt xuất hiện chưa khớp dữ liệu.");
+      }
+      return payload;
+    }
+
+    async function fetchAnalysisFrequency(params, signal) {
+      const response = await fetch(`/api/analysis?${params}`, { credentials: "same-origin", cache: "no-store", signal });
+      const payload = await response.json();
+      if (!response.ok || payload?.ok === false) throw new Error(payload?.message || "Không tải được dữ liệu tần suất.");
+      return validateAnalysisFrequency(payload, params.get("type"), Number(params.get("drawCount")));
     }
 
     async function loadAnalysis({ force = false, silent = true } = {}) {
-      const refreshToken = ++analysisState.refreshToken;
+      if (analysisState.predictionKey && analysisState.predictionKey !== getAnalysisPredictionSelection().key) clearAnalysisPrediction();
+      const token = ++analysisState.refreshToken;
+      const owner = analysisSessionKey();
+      analysisState.controller?.abort();
+      const controller = new AbortController();
+      analysisState.controller = controller;
       analysisState.loading = true;
+      analysisState.predictionCountOpen = false;
       analysisState.error = "";
-      if (force) analysisState.lastPayload = null;
-      renderAnalysis(analysisState.lastPayload);
+      analysisState.lastPayload = null;
+      renderAnalysis(null);
+      let timedOut = false;
+      const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 45000);
       try {
+        if (analysisState.drawPreset === "custom" && getAnalysisMaxDrawCount() === null) {
+          const type = normalizeAnalysisType(analysisState.type);
+          const probe = await fetchAnalysisFrequency(new URLSearchParams({ type, period: "all", mode: "frequency", drawCount: "1", drawMarkers: "2", delayVersion: "2" }), controller.signal);
+          if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
+          analysisState.availableDrawsByType[type] = probe.availableDraws;
+          initAnalysisPanel();
+        }
         const params = buildAnalysisQuery();
-        const payload = await api(`/api/analysis?${params.toString()}`);
-        if (refreshToken !== analysisState.refreshToken) return;
+        const payload = await fetchAnalysisFrequency(params, controller.signal);
+        if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
+        analysisState.availableDrawsByType[payload.type] = payload.availableDraws;
+        clampAnalysisCustomCount();
+        if (analysisState.drawPreset === "custom" && payload.requestedDrawCount > payload.availableDraws) {
+          return loadAnalysis({ force, silent });
+        }
         analysisState.lastPayload = payload;
-        analysisState.loading = false;
-        analysisState.error = payload?.ok === false ? String(payload.message || "Không phân tích được dữ liệu.") : "";
       } catch (error) {
-        if (refreshToken !== analysisState.refreshToken) return;
-        analysisState.loading = false;
-        analysisState.error = String(error?.message || error || "Không tải được Phân Tích.");
+        if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
+        analysisState.error = timedOut ? "Tải tần suất quá thời gian chờ. Bấm Cập nhật để thử lại." : String(error?.message || "Không tải được dữ liệu tần suất.");
       } finally {
-        if (refreshToken !== analysisState.refreshToken) return;
-        renderAnalysis(analysisState.lastPayload);
+        clearTimeout(timeout);
+        if (token === analysisState.refreshToken && owner === analysisSessionKey()) {
+          analysisState.loading = false;
+          analysisState.controller = null;
+          renderAnalysis(analysisState.lastPayload);
+        }
       }
     }
 
-    function formatAnalysisModeLabel(mode) {
-      return ANALYSIS_MODE_OPTIONS.find(item => item.value === normalizeAnalysisMode(mode))?.label || "Tổng quan";
+    function analysisMarksStorageKey() {
+      const id = String(currentAccountId || "");
+      return currentUser && /^[1-9][0-9]{11}$/.test(id) ? `vietlott_analysis_marks_v1:${id}` : "";
     }
 
-    function formatAnalysisValue(value, fallback = "--") {
-      if (value == null || value === "") return fallback;
-      if (Array.isArray(value)) return value.join(", ");
-      if (typeof value === "number") return value.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
-      return String(value);
+    function restoreAnalysisMarks() {
+      const key = analysisMarksStorageKey();
+      if (analysisState.marksOwner === key) return key;
+      analysisState.marksOwner = key;
+      analysisState.marksByType = {};
+      if (!key) return key;
+      const saved = readJsonLocal(key, {});
+      for (const type of TYPE_KEYS) {
+        if (!saved[type] || typeof saved[type] !== "object") continue;
+        const cfg = TYPES[type];
+        const clean = special => {
+          if (special && !cfg.hasSpecial) return [];
+          const values = saved[type][special ? "special" : "main"];
+          if (!Array.isArray(values)) return [];
+          const min = special ? cfg.specialMin : cfg.mainMin, max = special ? cfg.specialMax : cfg.mainMax;
+          const width = cfg.threeDigit ? 3 : 2;
+          return [...new Set(values.filter(value => typeof value === "string" && /^[0-9]+$/.test(value) &&
+            Number(value) >= min && Number(value) <= max && String(Number(value)).padStart(width, "0") === value))];
+        };
+        analysisState.marksByType[type] = { main: clean(false), special: clean(true) };
+      }
+      return key;
     }
 
-    function renderAnalysisChips(values, empty = "--") {
-      const list = Array.isArray(values) ? values : [];
-      if (!list.length) return `<span class="analysis-chip is-muted">${escapeHtml(empty)}</span>`;
-      return list.map(value => `<span class="analysis-chip">${escapeHtml(formatAnalysisValue(value))}</span>`).join("");
+    function saveAnalysisMarks() {
+      const key = analysisMarksStorageKey();
+      if (!key || analysisState.marksOwner !== key) return;
+      try { writeJsonLocal(key, analysisState.marksByType); } catch { /* Keep in-memory selection if browser storage is unavailable. */ }
     }
 
-    function renderAnalysisMetricCards(items) {
-      return (items || []).map(item => `
-        <article class="analysis-card">
-          <div class="analysis-card-title">${escapeHtml(item.label)}</div>
-          <div class="analysis-card-value">${escapeHtml(formatAnalysisValue(item.value))}</div>
-          ${item.meta ? `<div class="analysis-card-meta">${escapeHtml(item.meta)}</div>` : ""}
-        </article>
-      `).join("");
+    function getAnalysisMarks(special = false) {
+      restoreAnalysisMarks();
+      const type = normalizeAnalysisType(analysisState.type);
+      if (!analysisState.marksByType[type]) analysisState.marksByType[type] = { main: [], special: [] };
+      return analysisState.marksByType[type][special ? "special" : "main"];
     }
 
-    function renderAnalysisSimpleTable(headers, rows) {
-      if (!Array.isArray(rows) || !rows.length) return `<div class="analysis-empty">Chưa có dữ liệu phù hợp.</div>`;
-      return `
-        <div class="analysis-table-wrap">
-          <table class="analysis-table">
-            <thead><tr>${headers.map(header => `<th>${escapeHtml(header.label)}</th>`).join("")}</tr></thead>
-            <tbody>${rows.map(row => `
-              <tr>${headers.map(header => `<td>${escapeHtml(formatAnalysisValue(row[header.key]))}</td>`).join("")}</tr>
-            `).join("")}</tbody>
-          </table>
-        </div>
-      `;
+    function getAnalysisStreak(row) {
+      if (row.delayLowerBound || !Number.isSafeInteger(row.currentDelay) || row.currentDelay < 0 ||
+        !Number.isFinite(row.averageDelay) || row.averageDelay <= 0) return 0;
+      // Compare against the same two-decimal mean shown in the table, using integer hundredths.
+      const displayedAverage = row.averageDelay.toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: 2 });
+      const averageHundredths = Math.round(Number(displayedAverage) * 100);
+      return averageHundredths > 0 ? Math.floor(row.currentDelay * 100 / averageHundredths) : 0;
     }
 
-    function renderAnalysisNumberCountList(items, numberKey = "number", countKey = "count") {
-      const rows = (Array.isArray(items) ? items : []).map(item => ({
-        number: item[numberKey] || item.combo || item.pair || item.triple || "",
-        count: item[countKey] ?? item.observed ?? "",
-        status: item.status || item.hotColdStatus || "",
-      }));
-      return renderAnalysisSimpleTable([
-        { key: "number", label: "Số / Nhóm" },
-        { key: "count", label: "Số lần" },
-        { key: "status", label: "Trạng thái" },
-      ], rows);
+    function renderAnalysisFlameSvg(color, id, level = 0) {
+      const colors = color === "green" ? ["#16a34a", "#22c55e", "#4ade80", "#b8ffbc", "#dcfce7", "#f0fff4"]
+        : color === "gray" ? ["#64748b", "#94a3b8", "#b6c2d0", "#dbe4ed", "#edf2f7", "#ffffff"]
+          : ["#ff4038", "#ff7900", "#ffa000", "#fff46b", "#fff99a", "#fff5ce"];
+      return `<svg viewBox="0 0 40 50" aria-hidden="true" focusable="false">
+        <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${colors[0]}"/><stop offset=".58" stop-color="${colors[1]}"/><stop offset="1" stop-color="${colors[2]}"/></linearGradient><linearGradient id="${id}-core" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${colors[3]}"/><stop offset=".75" stop-color="${colors[4]}"/><stop offset="1" stop-color="${colors[5]}"/></linearGradient></defs>
+        <path fill="url(#${id})" d="M15 1C12-1 12 2 15 5C23 17 8 16 9 28C6 24 8 20 7 18C0 24-2 37 4 44C10 52 29 52 36 43C42 35 37 27 34 24C33 23 33 31 28 28C22 24 38 4 15 1Z"/>
+        <path fill="url(#${id}-core)" d="M24 19C15 23 13 31 15 36C13 38 12 35 12 33C8 38 10 45 16 47C23 50 32 46 31 39C30 31 19 29 24 19Z"/>
+        ${level >= 2 ? `<text class="frequency-fire-count" x="20" y="42" text-anchor="middle"${level >= 10 ? ' textLength="21" lengthAdjust="spacingAndGlyphs"' : ""}>${level}</text>` : ""}
+      </svg>`;
+    }
+
+    function renderAnalysisStreak(row, groupKey) {
+      const state = getAnalysisStreakState(row);
+      if (!state) return "";
+      const { color, level } = state;
+      const id = `frequency-fire-${groupKey}-${row.number}`;
+      const average = color === "gray" ? row.previousAverageDelay : row.averageDelay;
+      const mean = average.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+      const label = color === "gray"
+        ? `Vừa mất chuỗi đỏ ${level.toLocaleString("vi-VN")} lần: số vừa ra ở kỳ hiện tại; trước đó trễ ${row.previousDelay.toLocaleString("vi-VN")} kỳ, trễ TB ${mean} kỳ.`
+        : color === "green"
+          ? `Sắp đạt chuỗi đỏ: hiện trễ ${row.currentDelay.toLocaleString("vi-VN")} kỳ, trễ TB ${mean} kỳ. Nếu kỳ tiếp theo chưa ra sẽ đạt ngưỡng đỏ.`
+          : `Chuỗi ${level.toLocaleString("vi-VN")} lần: độ trễ ${row.currentDelay.toLocaleString("vi-VN")} kỳ, trễ TB ${mean} kỳ.`;
+      return `<span class="frequency-fire is-${color}" data-streak="${level}" data-streak-state="${color}" role="img" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${renderAnalysisFlameSvg(color, id, level)}</span>`;
+    }
+
+    function getAnalysisStreakState(row) {
+      const level = getAnalysisStreak(row);
+      if (level >= 1) return { color: "red", level };
+      if (row.currentDelay === 0) {
+        const lost = getAnalysisStreak({ currentDelay: row.previousDelay, averageDelay: row.previousAverageDelay, delayLowerBound: false });
+        if (lost >= 1) return { color: "gray", level: lost };
+      }
+      if (!row.delayLowerBound && Number.isSafeInteger(row.currentDelay) && row.currentDelay >= 0
+        && getAnalysisStreak({ ...row, currentDelay: row.currentDelay + 1 }) >= 1) return { color: "green", level: 1 };
+      return null;
+    }
+
+    function renderFrequencyTable(group, special = false, latestDraw = {}, previousDraw = null) {
+      const title = `Thống kê tần suất xuất hiện bộ số ${special ? "đặc biệt" : "chính"}`;
+      const groupKey = special ? "special" : "main";
+      const marks = getAnalysisMarks(special);
+      const latestNumbers = new Set(special ? (latestDraw.special ? [latestDraw.special] : []) : latestDraw.numbers || []);
+      const previousNumbers = new Set(previousDraw ? (special ? (previousDraw.special ? [previousDraw.special] : []) : previousDraw.numbers || []) : []);
+      const drawLabel = (label, draw) => `${label}${draw.drawId ? " #" + draw.drawId : ""}${draw.date ? " · " + draw.date : ""}${draw.time ? " " + draw.time : ""}`;
+      const latestLabel = drawLabel("Hiện Tại", latestDraw);
+      const previousLabel = previousDraw ? drawLabel("Kỳ Trước", previousDraw) : "Chưa có dữ liệu kỳ trước";
+      const sort = analysisState[special ? "sortSpecial" : "sortMain"];
+      const metricSort = analysisState[special ? "sortMetricSpecial" : "sortMetricMain"];
+      const streakSort = !metricSort && analysisState[special ? "sortStreakSpecial" : "sortStreakMain"];
+      const baseOrder = (a, b) => (sort === "number" ? 0 : b.count - a.count) || Number(a.number) - Number(b.number);
+      const streaks = streakSort ? new Map(group.items.map(row => [row, getAnalysisStreakState(row)])) : null;
+      const colorPriority = { red: 3, green: 2, gray: 1 };
+      const items = [...group.items].sort((a, b) => {
+        if (metricSort) {
+          const left = a[metricSort], right = b[metricSort];
+          const leftKnown = Number.isFinite(left), rightKnown = Number.isFinite(right);
+          if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
+          if (leftKnown && left !== right) return right - left;
+        }
+        if (streakSort) {
+          const left = streaks.get(a), right = streaks.get(b);
+          const byColor = (colorPriority[right?.color] || 0) - (colorPriority[left?.color] || 0);
+          const byLevel = (right?.level || 0) - (left?.level || 0);
+          if (byColor || byLevel) return byColor || byLevel;
+        }
+        return baseOrder(a, b);
+      });
+      const sortLabel = sort === "number" ? "Theo số thứ tự" : "Tần suất";
+      const streakSortLabel = streakSort ? `Đỏ → Xanh → Xám → Trống, mức chuỗi giảm dần. Bấm để trở lại ${sortLabel}` : "Bấm để xếp Đỏ → Xanh → Xám → Trống, mức chuỗi từ lớn đến nhỏ";
+      const streakButton = `<button type="button" class="frequency-column-sort frequency-streak-sort" data-streak-sort="${groupKey}" aria-pressed="${!!streakSort}" title="${streakSortLabel}" aria-label="Số ${special ? "đặc biệt" : "chính"}: ${streakSortLabel}">Chuỗi</button>`;
+      const metricButton = (key, label) => {
+        const active = metricSort === key;
+        const hint = active ? `${label} giảm dần. Bấm để trở lại ${sortLabel}` : `Bấm để sắp xếp ${label} từ lớn đến nhỏ`;
+        return `<button type="button" class="frequency-column-sort" data-metric-sort="${key}" data-metric-group="${groupKey}" aria-pressed="${active}" title="${hint}" aria-label="Số ${special ? "đặc biệt" : "chính"}: ${hint}">${label}</button>`;
+      };
+      const nextSort = sort === "number" ? "frequency" : "number";
+      const nextSortLabel = nextSort === "number" ? "Theo số thứ tự" : "Tần suất";
+      const sortButton = `<button type="button" class="frequency-sort-toggle${sort === "number" ? " is-number" : ""}" data-frequency-sort="${nextSort}" data-sort-group="${groupKey}" title="${sortLabel} · Bấm để chuyển sang ${nextSortLabel}" aria-label="Số ${special ? "đặc biệt" : "chính"}: ${sortLabel}. Chuyển sang ${nextSortLabel}"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg></button>`;
+      const maximum = Math.max(0, ...items.map(row => row.count));
+      const maximumLabel = maximum.toLocaleString("vi-VN");
+      const barLegend = maximum ? `<span class="frequency-bar-legend"><span><i class="frequency-max-key" aria-hidden="true"></i>Mốc cao nhất: ${maximumLabel} lượt</span><span>% trên tổng lượt</span></span>` : '<span class="frequency-bar-legend">Chưa có lượt xuất hiện</span>';
+      const rows = items.map(row => {
+        const percentage = group.totalOccurrences ? row.count * 100 / group.totalOccurrences : 0;
+        const share = percentage.toFixed(2) + "%";
+        const width = maximum ? row.count * 80 / maximum : 0;
+        const order = marks.indexOf(row.number) + 1;
+        const wasLatest = latestNumbers.has(row.number);
+        const delayLabel = row.delayLowerBound ? `Chưa xuất hiện trong ${row.currentDelay.toLocaleString("vi-VN")} kỳ đang chọn; độ trễ ít nhất bằng số kỳ này.` : `${row.currentDelay.toLocaleString("vi-VN")} kỳ liên tiếp chưa xuất hiện; vừa ra = 0.`;
+        const averageLabel = row.averageDelay === null ? "Chưa đủ hai lần xuất hiện để tính trễ trung bình trong số kỳ đang chọn." : "Trung bình số kỳ không xuất hiện giữa hai lần ra trong số kỳ đang chọn; không tính hai đầu chưa đủ khoảng.";
+        const pickLabel = `${order ? "Bỏ đánh dấu" : "Đánh dấu"} số ${row.number}${order ? `, thứ tự ${order}` : ""}`;
+        return `<tr data-number="${row.number}" data-count="${row.count}">
+          <th scope="row">${row.number}</th>
+          <td class="frequency-bar-cell"><span class="frequency-track" title="${escapeHtml(`Số ${row.number}: ${row.count.toLocaleString("vi-VN")} lượt. ${maximum ? `Thanh so với mốc cao nhất ${maximumLabel} lượt (vạch vàng).` : "Chưa có lượt để so sánh thanh."} Tỷ trọng trên tổng lượt: ${row.count.toLocaleString("vi-VN")} / ${group.totalOccurrences.toLocaleString("vi-VN")} = ${share}.`)}" aria-hidden="true"><span class="frequency-fill" style="width:${width.toFixed(4)}%"></span>${maximum ? `<span class="frequency-max-marker" title="Mốc cao nhất: ${maximumLabel} lượt"></span>` : ""}</span></td>
+          <td class="frequency-percent">${share}</td><td class="frequency-count">${row.count.toLocaleString("vi-VN")} lượt</td>
+          <td class="frequency-delay" title="${escapeHtml(delayLabel)}">${row.delayLowerBound ? "≥" : ""}${row.currentDelay.toLocaleString("vi-VN")}</td>
+          <td class="frequency-average-delay" title="${escapeHtml(averageLabel)}">${row.averageDelay === null ? "—" : row.averageDelay.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}</td>
+          <td class="frequency-streak">${renderAnalysisStreak(row, groupKey)}</td>
+          <td class="frequency-marker-cell" data-draw-marker="current">${wasLatest ? `<span class="frequency-latest-mark" title="${escapeHtml(latestLabel)}" aria-label="Số ${row.number} xuất hiện ở ${escapeHtml(latestLabel)}">✓</span>` : ""}</td>
+          <td class="frequency-marker-cell" data-draw-marker="previous">${previousNumbers.has(row.number) ? `<span class="frequency-previous-mark" title="${escapeHtml(previousLabel)}" aria-label="Số ${row.number} xuất hiện ở ${escapeHtml(previousLabel)}">✓</span>` : ""}</td>
+          <td class="frequency-marker-cell"><button type="button" class="frequency-pick${order ? " is-picked" : ""}" data-frequency-pick="${row.number}" data-pick-group="${groupKey}" aria-pressed="${order > 0}" aria-label="${escapeHtml(pickLabel)}" title="${escapeHtml(pickLabel)}">${order || ""}</button></td>
+        </tr>`;
+      }).join("");
+      return `<div class="frequency-table-wrap" role="region" tabindex="0" aria-label="${title}. Có thể cuộn ngang để xem đủ cột."><table class="frequency-table${special ? " is-special" : ""}" data-frequency-group="${special ? "special" : "main"}" aria-label="${title}">
+        <colgroup><col class="frequency-number-col"><col><col class="frequency-percent-col"><col class="frequency-count-col"><col class="frequency-delay-col"><col class="frequency-delay-col"><col class="frequency-streak-col"><col class="frequency-marker-col"><col class="frequency-marker-col"><col class="frequency-marker-col"></colgroup>
+        <thead><tr><th scope="col" aria-sort="${streakSort || metricSort ? "none" : sort === "number" ? "ascending" : "other"}"><div class="frequency-number-heading"><span>Bộ số</span>${sortButton}</div></th><th scope="colgroup" colspan="3">${title}${barLegend}</th><th scope="col" class="frequency-delay-heading" aria-sort="${metricSort === "currentDelay" ? "descending" : "none"}" title="Số kỳ liên tiếp chưa xuất hiện trong số kỳ đang chọn. Vừa ra = 0; ≥N nếu chưa thấy trong N kỳ.">${metricButton("currentDelay", "Độ Trễ")}</th><th scope="col" class="frequency-delay-heading" aria-sort="${metricSort === "averageDelay" ? "descending" : "none"}" title="Trung bình số kỳ không xuất hiện giữa hai lần ra trong số kỳ đang chọn. Cần ít nhất hai lần ra.">${metricButton("averageDelay", "Trễ Trung Bình")}</th><th scope="col" class="frequency-streak-heading" aria-sort="${streakSort ? "descending" : "none"}" title="Đỏ: đạt ngưỡng trễ / TB. Xanh lá: còn một kỳ chưa ra sẽ đạt đỏ. Xám: chuỗi đỏ vừa mất vì số đã ra ở kỳ hiện tại. Thiếu dữ liệu để trống.">${streakButton}</th><th scope="col" class="frequency-marker-heading" title="${escapeHtml(latestLabel)}">Hiện Tại</th><th scope="col" class="frequency-marker-heading" title="${escapeHtml(previousLabel)}">Kỳ Trước</th><th scope="col" class="frequency-marker-heading" title="Đánh dấu theo thứ tự bạn chọn">Chọn</th></tr></thead><tbody>${rows}</tbody>${renderAnalysisSummary(group, special)}
+      </table></div>`;
+    }
+
+    function buildAnalysisTickets(type, selectedMain, selectedSpecial, size, mode = "normal") {
+      const pools = getAnalysisTicketPools(type, selectedMain, selectedSpecial, size, mode);
+      if (!pools) return [];
+      const { cfg, main, special } = pools;
+      const used = new Map(), usedSpecial = new Map(), pairs = new Map(), seen = new Set(), tickets = [], base = [];
+      const pairKey = (a, b) => a < b ? a + ":" + b : b + ":" + a;
+      // Bound enumeration even for 1,000 three-digit numbers; greedy candidates cover the rest.
+      const enumerate = (start, chosen) => {
+        if (base.length >= 256) return;
+        if (chosen.length === size) { base.push([...chosen]); return; }
+        for (let i = start; i <= main.length - (size - chosen.length) && base.length < 256; i++) {
+          chosen.push(main[i]); enumerate(i + 1, chosen); chosen.pop();
+        }
+      };
+      enumerate(0, []);
+      for (let round = 0; round < 5; round++) {
+        let best = null, bestScore = null;
+        const consider = (numbers, extra) => {
+          if (numbers.length !== size || (type === "LOTO_6_55" && numbers.includes(extra))) return;
+          const ordered = [...numbers].sort((a, b) => Number(a) - Number(b));
+          const key = ordered.join(",") + "|" + extra;
+          if (seen.has(key)) return;
+          let pairHits = 0;
+          for (let i = 0; i < ordered.length; i++) for (let j = i + 1; j < ordered.length; j++) pairHits += pairs.get(pairKey(ordered[i], ordered[j])) || 0;
+          const overlap = Math.max(0, ...tickets.map(ticket => ordered.filter(n => ticket.main.includes(n)).length));
+          const score = [ordered.filter(n => !used.has(n)).length, extra && !usedSpecial.has(extra) ? 1 : 0,
+            -overlap, -pairHits, -ordered.reduce((sum, n) => sum + (used.get(n) || 0), 0), -(usedSpecial.get(extra) || 0)];
+          const different = bestScore ? score.findIndex((value, i) => value !== bestScore[i]) : -1;
+          if (!bestScore || (different >= 0 && score[different] > bestScore[different])) {
+            best = { main: ordered, special: extra, key }; bestScore = score;
+          }
+        };
+        for (const extra of special) {
+          for (const numbers of base) consider(numbers, extra);
+          for (let shift = 0; shift < Math.min(16, main.length); shift++) {
+            const chosen = [], available = main.filter(n => type !== "LOTO_6_55" || n !== extra);
+            if (available.length < size) continue;
+            while (chosen.length < size) {
+              let next = "", nextScore = null;
+              for (let i = 0; i < available.length; i++) {
+                const n = available[i];
+                if (chosen.includes(n)) continue;
+                const score = [(used.get(n) || 0), chosen.reduce((sum, other) => sum + (pairs.get(pairKey(n, other)) || 0), 0),
+                  (i - shift + available.length) % available.length];
+                const different = nextScore ? score.findIndex((value, at) => value !== nextScore[at]) : -1;
+                if (!nextScore || (different >= 0 && score[different] < nextScore[different])) { next = n; nextScore = score; }
+              }
+              chosen.push(next);
+            }
+            consider(chosen, extra);
+          }
+        }
+        if (!best) break;
+        seen.add(best.key);
+        tickets.push({ main: best.main, special: best.special });
+        best.main.forEach(n => used.set(n, (used.get(n) || 0) + 1));
+        if (best.special) usedSpecial.set(best.special, (usedSpecial.get(best.special) || 0) + 1);
+        for (let i = 0; i < best.main.length; i++) for (let j = i + 1; j < best.main.length; j++) {
+          const key = pairKey(best.main[i], best.main[j]); pairs.set(key, (pairs.get(key) || 0) + 1);
+        }
+      }
+      return tickets;
+    }
+
+    function getAnalysisTicketPools(type, selectedMain, selectedSpecial, size, mode = "normal") {
+      const cfg = TYPES[type], bao = mode === "bao";
+      if (!cfg || !["normal", "bao"].includes(mode) || !Number.isInteger(size) ||
+        (bao ? !getPredictBaoLevels(type).includes(size) : size < 1 || size > (cfg.keno ? 10 : cfg.mainCount) || (!cfg.keno && size !== cfg.mainCount))) return null;
+      // Power Bao consists only of its main-number parent, as in the existing Bao rules.
+      const usesSpecial = cfg.hasSpecial && (!bao || type === "LOTO_5_35");
+      const main = [...new Set(selectedMain)], special = usesSpecial ? [...new Set(selectedSpecial)] : [""];
+      const valid = (number, min, max) => typeof number === "string" && /^\d+$/.test(number) &&
+        Number(number) >= min && Number(number) <= max && String(Number(number)).padStart(cfg.threeDigit ? 3 : 2, "0") === number;
+      if (main.length < size || !special.length || main.some(n => !valid(n, cfg.mainMin, cfg.mainMax)) ||
+        (usesSpecial && special.some(n => !valid(n, cfg.specialMin, cfg.specialMax)))) return null;
+      return { type, cfg, main, special, size, mode };
+    }
+
+    function analysisChoose(n, k) {
+      if (k < 0 || n < k) return 0n;
+      k = Math.min(k, n - k);
+      let value = 1n;
+      for (let i = 1; i <= k; i++) value = value * BigInt(n - k + i) / BigInt(i);
+      return value;
+    }
+
+    function getAnalysisTicketCapacity(type, main, special, size, mode = "normal") {
+      const pools = getAnalysisTicketPools(type, main, special, size, mode);
+      if (!pools) return 0n;
+      return pools.special.reduce((sum, extra) => sum + analysisChoose(pools.main.length - (type === "LOTO_6_55" && pools.main.includes(extra) ? 1 : 0), size), 0n);
+    }
+
+    function analysisCombinationRank(indices, n) {
+      let rank = 0n, start = 0;
+      indices.forEach((index, i) => {
+        for (let j = start; j < index; j++) rank += analysisChoose(n - j - 1, indices.length - i - 1);
+        start = index + 1;
+      });
+      return rank;
+    }
+
+    function analysisCombinationAt(pool, size, rank) {
+      const chosen = [];
+      for (let i = 0; i < pool.length && chosen.length < size; i++) {
+        const count = analysisChoose(pool.length - i - 1, size - chosen.length - 1);
+        if (rank < count) chosen.push(pool[i]);
+        else rank -= count;
+      }
+      return chosen.sort((a, b) => Number(a) - Number(b));
+    }
+
+    function createAnalysisPredictionPlan(type, main, special, size, requested, mode = "normal") {
+      const pools = getAnalysisTicketPools(type, main, special, size, mode);
+      if (!pools || !/^\d+$/.test(String(requested))) return null;
+      const count = BigInt(requested), capacity = getAnalysisTicketCapacity(type, main, special, size, mode);
+      if (count < 1n || count > capacity) return null;
+      let start = 0n;
+      const groups = pools.special.map(extra => {
+        const numbers = pools.main.filter(n => type !== "LOTO_6_55" || n !== extra);
+        const ways = analysisChoose(numbers.length, size), group = { extra, numbers, start, ways };
+        start += ways;
+        return group;
+      }).filter(group => group.ways > 0n);
+      const seeds = buildAnalysisTickets(type, main, special, size, mode).slice(0, Number(count < 5n ? count : 5n));
+      // A coprime stride visits every valid combination once, without enumerating the space.
+      const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return a; };
+      let step = capacity * 618033988n / 1000000000n || 1n;
+      while (gcd(step, capacity) !== 1n) step++;
+      let a = step, b = capacity, x = 1n, y = 0n;
+      while (b) { const q = a / b; [a, b] = [b, a - q * b]; [x, y] = [y, x - q * y]; }
+      const inverse = (x % capacity + capacity) % capacity;
+      const excluded = seeds.map(ticket => {
+        const group = groups.find(group => group.extra === ticket.special);
+        const indices = ticket.main.map(n => group.numbers.indexOf(n)).sort((a, b) => a - b);
+        const rank = group.start + analysisCombinationRank(indices, group.numbers.length);
+        return rank * inverse % capacity;
+      }).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+      return { count, capacity, groups, size, mode, seeds, step, excluded };
+    }
+
+    function getAnalysisTicketPage(plan, offset = 0n, limit = 6) {
+      const tickets = [];
+      offset = BigInt(offset);
+      const end = offset + BigInt(limit) < plan.count ? offset + BigInt(limit) : plan.count;
+      for (let index = offset; index < end; index++) {
+        if (index < BigInt(plan.seeds.length)) { tickets.push(plan.seeds[Number(index)]); continue; }
+        let position = index - BigInt(plan.seeds.length);
+        for (const omitted of plan.excluded) { if (omitted > position) break; position++; }
+        const rank = position * plan.step % plan.capacity;
+        const group = plan.groups.find(group => rank >= group.start && rank < group.start + group.ways);
+        tickets.push({ main: analysisCombinationAt(group.numbers, plan.size, rank - group.start), special: group.extra });
+      }
+      return tickets;
+    }
+
+    function getAnalysisPredictionSelection() {
+      const type = normalizeAnalysisType(analysisState.type), cfg = TYPES[type];
+      const main = getAnalysisMarks(), special = cfg.hasSpecial ? getAnalysisMarks(true) : [];
+      const baoLevels = getPredictBaoLevels(type);
+      const mode = baoLevels.length && analysisState.predictionMode === "bao" ? "bao" : "normal";
+      const size = mode === "bao" ? (baoLevels.includes(analysisState.predictionBaoLevel) ? analysisState.predictionBaoLevel : baoLevels.find(n => n > cfg.mainCount))
+        : cfg.keno ? analysisState.predictionKenoSize : cfg.mainCount;
+      const usesSpecial = cfg.hasSpecial && (mode === "normal" || type === "LOTO_5_35");
+      const needs = [];
+      if (main.length < size) needs.push(`thêm ${size - main.length} số chính`);
+      if (usesSpecial && !special.length) needs.push("ít nhất 1 số đặc biệt");
+      let message = needs.length ? `Chọn ${needs.join(" và ")} để dự đoán.` : "";
+      if (!message && mode === "normal" && type === "LOTO_6_55" && !special.some(n => main.filter(number => number !== n).length >= size)) {
+        message = "Chọn thêm số chính hoặc số đặc biệt khác: mỗi vé Power cần 6 số chính khác số đặc biệt.";
+      }
+      return { type, cfg, main, special, size, mode, baoLevels, usesSpecial,
+        capacity: getAnalysisTicketCapacity(type, main, special, size, mode), message,
+        key: JSON.stringify([analysisMarksStorageKey(), type, main, special, size, mode]) };
+    }
+
+    function clearAnalysisPrediction() {
+      analysisState.predictionKey = "";
+      analysisState.predictionTickets = [];
+      analysisState.predictionPlan = null;
+      analysisState.predictionPage = 0;
+      analysisState.predictionCountOpen = false;
+    }
+
+    function renderAnalysisSelectedPrediction() {
+      const selection = getAnalysisPredictionSelection(), { cfg, main, special, size, mode, baoLevels, usesSpecial, capacity, message, key } = selection;
+      if (analysisState.predictionKey && analysisState.predictionKey !== key) clearAnalysisPrediction();
+      const plan = analysisState.predictionKey === key ? analysisState.predictionPlan : null;
+      const tickets = plan ? analysisState.predictionTickets : [];
+      const page = analysisState.predictionPage, offset = BigInt(page) * 6n;
+      const pages = plan ? (plan.count + 5n) / 6n : 0n;
+      const chips = (numbers, extra = false) => numbers.length ? numbers.map((n, i) => `<span class="frequency-selected-number${extra ? " is-special" : ""}"><small>${i + 1}</small>${n}</span>`).join("") : '<span class="frequency-selection-empty">Chưa chọn số</span>';
+      const balls = (numbers, extra = false) => numbers.map(n => `<span class="frequency-ticket-number${extra ? " is-special" : ""}">${n}</span>`).join("");
+      const covered = new Set(tickets.flatMap(ticket => ticket.main)).size;
+      const coveredSpecial = new Set(tickets.map(ticket => ticket.special).filter(Boolean)).size;
+      return `<section class="frequency-selection" aria-labelledby="analysisSelectionTitle">
+        <div class="frequency-selection-head"><h3 id="analysisSelectionTitle">Bộ số bạn đã chọn</h3><span id="analysisPredictionCapacity" data-capacity="${capacity}">Tối đa ${capacity.toLocaleString("vi-VN")} bộ</span></div>
+        <div class="frequency-selected-group"><h4>Số chính <span>${main.length}</span></h4><div class="frequency-selected-numbers" data-selected-group="main">${chips(main)}</div></div>
+        ${cfg.hasSpecial ? `<div class="frequency-selected-group"><h4>Số đặc biệt <span>${special.length}</span></h4><div class="frequency-selected-numbers" data-selected-group="special">${chips(special, true)}</div></div>` : ""}
+        <p class="frequency-selection-description">Phối hợp từ bộ số bạn chọn, ưu tiên phủ số và giảm trùng lặp giữa các vé.</p>
+        <div class="frequency-predict-actions">${baoLevels.length ? `<label class="frequency-field">Loại vé<select id="analysisPredictionMode"><option value="normal"${mode === "normal" ? " selected" : ""}>Vé thường</option><option value="bao"${mode === "bao" ? " selected" : ""}>Bao</option></select></label>` : ""}${mode === "bao" ? `<label class="frequency-field">Cấp Bao<select id="analysisPredictionBaoLevel">${baoLevels.map(level => `<option value="${level}"${size === level ? " selected" : ""}>Bao ${level}</option>`).join("")}</select></label>` : ""}${cfg.keno ? `<label class="frequency-field">Bậc Keno<select id="analysisPredictionKenoSize">${Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}"${size === i + 1 ? " selected" : ""}>Bậc ${i + 1}</option>`).join("")}</select></label>` : ""}<button type="button" id="analysisPredictSelectedBtn"${message ? " disabled" : ""}>Dự Đoán<span aria-hidden="true"> →</span></button></div>
+        ${mode === "bao" ? `<p class="frequency-selection-help">Bao ${size} · ${size} số chính${usesSpecial ? " + 1 số đặc biệt" : ""}.${size < cfg.mainCount ? ` Đây là bộ số cố định; vé con ghép thêm 1 số còn lại trong miền ${cfg.mainMin}–${cfg.mainMax} theo quy tắc Bao.` : ""}${selection.type === "LOTO_6_55" ? " Số đặc biệt đã chọn không dùng cho Bao Power." : ""}</p>` : ""}
+        ${analysisState.predictionCountOpen && !message ? `<form id="analysisPredictionCountForm" class="frequency-count-form"><label class="frequency-field">Số bộ dự đoán<input id="analysisPredictionCountInput" type="text" inputmode="numeric" maxlength="32" pattern="[0-9]+" required autocomplete="off" value="${escapeHtml(analysisState.predictionCount)}" aria-describedby="analysisPredictionCountHint"></label><p id="analysisPredictionCountHint">Từ 1 đến ${capacity.toLocaleString("vi-VN")} bộ khác nhau.</p><div class="frequency-count-actions"><button id="analysisPredictionCountCancel" type="button">Hủy</button><button id="analysisPredictionCountConfirm" type="submit">Tạo dự đoán</button></div></form>` : ""}
+        ${message ? `<p class="frequency-selection-help">${escapeHtml(message)}</p>` : ""}
+        <div class="frequency-ticket-results" aria-live="polite" aria-atomic="true">${tickets.length ? `<div class="frequency-ticket-summary">${plan.count.toLocaleString("vi-VN")} bộ · ${pages > 1n ? "Trang này phủ" : "Phủ"} ${covered}/${main.length} số chính${usesSpecial ? ` · ${coveredSpecial}/${special.length} số ĐB` : ""}</div>${tickets.map((ticket, i) => `<div class="frequency-ticket"><span class="frequency-ticket-label">${mode === "bao" ? `Bao ${size}` : "Vé thường"} · Bộ ${(offset + BigInt(i) + 1n).toLocaleString("vi-VN").padStart(2, "0")}</span><div class="frequency-ticket-balls">${balls(ticket.main)}${ticket.special ? `<span class="frequency-ticket-special-label">ĐB</span>${balls([ticket.special], true)}` : ""}</div></div>`).join("")}${pages > 1n ? `<nav class="frequency-ticket-pages" aria-label="Trang bộ dự đoán"><button type="button" data-analysis-ticket-page="first" aria-label="Trang đầu"${page === 0 ? " disabled" : ""}>«</button><button type="button" data-analysis-ticket-page="prev" aria-label="Trang trước"${page === 0 ? " disabled" : ""}>‹</button><span>Trang ${(BigInt(page) + 1n).toLocaleString("vi-VN")} / ${pages.toLocaleString("vi-VN")}</span><button type="button" data-analysis-ticket-page="next" aria-label="Trang sau"${BigInt(page) + 1n === pages ? " disabled" : ""}>›</button><button type="button" data-analysis-ticket-page="last" aria-label="Trang cuối"${BigInt(page) + 1n === pages ? " disabled" : ""}>»</button></nav>` : ""}` : ""}</div>
+      </section>`;
+    }
+
+    function renderAnalysisSummary(group, special = false) {
+      const counts = { red: 0, green: 0, gray: 0, empty: 0, selected: 0 };
+      const marks = new Set(getAnalysisMarks(special));
+      for (const row of group.items) {
+        const state = getAnalysisStreakState(row);
+        if (state) counts[state.color]++;
+        else counts.empty++;
+        if (marks.has(row.number)) counts.selected++;
+      }
+      const labels = { red: "Đỏ", green: "Xanh", gray: "Xám" };
+      const flames = ["red", "green", "gray"].map(key => `<span class="frequency-summary-${key}" title="${counts[key].toLocaleString("vi-VN")} ô chuỗi ${labels[key].toLocaleLowerCase("vi-VN")}">${renderAnalysisFlameSvg(key, `frequency-summary-fire-${special ? "special" : "main"}-${key}`)}${labels[key]} <strong data-summary-count="${key}">${counts[key].toLocaleString("vi-VN")}</strong></span>`).join("");
+      return `<tfoot><tr class="frequency-summary-row" data-summary-group="${special ? "special" : "main"}">
+        <th scope="row">Tổng</th><td colspan="8" title="Mỗi ô có lửa tính 1 chuỗi; ô không có lửa được tính là trống"><div class="frequency-summary-counts">${flames}<span class="frequency-summary-empty" title="${counts.empty.toLocaleString("vi-VN")} ô Chuỗi trống, không có lửa đỏ, xanh hoặc xám"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="10" height="10" rx="2"/></svg>Trống <strong data-summary-count="empty">${counts.empty.toLocaleString("vi-VN")}</strong></span></div></td>
+        <td class="frequency-summary-selected" data-summary-count="selected" title="${counts.selected.toLocaleString("vi-VN")} ô số đã tích chọn"><span class="frequency-summary-picked"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></svg>${counts.selected.toLocaleString("vi-VN")}</span></td>
+      </tr></tfoot>`;
     }
 
     function renderAnalysis(payload = analysisState.lastPayload) {
+      const out = document.getElementById("analysisFrequencyOut");
+      if (!out) return;
       initAnalysisPanel();
       const status = document.getElementById("analysisStatus");
-      const out = document.getElementById("analysisOut");
-      const summary = document.getElementById("analysisSummaryCards");
-      const detail = document.getElementById("analysisDetailPanel");
-      const updated = document.getElementById("analysisUpdatedAt");
-      if (!detail || !summary || !out) return;
-      if (updated) updated.textContent = payload?.generatedAt ? formatStatsV2UpdatedAt(payload.generatedAt) : "Chưa tải";
-      const warningLines = [];
-      if (analysisState.error) warningLines.push(analysisState.error);
-      if (Array.isArray(payload?.warnings)) warningLines.push(...payload.warnings);
-      if (status) {
-        status.hidden = !warningLines.length;
-        status.textContent = warningLines.join(" • ");
-      }
-      out.innerHTML = (Array.isArray(payload?.explanations) && payload.explanations.length)
-        ? payload.explanations.map(text => `<div>${escapeHtml(text)}</div>`).join("")
-        : `<div>${escapeHtml("Đây là phân tích thống kê tham khảo, không cam kết dự đoán trúng.")}</div>`;
-      if (analysisState.loading && !payload) {
-        summary.innerHTML = "";
-        detail.className = "analysis-detail-panel muted";
-        detail.innerHTML = "Đang tải Phân Tích...";
-        return;
-      }
-      if (analysisState.error && (!payload || payload.ok === false)) {
-        summary.innerHTML = "";
-        detail.className = "analysis-detail-panel muted";
-        detail.innerHTML = escapeHtml(analysisState.error);
-        return;
-      }
+      status.hidden = !analysisState.error;
+      status.textContent = analysisState.error;
+      out.setAttribute("aria-busy", String(analysisState.loading));
+      document.getElementById("analysisUpdatedAt").textContent = payload?.generatedAt ? formatStatsV2UpdatedAt(payload.generatedAt) : analysisState.loading ? "Đang tải dữ liệu…" : "Chưa có dữ liệu";
+      const scope = document.getElementById("analysisScope");
+      scope.textContent = "";
       if (!payload) {
-        summary.innerHTML = "";
-        detail.className = "analysis-detail-panel muted";
-        detail.innerHTML = "Chọn tab Phân Tích để tải dữ liệu.";
+        out.innerHTML = analysisState.error ? "" : `<div class="frequency-empty">${analysisState.loading ? "Đang tổng hợp tần suất xuất hiện…" : analysisState.drawPreset === "custom" ? "Nhập số kỳ cần phân tích, rồi bấm Cập nhật." : "Chọn loại xổ số và số kỳ, rồi bấm Cập nhật."}</div>`;
         return;
       }
-      const latest = payload.latestDraw || {};
-      summary.innerHTML = renderAnalysisMetricCards([
-        { label: "Loại vé", value: TYPES[payload.type]?.label || payload.type },
-        { label: "Chế độ", value: formatAnalysisModeLabel(payload.mode) },
-        { label: "Số kỳ", value: payload.totalDraws || 0, meta: `${payload.fromDate || "--"} đến ${payload.toDate || "--"}` },
-        { label: "Kỳ mới nhất", value: latest.drawId || "--", meta: latest.date || "--" },
-      ]);
-      detail.className = "analysis-detail-panel";
-      const mode = normalizeAnalysisMode(payload.mode);
-      const renderer = {
-        overview: renderAnalysisOverview,
-        general: renderAnalysisGeneral,
-        distribution: renderAnalysisDistribution,
-        ratios: renderAnalysisRatios,
-        latest_draw: renderAnalysisLatestDraw,
-        consecutive: renderAnalysisConsecutive,
-        overdue: renderAnalysisOverdue,
-        poisson: renderAnalysisPoisson,
-        knn: renderAnalysisKnn,
-        chain: renderAnalysisChain,
-        relationships: renderAnalysisRelationships,
-        modulo: renderAnalysisModulo,
-        advanced: renderAnalysisAdvanced,
-        special: renderAnalysisSpecial,
-        weekday: renderAnalysisWeekday,
-        smart_wheel: renderAnalysisSmartWheel,
-        score: renderAnalysisScore,
-        all: renderAnalysisAll,
-      }[mode] || renderAnalysisOverview;
-      detail.innerHTML = renderer(payload);
-    }
-
-    function renderAnalysisOverview(payload) {
-      const data = payload?.data || {};
-      return `
-        <div class="analysis-section-grid">
-          <section class="analysis-card"><div class="analysis-card-title">Số nóng</div><div class="analysis-chip-row">${renderAnalysisChips((data.hotNumbers || []).slice(0, 10).map(item => `${item.number} (${item.count})`))}</div></section>
-          <section class="analysis-card"><div class="analysis-card-title">Số lạnh</div><div class="analysis-chip-row">${renderAnalysisChips((data.coldNumbers || []).slice(0, 10).map(item => `${item.number} (${item.count})`))}</div></section>
-          <section class="analysis-card"><div class="analysis-card-title">Gan lâu</div><div class="analysis-chip-row">${renderAnalysisChips((data.longestOverdue || []).slice(0, 8).map(item => `${item.number}: ${item.currentSkip} kỳ`))}</div></section>
-        </div>
-        <h3 class="analysis-panel-title">Top cặp</h3>
-        ${renderAnalysisNumberCountList(data.topPairs || [], "combo", "count")}
-        <h3 class="analysis-panel-title">Top bộ ba</h3>
-        ${renderAnalysisNumberCountList(data.topTriples || [], "combo", "count")}
-      `;
-    }
-
-    function renderAnalysisGeneral(payload) {
-      const d = payload?.data || {};
-      return `<div class="analysis-grid">${renderAnalysisMetricCards([
-        { label: "Tổng", value: d.sum },
-        { label: "Trung bình", value: d.mean },
-        { label: "Độ lệch chuẩn", value: d.standardDeviation },
-        { label: "Biên độ", value: d.span, meta: `Range: ${d.rangeStatus || "--"}` },
-        { label: "Số nhỏ nhất", value: d.minNumber },
-        { label: "Số lớn nhất", value: d.maxNumber, meta: `Sum: ${d.sumStatus || "--"}` },
-      ])}</div>`;
-    }
-
-    function renderAnalysisDistribution(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-badge-row">
-          <span class="analysis-badge">Expected ${escapeHtml(formatAnalysisValue(d.expectedCount))}</span>
-          <span class="analysis-badge">Chi-square ${escapeHtml(formatAnalysisValue(d.chiSquare))}</span>
-          <span class="analysis-badge">p-value ${escapeHtml(formatAnalysisValue(d.pValue))}</span>
-        </div>
-        ${renderAnalysisSimpleTable([
-          { key: "number", label: "Số" },
-          { key: "observed", label: "Thực tế" },
-          { key: "expected", label: "Kỳ vọng" },
-          { key: "deviation", label: "Lệch" },
-          { key: "status", label: "Trạng thái" },
-        ], d.items || [])}
-      `;
-    }
-
-    function renderAnalysisRatios(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-grid">${renderAnalysisMetricCards([
-          { label: "Chẵn/Lẻ", value: d.evenOddRatio, meta: `${d.evenCount || 0} chẵn • ${d.oddCount || 0} lẻ` },
-          { label: "Thấp/Cao", value: d.lowHighRatio, meta: `${d.lowCount || 0} thấp • ${d.highCount || 0} cao` },
-          { label: "Trạng thái", value: d.ratioStatus || "--" },
-          { label: "Vùng trống", value: (d.blankZones || []).length },
-        ])}</div>
-        <div class="analysis-chip-row">${renderAnalysisChips(d.blankZones || [], "Không có vùng trống")}</div>
-      `;
-    }
-
-    function renderAnalysisLatestDraw(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-card">
-          <div class="analysis-card-title">Kỳ mới nhất</div>
-          <div class="analysis-chip-row">${renderAnalysisChips(d.latestDraw?.numbers || [])}</div>
-        </div>
-        <div class="analysis-section-grid">
-          <section class="analysis-card"><div class="analysis-card-title">Lặp từ kỳ trước</div><div class="analysis-chip-row">${renderAnalysisChips(d.repeatedFromPrevious || [])}</div></section>
-          <section class="analysis-card"><div class="analysis-card-title">Slide ±1</div><div class="analysis-chip-row">${renderAnalysisChips(d.slideNumbers || [])}</div></section>
-        </div>
-      `;
-    }
-
-    function renderAnalysisConsecutive(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-grid">${renderAnalysisMetricCards([
-          { label: "Chuỗi dài nhất", value: d.maxConsecutiveLength || 0 },
-          { label: "Trạng thái", value: d.sequenceRiskStatus || "--" },
-          { label: "Có chuỗi dài", value: d.hasLongSequence ? "Có" : "Không" },
-        ])}</div>
-        <h3 class="analysis-panel-title">Cặp liên tiếp</h3>
-        <div class="analysis-chip-row">${renderAnalysisChips((d.consecutivePairs || []).map(item => item.join("-")))}</div>
-        <h3 class="analysis-panel-title">Bộ ba liên tiếp</h3>
-        <div class="analysis-chip-row">${renderAnalysisChips((d.consecutiveTriples || []).map(item => item.join("-")))}</div>
-      `;
-    }
-
-    function renderAnalysisOverdue(payload) {
-      const rows = (payload?.data?.items || []).map(item => ({
-        number: item.number,
-        currentSkip: item.currentSkip,
-        maxSkip: item.maxSkip,
-        avgGap: item.avgGap,
-        overdueIndex: item.overdueIndex,
-        status: item.status,
+      const drawLabel = payload.totalDraws < payload.requestedDrawCount
+        ? `${payload.totalDraws.toLocaleString("vi-VN")} / ${payload.requestedDrawCount.toLocaleString("vi-VN")}`
+        : payload.totalDraws.toLocaleString("vi-VN");
+      scope.textContent = analysisState.drawPreset === "all"
+        ? `Tất cả • ${payload.totalDraws.toLocaleString("vi-VN")} Kỳ • `
+        : `${drawLabel} kỳ gần nhất • `;
+      const dates = document.createElement("span");
+      dates.className = "frequency-scope-dates";
+      dates.textContent = `${payload.fromDate} → ${payload.toDate}`;
+      scope.append(dates);
+      const { main, special } = payload.data;
+      const balancedTables = special.supported && main.items.length === special.items.length;
+      out.innerHTML = `<div class="frequency-tables has-side${special.supported ? " has-special" : ""}${balancedTables ? " has-balanced-tables" : ""}">${renderFrequencyTable(main, false, payload.latestDraw, payload.previousDraw)}<div class="frequency-side">${special.supported ? renderFrequencyTable(special, true, payload.latestDraw, payload.previousDraw) : ""}${renderAnalysisSelectedPrediction()}</div></div>`;
+      out.querySelector("#analysisPredictSelectedBtn")?.addEventListener("click", () => {
+        const selection = getAnalysisPredictionSelection();
+        if (selection.message) return;
+        const prior = /^\d+$/.test(analysisState.predictionCount) && BigInt(analysisState.predictionCount) > 0n ? BigInt(analysisState.predictionCount) : 5n;
+        analysisState.predictionCount = String(prior > selection.capacity ? selection.capacity : prior);
+        analysisState.predictionCountOpen = true;
+        renderAnalysis();
+        const input = out.querySelector("#analysisPredictionCountInput"); input?.focus(); input?.select();
+      });
+      out.querySelector("#analysisPredictionCountInput")?.addEventListener("input", event => {
+        const input = event.target, capacity = getAnalysisPredictionSelection().capacity;
+        if (/^\d+$/.test(input.value) && BigInt(input.value) > capacity) input.value = String(capacity);
+        analysisState.predictionCount = input.value;
+        input.setCustomValidity("");
+      });
+      out.querySelector("#analysisPredictionCountCancel")?.addEventListener("click", () => {
+        analysisState.predictionCountOpen = false;
+        renderAnalysis();
+        out.querySelector("#analysisPredictSelectedBtn")?.focus({ preventScroll: true });
+      });
+      out.querySelector("#analysisPredictionCountForm")?.addEventListener("submit", event => {
+        event.preventDefault();
+        const selection = getAnalysisPredictionSelection(), input = out.querySelector("#analysisPredictionCountInput");
+        if (selection.message || !input) return;
+        const plan = createAnalysisPredictionPlan(selection.type, selection.main, selection.special, selection.size, input.value, selection.mode);
+        if (!plan) { input.setCustomValidity(`Nhập số bộ từ 1 đến ${selection.capacity.toLocaleString("vi-VN")}.`); input.reportValidity(); return; }
+        analysisState.predictionPlan = plan;
+        analysisState.predictionCount = input.value;
+        analysisState.predictionPage = 0;
+        analysisState.predictionTickets = getAnalysisTicketPage(plan);
+        analysisState.predictionKey = selection.key;
+        analysisState.predictionCountOpen = false;
+        renderAnalysis();
+        out.querySelector("#analysisPredictSelectedBtn")?.focus({ preventScroll: true });
+      });
+      out.querySelectorAll("[data-analysis-ticket-page]").forEach(button => button.addEventListener("click", () => {
+        const plan = analysisState.predictionPlan;
+        if (!plan || analysisState.predictionKey !== getAnalysisPredictionSelection().key) return;
+        const last = Number((plan.count - 1n) / 6n), action = button.dataset.analysisTicketPage;
+        analysisState.predictionPage = action === "first" ? 0 : action === "last" ? last
+          : Math.max(0, Math.min(last, analysisState.predictionPage + (action === "next" ? 1 : -1)));
+        analysisState.predictionTickets = getAnalysisTicketPage(plan, BigInt(analysisState.predictionPage) * 6n);
+        renderAnalysis();
+        out.querySelector(`[data-analysis-ticket-page="${action}"]`)?.focus({ preventScroll: true });
       }));
-      return renderAnalysisSimpleTable([
-        { key: "number", label: "Số" },
-        { key: "currentSkip", label: "Kỳ chưa về" },
-        { key: "maxSkip", label: "Max skip" },
-        { key: "avgGap", label: "Avg gap" },
-        { key: "overdueIndex", label: "Index" },
-        { key: "status", label: "Trạng thái" },
-      ], rows);
+      ["analysisPredictionMode", "analysisPredictionBaoLevel"].forEach(id => out.querySelector(`#${id}`)?.addEventListener("change", event => {
+        if (id === "analysisPredictionMode") analysisState.predictionMode = event.target.value === "bao" ? "bao" : "normal";
+        else analysisState.predictionBaoLevel = Number(event.target.value);
+        clearAnalysisPrediction();
+        renderAnalysis();
+        out.querySelector(`#${id}`)?.focus({ preventScroll: true });
+      }));
+      out.querySelector("#analysisPredictionKenoSize")?.addEventListener("change", event => {
+        analysisState.predictionKenoSize = Math.max(1, Math.min(10, Number(event.target.value) || 5));
+        clearAnalysisPrediction();
+        renderAnalysis();
+        out.querySelector("#analysisPredictionKenoSize")?.focus({ preventScroll: true });
+      });
+      out.querySelectorAll("[data-metric-sort]").forEach(button => button.addEventListener("click", () => {
+        const groupKey = button.dataset.metricGroup, metric = button.dataset.metricSort;
+        if (!["currentDelay", "averageDelay"].includes(metric)) return;
+        const stateKey = groupKey === "special" ? "sortMetricSpecial" : "sortMetricMain";
+        analysisState[stateKey] = analysisState[stateKey] === metric ? "" : metric;
+        analysisState[groupKey === "special" ? "sortStreakSpecial" : "sortStreakMain"] = false;
+        renderAnalysis();
+        out.querySelector(`[data-metric-group="${groupKey}"][data-metric-sort="${metric}"]`)?.focus({ preventScroll: true });
+      }));
+      out.querySelectorAll("[data-streak-sort]").forEach(button => button.addEventListener("click", () => {
+        const groupKey = button.dataset.streakSort;
+        const stateKey = groupKey === "special" ? "sortStreakSpecial" : "sortStreakMain";
+        analysisState[stateKey] = !analysisState[stateKey];
+        analysisState[groupKey === "special" ? "sortMetricSpecial" : "sortMetricMain"] = "";
+        renderAnalysis();
+        out.querySelector(`[data-streak-sort="${groupKey}"]`)?.focus({ preventScroll: true });
+      }));
+      out.querySelectorAll("[data-frequency-sort]").forEach(button => {
+        button.addEventListener("click", () => {
+          const groupKey = button.dataset.sortGroup;
+          analysisState[groupKey === "special" ? "sortSpecial" : "sortMain"] = button.dataset.frequencySort;
+          analysisState[groupKey === "special" ? "sortStreakSpecial" : "sortStreakMain"] = false;
+          analysisState[groupKey === "special" ? "sortMetricSpecial" : "sortMetricMain"] = "";
+          saveAnalysisUiState();
+          renderAnalysis();
+          out.querySelector(`[data-frequency-group="${groupKey}"] .frequency-sort-toggle`)?.focus({ preventScroll: true });
+        });
+      });
+      out.querySelectorAll("[data-frequency-pick]").forEach(button => {
+        button.addEventListener("click", () => {
+          const number = button.dataset.frequencyPick;
+          const groupKey = button.dataset.pickGroup;
+          const marks = getAnalysisMarks(groupKey === "special");
+          const index = marks.indexOf(number);
+          if (index >= 0) marks.splice(index, 1);
+          else marks.push(number);
+          clearAnalysisPrediction();
+          saveAnalysisMarks();
+          renderAnalysis();
+          out.querySelector(`[data-pick-group="${groupKey}"][data-frequency-pick="${number}"]`)?.focus({ preventScroll: true });
+        });
+      });
     }
 
-    function renderAnalysisPoisson(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-badge-row">
-          <span class="analysis-badge">lambda ${escapeHtml(formatAnalysisValue(d.lambda))}</span>
-          <span class="analysis-badge">P0 ${escapeHtml(formatAnalysisValue(d.p0))}</span>
-          <span class="analysis-badge">P1 ${escapeHtml(formatAnalysisValue(d.p1))}</span>
-          <span class="analysis-badge">P2 ${escapeHtml(formatAnalysisValue(d.p2))}</span>
-          <span class="analysis-badge">P3+ ${escapeHtml(formatAnalysisValue(d.p3plus))}</span>
-        </div>
-        ${renderAnalysisSimpleTable([
-          { key: "number", label: "Số" },
-          { key: "observed", label: "Thực tế" },
-          { key: "expected", label: "Kỳ vọng" },
-          { key: "hotColdStatus", label: "Hot/Cold" },
-          { key: "anomalyScore", label: "Bất thường" },
-        ], d.items || [])}
-      `;
-    }
-
-    function renderAnalysisKnn(payload) {
-      const d = payload?.data || {};
-      return `
-        ${renderAnalysisSimpleTable([
-          { key: "drawId", label: "Kỳ" },
-          { key: "drawDate", label: "Ngày" },
-          { key: "numbersText", label: "Bộ số" },
-          { key: "distance", label: "Khoảng cách" },
-          { key: "similarityPercent", label: "Tương đồng %" },
-          { key: "nextText", label: "Kỳ sau lịch sử" },
-        ], (d.neighbors || []).map(item => ({
-          ...item,
-          numbersText: (item.numbers || []).join(" "),
-          nextText: (item.nextDrawNumbers || []).join(" "),
-        })))}
-        <h3 class="analysis-panel-title">Số theo sau từ các kỳ tương đồng</h3>
-        ${renderAnalysisNumberCountList(d.followNumbersFromNeighbors || [])}
-      `;
-    }
-
-    function renderAnalysisChain(payload) {
-      return renderAnalysisSimpleTable([
-        { key: "leadNumber", label: "Lead" },
-        { key: "followNumber", label: "Follow" },
-        { key: "count", label: "Số lần" },
-        { key: "leadCount", label: "Lead count" },
-        { key: "probability", label: "Xác suất" },
-      ], payload?.data?.topChains || []);
-    }
-
-    function renderAnalysisRelationships(payload) {
-      const d = payload?.data || {};
-      return `
-        <h3 class="analysis-panel-title">Cặp thân thiết</h3>
-        ${renderAnalysisNumberCountList(d.coOccurrencePairs || [], "pair", "count")}
-        <h3 class="analysis-panel-title">Bộ ba thường gặp</h3>
-        ${renderAnalysisNumberCountList(d.frequentTriples || [], "triple", "count")}
-        <h3 class="analysis-panel-title">Cặp kỵ</h3>
-        ${renderAnalysisNumberCountList(d.incompatiblePairs || [], "pair", "count")}
-      `;
-    }
-
-    function renderAnalysisModulo(payload) {
-      const d = payload?.data || {};
-      const rows = [
-        ...Object.entries(d.mod3 || {}).map(([key, value]) => ({ group: `mod3 = ${key}`, count: value })),
-        ...Object.entries(d.mod5 || {}).map(([key, value]) => ({ group: `mod5 = ${key}`, count: value })),
-        ...Object.entries(d.unitDigits || {}).map(([key, value]) => ({ group: `đuôi ${key}`, count: value })),
-      ];
-      return `
-        <div class="analysis-badge-row">
-          <span class="analysis-badge">Pattern mod3: ${escapeHtml(d.positionalModulo?.mod3 || "--")}</span>
-          <span class="analysis-badge">Pattern mod5: ${escapeHtml(d.positionalModulo?.mod5 || "--")}</span>
-        </div>
-        ${renderAnalysisSimpleTable([
-          { key: "group", label: "Nhóm" },
-          { key: "count", label: "Số lần" },
-        ], rows)}
-      `;
-    }
-
-    function renderAnalysisAdvanced(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-grid">${renderAnalysisMetricCards([
-          { label: "Span", value: d.span },
-          { label: "Prime count", value: d.primeCount },
-          { label: "Beauty score", value: d.beautyScore },
-        ])}</div>
-        <h3 class="analysis-panel-title">Số nguyên tố</h3>
-        <div class="analysis-chip-row">${renderAnalysisChips(d.primeNumbers || [])}</div>
-        <h3 class="analysis-panel-title">Cặp bóng / đảo / slide</h3>
-        <div class="analysis-chip-row">${renderAnalysisChips([...(d.shadowPairs || []), ...(d.invertedPairs || []), ...(d.slideNumbers || [])].map(item => item.join("-")))}</div>
-      `;
-    }
-
-    function renderAnalysisSpecial(payload) {
-      const d = payload?.data || {};
-      if (d.supported === false) return `<div class="analysis-empty">${escapeHtml(d.message || "Không hỗ trợ số đặc biệt.")}</div>`;
-      return `
-        <div class="analysis-badge-row">
-          <span class="analysis-badge">Expected ${escapeHtml(formatAnalysisValue(d.specialExpected))}</span>
-          <span class="analysis-badge">Current skip ${escapeHtml(formatAnalysisValue(d.specialCurrentSkip))}</span>
-          <span class="analysis-badge">Overdue index ${escapeHtml(formatAnalysisValue(d.specialOverdueIndex))}</span>
-        </div>
-        <h3 class="analysis-panel-title">ĐB nóng</h3>
-        ${renderAnalysisNumberCountList(d.topSpecialHot || [])}
-        <h3 class="analysis-panel-title">ĐB lạnh</h3>
-        ${renderAnalysisNumberCountList(d.topSpecialCold || [])}
-      `;
-    }
-
-    function renderAnalysisWeekday(payload) {
-      const d = payload?.data || {};
-      return `
-        <h3 class="analysis-panel-title">Gợi ý theo thứ hiện tại</h3>
-        <div class="analysis-chip-row">${renderAnalysisChips((d.currentWeekdaySuggestion?.numbers || []).map(item => `${item.number} (${item.count})`))}</div>
-        ${renderAnalysisSimpleTable([
-          { key: "weekday", label: "Thứ" },
-          { key: "drawCount", label: "Số kỳ" },
-          { key: "topText", label: "Top số" },
-        ], (d.weekdayStats || []).map(item => ({
-          ...item,
-          topText: (item.topNumbers || []).map(row => `${row.number}(${row.count})`).join(", "),
-        })))}
-      `;
-    }
-
-    function renderAnalysisSmartWheel(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-card">
-          <div class="analysis-card-title">Pool được chọn</div>
-          <div class="analysis-chip-row">${renderAnalysisChips(d.selectedPool || [])}</div>
-        </div>
-        <h3 class="analysis-panel-title">Vé sinh ra</h3>
-        <div class="analysis-ticket-list">${(d.generatedTickets || []).map(ticket => `<div class="analysis-ticket">${renderAnalysisChips(ticket)}</div>`).join("") || `<div class="analysis-empty">${escapeHtml(d.message || "Chưa tạo vé.")}</div>`}</div>
-      `;
-    }
-
-    function renderAnalysisScore(payload) {
-      const d = payload?.data || {};
-      return `
-        <div class="analysis-score-box">
-          <div class="analysis-score-ring">${escapeHtml(formatAnalysisValue(d.finalScore || 0))}</div>
-          <div>
-            <div class="analysis-card-title">Final score</div>
-            <div class="analysis-chip-row">${renderAnalysisChips(d.numbers || [])}</div>
-          </div>
-        </div>
-        <div class="analysis-grid">${renderAnalysisMetricCards([
-          { label: "Balance", value: d.balanceScore },
-          { label: "Sum", value: d.sumScore },
-          { label: "Gap", value: d.gapScore },
-          { label: "Distribution", value: d.distributionScore },
-          { label: "Relationship", value: d.relationshipScore },
-          { label: "Beauty", value: d.beautyScore },
-        ])}</div>
-      `;
-    }
-
-    function renderAnalysisAll(payload) {
-      const d = payload?.data || {};
-      const blocks = [
-        ["Tổng quan", renderAnalysisOverview({ data: d.overview || {} })],
-        ["Bộ số", renderAnalysisGeneral({ data: d.general || {} })],
-        ["Tỷ lệ", renderAnalysisRatios({ data: d.ratios || {} })],
-        ["Gan", renderAnalysisOverdue({ data: { items: d.overdue?.topOverdue || [] } })],
-        ["Poisson", renderAnalysisPoisson({ data: d.poisson || {} })],
-        ["KNN", renderAnalysisKnn({ data: d.knn || {} })],
-        ["Quan hệ", renderAnalysisRelationships({ data: d.relationships || {} })],
-        ["Nâng cao", renderAnalysisAdvanced({ data: d.advanced || {} })],
-        ["Điểm", renderAnalysisScore({ data: d.score || {} })],
-      ];
-      return blocks.map(([title, html]) => `<section class="analysis-all-block"><h3 class="analysis-panel-title">${escapeHtml(title)}</h3>${html}</section>`).join("");
-    }
-
-    function getAnalysisTopNumbers(payload) {
-      const data = payload?.data || {};
-      if (Array.isArray(data.hotNumbers)) return data.hotNumbers.slice(0, 3).map(item => item.number);
-      if (Array.isArray(data.numbers)) return data.numbers.slice(0, 3);
-      if (Array.isArray(data.items)) return data.items.slice(0, 3).map(item => item.number).filter(Boolean);
-      if (Array.isArray(payload?.latestDraw?.numbers)) return payload.latestDraw.numbers.slice(0, 3);
-      return [];
-    }
-
-    function saveAnalysisHistory() {
-      const payload = analysisState.lastPayload;
-      if (!payload?.ok) {
-        analysisState.error = "Chưa có phân tích hợp lệ để lưu.";
-        renderAnalysis(payload);
-        return;
-      }
-      if (!Array.isArray(store.analysisHistory)) store.analysisHistory = [];
-      const summary = payload.data?.summaryText || payload.explanations?.[1] || `${formatAnalysisModeLabel(payload.mode)} ${payload.type}`;
-      const entry = {
-        id: `analysis_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-        type: payload.type,
-        period: payload.period,
-        mode: payload.mode,
-        createdAt: getSyncedIsoString(),
-        summary,
-        topNumbers: getAnalysisTopNumbers(payload),
-        snapshot: {
-          totalDraws: payload.totalDraws || 0,
-          latestDrawId: payload.latestDraw?.drawId || "",
-          mainHighlights: getAnalysisTopNumbers(payload),
-        },
-      };
-      store.analysisHistory.unshift(entry);
-      while (store.analysisHistory.length > MAX_ANALYSIS_HISTORY) store.analysisHistory.pop();
-      saveStore();
-      const status = document.getElementById("analysisStatus");
-      if (status) {
-        status.hidden = false;
-        status.textContent = "Đã lưu phân tích vào lịch sử.";
-      }
-    }
-
-    function startAnalysisAutoRefresh() {
-      stopAnalysisAutoRefresh();
-      if (!analysisState.autoRefresh || predictPageModeValue !== PREDICTION_MODE_ANALYSIS) return;
-      analysisState.timer = setInterval(() => {
-        loadAnalysis({ force: true, silent: true });
-      }, ANALYSIS_AUTO_REFRESH_MS);
-    }
-
-    function stopAnalysisAutoRefresh() {
-      if (analysisState.timer) clearInterval(analysisState.timer);
-      analysisState.timer = null;
+    function resetAnalysisSession() {
+      analysisState.captureSerial++;
+      analysisState.captureBusy = false;
+      const captureStatus = document.getElementById("analysisCaptureStatus");
+      if (captureStatus) { captureStatus.hidden = true; captureStatus.textContent = ""; }
+      analysisState.refreshToken++;
+      analysisState.controller?.abort();
+      analysisState.controller = null;
+      analysisState.loading = false;
+      analysisState.lastPayload = null;
+      analysisState.error = "";
+      analysisState.availableDrawsByType = {};
+      analysisState.marksByType = {};
+      analysisState.marksOwner = "";
+      analysisState.sortStreakMain = false;
+      analysisState.sortStreakSpecial = false;
+      analysisState.sortMetricMain = "";
+      analysisState.sortMetricSpecial = "";
+      clearAnalysisPrediction();
+      analysisState.predictionCount = "5";
+      analysisState.predictionKenoSize = 5;
+      analysisState.predictionMode = "normal";
+      analysisState.predictionBaoLevel = 0;
+      renderAnalysis(null);
     }
 
     function refreshAnalysisAfterLiveUpdate() {
-      if (predictPageModeValue !== PREDICTION_MODE_ANALYSIS) return;
-      loadAnalysis({ force: true, silent: true });
+      if (!document.hidden && predictPageModeValue === PREDICTION_MODE_ANALYSIS) void loadAnalysis();
     }
 
     function getChartStatsTypeMeta(typeKey) {

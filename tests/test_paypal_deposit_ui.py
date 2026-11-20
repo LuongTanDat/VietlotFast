@@ -15,18 +15,19 @@ class PaypalDepositUITests(unittest.TestCase):
         section = html[html.index('    <section id="paypalDepositSection"'):html.index('    <section id="liveBoardSection"')]
         core = (ROOT/'frontend/vietlott-web-core.js').read_text(encoding='utf-8')
         constants = core[core.index('    const MAX_PAYPAL_TOPUPS'):core.index('    const MAX_LUCKY_WHEEL_HISTORY')]
-        names = ('ensurePaypalTopupState', 'getPaypalTopupPackageById', 'convertRealMoneyToPaypal', 'getPaypalBonusPackage', 'calculatePaypalCredit', 'formatPaypalCredit', 'formatPaypalPercent', 'isValidPaypalDepositAmount', 'renderPaypalRatePreview', 'getPaypalDepositAmount', 'showPaypalDepositMessage', 'setSelectedPaypalTopupPackage', 'resetPaypalDepositForm', 'renderPaypalTopupPackages', 'renderPaypalTopupHistory', 'renderPaypalDepositSection', 'setupPaypalDepositForm', 'formatLuckyWheelAmount')
+        names = ('ensurePaypalTopupState', 'getPaypalTopupPackageById', 'setPaypalDepositRate', 'convertRealMoneyToPaypal', 'getPaypalBonusPackage', 'calculatePaypalCredit', 'formatPaypalCredit', 'formatPaypalPercent', 'isValidPaypalDepositAmount', 'renderPaypalRatePreview', 'getPaypalDepositAmount', 'showPaypalDepositMessage', 'setSelectedPaypalTopupPackage', 'resetPaypalDepositForm', 'renderPaypalTopupPackages', 'renderPaypalTopupHistory', 'renderPaypalDepositSection', 'setupPaypalDepositForm', 'formatLuckyWheelAmount')
         code = constants+'\n'.join(js_function(core, name) for name in names)
         fixture = '''
 let selectedPaypalTopupPackageId='',currentUser='fixture',currentAccountId='123456789012',store={paypalBalance:123456,walletVersion:0,paypalTopups:[]};
-let config={configured:false,environment:'production',minimum:1000000,maximum:1000000000,step:100000};
-let migratedKeys=[],manualOrders=[],orders=[],serverWallet={paypalBalance:123456,walletVersion:0},fetchCalls=[],hold=false,held=[];
+let config={configured:false,environment:'production',minimum:1000000,maximum:1000000000,step:100000,topupRate:{day:'2026-11-08',numerator:'125000000',denominator:'100000000',rate:'1.25',nextCloseAt:'2026-11-08T17:00:00Z'}};
+let migratedKeys=[],manualOrders=[],orders=[],serverWallet={paypalBalance:123456,walletVersion:0},fetchCalls=[],hold=false,held=[],rateChangeOnce=false;
 let manualInstructions='Thông tin nhận tiền thử';
 const escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const applyServerWallet=wallet=>{if((wallet.walletVersion||0)>=(store.walletVersion||0))Object.assign(store,wallet)};
 const renderCurrencyBar=()=>{document.getElementById('depositPaypalBalance').textContent=store.paypalBalance.toLocaleString('vi-VN')};
 window.fetch=async(path,opts)=>{
  fetchCalls.push({path,body:opts.body||'',user:currentUser});
+  if(opts.method==='POST'&&rateChangeOnce){rateChangeOnce=false;return new Response(JSON.stringify({ok:false,code:'RATE_CHANGED',message:'Tỉ giá nạp đã chuyển sang ngày mới.'}),{status:409,headers:{'Content-Type':'application/json'}})}
  let data;
  if(path.endsWith('/config'))data={ok:true,...config};
  else if(path==='/api/payments/manual')data={ok:true,instructions:manualInstructions,orders:manualOrders,legacyKeys:migratedKeys,store:currentUser==='fixture'?serverWallet:{paypalBalance:0,walletVersion:0}};
@@ -293,6 +294,23 @@ window.uiErrors=[];window.addEventListener('error',event=>uiErrors.push(event.me
                 b.value('orders[0].status="TEST_PAID";orders[0].environment="sandbox";config.environment="sandbox";VietlottBankTopup.refresh()')
                 wait('document.getElementById("depositGatewayNotice").textContent.includes("thử nghiệm")')
                 self.assertEqual(b.value('store.paypalBalance'),186581)
+                b.value('orders[0].exchangeRate={...config.topupRate};config.topupRate={...config.topupRate,day:"2026-11-09",numerator:"133995123",rate:"1.33995123",nextCloseAt:"2026-11-09T17:00:00Z"};rateChangeOnce=true;window.postsBeforeRollover=fetchCalls.filter(x=>x.body).length;document.getElementById("paypalDepositForm").requestSubmit()')
+                wait('document.getElementById("depositCurrentRate").textContent.includes("1,33995123")')
+                self.assertEqual(b.value('fetchCalls.filter(x=>x.body).length'),b.value('postsBeforeRollover')+1)
+                self.assertEqual(b.value('calculatePaypalCredit(50000,"starter").totalCredit'),67668)
+                self.assertTrue(b.value('[...document.querySelectorAll("#depositPackageGrid [data-package-id]")].every(button=>{const item=getPaypalTopupPackageById(button.dataset.packageId),credit=button.querySelector(".deposit-package-credit");return !credit||credit.textContent===formatPaypalCredit(calculatePaypalCredit(item.amount,item.id).totalCredit)+" PayPal"})'))
+                evidence=ROOT/'runtime/logs/daily_topup_rates_20261108';evidence.mkdir(parents=True,exist_ok=True)
+                for width in (320,390,1440):
+                    b.call('Emulation.setDeviceMetricsOverride',{'width':width,'height':1000,'deviceScaleFactor':1,'mobile':False},page=True)
+                    self.assertTrue(b.value('document.documentElement.scrollWidth<=innerWidth+1&&document.getElementById("depositCurrentRate").scrollWidth<=document.getElementById("depositCurrentRate").clientWidth+1'),width)
+                    if width in (390,1440):
+                        shot=b.call('Page.captureScreenshot',{'format':'png','captureBeyondViewport':True},page=True)
+                        (evidence/f'daily-deposit-{width}.png').write_bytes(base64.b64decode(shot['data']))
+                self.assertTrue(b.value('document.getElementById("depositHistoryList").textContent.includes("1,25 PayPal · 2026-11-08")'))
+                self.assertIn('rateDay=2026-11-08',b.value('fetchCalls.filter(x=>x.body).at(-1).body'))
+                b.value('document.getElementById("paypalDepositForm").requestSubmit()')
+                wait('fetchCalls.filter(x=>x.body).length===postsBeforeRollover+2')
+                self.assertTrue(b.value('(()=>{const a=fetchCalls.filter(x=>x.body).slice(-2).map(x=>new URLSearchParams(x.body));return a[0].get("requestId")===a[1].get("requestId")&&a[1].get("rateDay")==="2026-11-09"})()'))
                 b.value('hold=true;VietlottBankTopup.refresh()')
                 wait('held.length===3')
                 b.value('document.getElementById("depositHistoryOpen").click();currentUser="other";currentAccountId="987654321098";store={paypalBalance:0,walletVersion:0,paypalTopups:[]};hold=false;window.dispatchEvent(new Event("dvlf:auth-changed"));for(const reply of held.splice(0))reply()')

@@ -6,6 +6,7 @@
   const state = {view:"wallet",kind:"all", page:1, pages:1, controller:null, serial:0};
   const cardState = {kind:"all",page:1,pages:1,history:false,loaded:false,accountId:"",balance:"0",walletBalance:"0",currency:"PayPal"};
   const transfer = {kind:"topup",busy:false,serial:0,attempt:null,percent:null};
+  const transferInput = {composing:false,frame:null};
   const cardKinds = {transfer:"Chuyển",topup:"Nạp",withdraw:"Rút",reward:"Thưởng",interest:"Lãi suất"};
   const kinds = {topup:"Nạp tiền", spend:"Chi tiêu", reward:"Trúng thưởng", refund:"Hoàn tiền", other:"Khác"};
   const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -154,7 +155,7 @@
     if(transfer.attempt?.requestId===attempt.requestId) transfer.attempt=null;
     try { sessionStorage.removeItem(`dvlf:card-transfer:${attempt.accountId}`); } catch(_) {}
   }
-  function updateTransfer() {
+  function updateTransfer(inputEvent) {
     const disabled=!cardState.loaded || cardState.currency!=="PayPal" || transfer.busy;
     const pending=pendingTransfer();
     el("accountCardTopup").disabled=el("accountCardWithdraw").disabled=disabled;
@@ -162,7 +163,7 @@
     el("cardTransferSubmit").disabled=disabled;
     el("cardTransferCancel").disabled=transfer.busy;
     el("cardTransferAmount").readOnly=transfer.busy || !!pending;
-    normalizeTransferInput();
+    normalizeTransferInput(inputEvent);
     const topup=transfer.kind==="topup";
     const available=cardState.loaded?BigInt(topup?cardState.walletBalance:cardState.balance):0n;
     el("cardTransferPresets").querySelectorAll("button").forEach(button=>{
@@ -178,6 +179,7 @@
     el("cardTransferSubmit").textContent=transfer.busy?"Đang xử lý…":pendingTransfer()?"Kiểm tra giao dịch":topup?"Xác nhận nạp":"Xác nhận rút";
   }
   function closeTransfer() {
+    cancelAnimationFrame(transferInput.frame);transferInput.frame=null;transferInput.composing=false;
     transfer.serial++;transfer.busy=false;transfer.percent=null;
     el("accountCardTransfer").hidden=true;el("cardTransferAmount").value="";
     el("accountCardTopup").setAttribute("aria-expanded","false");el("accountCardWithdraw").setAttribute("aria-expanded","false");
@@ -208,21 +210,45 @@
   el("accountCardTopup").addEventListener("click",()=>openTransfer("topup"));
   el("accountCardWithdraw").addEventListener("click",()=>openTransfer("withdraw"));
   el("cardTransferCancel").addEventListener("click",()=>{const kind=transfer.kind;closeTransfer();updateTransfer();el(kind==="topup"?"accountCardTopup":"accountCardWithdraw").focus();});
-  function normalizeTransferInput() {
+  function normalizeTransferInput(event={}) {
     const input=el("cardTransferAmount"),raw=input.value;
+    // Let the browser finish replacing the IME range before changing value/caret.
+    if(transferInput.composing || event.isComposing) return;
+    cancelAnimationFrame(transferInput.frame);transferInput.frame=null;
     if(input.readOnly || pendingTransfer() || !/^[0-9.]*$/.test(raw)) return;
     const plain=raw.replaceAll(".","");
     if(!plain){input.value="";return;}
-    const before=(raw.slice(0,input.selectionStart).match(/[0-9]/g)||[]).length;
     let max=9007199254740991n;
     if(cardState.loaded){const available=BigInt(transfer.kind==="topup"?cardState.walletBalance:cardState.balance);max=available<0n?0n:available<max?available:max;}
     const amount=BigInt(plain);
-    input.value=number(amount>max?max:amount);
-    let caret=0,digits=0;
-    while(caret<input.value.length && digits<before){if(/[0-9]/.test(input.value[caret])) digits++;caret++;}
-    input.setSelectionRange(caret,caret);
+    const normalized=number(amount>max?max:amount);
+    if(normalized===raw) return;
+    const leadingZeros=plain.length-plain.replace(/^0+(?=\d)/,"").length;
+    const position=offset=>{
+      if(amount>max) return normalized.length;
+      const count=Math.max(0,(raw.slice(0,offset).match(/[0-9]/g)||[]).length-leadingZeros);
+      if(!count) return 0;
+      let seen=0;
+      for(let i=0;i<normalized.length;i++) {
+        if(/[0-9]/.test(normalized[i]) && ++seen===count) {
+          const afterSeparator=raw[offset-1]==="." || event.inputType==="deleteContentForward";
+          return i+1+(afterSeparator && normalized[i+1]==="."?1:0);
+        }
+      }
+      return normalized.length;
+    };
+    const start=position(input.selectionStart),end=position(input.selectionEnd),direction=input.selectionDirection;
+    input.value=normalized;
+    input.setSelectionRange(start,end,direction);
   }
-  el("cardTransferAmount").addEventListener("input",()=>{transfer.percent=null;updateTransfer();transferStatus("");});
+  el("cardTransferAmount").addEventListener("compositionstart",()=>{
+    cancelAnimationFrame(transferInput.frame);transferInput.frame=null;transferInput.composing=true;
+  });
+  el("cardTransferAmount").addEventListener("compositionend",()=>{
+    transferInput.composing=false;
+    transferInput.frame=requestAnimationFrame(()=>{transferInput.frame=null;updateTransfer();});
+  });
+  el("cardTransferAmount").addEventListener("input",event=>{transfer.percent=null;updateTransfer(event);transferStatus("");});
   el("cardTransferPresets").addEventListener("click",event=>{
     const button=event.target.closest("[data-transfer-percent]");
     if(!button || button.disabled || transfer.busy || !cardState.loaded || cardState.currency!=="PayPal" || pendingTransfer()) return;
@@ -235,9 +261,10 @@
   });
   el("accountCardTransfer").addEventListener("submit",async event=>{
     event.preventDefault();
-    if(transfer.busy || !cardState.loaded || !currentUser || state.view!=="card") return;
+    if(transfer.busy || transferInput.composing || !cardState.loaded || !currentUser || state.view!=="card") return;
     let attempt=pendingTransfer();
     try {
+      normalizeTransferInput();
       const amount=transferAmount();
       if(!attempt) {
         if(BigInt(amount)>BigInt(transfer.kind==="topup"?cardState.walletBalance:cardState.balance)) throw new Error(transfer.kind==="topup"?"Số dư ví không đủ để nạp thẻ.":"Số dư thẻ không đủ để rút.");

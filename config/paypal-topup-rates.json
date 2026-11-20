@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "timeZone": "Asia/Ho_Chi_Minh",
+  "activatedAt": "2026-11-08T15:06:52.458241Z",
+  "source": "last_market_tick_before_midnight",
+  "initialRate": "1.25",
+  "orderRateLock": "created_at"
+}

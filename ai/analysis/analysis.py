@@ -24,7 +24,7 @@ PERIOD_KEYS = {"7d", "30d", "60d", "1y", "all", "custom"}
 MODE_KEYS = {
     "overview", "general", "distribution", "ratios", "latest_draw", "consecutive",
     "overdue", "poisson", "knn", "chain", "relationships", "modulo", "advanced",
-    "special", "weekday", "smart_wheel", "score", "all",
+    "special", "weekday", "smart_wheel", "score", "all", "frequency",
 }
 THREE_DIGIT_TOKEN_RE = re.compile(r"(?<!\d)\d{3}(?!\d)")
 
@@ -463,6 +463,48 @@ def build_general(type_key, draws, **kwargs):
         "explanation": "Bộ số mới nhất được so với phân bố tổng và biên độ của lịch sử trong khoảng lọc.",
     }
     return data, [data["explanation"]]
+
+
+def build_frequency(type_key, draws, previous_draws=None, **kwargs):
+    """Both frequency tables use the same filtered draw snapshot and full domains."""
+    previous_draws = draws[:-1] if previous_draws is None else previous_draws
+
+    def occurrences(snapshot, special):
+        seen = {}
+        for index, draw in enumerate(snapshot):
+            values = ([draw["special"]] if draw.get("special") else []) if special else draw.get("numbers", [])
+            for number in set(values):
+                if number not in seen:
+                    seen[number] = [index, index, 1]
+                else:
+                    seen[number][1] = index
+                    seen[number][2] += 1
+        return seen
+
+    def mean(occurrence):
+        return (round((occurrence[1] - occurrence[0]) / (occurrence[2] - 1) - 1, 4)
+                if occurrence and occurrence[2] >= 2 else None)
+
+    def group(special=False):
+        supported = not special or bool(GAME_CONFIGS[type_key].get("has_special"))
+        counts = frequency_counts(draws, special=special) if supported else Counter()
+        total = sum(counts.values())
+        seen = occurrences(draws, special) if supported else {}
+        previous_seen = occurrences(previous_draws, special) if supported else {}
+        items = []
+        for number in number_universe(type_key, special) if supported else []:
+            occurrence = seen.get(number)
+            previous = previous_seen.get(number)
+            items.append({"number": number, "count": int(counts.get(number, 0)),
+                          "currentDelay": len(draws) - 1 - occurrence[1] if occurrence else len(draws),
+                          "delayLowerBound": occurrence is None,
+                          "averageDelay": mean(occurrence),
+                          "previousDelay": len(previous_draws) - 1 - previous[1] if previous else None,
+                          "previousAverageDelay": mean(previous)})
+        items.sort(key=lambda item: (-item["count"], item["number"]))
+        return {"supported": supported, "totalOccurrences": total, "items": items}
+
+    return {"main": group(), "special": group(True)}, []
 
 
 def build_distribution(type_key, draws, limit=100, **kwargs):
@@ -1016,6 +1058,7 @@ def build_score(type_key, draws, numbers="", **kwargs):
 
 
 MODE_BUILDERS = {
+    "frequency": build_frequency,
     "overview": build_overview,
     "general": build_general,
     "distribution": build_distribution,
@@ -1086,6 +1129,7 @@ def build_analysis_payload(
     pick=0,
     max_tickets=20,
     csv_path=None,
+    draw_count=None,
 ):
     normalized_type = normalize_type(type_key)
     if normalized_type not in SUPPORTED_TYPES:
@@ -1093,6 +1137,9 @@ def build_analysis_payload(
     mode = str(mode or "overview").strip().lower()
     if mode not in MODE_KEYS:
         mode = "overview"
+    if draw_count is not None and (mode != "frequency" or isinstance(draw_count, bool)
+                                  or not isinstance(draw_count, int) or not 1 <= draw_count <= 2147483647):
+        return {"ok": False, "message": "Số kỳ phải là số nguyên dương hợp lệ.", "warnings": []}
     period = str(period or "30d").strip().lower()
     if period not in PERIOD_KEYS:
         period = "30d"
@@ -1110,7 +1157,13 @@ def build_analysis_payload(
             "message": "Chức năng này chưa hỗ trợ đầy đủ cho loại vé hiện tại.",
             "warnings": ["CSV hiện tại chưa có đủ dữ liệu 3 chữ số trong cột Hiển thị."],
         }
-    filtered, from_dt, to_dt = filter_draws_by_period(draws, period, from_date, to_date)
+    if draw_count is not None:
+        filtered = draws[-draw_count:]
+        from_dt = min((draw["date"] for draw in filtered), default=None)
+        to_dt = max((draw["date"] for draw in filtered), default=None)
+        period = "draws"
+    else:
+        filtered, from_dt, to_dt = filter_draws_by_period(draws, period, from_date, to_date)
     if not filtered:
         return {"ok": False, "message": "Không đủ dữ liệu để phân tích.", "warnings": []}
     if mode == "special" and not GAME_CONFIGS[normalized_type].get("has_special"):
@@ -1119,7 +1172,12 @@ def build_analysis_payload(
             "message": "Chức năng này chưa hỗ trợ đầy đủ cho loại vé hiện tại.",
             "warnings": ["Loại vé hiện tại không có số đặc biệt để phân tích riêng."],
         }
-    if mode == "all":
+    latest_index = draws.index(filtered[-1])
+    if mode == "frequency":
+        # Use the same N-draw filter ending one draw earlier to identify a lost red streak.
+        previous_draws = draws[max(0, latest_index - draw_count):latest_index] if draw_count else filtered[:-1]
+        data, explanations = build_frequency(normalized_type, filtered, previous_draws=previous_draws)
+    elif mode == "all":
         data, explanations = build_all(
             normalized_type, filtered, limit=10, k=k, combo_size=combo_size,
             include_special=include_special, numbers=numbers, pick=pick, max_tickets=max_tickets,
@@ -1149,7 +1207,10 @@ def build_analysis_payload(
         "fromDate": date_iso(from_dt),
         "toDate": date_iso(to_dt),
         "totalDraws": len(filtered),
+        "requestedDrawCount": draw_count,
+        "availableDraws": len(draws),
         "latestDraw": draw_to_json(filtered[-1]),
+        "previousDraw": draw_to_json(draws[latest_index - 1]) if latest_index > 0 else None,
         "sourceFile": Path(source_path).name,
         "generatedAt": datetime.now().isoformat(timespec="seconds"),
         "data": data,
@@ -1168,6 +1229,7 @@ def parse_args(argv):
     analysis.add_argument("--from", dest="from_date", default="")
     analysis.add_argument("--to", dest="to_date", default="")
     analysis.add_argument("--limit", type=int, default=20)
+    analysis.add_argument("--draw-count", type=int, default=None)
     analysis.add_argument("--k", type=int, default=5)
     analysis.add_argument("--combo-size", type=int, default=2)
     analysis.add_argument("--include-special", default="true")
@@ -1200,6 +1262,7 @@ def main(argv=None):
             numbers=args.numbers,
             pick=args.pick,
             max_tickets=args.max_tickets,
+            draw_count=args.draw_count,
         )
     except Exception as exc:
         payload = {

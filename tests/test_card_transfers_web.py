@@ -179,12 +179,59 @@ class CardTransferTests(unittest.TestCase):
         def amount(text):
             b.value("document.getElementById('cardTransferAmount').focus();document.getElementById('cardTransferAmount').select()")
             b.call('Input.insertText', {'text': text}, page=True)
+        def exact_input_checks(maximum):
+            node = "document.getElementById('cardTransferAmount')"
+            for raw in ['100', '1000', '11000', '17505', '100000', '2211', '00017505']:
+                b.value(node + '.focus();' + node + '.select()')
+                for length in range(1, len(raw) + 1):
+                    prefix = raw[:length]
+                    b.call('Input.imeSetComposition', dict(text=prefix, selectionStart=length, selectionEnd=length), page=True)
+                    self.assertEqual(b.value(node + '.value'), prefix, ('native composition', prefix))
+                b.call('Input.insertText', dict(text=raw), page=True)
+                expected = f'{int(raw):,}'.replace(',', '.')
+                wait(node + '.value===' + json.dumps(expected))
+                self.assertEqual(b.value(node + '.selectionStart'), len(expected))
+            b.value(node + '.select()')
+            for digit in '17505':
+                for kind in ['keyDown', 'keyUp']:
+                    b.call('Input.dispatchKeyEvent', dict(type=kind, key=digit, code='Digit'+digit,
+                        windowsVirtualKeyCode=48+int(digit), text=digit if kind=='keyDown' else ''), page=True)
+            self.assertEqual(b.value(node + '.value'), '17.505')
+            amount('17505')
+            b.value(node + '.setSelectionRange(0,2)')
+            b.call('Input.imeSetComposition', dict(text='20', selectionStart=2, selectionEnd=2), page=True)
+            b.call('Input.insertText', dict(text='20'), page=True)
+            wait(node + ".value==='20.505'")
+            amount('17505')
+            b.value(node + '.setSelectionRange(3,3)')
+            for _ in range(2):
+                for kind in ['keyDown', 'keyUp']:
+                    b.call('Input.dispatchKeyEvent', dict(type=kind, key='Backspace', code='Backspace', windowsVirtualKeyCode=8), page=True)
+            self.assertEqual(b.value(node + '.value'), '1.505')
+            amount('17.505')
+            self.assertEqual(b.value(node + '.value'), '17.505')
+            b.value(node + '.select()')
+            for kind in ['keyDown', 'keyUp']:
+                b.call('Input.dispatchKeyEvent', dict(type=kind, key='Backspace', code='Backspace', windowsVirtualKeyCode=8), page=True)
+            self.assertEqual(b.value(node + '.value'), '')
+            b.call('Input.insertText', dict(text='22'), page=True)
+            self.assertEqual(b.value(node + '.value'), '22')
+            amount(str(maximum))
+            expected = f'{maximum:,}'.replace(',', '.')
+            self.assertEqual(b.value(node + '.value'), expected)
+            amount(str(maximum + 1))
+            self.assertEqual(b.value(node + '.value'), expected)
+            b.value(node + '.select()')
+            b.call('Input.imeSetComposition', dict(text='9999999', selectionStart=7, selectionEnd=7), page=True)
+            b.call('Input.insertText', dict(text='9999999'), page=True)
+            wait(node + '.value===' + json.dumps(expected))
         open_card()
         before = self.snapshot()
         b.value("document.getElementById('accountCardWithdraw').click()")
         amount('999999999999999999999')
         self.assertEqual(b.value("document.getElementById('cardTransferAmount').value"), '0')
         b.value("document.getElementById('accountCardTopup').click()")
+        exact_input_checks(1000000)
         amount('100')
         self.assertEqual(b.value("document.getElementById('cardTransferAmount').value"), '100')
         amount('1000')
@@ -204,6 +251,7 @@ class CardTransferTests(unittest.TestCase):
         self.assertEqual(self.money(), (875000, 125000))
         self.assertEqual(len(self.snapshot()['transactions']), 1)
         b.value("document.getElementById('accountCardWithdraw').click()")
+        exact_input_checks(125000)
         amount('999999999999999999999')
         self.assertEqual(b.value("document.getElementById('cardTransferAmount').value"), '125.000')
         amount('25000')

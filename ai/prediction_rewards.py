@@ -1,7 +1,7 @@
-"""Exactly-once wallet credits for paid, fully scored private portfolios.
+"""Exactly-once rewards for paid, fully scored private portfolios.
 
-The user-approved wallet reward is the displayed hypothetical VND payout,
-converted at 5/4 and floored once per purchased cycle. Viewing reports is read-only.
+New card rewards credit the displayed payout 1:1, independently of topup rates.
+Legacy wallet routing keeps its 5/4 policy. Viewing reports is read-only.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from ai import prediction_ledger as ledger
 from ai import account_card as cards
 
 VERSION = 'prediction_wallet_reward_v1'
+CARD_VERSION = 'prediction_card_reward_v2'
 
 
 def schema(db):
@@ -47,7 +48,7 @@ def _integer(value, positive=False):
     return type(value) is int and (value > 0 if positive else value >= 0) and value <= billing.MAX_SAFE
 
 
-def _calculate(cycle, groups, receipt, charge, prizes, now):
+def _calculate(cycle, groups, receipt, charge, prizes, now, to_card=False):
     game = charge['game_type']
     levels = range(1, 11) if game == 'KENO' else (None,)
     if set(groups) != set(levels):
@@ -122,12 +123,13 @@ def _calculate(cycle, groups, receipt, charge, prizes, now):
     if (ticket_total != receipt['ticket_count'] or ticket_total != charge['ticket_count']
             or charge['paypal_cost'] != ticket_total * billing.UNIT_PAYPAL):
         raise ValueError('Số vé/biên nhận và khoản thu phí không khớp.')
-    credit = reward_total * 5 // 4
+    credit = reward_total if to_card else reward_total * 5 // 4
     if not _integer(reward_total) or not _integer(credit):
         raise ValueError('Tiền thưởng vượt giới hạn số nguyên an toàn của ví.')
-    calculation = {'version':VERSION, 'cycleId':cycle, 'chargeId':charge['id'], 'game':game,
+    calculation = {'version':CARD_VERSION if to_card else VERSION, 'cycleId':cycle, 'chargeId':charge['id'], 'game':game,
                    'draw':str(charge['target_draw_id']), 'deadline':first['deadline'],
-                   'rateNumerator':5, 'rateDenominator':4, 'rounding':'floor_per_cycle',
+                   'rateNumerator':1 if to_card else 5, 'rateDenominator':1 if to_card else 4,
+                   'rounding':'none' if to_card else 'floor_per_cycle',
                    'ticketCount':ticket_total, 'rewardVnd':reward_total, 'paypal':credit,
                    'prizeContextHash':_digest(prizes.get(str(charge['target_draw_id']),{})),
                    'prizeContext':prizes.get(str(charge['target_draw_id']),{}), 'components':components}
@@ -167,7 +169,8 @@ def plan(scope, prizes=None, now=None):
         try:
             if game not in contexts:
                 contexts[game] = prizes.get(game,{}) if prizes is not None else stats.keno_prizes.load_cache()['draws'] if game == 'KENO' else stats.canonical_prizes(game)
-            item = _calculate(cycle, grouped[cycle], receipt, charge, contexts[game], now)
+            item = _calculate(cycle, grouped[cycle], receipt, charge, contexts[game], now,
+                              to_card=destination['destination']=='card')
             item['calculation']['destination'] = {**destination,'cardAccountId':card_id}
             item['hash'] = _digest(item['calculation'])
             result['ready'].append(item)
@@ -185,6 +188,10 @@ def _credit(scope, item):
     destination = calc.get('destination',{'destination':'wallet','currency':'PayPal','cardAccountId':''})
     if {key:destination[key] for key in ('destination','currency')} != cards.policy():
         raise ValueError('Nơi nhận thưởng đã thay đổi. Cần lập lại bản tính.')
+    if destination['destination']=='card' and (calc.get('version')!=CARD_VERSION
+            or calc.get('rateNumerator')!=1 or calc.get('rateDenominator')!=1
+            or calc['paypal']!=calc['rewardVnd']):
+        raise ValueError('Bản tính thưởng thẻ phải theo tỉ lệ 1:1. Cần lập lại bản tính.')
     with closing(billing.account_connection(scope.account_db)) as db:
         schema(db)
         cards.schema(db)
@@ -209,7 +216,8 @@ def _credit(scope, item):
                        (calc['chargeId'],scope.account_id,calc['cycleId'],destination['destination'],destination['currency'],amount,card_id,stamp))
             if calc['paypal']:
                 details = {'id':calc['chargeId'], 'cycleId':calc['cycleId'], 'game':calc['game'], 'draw':calc['draw'],
-                           'rewardVnd':calc['rewardVnd'], 'paypal':calc['paypal'], 'rateNumerator':5,'rateDenominator':4,
+                           'rewardVnd':calc['rewardVnd'], 'paypal':calc['paypal'],
+                           'rateNumerator':calc['rateNumerator'],'rateDenominator':calc['rateDenominator'],
                            'calculationHash':item['hash']}
                 if to_card:
                     label = {'LOTO_5_35':'Loto 5/35','LOTO_6_45':'Mega 6/45','LOTO_6_55':'Power 6/55'}.get(calc['game'],calc['game'])

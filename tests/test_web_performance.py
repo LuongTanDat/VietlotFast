@@ -1,5 +1,7 @@
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,13 +21,32 @@ class WebPerformanceContractTests(unittest.TestCase):
     def test_frontend_scripts_are_deferred_without_remote_icon_dependency(self):
         source = (ROOT / "frontend" / "vietlott-web.html").read_text(encoding="utf-8")
 
+        class Assets(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.preloads, self.scripts = {}, {}
+
+            def handle_starttag(self, tag, pairs):
+                attrs = dict(pairs)
+                if tag == 'link' and attrs.get('rel') == 'preload' and attrs.get('as') == 'script':
+                    self.preloads[urlsplit(attrs['href']).path] = attrs['href']
+                if tag == 'script' and attrs.get('src'):
+                    self.scripts[urlsplit(attrs['src']).path] = attrs
+
+        assets = Assets()
+        assets.feed(source)
+
         for filename in (
             "vietlott-web-stats.js",
             "vietlott-web-data.js",
             "vietlott-web-core.js",
         ):
-            self.assertIn(f'<link rel="preload" href="/{filename}" as="script" />', source)
-            self.assertIn(f'<script defer src="/{filename}"></script>', source)
+            path = '/' + filename
+            self.assertIn(path, assets.preloads)
+            self.assertIn(path, assets.scripts)
+            self.assertIn('defer', assets.scripts[path])
+            self.assertEqual(assets.preloads[path], assets.scripts[path]['src'])
+        self.assertIn('defer', assets.scripts['/vietlott-web-vip.js'])
         self.assertNotIn("unpkg.com/ionicons", source)
         self.assertNotIn("<ion-icon", source)
 
@@ -91,8 +112,6 @@ class WebPerformanceContractTests(unittest.TestCase):
             "vipMembershipBtn",
             "vipMembershipPanel",
             "vipMembershipStateBadge",
-            "vipMembershipRemaining",
-            "vipMembershipExpiry",
             "vipMembershipRenewBtn",
             "vipMembershipRenewMessage",
         ):
@@ -600,11 +619,15 @@ class WebPerformanceContractTests(unittest.TestCase):
     def test_windows_launcher_falls_back_to_installed_jdk(self):
         source = (ROOT / "scripts" / "chay_lotto_web.bat").read_text(encoding="utf-8")
 
-        self.assertIn("%JAVA_HOME%\\bin\\java.exe", source)
+        self.assertIn("%JAVA_HOME%\\bin\\javac.exe", source)
         self.assertIn("where javac.exe", source)
         self.assertIn('if exist "%%~dpDjava.exe"', source)
-        self.assertIn('pushd "%PROJECT_ROOT%"', source)
-        self.assertIn('-d "backend\\bin" "backend\\LottoWebServer.java"', source)
+        self.assertIn('scripts\\start_lotto_web.ps1', source)
+        self.assertIn('-ProjectRoot "%PROJECT_ROOT%"', source)
+        launcher = (ROOT / "scripts" / "start_lotto_web.ps1").read_text(encoding="utf-8")
+        self.assertIn('Push-Location -LiteralPath $Root', launcher)
+        self.assertIn("$build = 'runtime/build_launcher_'", launcher)
+        self.assertIn("'backend/LottoWebServer.java'", launcher)
         self.assertNotIn('-d "%PROJECT_ROOT%\\backend\\bin"', source)
 
 

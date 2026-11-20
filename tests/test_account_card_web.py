@@ -92,9 +92,10 @@ class AccountCardWebTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as db,db:db.execute('INSERT INTO prediction_charges VALUES(?,?,?,?,?,?,?,?,?)',paid_charge)
         shutil.copy2(fixture.scope.database,scope.database)
         cards.policy.return_value={'destination':'card','currency':'PayPal'}
-        self.assertEqual(rewards.settle(scope,apply=True,prizes={})['creditedPayPal'],50000000)
+        self.assertEqual(rewards.settle(scope,apply=True,prizes={})['creditedPayPal'],40000000)
         card=self.request('/api/account/card?history=1&kind=reward',cookie=self.cookie)[1]
-        self.assertEqual((card['total'],card['card']['balance']),(1,'100000000'))
+        self.assertEqual((card['total'],card['card']['balance']),(1,'90000000'))
+        self.assertEqual(card['events'][0]['delta'],'40000000')
         self.assertEqual(self.request('/api/store',cookie=self.cookie)[1]['store']['paypalBalance'],500000)
         self.assertEqual(self.request('/api/account/wallet-history?kind=reward',cookie=self.cookie)[1]['total'],1)
         browser=Browser(CHROME,self.work/('card-browser-'+self.username));self.addCleanup(browser.close)
@@ -109,7 +110,8 @@ class AccountCardWebTests(unittest.TestCase):
             self.fail(expression)
         wait(f"typeof currentUser!=='undefined' && currentUser==={json.dumps(self.username)} && typeof store!=='undefined' && store.paypalBalance===500000")
         browser.value("document.getElementById('walletHistoryOpen').click();document.getElementById('walletCardTab').click()")
-        wait("document.getElementById('accountCardBalance').textContent==='100.000.000'")
+        wait("document.getElementById('accountCardBalance').textContent==='90.000.000'")
+        self.assertIn('Tiền thưởng → Thẻ · 1:1',browser.value("document.querySelector('.account-bank-card-top').textContent"))
         self.assertEqual(browser.value("document.getElementById('accountCardId').textContent"),self.identity)
         self.assertEqual(browser.value("document.getElementById('accountCardHolder').textContent"),self.username)
         self.assertEqual(browser.value("document.getElementById('walletCardTab').getAttribute('aria-selected')"),'true')

@@ -119,6 +119,10 @@ class AccountBalanceTests(unittest.TestCase):
         self.server.wait(timeout=10)
         self.start_server()
         self.login()
+        # This restart invalidates the member session shared by later tests too.
+        code, _, headers = self.request('/api/login', dict(username='member_fixture', password='fixture_password'))
+        self.assertEqual(code, 200)
+        type(self).member = headers['Set-Cookie']
         self.assertEqual(self.request('/api/store', cookie=self.admin)[1]['store']['paypalBalance'], 9999999999)
         owner = next(u for u in self.request('/api/admin/users', cookie=self.admin)[1]['users']
                      if u['username']=='owner_fixture')

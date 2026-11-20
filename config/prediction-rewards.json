@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "version": "prediction_wallet_reward_v1",
+  "version": "prediction_card_reward_v2",
   "destination": "card",
   "cardCurrency": "PayPal"
 }

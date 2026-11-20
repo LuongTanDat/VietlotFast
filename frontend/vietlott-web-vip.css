@@ -1,0 +1,127 @@
+/* Spending-based VIP card; account permissions remain managed by core. */
+/* 16 evenly spaced gold/lavender/cyan samples, lifted 20% toward white. */
+#vipMembershipBtn[data-vip-level="0"], .vip-levels-grid li[data-vip-level="0"] { --vip-badge-rgb: 249, 217, 147; }
+#vipMembershipBtn[data-vip-level="1"], .vip-levels-grid li[data-vip-level="1"] { --vip-badge-rgb: 243, 213, 159; }
+#vipMembershipBtn[data-vip-level="2"], .vip-levels-grid li[data-vip-level="2"] { --vip-badge-rgb: 238, 209, 171; }
+#vipMembershipBtn[data-vip-level="3"], .vip-levels-grid li[data-vip-level="3"] { --vip-badge-rgb: 232, 206, 183; }
+#vipMembershipBtn[data-vip-level="4"], .vip-levels-grid li[data-vip-level="4"] { --vip-badge-rgb: 227, 202, 196; }
+#vipMembershipBtn[data-vip-level="5"], .vip-levels-grid li[data-vip-level="5"] { --vip-badge-rgb: 221, 199, 208; }
+#vipMembershipBtn[data-vip-level="6"], .vip-levels-grid li[data-vip-level="6"] { --vip-badge-rgb: 215, 195, 220; }
+#vipMembershipBtn[data-vip-level="7"], .vip-levels-grid li[data-vip-level="7"] { --vip-badge-rgb: 210, 191, 232; }
+#vipMembershipBtn[data-vip-level="8"], .vip-levels-grid li[data-vip-level="8"] { --vip-badge-rgb: 204, 188, 244; }
+#vipMembershipBtn[data-vip-level="9"], .vip-levels-grid li[data-vip-level="9"] { --vip-badge-rgb: 195, 195, 242; }
+#vipMembershipBtn[data-vip-level="10"], .vip-levels-grid li[data-vip-level="10"] { --vip-badge-rgb: 185, 201, 241; }
+#vipMembershipBtn[data-vip-level="11"], .vip-levels-grid li[data-vip-level="11"] { --vip-badge-rgb: 175, 208, 240; }
+#vipMembershipBtn[data-vip-level="12"], .vip-levels-grid li[data-vip-level="12"] { --vip-badge-rgb: 166, 214, 238; }
+#vipMembershipBtn[data-vip-level="13"], .vip-levels-grid li[data-vip-level="13"] { --vip-badge-rgb: 156, 221, 237; }
+#vipMembershipBtn[data-vip-level="14"], .vip-levels-grid li[data-vip-level="14"] { --vip-badge-rgb: 146, 228, 236; }
+#vipMembershipBtn[data-vip-level="15"], .vip-levels-grid li[data-vip-level="15"] { --vip-badge-rgb: 137, 234, 234; }
+#vipMembershipPanel { width: min(400px, calc(100vw - 24px)); max-height: calc(100dvh - 100px); overflow-y: auto; color: #e7eef7; background: #0d1b29; border-color: #294356; border-radius: 12px; scrollbar-width: thin; }
+#vipMembershipPanel[hidden], #vipMembershipPanel [hidden] { display: none !important; }
+#vipMembershipPanel .header-popover-head { min-height: 48px; padding: 12px 16px; }
+#vipMembershipPanel .header-popover-head strong { font-size: 15px; }
+#vipMembershipPanel .header-popover-head > div { display: flex; align-items: center; gap: 8px; }
+#vipMembershipPanel .vip-membership-state-badge { font-size: 10px; flex-shrink: 0; }
+.vip-progress-body { padding: 14px 16px 16px; font-variant-numeric: tabular-nums; }
+.vip-progress-status { padding: 28px 12px; color: #9fb5c9; text-align: center; font-size: 12px; line-height: 1.6; }
+.vip-overview { padding: 12px 0 0; margin-bottom: 14px; border-top: 1px solid #293b4c; }
+#vipProgressLevel { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 4px; color: #d2b87b; font-size: 10px; font-weight: 700; line-height: 1.2; letter-spacing: .2px; white-space: nowrap; }
+.vip-rank-number { font-size: 16px; font-weight: 800; letter-spacing: -.3px; }
+.vip-rank-number.is-current { color: #f0d389; }
+.vip-rank-number.is-next { color: #c9bd98; font-weight: 600; }
+.vip-rank-arrow { color: #758a9e; font-size: 13px; font-weight: 400; letter-spacing: 0; }
+.vip-points-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.vip-points-summary > div { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6px; }
+.vip-points-summary > div + div { padding-left: 16px; border-left: 1px solid #293b4c; }
+.vip-points-summary span { font-size: 10px; color: #9eb1c3; }
+.vip-points-summary strong { min-width: 0; max-width: 100%; color: #edf3fc; font-size: clamp(12px, 3.4vw, 15px); font-weight: 700; line-height: 1.3; letter-spacing: -.2px; white-space: normal; overflow-wrap: anywhere; }
+.vip-points-summary > div:first-child strong { color: #ead297; }
+.vip-points-summary small { color: #8198ae; font-size: 9px; }
+.vip-daily-chest { position: relative; display: grid; place-items: center; align-self: center; border: 1px solid #92753f; border-radius: 50%; background: #17232b; color: #d9b866; cursor: pointer; box-shadow: none; }
+.vip-daily-chest:hover:not(:disabled) { border-color: #f0d38b; background: #302b20; box-shadow: 0 0 0 3px #d9b86622; }
+.vip-daily-chest:disabled { cursor: default; opacity: 1; }
+#vipMembershipPanel #vipDailyClaim { width: 32px !important; min-width: 32px; height: 32px; min-height: 32px; margin: 0; padding: 5px; }
+.vip-daily-chest.is-claimed { border-color: #2f6658; background: #102a29; color: #86d9b6; }
+.vip-daily-chest.is-available { border-color: #64d9b0; background: #123730; color: #adf3d7; box-shadow: 0 0 12px #72edbb24; }
+.vip-daily-chest.is-available:hover:not(:disabled) { border-color: #a1f2d1; background: #1a493e; box-shadow: 0 0 0 3px #72edbb20; }
+.vip-daily-chest.is-available::after { content: ""; position: absolute; top: -1px; right: -1px; width: 7px; height: 7px; border: 1.5px solid #0d1b29; border-radius: 50%; background: #ff8c82; box-shadow: 0 0 5px #ff8c824d; pointer-events: none; }
+.vip-chest-icon { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 auto; color: inherit; }
+.vip-chest-icon svg { width: 100%; height: 100%; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.vip-chest-icon svg > path:first-child, .vip-chest-icon svg > path:nth-child(2) { fill: currentColor; fill-opacity: .10; }
+.vip-chest-check { display: none; }
+.is-claimed .vip-chest-check { display: block; }
+.is-claimed .vip-chest-lid { transform: translateY(-3px); }
+.vip-chest-copy { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.vip-daily-status { margin: 8px 0 14px; min-height: 15px; font-size: 9px; line-height: 1.6; text-align: center; color: #8fa5b8; overflow-wrap: anywhere; }
+.vip-daily-status.is-success { color: #83dab4; }
+.vip-daily-status.is-error { color: #f0ae9d; }
+.vip-level-progress { display: grid; grid-template-columns: minmax(0, 1fr) 32px; column-gap: 10px; row-gap: 10px; margin-bottom: 12px; }
+.vip-progress-main { min-width: 0; align-self: center; }
+.vip-progress-caption { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#vipLevelsToggle { display: grid; place-items: center; width: 24px; min-width: 24px; height: 24px; min-height: 24px; padding: 0; margin: 0; border: 1px solid #3d5061; border-radius: 50%; background: transparent; color: #b6c6d5; font-size: 10px; line-height: 1; font-weight: 600; cursor: pointer; box-shadow: none; }
+#vipLevelsToggle:hover, #vipLevelsToggle[aria-expanded="true"] { border-color: #ba9850; background: #40341f; color: #ffe5a2; }
+.vip-progress-track { position: relative; height: 4px; margin-top: 8px; overflow: hidden; border-radius: 2px; background: #263747; }
+#vipProgressFill { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ff6857, #f7cf78 36%, #c0abf1 70%, #6be5e5); transition: width .3s ease; }
+.vip-progress-points { display: flex; align-items: center; justify-content: flex-end; gap: 3px; min-width: 0; color: #99a9b7; font-size: clamp(10px, 2.8vw, 12px); line-height: 1.5; white-space: nowrap; }
+.vip-progress-points svg { flex: 0 0 auto; width: 12px; height: 12px; margin-right: 1px; fill: #d8ba69; }
+.vip-progress-points strong { color: #e7c975; font-weight: 800; }
+.vip-progress-divider { color: #647b8a; }
+#vipProgressRemaining { grid-column: 1 / -1; min-width: 0; margin: 0; color: #9fb2c5; font-size: 10px; line-height: 1.45; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.vip-levels-details { border: 1px solid #263d50; border-radius: 9px; background: #0a1723; }
+.vip-levels-details:not([open]) { display: none; }
+.vip-levels-details summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 11px 12px; font-size: 11px; font-weight: 600; list-style: none; }
+.vip-levels-details summary::-webkit-details-marker { display: none; }
+.vip-levels-ratio { margin-left: 8px; color: #8fa4b8; font-size: 9px; font-weight: 400; white-space: nowrap; }
+.vip-levels-ratio strong { color: #d8e3ef; font-weight: 700; }
+.vip-levels-grid { margin: 0; padding: 0 10px 10px; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.vip-levels-grid li { --vip-tile-base: #0b1925; --vip-tile-ink: rgb(var(--vip-badge-rgb)); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border-radius: 6px; border: 1px solid rgba(var(--vip-badge-rgb), .38); background: linear-gradient(150deg, rgba(var(--vip-badge-rgb), .07), transparent), var(--vip-tile-base); color: var(--vip-tile-ink); font-size: 9px; text-align: center; }
+.vip-levels-grid li strong { font-size: 10px; }
+.vip-levels-grid li span { font-size: 8px; }
+.vip-levels-grid li small { color: #8b9fb1; font-size: 8px; max-width: 100%; overflow-wrap: anywhere; }
+.vip-levels-grid li .vip-tier-reward { color: inherit; font-size: 10px; font-weight: 700; }
+.vip-tier-chest { display: grid; place-items: center; width: 34px; min-height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; box-shadow: none; }
+.vip-tier-chest .vip-chest-icon { width: 30px; height: 30px; }
+.vip-tier-chest:not(:disabled) { cursor: pointer; background: rgba(var(--vip-badge-rgb), .12); }
+.vip-tier-chest:not(:disabled):hover { background: rgba(var(--vip-badge-rgb), .22); }
+.vip-tier-chest:disabled { opacity: .85; cursor: default; }
+#vipProgressLevels .vip-tier-chest:focus-visible { outline-color: var(--vip-tile-ink); }
+.vip-rewards-legend { margin: 0 10px 10px; color: #8fa4b8; font-size: 9px; }
+.vip-levels-grid li.is-reached { border-color: rgba(var(--vip-badge-rgb), .48); }
+.vip-levels-grid li.is-current { border-color: rgba(var(--vip-badge-rgb), .95); background: linear-gradient(150deg, rgba(var(--vip-badge-rgb), .18), rgba(var(--vip-badge-rgb), .05)), var(--vip-tile-base); box-shadow: inset 0 0 0 1px rgba(var(--vip-badge-rgb), .16); }
+.vip-progress-draft { margin: 7px 0 0; font-size: 10px; text-align: center; color: #c8ac67; }
+#vipMembershipPanel .vip-membership-renew-btn { width: 100% !important; margin: 10px 0 0 !important; font-size: 11px !important; min-height: 34px !important; }
+#vipMembershipPanel .vip-membership-renew-message { margin: 8px 0 0; }
+#vipMembershipPanel :focus-visible { outline: 2px solid #bda568; outline-offset: 3px; }
+body.light-theme #vipMembershipPanel { background: #f8fafc; color: #183047; border-color: #cad6df; }
+body.light-theme #vipProgressLevel { color: #835d0e; }
+body.light-theme .vip-rank-number.is-current { color: #825f17; }
+body.light-theme .vip-rank-number.is-next { color: #526779; }
+body.light-theme .vip-rank-arrow { color: #64748b; }
+body.light-theme .vip-progress-track { background: #dce5eb; }
+body.light-theme .vip-progress-points { color: #6f725f; }
+body.light-theme .vip-progress-points strong { color: #815d0d; }
+body.light-theme .vip-overview { border-color: #d2dce5; }
+body.light-theme .vip-points-summary > div + div { border-color: #d2dce5; }
+body.light-theme .vip-points-summary span, body.light-theme .vip-points-summary small { color: #526b80; }
+body.light-theme .vip-levels-details { background: #eef3f8; border-color: #cbd8e3; }
+body.light-theme .vip-points-summary strong { color: #213950; }
+body.light-theme .vip-points-summary > div:first-child strong { color: #815d0d; }
+body.light-theme .vip-levels-grid li { --vip-tile-base: #f8fafc; --vip-tile-ink: color-mix(in srgb, rgb(var(--vip-badge-rgb)) 35%, #10243a); }
+body.light-theme #vipProgressRemaining, body.light-theme .vip-levels-ratio { color: #526b80; }
+body.light-theme .vip-levels-ratio strong { color: #344c61; }
+body.light-theme .vip-daily-chest { background: linear-gradient(110deg, #f6e7bc, #f7f5ec); color: #77520a; border-color: #b69a53; }
+body.light-theme .vip-daily-chest:hover:not(:disabled) { background: #f6e6b4; }
+body.light-theme .vip-daily-chest.is-claimed { background: #e5f3eb; color: #24684d; border-color: #91b9a0; }
+body.light-theme .vip-daily-chest.is-available { background: #e3f8ee; color: #17674a; border-color: #54a886; box-shadow: 0 0 0 2px #54a88618; }
+body.light-theme .vip-daily-chest.is-available:hover:not(:disabled) { background: #d2f3e2; border-color: #2e8963; }
+body.light-theme .vip-daily-chest.is-available::after { border-color: #f8fafc; background: #ed6a62; }
+body.light-theme .vip-chest-copy small, body.light-theme .vip-daily-status, body.light-theme .vip-rewards-legend, body.light-theme .vip-levels-grid li small { color: #566d7e; }
+body.light-theme .vip-daily-status.is-success { color: #24684d; }
+body.light-theme .vip-daily-status.is-error { color: #a73d2a; }
+@media (max-width: 540px) {
+  /* Keep the open popover at the phone viewport width even if a background table overflows. */
+  html:has(#vipMembershipPanel:not([hidden])), html:has(#vipMembershipPanel:not([hidden])) body { overflow-x: clip; max-width: 100%; }
+  #vipMembershipPanel { position: fixed; top: 80px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 96px); }
+  .vip-progress-body { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { #vipProgressFill { transition: none; } }

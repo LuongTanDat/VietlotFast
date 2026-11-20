@@ -11,6 +11,7 @@
     overview: ["Tổng quan", "Thông tin quản trị từ dữ liệu hệ thống"],
     users: ["Quản Lý Use", "Theo dõi tài khoản và trạng thái truy cập"],
     stats: ["Thống kê", "Số lượng mã và lượt sử dụng thực tế"],
+    exchange: ["Tỉ giá", "Theo dõi tỉ giá và quy đổi PayPal nội bộ"],
     settings: ["Cài đặt", "Tùy chỉnh giao diện và cài đặt web"]
   };
   const allowed = () => currentUserRole === "admin" && !!currentUser;
@@ -336,7 +337,7 @@
       if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
     });
     message();
-    root.querySelector(".admin-metrics").hidden = ["deposits","users"].includes(state.view);
+    root.querySelector(".admin-metrics").hidden = ["deposits","users","exchange"].includes(state.view);
     clearTimeout(usersTimer); usersGeneration++;
     clearTimeout(depositTimer); depositGeneration++;
     if (state.view !== "deposits") closeDepositHistory();

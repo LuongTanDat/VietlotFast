@@ -201,7 +201,7 @@
     const STATS_RECENT_KENO_LEVEL_KEY = "vietlott_stats_recent_keno_level_v1";
     const STATS_RECENT_SELECTED_SETS_KEY = "vietlott_stats_recent_selected_sets_v1";
     const STATS_V2_UI_KEY = "vietlott_stats_v2_ui_v1";
-    const ANALYSIS_UI_KEY = "vietlott_analysis_ui_v1";
+    const ANALYSIS_UI_KEY = "vietlott_analysis_frequency_ui_v2";
     const LIVE_RESULTS_CACHE_KEY = "vietlott_live_results_v1";
     const LIVE_HISTORY_CACHE_KEY = "vietlott_live_history_v1";
     const LIVE_SYNC_TIMING_CACHE_KEY = "vietlott_live_sync_timing_v1";
@@ -289,35 +289,14 @@
     const STATS_V2_AUTO_REFRESH_MS = 90000;
     const MAX_STATS_V2_FAVORITES = 50;
     const MAX_STATS_V2_HISTORY = 80;
-    const ANALYSIS_AUTO_REFRESH_MS = 90000;
-    const MAX_ANALYSIS_HISTORY = 80;
-    const ANALYSIS_PERIOD_OPTIONS = [
-      { value: "7d", label: "7 ngày" },
-      { value: "30d", label: "30 ngày" },
-      { value: "60d", label: "60 ngày" },
-      { value: "1y", label: "1 năm" },
+    const ANALYSIS_DRAW_COUNT_OPTIONS = [
+      { value: "10", label: "10 kỳ" },
+      { value: "30", label: "30 kỳ" },
+      { value: "50", label: "50 kỳ" },
+      { value: "80", label: "80 kỳ" },
+      { value: "100", label: "100 kỳ" },
       { value: "all", label: "Tất cả" },
-      { value: "custom", label: "Custom" },
-    ];
-    const ANALYSIS_MODE_OPTIONS = [
-      { value: "overview", label: "Tổng quan" },
-      { value: "general", label: "Tổng quan bộ số" },
-      { value: "distribution", label: "Phân phối" },
-      { value: "ratios", label: "Chẵn/Lẻ - Cao/Thấp" },
-      { value: "latest_draw", label: "Kỳ mới nhất" },
-      { value: "consecutive", label: "Chuỗi liên tiếp" },
-      { value: "overdue", label: "Gan / Overdue" },
-      { value: "poisson", label: "Poisson" },
-      { value: "knn", label: "KNN tương đồng" },
-      { value: "chain", label: "Lead & Follow" },
-      { value: "relationships", label: "Quan hệ cặp số" },
-      { value: "modulo", label: "Modulo / Đuôi số" },
-      { value: "advanced", label: "Nâng cao" },
-      { value: "special", label: "Số đặc biệt" },
-      { value: "smart_wheel", label: "Smart Wheel" },
-      { value: "weekday", label: "Theo thứ" },
-      { value: "score", label: "Chấm điểm" },
-      { value: "all", label: "Tất cả" },
+      { value: "custom", label: "Khác" },
     ];
     const DASHBOARD_LOTTO_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const DASHBOARD_ACTIVITY_VIEW_OPTIONS = ["day", "week", "month"];
@@ -467,7 +446,7 @@
       "prizeBreakdown",
     ];
     const MAX_PAYPAL_TOPUPS = 24;
-    const PAYPAL_REAL_RATE = 1.25;
+    let paypalDepositRate = null;
     const PAYPAL_TOPUP_PACKAGES = [
       { id: "small", title: "20.000đ", amount: 20000, bonusRate: 0, bonus: "Gói nhỏ, thao tác gọn" },
       { id: "starter", title: "50.000đ", amount: 50000, bonusRate: 0.01, bonus: "Thưởng thêm 1% PayPal" },
@@ -655,21 +634,19 @@
     let dashboardPanelError = "";
     let dashboardPanelRefreshToken = 0;
     const analysisState = {
-      type: "LOTO_5_35",
-      period: "30d",
-      from: "",
-      to: "",
-      mode: "overview",
-      limit: 20,
-      k: 5,
-      comboSize: 2,
-      includeSpecial: true,
-      autoRefresh: false,
-      timer: null,
-      lastPayload: null,
-      loading: false,
-      error: "",
-      refreshToken: 0,
+      type: "LOTO_5_35", drawPreset: "30", customCount: "",
+      sortMain: "frequency", sortSpecial: "frequency",
+      sortStreakMain: false, sortStreakSpecial: false,
+      sortMetricMain: "", sortMetricSpecial: "",
+      availableDrawsByType: {},
+      marksByType: {},
+      marksOwner: "",
+      predictionKey: "", predictionTickets: [], predictionKenoSize: 5,
+      predictionPlan: null, predictionPage: 0, predictionCount: "5", predictionCountOpen: false,
+      predictionMode: "normal", predictionBaoLevel: 0,
+      captureBusy: false, captureSerial: 0,
+      controller: null, lastPayload: null, loading: false,
+      error: "", refreshToken: 0,
     };
     let predictLoadingStartAt = 0;
     let predictLoadingTimer = null;
@@ -2389,38 +2366,28 @@
       const state = getVipMembershipState();
       const wrap = document.getElementById("vipMembershipWrap");
       const button = document.getElementById("vipMembershipBtn");
-      const panelStatus = document.getElementById("vipMembershipPanelStatus");
       const stateBadge = document.getElementById("vipMembershipStateBadge");
-      const remaining = document.getElementById("vipMembershipRemaining");
-      const expiry = document.getElementById("vipMembershipExpiry");
       const accessTitle = document.getElementById("vipMembershipAccessTitle");
       const renewButton = document.getElementById("vipMembershipRenewBtn");
       const renewMessage = document.getElementById("vipMembershipRenewMessage");
       const tooltip = state.active ? `VIP còn ${state.remainingText}` : "Đã hết hạn";
+      const rank = button?.dataset.vipLevel;
+      const rankTitle = /^(?:[0-9]|1[0-5])$/.test(rank || "") ? `VIP ${rank}` : "Thành viên VIP";
+      const membershipLabel = currentUserRole === "admin" ? "Quản trị" : tooltip;
+      const rankTooltip = `${rankTitle} · ${membershipLabel}`;
 
       if (wrap) {
         wrap.classList.toggle("is-active", state.active);
         wrap.classList.toggle("is-expired", !state.active);
-        wrap.dataset.vipTooltip = tooltip;
+        wrap.dataset.vipTooltip = rankTooltip;
       }
       if (button) {
-        button.title = tooltip;
-        button.setAttribute("aria-label", state.active
-          ? `VIP còn ${state.remainingText}. Bấm để xem thời hạn.`
-          : "VIP đã hết hạn. Bấm để xem và gia hạn.");
+        button.title = rankTooltip;
+        button.setAttribute("aria-label", `${rankTitle}. ${membershipLabel}. Bấm để xem cấp VIP và thưởng ngày.`);
       }
-      if (panelStatus) panelStatus.textContent = state.active ? "Đang hoạt động" : "Trạng thái tài khoản";
       if (stateBadge) {
         stateBadge.className = `vip-membership-state-badge ${state.active ? "is-active" : "is-expired"}`;
-        stateBadge.textContent = state.active ? "Còn hạn" : "Hết hạn";
-      }
-      if (remaining) remaining.textContent = state.remainingText;
-      if (expiry) {
-        expiry.textContent = state.expiryText
-          ? `${state.active ? "Hết hạn" : "Đã hết hạn"}: ${state.expiryText}`
-          : "Chưa có thời hạn VIP";
-        if (state.expiresAt) expiry.setAttribute("datetime", state.expiresAt);
-        else expiry.removeAttribute("datetime");
+        stateBadge.textContent = currentUserRole === "admin" ? "Quản trị" : state.active ? "Gói còn hạn" : "Gói hết hạn";
       }
       if (accessTitle) accessTitle.textContent = state.active ? "Quyền VIP đang mở" : "Quyền VIP đang khóa";
       if (renewButton) renewButton.hidden = state.active;
@@ -2465,6 +2432,7 @@
     }
 
     window.hasActiveVipMembership = hasActiveVipMembership;
+    window.addEventListener("dvlf:vip-level", renderVipMembership);
     // VIP expiry is issued and verified by the server.
 
     function parseAccountBalance(value, label) {
@@ -2513,9 +2481,26 @@
       return PAYPAL_TOPUP_PACKAGES.find(item => item.id === id) || null;
     }
 
+    function setPaypalDepositRate(quote) {
+      if (quote !== null && (!quote || !/^\d{4}-\d{2}-\d{2}$/.test(quote.day) || !/^[1-9][0-9]{0,15}$/.test(quote.numerator)
+        || BigInt(quote.numerator) > 9007199254740991n || quote.denominator !== "100000000" || !Number.isFinite(Date.parse(quote.nextCloseAt)))) throw new Error("Tỉ giá nạp chưa hợp lệ. Vui lòng tải lại.");
+      paypalDepositRate = quote ? Object.freeze({ ...quote }) : null;
+      const label = document.getElementById("depositCurrentRate");
+      if (label) {
+        label.textContent = quote ? `1 VNĐ = ${(Number(quote.numerator) / 100000000).toLocaleString("vi-VN", { maximumFractionDigits: 8 })} PayPal` : "Đang tải tỉ giá…";
+        label.title = quote ? `Áp dụng ngày ${quote.day} · Chốt lúc 00:00 giờ Việt Nam · Giữ tỉ giá khi tạo yêu cầu` : "";
+      }
+      document.querySelectorAll("#depositPackageGrid [data-package-id]").forEach(button => {
+        const item = getPaypalTopupPackageById(button.dataset.packageId), credit = button.querySelector(".deposit-package-credit");
+        if (item && credit) credit.textContent = (quote ? formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit) : "—") + " PayPal";
+      });
+      renderPaypalRatePreview();
+    }
+
     function convertRealMoneyToPaypal(amount) {
       const numeric = Number(amount || 0);
-      return Math.round(numeric * PAYPAL_REAL_RATE * 100) / 100;
+      if (!paypalDepositRate || !Number.isSafeInteger(numeric) || numeric < 0) return 0;
+      return Number((BigInt(numeric) * BigInt(paypalDepositRate.numerator) + 50000000n) / 100000000n);
     }
 
     function getPaypalBonusPackage(amount, preferredPackageId = "") {
@@ -2529,8 +2514,8 @@
       const baseCredit = convertRealMoneyToPaypal(amount);
       const packageMeta = getPaypalBonusPackage(amount, preferredPackageId);
       const bonusRate = amount >= 1000000 && amount <= 100000000 && amount % 100000 === 0 ? 0.05 : Math.max(0, Number(packageMeta?.bonusRate || 0));
-      const bonusCredit = Math.round(baseCredit * bonusRate);
-      const totalCredit = Math.round((baseCredit + bonusCredit) * 100) / 100;
+      const bonusCredit = Number((BigInt(baseCredit) * BigInt(Math.round(bonusRate * 10000)) + 5000n) / 10000n);
+      const totalCredit = baseCredit + bonusCredit;
       return { baseCredit, bonusRate, bonusCredit, totalCredit, packageMeta };
     }
 
@@ -2569,7 +2554,7 @@
         button.setAttribute("aria-pressed", String(active));
         if (button.dataset.packageId === "custom") button.setAttribute("aria-expanded", String(active));
       });
-      if (!isValidPaypalDepositAmount(amount)) {
+      if (!paypalDepositRate || !isValidPaypalDepositAmount(amount)) {
         preview.innerHTML = '<div class="deposit-preview-total"><span>Dự kiến nhận</span><strong class="is-empty">— <small>PayPal</small></strong></div>';
         return;
       }
@@ -2637,7 +2622,7 @@
         <button type="button" class="deposit-package-item" data-package-id="${item.id}"${item.custom ? ' aria-controls="depositCustomAmountField" aria-expanded="false"' : ""}>
           ${item.custom ? '<span class="deposit-package-custom-icon" aria-hidden="true">+</span>' : ""}
           <span class="deposit-package-top"><span class="deposit-package-amount">${item.title}</span><span class="deposit-package-check" aria-hidden="true">✓</span></span>
-          ${item.custom ? "" : `<span class="deposit-package-credit">${formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit)} PayPal</span><span class="deposit-package-bonus">${item.bonusRate > 0 ? `Thưởng +${formatPaypalPercent(item.bonusRate * 100)}%` : "Quy đổi tiêu chuẩn"}</span>`}
+          ${item.custom ? "" : `<span class="deposit-package-credit">${paypalDepositRate ? formatPaypalCredit(calculatePaypalCredit(item.amount, item.id).totalCredit) : "—"} PayPal</span><span class="deposit-package-bonus">${item.bonusRate > 0 ? `Thưởng +${formatPaypalPercent(item.bonusRate * 100)}%` : "Quy đổi tiêu chuẩn"}</span>`}
         </button>
       `).join("");
       host.querySelectorAll(".deposit-package-item").forEach(button => {
@@ -2690,6 +2675,7 @@
         accountId: () => currentAccountId,
         amount: getPaypalDepositAmount,
         validAmount: isValidPaypalDepositAmount,
+        rate: setPaypalDepositRate,
         wallet: wallet => { applyServerWallet(wallet); renderCurrencyBar(); },
         legacy: () => store.paypalTopups || [],
         message: showPaypalDepositMessage
@@ -4416,7 +4402,6 @@
       kenoTrainingBusy = false;
       setSideMenuActiveButton("homeMenuBtn");
       stopLiveAutoSync();
-      stopAnalysisAutoRefresh();
       closeHeaderPopovers();
       closeSideMenu();
       syncSideAccountIdentity();
@@ -4805,7 +4790,6 @@
         } else if (nextMode === PREDICTION_MODE_ANALYSIS) {
           initAnalysisPanel();
           if (!analysisState.lastPayload) loadAnalysis({ force: true, silent: true });
-          startAnalysisAutoRefresh();
           window.setTimeout(() => {
             document.getElementById("predictRootAnalysis")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }, 40);
@@ -5482,61 +5466,36 @@
         loadAnalysis({ force: true, silent: true });
       });
     }
-    const analysisPeriodSelect = document.getElementById("analysisPeriodSelect");
-    if (analysisPeriodSelect) {
-      analysisPeriodSelect.addEventListener("change", () => {
-        analysisState.period = normalizeAnalysisPeriod(analysisPeriodSelect.value);
-        saveAnalysisUiState();
-        renderAnalysis(analysisState.lastPayload);
-        loadAnalysis({ force: true, silent: true });
-      });
-    }
-    const analysisModeSelect = document.getElementById("analysisModeSelect");
-    if (analysisModeSelect) {
-      analysisModeSelect.addEventListener("change", () => {
-        analysisState.mode = normalizeAnalysisMode(analysisModeSelect.value);
+    const analysisDrawCountSelect = document.getElementById("analysisDrawCountSelect");
+    if (analysisDrawCountSelect) {
+      analysisDrawCountSelect.addEventListener("change", () => {
+        analysisState.drawPreset = normalizeAnalysisDrawPreset(analysisDrawCountSelect.value);
         saveAnalysisUiState();
         loadAnalysis({ force: true, silent: true });
+        if (analysisState.drawPreset === "custom") document.getElementById("analysisCustomCountInput").focus();
       });
     }
-    const analysisDateFrom = document.getElementById("analysisDateFrom");
-    if (analysisDateFrom) {
-      analysisDateFrom.addEventListener("change", () => {
-        analysisState.from = String(analysisDateFrom.value || "").trim();
+    const analysisCustomCountInput = document.getElementById("analysisCustomCountInput");
+    if (analysisCustomCountInput) {
+      analysisCustomCountInput.addEventListener("input", () => {
+        analysisState.customCount = analysisCustomCountInput.value.trim();
+        clampAnalysisCustomCount();
         saveAnalysisUiState();
-        if (analysisState.period === "custom") loadAnalysis({ force: true, silent: true });
       });
-    }
-    const analysisDateTo = document.getElementById("analysisDateTo");
-    if (analysisDateTo) {
-      analysisDateTo.addEventListener("change", () => {
-        analysisState.to = String(analysisDateTo.value || "").trim();
+      analysisCustomCountInput.addEventListener("change", () => {
+        analysisState.customCount = analysisCustomCountInput.value.trim();
+        clampAnalysisCustomCount();
         saveAnalysisUiState();
-        if (analysisState.period === "custom") loadAnalysis({ force: true, silent: true });
+        if (analysisState.drawPreset === "custom") loadAnalysis({ force: true, silent: true });
       });
-    }
-    [["analysisLimitInput", "limit", 1, 100], ["analysisKInput", "k", 1, 20], ["analysisComboSizeInput", "comboSize", 1, 3]].forEach(([id, key, min, max]) => {
-      const input = document.getElementById(id);
-      if (!input) return;
-      input.addEventListener("change", () => {
-        analysisState[key] = clampAnalysisInt(input.value, analysisState[key], min, max);
-        saveAnalysisUiState();
-        loadAnalysis({ force: true, silent: true });
-      });
-    });
-    const analysisAutoRefresh = document.getElementById("analysisAutoRefresh");
-    if (analysisAutoRefresh) {
-      analysisAutoRefresh.addEventListener("change", () => {
-        analysisState.autoRefresh = !!analysisAutoRefresh.checked;
-        saveAnalysisUiState();
-        if (analysisState.autoRefresh) startAnalysisAutoRefresh();
-        else stopAnalysisAutoRefresh();
+      analysisCustomCountInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); loadAnalysis({ force: true, silent: false }); }
       });
     }
     const analysisRefreshBtn = document.getElementById("analysisRefreshBtn");
     if (analysisRefreshBtn) analysisRefreshBtn.addEventListener("click", () => loadAnalysis({ force: true, silent: false }));
-    const analysisSaveBtn = document.getElementById("analysisSaveBtn");
-    if (analysisSaveBtn) analysisSaveBtn.addEventListener("click", () => saveAnalysisHistory());
+    document.getElementById("analysisCaptureBtn")?.addEventListener("click", captureAnalysisImage);
+    window.addEventListener("dvlf:auth-changed", resetAnalysisSession);
     const chartStatsTypeSelect = document.getElementById("chartStatsTypeSelect");
     if (chartStatsTypeSelect) {
       chartStatsTypeSelect.addEventListener("change", () => {

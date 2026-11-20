@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "maxLevel": 15,
+  "paypalPerPoint": "100000",
+  "draft": false,
+  "progression": {
+    "type": "geometric_rescaled_ceiling",
+    "formula": "ceil(round_sig(100000 * 10^(4 * (level - 1) / 7), 3) / 80000), level 1..15; level 0 = 0",
+    "significantDigits": 3,
+    "rounding": "CEILING to whole Point after exact rescale",
+    "rescaleDivisor": "80000"
+  },
+  "thresholds": {
+    "0": "0",
+    "1": "2",
+    "2": "5",
+    "3": "18",
+    "4": "65",
+    "5": "242",
+    "6": "900",
+    "7": "3350",
+    "8": "12500",
+    "9": "46625",
+    "10": "173750",
+    "11": "647500",
+    "12": "2412500",
+    "13": "9000000",
+    "14": "33500000",
+    "15": "125000000"
+  }
+}

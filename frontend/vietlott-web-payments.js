@@ -6,7 +6,7 @@
   const escape = text => String(text ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const money = value => Number(value || 0).toLocaleString("vi-VN");
   const time = value => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "—";
-  const state = { deps: null, user: null, epoch: 0, requests: new Set(), timer: null, loading: false, busy: false, config: null, orders: [], manualOrders: [], legacyKeys: [], manualReady: false, manualBusy: false, mode: new URLSearchParams(location.search).has("payment") ? "fast" : "manual", selected: new URLSearchParams(location.search).get("payment"), url: "" };
+  const state = { deps: null, user: null, epoch: 0, requests: new Set(), timer: null, loading: false, busy: false, config: null, topupRate: null, orders: [], manualOrders: [], legacyKeys: [], manualReady: false, manualBusy: false, mode: new URLSearchParams(location.search).has("payment") ? "fast" : "manual", selected: new URLSearchParams(location.search).get("payment"), url: "" };
   const status = { PENDING: "Chờ thanh toán", PAID: "Đã cộng ví", TEST_PAID: "Thử nghiệm thành công", FAILED: "Không thành công", EXPIRED: "Hết hạn", OWNER_DELETED: "Tài khoản đã xóa" };
 
   function active() { return state.deps && state.deps.user() && !root.hidden && !document.hidden; }
@@ -16,7 +16,7 @@
     if (clear && byId("depositHistoryDialog").open) byId("depositHistoryDialog").close();
     for (const request of state.requests) request.abort();
     state.requests.clear(); state.epoch++; state.loading = false; state.busy = false;
-    if (clear) { state.config = null; state.orders = []; state.manualOrders = []; state.legacyKeys = []; state.manualReady = false; byId("manualDepositForm").reset(); byId("depositManualAccountId").value = ""; state.selected = null; state.url = ""; byId("depositPaymentPanel").hidden = true; byId("depositHistoryList").textContent = ""; byId("depositHistoryCount").textContent = "0 giao dịch"; state.deps?.message(""); }
+    if (clear) { state.config = null; state.topupRate = null; state.deps?.rate(null); state.orders = []; state.manualOrders = []; state.legacyKeys = []; state.manualReady = false; byId("manualDepositForm").reset(); byId("depositManualAccountId").value = ""; state.selected = null; state.url = ""; byId("depositPaymentPanel").hidden = true; byId("depositHistoryList").textContent = ""; byId("depositHistoryCount").textContent = "0 giao dịch"; state.deps?.message(""); }
     byId("depositCreateBtn").disabled = true;
     byId("depositManualSubmit").disabled = true; state.manualBusy = false;
   }
@@ -26,7 +26,7 @@
     try {
       const response = await fetch(path, { credentials: "same-origin", cache: "no-store", signal: controller.signal, method: form ? "POST" : "GET", ...(form ? { headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" }, body: new URLSearchParams(form).toString() } : {}) });
       const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(response.status === 401 ? "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." : payload.message || "Chưa kết nối được dịch vụ thanh toán.");
+      if (!response.ok || !payload.ok) { const error = new Error(response.status === 401 ? "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." : payload.message || "Chưa kết nối được dịch vụ thanh toán."); error.code = payload.code; throw error; }
       return payload;
     } finally { clearTimeout(timeout); state.requests.delete(controller); }
   }
@@ -82,7 +82,7 @@
     byId("depositHistoryCount").textContent = `${orders.length} giao dịch${legacy.length ? ` · ${legacy.length} yêu cầu cũ` : ""}`;
     const rows = orders.map((order, index) => {
       const manual = order.environment === "manual", label = manual && order.status === "PENDING" ? "Chờ admin duyệt" : order.status === "REJECTED" ? "Đã từ chối" : status[order.status] || "Đang đối soát";
-      const details = `<div><dt>Mã yêu cầu</dt><dd>${escape(order.id)}</dd></div><div><dt>Thưởng dự kiến</dt><dd>${money(order.bonusCredit)} PayPal</dd></div>${manual ? `${order.accountId ? `<div><dt>ID tài khoản</dt><dd>${escape(order.accountId)}</dd></div>` : ""}${order.sender ? `<div><dt>Người chuyển</dt><dd>${escape(order.sender)}</dd></div>` : ""}${order.email || order.legacyEmail ? `<div><dt>Email</dt><dd>${escape(order.email || order.legacyEmail)}</dd></div>` : ""}${order.transferMemo ? `<div><dt>Nội dung chuyển khoản</dt><dd>${escape(order.transferMemo)}</dd></div>` : ""}${order.channel ? `<div><dt>Ngân hàng / Ví</dt><dd>${escape(order.channel)}</dd></div>` : ""}${order.reference ? `<div><dt>Mã giao dịch</dt><dd>${escape(order.reference)}</dd></div>` : ""}${order.transferredAt ? `<div><dt>Thời gian chuyển</dt><dd>${escape(time(order.transferredAt))}</dd></div>` : ""}${order.note ? `<div><dt>Ghi chú</dt><dd>${escape(order.note)}</dd></div>` : ""}${order.reviewedAt ? `<div><dt>Admin xử lý</dt><dd>${escape(time(order.reviewedAt))}</dd></div><div><dt>Phản hồi</dt><dd>${escape(order.reviewNote || "Đã xác nhận")}</dd></div>` : ""}` : `<div><dt>Môi trường</dt><dd>${order.environment === "sandbox" ? "Thử nghiệm — không cộng ví thật" : "Thanh toán thật"}</dd></div><div><dt>Mã giao dịch VNPAY</dt><dd>${escape(order.transactionNo || "—")}</dd></div>`}`;
+      const details = `${order.exchangeRate ? `<div><dt>Tỉ giá đã khóa</dt><dd>1 VNĐ = ${(Number(order.exchangeRate.numerator) / 100000000).toLocaleString("vi-VN", { maximumFractionDigits: 8 })} PayPal · ${escape(order.exchangeRate.day)}</dd></div>` : ""}<div><dt>Mã yêu cầu</dt><dd>${escape(order.id)}</dd></div><div><dt>Thưởng dự kiến</dt><dd>${money(order.bonusCredit)} PayPal</dd></div>${manual ? `${order.accountId ? `<div><dt>ID tài khoản</dt><dd>${escape(order.accountId)}</dd></div>` : ""}${order.sender ? `<div><dt>Người chuyển</dt><dd>${escape(order.sender)}</dd></div>` : ""}${order.email || order.legacyEmail ? `<div><dt>Email</dt><dd>${escape(order.email || order.legacyEmail)}</dd></div>` : ""}${order.transferMemo ? `<div><dt>Nội dung chuyển khoản</dt><dd>${escape(order.transferMemo)}</dd></div>` : ""}${order.channel ? `<div><dt>Ngân hàng / Ví</dt><dd>${escape(order.channel)}</dd></div>` : ""}${order.reference ? `<div><dt>Mã giao dịch</dt><dd>${escape(order.reference)}</dd></div>` : ""}${order.transferredAt ? `<div><dt>Thời gian chuyển</dt><dd>${escape(time(order.transferredAt))}</dd></div>` : ""}${order.note ? `<div><dt>Ghi chú</dt><dd>${escape(order.note)}</dd></div>` : ""}${order.reviewedAt ? `<div><dt>Admin xử lý</dt><dd>${escape(time(order.reviewedAt))}</dd></div><div><dt>Phản hồi</dt><dd>${escape(order.reviewNote || "Đã xác nhận")}</dd></div>` : ""}` : `<div><dt>Môi trường</dt><dd>${order.environment === "sandbox" ? "Thử nghiệm — không cộng ví thật" : "Thanh toán thật"}</dd></div><div><dt>Mã giao dịch VNPAY</dt><dd>${escape(order.transactionNo || "—")}</dd></div>`}`;
       return historyRow(time(order.createdAt), manual ? "Thủ Công" : "Nạp Nhanh", order.amount, order.credit, label, order.status, details, index, "order:" + order.id);
     }).join("") + legacy.map((entry, index) => historyRow(entry.timeText || "—", "Thủ Công", entry.amount, null, "Chưa xác minh", "", `<div><dt>Loại yêu cầu</dt><dd>Yêu cầu thủ công cũ</dd></div><div><dt>Mã giao dịch đã nhập</dt><dd>${escape(entry.txnCode || "—")}</dd></div><div><dt>Ghi chú</dt><dd>Yêu cầu cũ không được dùng để tự cộng số dư.</dd></div>`, orders.length + index, "legacy:" + legacyKey(entry))).join("");
     host.innerHTML = rows ? `<table class="deposit-transactions"><caption class="deposit-sr-only">Bảng giao dịch nạp tiền</caption><colgroup><col class="deposit-col-time"><col class="deposit-col-method"><col class="deposit-col-amount"><col class="deposit-col-credit"><col class="deposit-col-status"><col class="deposit-col-action"></colgroup><thead><tr><th scope="col">Thời gian</th><th scope="col">Loại nạp</th><th scope="col">Số tiền nạp</th><th scope="col">PayPal</th><th scope="col">Trạng thái</th><th scope="col"><span class="deposit-sr-only">Chi tiết</span></th></tr></thead>${rows}</table>` : '<div class="deposit-empty"><strong>Chưa có giao dịch nạp tiền</strong><span>Lịch sử được cập nhật sau khi gửi yêu cầu.</span></div>';
@@ -125,14 +125,14 @@
       } catch { }
       if (!/^[a-f0-9]{32}$/.test(id || "")) { id = [...crypto.getRandomValues(new Uint8Array(16))].map(value => value.toString(16).padStart(2, "0")).join(""); try { sessionStorage.setItem(key, id); sessionStorage.removeItem(key + ":order"); } catch { } }
       if (!current(user, epoch)) return;
-      const response = await request("/api/payments/manual", { ...fields, requestId: id });
+      const response = await request("/api/payments/manual", { ...fields, requestId: id, rateDay: state.topupRate.day });
       if (!current(user, epoch)) return;
       try { sessionStorage.setItem(key + ":order", response.order.id); } catch { }
       state.manualOrders = [response.order, ...state.manualOrders.filter(item => item.id !== response.order.id)]; renderHistory();
       void window.VietlottDepositNotifications?.refresh();
       state.deps.message(response.order.status === "PENDING" ? "Đã gửi yêu cầu đến Admin. PayPal sẽ được cộng sau khi xác nhận." : "Yêu cầu này đã được xử lý. Xem lịch sử để biết trạng thái.", "ok");
       clearTimeout(state.timer); state.timer = setTimeout(() => void refresh(), 5000);
-    } catch (error) { if (current(user, epoch)) state.deps.message(error.name === "AbortError" ? "Chưa nhận được kết quả. Thử gửi lại sẽ dùng cùng mã yêu cầu." : error.message, "warn"); }
+    } catch (error) { if (current(user, epoch)) { state.deps.message(error.name === "AbortError" ? "Chưa nhận được kết quả. Thử gửi lại sẽ dùng cùng mã yêu cầu." : error.message, "warn"); if (error.code === "RATE_CHANGED") { state.manualReady = false; await refresh(); } } }
     finally { if (state.epoch === epoch) { state.manualBusy = false; byId("depositManualSubmit").disabled = !state.manualReady; } }
   }
   async function refresh() {
@@ -143,14 +143,17 @@
     try {
       const [config, history, manual] = await Promise.all([request("/api/payments/vnpay/config"), request("/api/payments/vnpay/orders"), request("/api/payments/manual")]);
       if (!current(user, epoch)) return;
+      const quote = [config.topupRate, manual.topupRate].filter(Boolean).sort((a,b) => String(b.day).localeCompare(String(a.day)))[0];
+      if (!quote) throw new Error("Chưa đọc được tỉ giá nạp hôm nay.");
+      state.deps.rate(quote); state.topupRate = quote;
       configure(config); state.orders = history.orders || []; state.manualOrders = manual.orders || []; state.legacyKeys = manual.legacyKeys || []; state.manualReady = true;
       renderTransferInstructions(manual.instructions);
       byId("depositManualSubmit").disabled = state.manualBusy;
       // Both responses may have different wallet versions; the core only applies the newest.
       state.deps.wallet(history.store || {}); state.deps.wallet(manual.store || {}); renderHistory(); renderPanel();
-      if ([...state.orders, ...state.manualOrders].some(order => order.status === "PENDING")) state.timer = setTimeout(() => void refresh(), 5000);
+      state.timer = setTimeout(() => void refresh(), [...state.orders, ...state.manualOrders].some(order => order.status === "PENDING") ? 5000 : 30000);
     } catch (error) {
-      if (current(user, epoch)) { state.deps.message(error.name === "AbortError" ? "Kết nối quá thời gian. Hãy thử lại." : error.message, "warn"); byId("depositCreateBtn").disabled = true; state.manualReady = false; byId("depositManualSubmit").disabled = true; byId("depositGatewayNotice").textContent = "Chưa đọc được trạng thái thanh toán. Hãy tải lại trang để thử lại."; }
+      if (current(user, epoch)) { state.topupRate = null; state.deps.rate(null); state.deps.message(error.name === "AbortError" ? "Kết nối quá thời gian. Hãy thử lại." : error.message, "warn"); byId("depositCreateBtn").disabled = true; state.manualReady = false; byId("depositManualSubmit").disabled = true; byId("depositGatewayNotice").textContent = "Chưa đọc được trạng thái thanh toán. Hãy tải lại trang để thử lại."; }
     } finally { if (state.epoch === epoch) state.loading = false; }
   }
   function requestId(user, amount) {
@@ -161,12 +164,12 @@
     return id;
   }
   async function create() {
-    if (!active() || state.mode !== "fast" || state.busy || !state.config?.configured) return;
+    if (!active() || state.mode !== "fast" || state.busy || !state.config?.configured || !state.topupRate) return;
     const amount = state.deps.amount(), config = state.config, user = state.deps.user(), epoch = state.epoch;
     if (!state.deps.validAmount(amount) || amount > config.maximum) { state.deps.message(`Chọn gói nạp hoặc nhập từ 1.000.000 đến ${money(config.maximum)} VNĐ, bội số 100.000 VNĐ.`, "warn"); byId("depositAmount").focus(); return; }
     state.busy = true; byId("depositCreateBtn").disabled = true; state.deps.message("Đang tạo đơn thanh toán…");
     try {
-      const response = await request("/api/payments/vnpay/orders", { amount, requestId: requestId(user, amount) });
+      const response = await request("/api/payments/vnpay/orders", { amount, requestId: requestId(user, amount), rateDay: state.topupRate.day });
       if (!current(user, epoch)) return;
       state.selected = response.order.id; state.url = validUrl(response.paymentUrl);
       state.orders = [response.order, ...state.orders.filter(item => item.id !== response.order.id)]; renderHistory(); renderPanel();
@@ -176,7 +179,7 @@
         state.deps.message("Đơn đã kết thúc. Bấm tiếp tục để tạo đơn mới.");
       } else state.deps.message("Đã tạo đơn. Mở trang quét VNPAY-QR để thanh toán; số dư sẽ tự cập nhật.", "ok");
       clearTimeout(state.timer); state.timer = setTimeout(() => void refresh(), 5000);
-    } catch (error) { if (current(user, epoch)) state.deps.message(error.name === "AbortError" ? "Chưa nhận được kết quả. Thử lại sẽ dùng cùng mã yêu cầu để tránh tạo trùng." : error.message, "warn"); }
+    } catch (error) { if (current(user, epoch)) { state.deps.message(error.name === "AbortError" ? "Chưa nhận được kết quả. Thử lại sẽ dùng cùng mã yêu cầu để tránh tạo trùng." : error.message, "warn"); if (error.code === "RATE_CHANGED") await refresh(); } }
     finally { if (state.epoch === epoch) { state.busy = false; byId("depositCreateBtn").disabled = !state.config?.configured; } }
   }
   function sync() {

@@ -33,8 +33,11 @@ class AccountCardTests(unittest.TestCase):
         self.fixture.cycle()
         before=self.fixture.money()
         result=self.fixture.settle(apply=True)
-        self.assertEqual(result['creditedPayPal'],50000000)
-        self.assertEqual(self.card(),(50000000,1))
+        self.assertEqual(result['creditedPayPal'],40000000)
+        self.assertEqual(self.card(),(40000000,1))
+        calc=result['ready'][0]['calculation']
+        self.assertEqual((calc['rewardVnd'],calc['paypal'],calc['rateNumerator'],calc['rateDenominator']),
+                         (40000000,40000000,1,1))
         self.assertEqual(self.fixture.money(),before)
         self.assertEqual(self.fixture.settle(apply=True)['credited'],0)
         with closing(sqlite3.connect(self.account)) as db:
@@ -42,6 +45,9 @@ class AccountCardTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT action FROM account_audit').fetchall(),[('prediction_card_reward',)])
             self.assertEqual(db.execute('SELECT COUNT(*) FROM card_transactions').fetchone()[0],1)
             self.assertEqual(db.execute('SELECT target_account_id FROM account_activity_links').fetchone()[0],'123456789012')
+            self.assertEqual(db.execute('SELECT reward_vnd,paypal_credit FROM prediction_payouts').fetchone(),(40000000,40000000))
+            details=json.loads(db.execute('SELECT details_json FROM card_transactions').fetchone()[0])
+            self.assertEqual((details['paypal'],details['rateNumerator'],details['rateDenominator']),(40000000,1,1))
 
     def test_move_old_rewards_conserves_money_and_preserves_receipts(self):
         for _ in range(2):self.fixture.cycle()
@@ -63,7 +69,7 @@ class AccountCardTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT COUNT(*) FROM reward_card_migrations').fetchone()[0],2)
         self.policy.return_value={'destination':'card','currency':'PayPal'}
         self.fixture.cycle();self.fixture.settle(apply=True)
-        self.assertEqual(self.card()[0],150000000)
+        self.assertEqual(self.card()[0],140000000)
         self.assertEqual(self.fixture.money()['paypalBalance'],500000)
 
     def test_insufficient_wallet_rolls_back_entire_migration(self):
@@ -86,6 +92,42 @@ class AccountCardTests(unittest.TestCase):
         self.assertEqual(self.card()[0],50000000)
         self.assertEqual(self.fixture.money()['paypalBalance'],500000)
 
+    def test_card_ratio_for_normal_bao_keno_and_odd_jackpot_amount(self):
+        self.policy.return_value={'destination':'card','currency':'PayPal'}
+        for game in ('LOTO_5_35','LOTO_6_45','LOTO_6_55'):
+            for bao in (False,True):self.fixture.cycle(game,count=6 if bao else 4,bao=bao)
+        self.fixture.cycle(count=1,keno=True,counts=lambda level,i:{'KENO_1_1':1} if level==1 else {'NONE':1})
+        self.fixture.cycle('LOTO_6_45',counts=lambda level,i:{'MEGA_JACKPOT':i+1,'NONE':3-i})
+        context={'LOTO_6_45':{'123':{'Bộ Số':'1,2,3,4,5,6','ĐB':'','Ngày':'02/11/2026','Giờ':'18:00','Jackpot (VNĐ)':'103','counts':{'jackpot':0}}}}
+        preview=self.fixture.settle(prizes=context)
+        self.assertEqual((len(preview['ready']),len(preview['waiting'])),(8,0))
+        self.assertEqual(preview['paypal'],preview['rewardVnd'])
+        self.assertTrue(any(item['calculation']['paypal']==407 for item in preview['ready']))
+        self.assertTrue(all(item['calculation']['version']=='prediction_card_reward_v2' and
+                            item['calculation']['rateNumerator']==item['calculation']['rateDenominator']==1 for item in preview['ready']))
+        paid=self.fixture.settle(apply=True,prizes=context)
+        self.assertEqual((paid['credited'],self.card()[0]),(8,preview['rewardVnd']))
+        with closing(sqlite3.connect(self.account)) as db:
+            receipts=db.execute('SELECT * FROM prediction_payouts ORDER BY charge_id').fetchall()
+        context['LOTO_6_45']['123']['Jackpot (VNĐ)']='9999999999'
+        self.assertEqual(self.fixture.settle(apply=True,prizes=context)['credited'],0)
+        with closing(sqlite3.connect(self.account)) as db:
+            self.assertEqual(db.execute('SELECT * FROM prediction_payouts ORDER BY charge_id').fetchall(),receipts)
+
+    def test_stale_card_conversion_plan_is_rejected_before_credit(self):
+        from ai import prediction_rewards as rewards
+        self.policy.return_value={'destination':'card','currency':'PayPal'}
+        self.fixture.cycle()
+        item=self.fixture.settle()['ready'][0]
+        calc=item['calculation']
+        calc.update(version='prediction_wallet_reward_v1',rateNumerator=5,rateDenominator=4,paypal=calc['rewardVnd']*5//4)
+        item['hash']=rewards._digest(calc)
+        with self.assertRaisesRegex(ValueError,'1:1'):rewards._credit(self.scope,item)
+        with closing(sqlite3.connect(self.account)) as db:
+            self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='account_cards'").fetchone())
+        self.assertEqual(self.fixture.money()['paypalBalance'],500000)
+        self.assertEqual(self.fixture.settle(apply=True)['creditedPayPal'],40000000)
+
     def test_card_reward_atomic_on_audit_failure(self):
         self.policy.return_value={'destination':'card','currency':'PayPal'}
         self.fixture.cycle()
@@ -98,6 +140,11 @@ class AccountCardTests(unittest.TestCase):
         with closing(sqlite3.connect(self.account)) as db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM prediction_payouts').fetchone()[0],0)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM card_transactions').fetchone()[0],0)
+            db.execute('DROP TRIGGER failure')
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results=list(pool.map(lambda _:self.fixture.settle(apply=True),range(4)))
+        self.assertEqual(sum(r['credited'] for r in results),1)
+        self.assertEqual(self.card(),(40000000,1))
 
     def test_identity_stays_after_rename_and_policy_change_invalidates_plan(self):
         self.fixture.cycle()
@@ -113,4 +160,4 @@ class AccountCardTests(unittest.TestCase):
             db.execute("UPDATE account_identities SET username='renamed' WHERE username='alice'")
         self.scope.owner='renamed'
         self.assertEqual(self.fixture.settle(apply=True)['credited'],1)
-        self.assertEqual(self.card()[0],50000000)
+        self.assertEqual(self.card()[0],40000000)

@@ -5,6 +5,8 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.net.URL;
@@ -83,7 +85,7 @@ public class LottoWebServer {
     private static final Set<String> ANALYSIS_MODE_KEYS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "overview", "general", "distribution", "ratios", "latest_draw", "consecutive",
             "overdue", "poisson", "knn", "chain", "relationships", "modulo", "advanced",
-            "special", "weekday", "smart_wheel", "score", "all"
+            "special", "weekday", "smart_wheel", "score", "all", "frequency"
     )));
 
     private final Path rootDir;
@@ -99,6 +101,8 @@ public class LottoWebServer {
     private final Path faviconFile;
     private final Path dbFile;
     private final DatabaseRepo repo;
+    private final ExchangeMarket exchangeMarket;
+    private final DailyTopupRates dailyTopupRates;
     private final Map<String, SocialAttempt> socialAttempts = new ConcurrentHashMap<>();
     private final Map<String, String> sessions = new ConcurrentHashMap<>();
     private final Map<String, Long> sessionExpiry = new ConcurrentHashMap<>();
@@ -403,6 +407,9 @@ public class LottoWebServer {
         this.faviconFile = rootDir.resolve("frontend").resolve("favicon.svg");
         this.dbFile = rootDir.resolve(DB_FILE);
         this.repo = new DatabaseRepo(dbFile);
+        this.exchangeMarket = new ExchangeMarket(rootDir.resolve("runtime/paypal_exchange.db"), rootDir.resolve("config/paypal-exchange-chart.json"), new SecureRandom());
+        this.dailyTopupRates = new DailyTopupRates(rootDir.resolve("runtime/paypal_topup_rates.db"), rootDir.resolve("config/paypal-topup-rates.json"), exchangeMarket);
+        this.exchangeMarket.retentionGuard = now -> dailyTopupRates.quote(now);
     }
 
     private void start() throws Exception {
@@ -414,6 +421,7 @@ public class LottoWebServer {
         server.createContext("/", this::serveIndex);
         server.createContext("/vietlott-web.css", ex -> serveStaticTextFile(ex, cssFile, "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web-extra.css", ex -> serveStaticTextFile(ex, extraCssFile, "text/css; charset=UTF-8"));
+        server.createContext("/vietlott-web-analysis.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-analysis.css"), "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web.js", ex -> serveStaticTextFile(ex, jsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-core.js", ex -> serveStaticTextFile(ex, coreJsFile, "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-stats.js", ex -> serveStaticTextFile(ex, statsJsFile, "application/javascript; charset=UTF-8"));
@@ -424,6 +432,8 @@ public class LottoWebServer {
         server.createContext("/vietlott-web-music.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-music.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-admin.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-admin.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-admin.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-admin.css"), "text/css; charset=UTF-8"));
+        server.createContext("/vietlott-web-exchange.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-exchange.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-exchange.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-exchange.css"), "text/css; charset=UTF-8"));
         server.createContext("/Music_V1.mp3", this::serveBackgroundMusic);
         server.createContext("/favicon.svg", this::serveFavicon);
         server.createContext("/api/me", this::handleMe);
@@ -439,10 +449,14 @@ public class LottoWebServer {
         server.createContext("/api/store", this::handleStore);
         server.createContext("/api/account/statistics", this::handleAccountStatistics);
         server.createContext("/api/account/wallet-history", this::handleWalletHistory);
+        server.createContext("/api/account/vip-progress", this::handleVipProgress);
+        server.createContext("/api/account/vip-daily-reward", this::handleVipDailyReward);
         server.createContext("/api/account/financial-notifications", this::handleFinancialNotifications);
         server.createContext("/api/account/card", this::handleAccountCard);
         server.createContext("/api/account/card-transfer", this::handleCardTransfer);
         server.createContext("/vietlott-web-wallet.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-wallet.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-vip.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-vip.js"), "application/javascript; charset=UTF-8"));
+        server.createContext("/vietlott-web-vip.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-vip.css"), "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web-notifications.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-notifications.js"), "application/javascript; charset=UTF-8"));
         server.createContext("/vietlott-web-wallet.css", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-wallet.css"), "text/css; charset=UTF-8"));
         server.createContext("/vietlott-web-account-stats.js", ex -> serveStaticTextFile(ex, rootDir.resolve("frontend/vietlott-web-account-stats.js"), "application/javascript; charset=UTF-8"));
@@ -478,6 +492,7 @@ public class LottoWebServer {
         server.createContext("/api/live-history", this::handleLiveHistory);
         server.createContext("/api/recover-admin", this::handleRecoverAdmin);
         server.createContext("/api/admin/users", this::handleAdminUsers);
+        server.createContext("/api/admin/exchange-rate", this::handleAdminExchangeRate);
         server.createContext("/api/presence", this::handlePresence);
         server.createContext("/api/admin/account-history", this::handleAccountHistory);
         server.createContext("/api/admin/update-user", this::handleAdminUpdateUser);
@@ -490,6 +505,8 @@ public class LottoWebServer {
         server.setExecutor(new ThreadPoolExecutor(8, 24, 60, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<Runnable>(64), new ThreadPoolExecutor.CallerRunsPolicy()));
         server.start();
+        startExchangeWorker();
+        startDailyTopupRateWorker();
         startEffectivenessWorker();
         startCardInterestWorker();
 
@@ -1163,6 +1180,15 @@ public class LottoWebServer {
             return;
         }
 
+        int drawCount = 0;
+        if (query.containsKey("drawCount")) {
+            drawCount = parseStrictPositiveInt(nvl(query.get("drawCount")).trim());
+            if (!"frequency".equals(mode) || drawCount < 1) {
+                sendJson(ex, 400, "{\"ok\":false,\"message\":\"Số kỳ phải là số nguyên dương hợp lệ.\",\"warnings\":[]}");
+                return;
+            }
+        }
+
         String from = nvl(query.get("from")).trim();
         String to = nvl(query.get("to")).trim();
         if ((!isBlank(from) && !isValidStatsV2Date(from)) || (!isBlank(to) && !isValidStatsV2Date(to))) {
@@ -1224,6 +1250,10 @@ public class LottoWebServer {
 
         List<String> command = buildPythonCommand(scriptFile);
         command.add("analysis_json");
+        if (drawCount > 0) {
+            command.add("--draw-count");
+            command.add(String.valueOf(drawCount));
+        }
         command.add("--type");
         command.add(type);
         command.add("--period");
@@ -2484,6 +2514,33 @@ public class LottoWebServer {
         }
     }
 
+    private void startExchangeWorker() {
+        if (!Boolean.parseBoolean(System.getProperty("lotto.exchangeWorker", "true"))) return;
+        try { if (Files.isRegularFile(exchangeMarket.config)) exchangeMarket.initialize(Instant.now()); }
+        catch (Exception failure) { System.err.println("Exchange simulation: " + rootCauseMsg(failure)); }
+        long delay = 60000L - System.currentTimeMillis() % 60000L;
+        Executors.newSingleThreadScheduledExecutor(task -> {
+            Thread thread = new Thread(task,"paypal-exchange-simulation"); thread.setDaemon(true); return thread;
+        }).scheduleAtFixedRate(() -> {
+            if (!Files.isRegularFile(exchangeMarket.config)) return;
+            try { Instant now=Instant.now(); exchangeMarket.initialize(now); exchangeMarket.tick(now); }
+            catch (Exception failure) { System.err.println("Exchange simulation: " + rootCauseMsg(failure)); }
+        },delay,60000L,TimeUnit.MILLISECONDS);
+    }
+
+    private void startDailyTopupRateWorker() {
+        if (!Boolean.parseBoolean(System.getProperty("lotto.dailyTopupRateWorker", "true"))) return;
+        Runnable close = () -> {
+            if (!Files.exists(dailyTopupRates.config) && !Files.exists(dailyTopupRates.db)) return;
+            try { dailyTopupRates.quote(Instant.now()); }
+            catch (RuntimeException failure) { System.err.println("Daily topup rate: " + rootCauseMsg(failure)); }
+        };
+        close.run();
+        Executors.newSingleThreadScheduledExecutor(task -> {
+            Thread thread = new Thread(task,"paypal-daily-topup-rate"); thread.setDaemon(true); return thread;
+        }).scheduleAtFixedRate(close,60000L-System.currentTimeMillis()%60000L,60000L,TimeUnit.MILLISECONDS);
+    }
+
     private void startEffectivenessWorker() {
         if (!Boolean.parseBoolean(System.getProperty("lotto.effectivenessWorker", "true"))) return;
         Executors.newSingleThreadScheduledExecutor(task -> {
@@ -2765,6 +2822,304 @@ public class LottoWebServer {
         catch(RuntimeException failed){sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa cập nhật được trạng thái truy cập.\"}");}
     }
 
+    // Separate simulation store: never joined to a wallet, card, payment or payout.
+    static final class ExchangeMarket {
+        static final long SCALE=100000000L, MAX_PRICE=9007199254740991L;
+        static final int HISTORY_LIMIT=50;
+        interface RetentionGuard { void beforePrune(Instant now); }
+        RetentionGuard retentionGuard;
+        static final Map<String,Long> RANGE_SECONDS;
+        static {
+            Map<String,Long> ranges=new LinkedHashMap<>();
+            ranges.put("1min",60L);ranges.put("5min",300L);ranges.put("15min",900L);ranges.put("30min",1800L);
+            ranges.put("1h",3600L);ranges.put("3h",10800L);ranges.put("6h",21600L);ranges.put("12h",43200L);
+            ranges.put("1d",86400L);ranges.put("7d",604800L);ranges.put("1m",2592000L);ranges.put("3m",7776000L);ranges.put("all",0L);
+            RANGE_SECONDS=Collections.unmodifiableMap(ranges);
+        }
+        final Path db, config; final Random random; private boolean initialized;
+        ExchangeMarket(Path db, Path config, Random random) { this.db=db; this.config=config; this.random=random; }
+        static final class Policy {
+            Instant started; boolean enabled;
+        }
+        private Policy policy(Instant now) throws IOException {
+            Map<String,String> p=jsonFields(new String(Files.readAllBytes(config),StandardCharsets.UTF_8).replaceFirst("^\\uFEFF",""));
+            if (!"2".equals(p.get("version")) || !"60".equals(p.get("intervalSeconds")) || !"100".equals(p.get("maxStepBasisPoints"))
+                    || !"chart_preview_only".equals(jsonString(p.get("appliesTo"))) || !("true".equals(p.get("enabled")) || "false".equals(p.get("enabled"))))
+                throw new IllegalArgumentException("Invalid exchange simulation policy");
+            Policy result=new Policy(); result.started=Instant.parse(jsonString(p.get("trackingStartedAt"))); result.enabled="true".equals(p.get("enabled"));
+            if (result.started.isBefore(Instant.parse("2000-01-01T00:00:00Z")) || result.started.isAfter(now)) throw new IllegalArgumentException("Invalid exchange tracking start");
+            return result;
+        }
+        private Connection connection(boolean readOnly) throws SQLException {
+            Connection c=DriverManager.getConnection("jdbc:sqlite:"+(readOnly ? db.toAbsolutePath().toUri().toASCIIString()+"?mode=ro" : db.toString()));
+            try (Statement s=c.createStatement()) { s.execute("PRAGMA busy_timeout=5000"); }
+            return c;
+        }
+        private static String meta(Connection c,String key) throws SQLException {
+            try (PreparedStatement p=c.prepareStatement("SELECT value FROM market_meta WHERE key=?")) { p.setString(1,key);try(ResultSet r=p.executeQuery()){return r.next()?r.getString(1):"";} }
+        }
+        private static void put(Connection c,String key,String value) throws SQLException {
+            try(PreparedStatement p=c.prepareStatement("INSERT OR REPLACE INTO market_meta VALUES(?,?)")){p.setString(1,key);p.setString(2,value);p.executeUpdate();}
+        }
+        private static void verify(Connection c,Policy p) throws SQLException {
+            if (!"1".equals(meta(c,"schema")) || !p.started.toString().equals(meta(c,"tracking_started_at"))) throw new IllegalStateException("Exchange history and policy disagree");
+        }
+        synchronized void initialize(Instant now) throws IOException,SQLException {
+            Policy policy=policy(now); if(!policy.enabled && !Files.isRegularFile(db))return;
+            if(initialized && Files.isRegularFile(db))return;
+            Files.createDirectories(db.toAbsolutePath().getParent());
+            try(Connection c=connection(false)) {
+                try(Statement s=c.createStatement()){s.execute("PRAGMA journal_mode=WAL");}
+                c.setAutoCommit(false);
+                try {
+                    try(Statement s=c.createStatement()) {
+                        s.execute("CREATE TABLE IF NOT EXISTS market_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)");
+                        s.execute("CREATE TABLE IF NOT EXISTS market_ticks(minute INTEGER PRIMARY KEY,recorded_at TEXT NOT NULL UNIQUE,rate_units INTEGER NOT NULL CHECK(rate_units>0 AND rate_units<=9007199254740991),step_basis_points INTEGER NOT NULL CHECK(step_basis_points BETWEEN -100 AND 100))");
+                        s.execute("CREATE TRIGGER IF NOT EXISTS market_ticks_no_update BEFORE UPDATE ON market_ticks BEGIN SELECT RAISE(ABORT,'immutable exchange tick'); END");
+                        s.execute("DROP TRIGGER IF EXISTS market_ticks_no_delete");
+                        s.execute("CREATE TRIGGER market_ticks_no_delete BEFORE DELETE ON market_ticks WHEN OLD.minute IN (SELECT minute FROM market_ticks ORDER BY minute DESC LIMIT 50) BEGIN SELECT RAISE(ABORT,'Cannot delete retained exchange tick'); END");
+                        s.executeUpdate("UPDATE market_meta SET value=value WHERE 0");
+                    }
+                    if(meta(c,"schema").isEmpty()) {
+                        try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT COUNT(*) FROM market_ticks")){r.next();if(r.getLong(1)!=0)throw new IllegalStateException("Exchange history has no metadata");}
+                        put(c,"schema","1"); put(c,"tracking_started_at",policy.started.toString());put(c,"simulation_started_at",now.toString());
+                        put(c,"last_minute",Long.toString(now.getEpochSecond()/60));put(c,"last_tick_at",now.toString());
+                        try(PreparedStatement p=c.prepareStatement("INSERT INTO market_ticks VALUES(?,?,?,0)")){p.setLong(1,policy.started.getEpochSecond()/60);p.setString(2,policy.started.toString());p.setLong(3,125000000L);p.executeUpdate();}
+                    } else verify(c,policy);
+                    c.commit();initialized=true;
+                }catch(SQLException|RuntimeException failure){c.rollback();throw failure;}
+            }
+            trimHistory(now);
+        }
+        private void prune(Connection c) throws SQLException {
+            long first,previous;String at;
+            try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT minute,recorded_at,rate_units FROM (SELECT minute,recorded_at,rate_units FROM market_ticks ORDER BY minute DESC LIMIT 50) ORDER BY minute LIMIT 1")) {
+                if(!r.next())throw new IllegalStateException("Missing retained exchange history");first=r.getLong(1);at=r.getString(2);previous=r.getLong(3);
+            }
+            try(PreparedStatement p=c.prepareStatement("SELECT rate_units FROM market_ticks WHERE minute<? ORDER BY minute DESC LIMIT 1")) {
+                p.setLong(1,first);try(ResultSet r=p.executeQuery()) {
+                    if(r.next())previous=r.getLong(1);
+                    else if(Long.toString(first).equals(meta(c,"retained_first_minute")))previous=Long.parseLong(meta(c,"retained_previous_units"));
+                }
+            }
+            put(c,"retained_first_minute",Long.toString(first));put(c,"retained_previous_units",Long.toString(previous));put(c,"history_started_at",at);
+            try(PreparedStatement p=c.prepareStatement("DELETE FROM market_ticks WHERE minute<?")){p.setLong(1,first);p.executeUpdate();}
+        }
+        synchronized void trimHistory(Instant now) throws IOException,SQLException {
+            Policy policy=policy(now);
+            if(retentionGuard!=null)retentionGuard.beforePrune(now);
+            try(Connection c=connection(false)) {
+                c.setAutoCommit(false);
+                try {
+                    try(Statement s=c.createStatement()){s.executeUpdate("UPDATE market_meta SET value=value WHERE 0");}
+                    verify(c,policy);prune(c);c.commit();
+                }catch(SQLException|RuntimeException failure){c.rollback();throw failure;}
+            }
+        }
+        static long nextRate(long previous,int basisPoints) {
+            if(previous<1 || previous>MAX_PRICE || Math.abs((long)basisPoints)>100)throw new IllegalArgumentException("Invalid simulation step");
+            long delta=previous*Math.abs((long)basisPoints)/10000L;
+            return Math.max(1L,Math.min(MAX_PRICE,previous+(basisPoints<0?-delta:delta)));
+        }
+        synchronized boolean tick(Instant now) throws IOException,SQLException {
+            Policy policy=policy(now);if(!policy.enabled)return false;
+            if(!Files.isRegularFile(db))throw new IllegalStateException("Simulation not initialized");
+            if(retentionGuard!=null)retentionGuard.beforePrune(now);
+            try(Connection c=connection(false)) {
+                c.setAutoCommit(false);
+                try {
+                    try(Statement s=c.createStatement()){s.executeUpdate("UPDATE market_meta SET value=value WHERE 0");}
+                    verify(c,policy);long minute=now.getEpochSecond()/60;
+                    if(minute<=Long.parseLong(meta(c,"last_minute"))){c.commit();return false;}
+                    long previous;
+                    try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT rate_units FROM market_ticks ORDER BY minute DESC LIMIT 1")){if(!r.next())throw new IllegalStateException("Missing exchange baseline");previous=r.getLong(1);}
+                    int step=(random.nextInt(100)+1)*(random.nextBoolean()?1:-1);
+                    try(PreparedStatement p=c.prepareStatement("INSERT INTO market_ticks VALUES(?,?,?,?)")){p.setLong(1,minute);p.setString(2,now.toString());p.setLong(3,nextRate(previous,step));p.setInt(4,step);p.executeUpdate();}
+                    put(c,"last_minute",Long.toString(minute));put(c,"last_tick_at",now.toString());prune(c);c.commit();return true;
+                }catch(SQLException|RuntimeException failure){c.rollback();throw failure;}
+            }
+        }
+        static String price(long units){return BigDecimal.valueOf(units,8).stripTrailingZeros().toPlainString();}
+        static String percent(long value,long previous){return BigDecimal.valueOf(value-previous).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(previous),6,RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();}
+        synchronized String currentReport(String user,String accountId,String range) throws IOException,SQLException {
+            // Capture the live clock after waiting for this process's writer.
+            return report(user,accountId,range,Instant.now());
+        }
+        synchronized String report(String user,String accountId,String range,Instant now) throws IOException,SQLException {
+            Policy policy=policy(now);
+            if(!Files.isRegularFile(db))throw new IllegalStateException("Simulation not initialized");
+            Long seconds=RANGE_SECONDS.get(range);if(seconds==null)throw new IllegalArgumentException("Invalid exchange time range");
+            Instant from=seconds==0L?policy.started:now.minusSeconds(seconds);if(from.isBefore(policy.started))from=policy.started;
+            try(Connection c=connection(true)) {
+                c.setAutoCommit(false);verify(c,policy);
+                Instant retainedStart;
+                try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT recorded_at FROM market_ticks ORDER BY minute LIMIT 1")) {
+                    if(!r.next())throw new IllegalStateException("Missing exchange history");retainedStart=Instant.parse(r.getString(1));
+                }
+                if(from.isBefore(retainedStart))from=retainedStart;
+                long fromMinute=from.getEpochSecond()/60,nowMinute=now.getEpochSecond()/60,bucket=Math.max(1L,(nowMinute-fromMinute+360L)/360L);
+                Instant activated=Instant.parse(meta(c,"simulation_started_at")),lastTick=Instant.parse(meta(c,"last_tick_at"));
+                if(lastTick.isAfter(now))throw new IllegalStateException("Simulation clock moved backwards");
+                List<Long> values=new ArrayList<>();List<String> times=new ArrayList<>();
+                try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT recorded_at,rate_units FROM market_ticks ORDER BY minute DESC LIMIT 51")){while(r.next()){times.add(r.getString(1));values.add(r.getLong(2));}}
+                if(values.isEmpty())throw new IllegalStateException("Missing simulation history");
+                long current=values.get(0),previous=values.size()>1?values.get(1):current,total;
+                try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT COUNT(*) FROM market_ticks")){r.next();total=r.getLong(1);}
+                long carry;
+                try(PreparedStatement p=c.prepareStatement("SELECT MAX(minute) FROM market_ticks WHERE minute<=?")){p.setLong(1,fromMinute);try(ResultSet r=p.executeQuery()){r.next();carry=r.getLong(1);}}
+                String sql="WITH buckets AS (SELECT (minute-?)/? AS bucket,MIN(minute) AS first,MAX(minute) AS last,MAX(rate_units) AS high,MIN(rate_units) AS low FROM market_ticks WHERE minute>=? AND minute<=? GROUP BY bucket) SELECT f.recorded_at,l.recorded_at,f.rate_units,b.high,b.low,l.rate_units FROM buckets b JOIN market_ticks f ON f.minute=b.first JOIN market_ticks l ON l.minute=b.last ORDER BY b.first";
+                StringBuilder bars=new StringBuilder("[");long open=0,high=0,low=Long.MAX_VALUE,close=current;int count=0;
+                try(PreparedStatement p=c.prepareStatement(sql)) {
+                    p.setLong(1,fromMinute);p.setLong(2,bucket);p.setLong(3,carry);p.setLong(4,nowMinute);
+                    try(ResultSet r=p.executeQuery()){while(r.next()){
+                        Instant at=Instant.parse(r.getString(1)),end=Instant.parse(r.getString(2));if(at.isBefore(from))at=from;if(end.isBefore(from))end=from;
+                        long first=count==0?r.getLong(3):close,h=Math.max(first,r.getLong(4)),l=Math.min(first,r.getLong(5)),last=r.getLong(6);if(count++==0)open=first;else bars.append(',');high=Math.max(high,h);low=Math.min(low,l);close=last;
+                        bars.append("{\"time\":").append(quoteJson(at.toString())).append(",\"endTime\":").append(quoteJson(end.toString())).append(",\"open\":").append(quoteJson(price(first))).append(",\"high\":").append(quoteJson(price(h))).append(",\"low\":").append(quoteJson(price(l))).append(",\"close\":").append(quoteJson(price(last))).append('}');
+                    }}
+                }
+                if(count==0 || count>362)throw new IllegalStateException("Invalid simulation chart buckets");
+                StringBuilder history=new StringBuilder("[");
+                for(int i=0;i<Math.min(HISTORY_LIMIT,values.size());i++){
+                    if(i>0)history.append(',');long v=values.get(i),prev=i+1<values.size()?values.get(i+1):isBlank(meta(c,"retained_previous_units"))?v:Long.parseLong(meta(c,"retained_previous_units"));
+                    history.append("{\"effectiveAt\":").append(quoteJson(times.get(i))).append(",\"rate\":").append(quoteJson(price(v))).append(",\"change\":").append(quoteJson(price(v-prev))).append(",\"changePercent\":").append(quoteJson(percent(v,prev))).append(",\"label\":").append(quoteJson(Instant.parse(times.get(i)).equals(policy.started)?"Giá gốc":"Cập nhật mỗi phút")).append('}');
+                }
+                String result="{\"ok\":true,\"owner\":"+quoteJson(user)+",\"accountId\":"+quoteJson(accountId)+",\"source\":\"internal_simulation\",\"fixed\":false,\"appliesTo\":\"chart_preview_only\",\"enabled\":"+policy.enabled
+                        +",\"baseCurrency\":\"VNĐ\",\"quoteCurrency\":\"PayPal\",\"range\":"+quoteJson(range)+",\"numerator\":"+quoteJson(Long.toString(current))+",\"denominator\":\"100000000\",\"rate\":"+quoteJson(price(current))
+                        +",\"inverseRate\":"+quoteJson(BigDecimal.valueOf(SCALE).divide(BigDecimal.valueOf(current),8,RoundingMode.HALF_UP).stripTrailingZeros().toPlainString())+",\"change\":"+quoteJson(price(current-previous))+",\"changePercent\":"+quoteJson(percent(current,previous))
+                        +",\"intervalSeconds\":60,\"maxStepPercent\":\"1\",\"trackingStartedAt\":"+quoteJson(policy.started.toString())+",\"simulationStartedAt\":"+quoteJson(activated.toString())+",\"from\":"+quoteJson(from.toString())+",\"asOf\":"+quoteJson(now.toString())
+                        +",\"lastUpdateAt\":"+quoteJson(lastTick.toString())+",\"nextUpdateAt\":"+(policy.enabled?quoteJson(Instant.ofEpochSecond((nowMinute+1)*60).toString()):"null")+",\"stale\":"+(policy.enabled&&Duration.between(lastTick,now).getSeconds()>125)
+                        +",\"ohlc\":{\"open\":"+quoteJson(price(open))+",\"high\":"+quoteJson(price(high))+",\"low\":"+quoteJson(price(low))+",\"close\":"+quoteJson(price(close))+"},\"bucketMinutes\":"+bucket+",\"bars\":"+bars.append(']')+",\"historyStartedAt\":"+quoteJson(retainedStart.toString())+",\"historyLimit\":50,\"historyPageSize\":5,\"historyTotal\":"+total+",\"history\":"+history.append(']')+"}";
+                c.commit();return result;
+            }
+        }
+    }
+
+    static final class TopupRateUnavailable extends RuntimeException {
+        TopupRateUnavailable(Throwable cause) { super("Chưa lấy được tỉ giá nạp hôm nay. Vui lòng thử lại sau.",cause); }
+    }
+    static final class TopupRateChanged extends IllegalArgumentException {
+        TopupRateChanged() { super("Tỉ giá nạp đã chuyển sang ngày mới. Vui lòng tải lại và kiểm tra số PayPal trước khi gửi."); }
+    }
+
+    // Immutable financial quotes are separate from the minute-by-minute chart.
+    static final class DailyTopupRates {
+        static final ZoneId ZONE=ZoneId.of("Asia/Ho_Chi_Minh");
+        final Path db,config; final ExchangeMarket market;
+        DailyTopupRates(Path db,Path config,ExchangeMarket market) { this.db=db;this.config=config;this.market=market; }
+        static final class Quote {
+            final String day,sourceAt,effectiveAt,source; final long units;
+            Quote(String day,long units,String sourceAt,String effectiveAt,String source) {
+                this.day=day;this.units=units;this.sourceAt=sourceAt;this.effectiveAt=effectiveAt;this.source=source;
+            }
+            String json() {
+                return "{\"day\":"+quoteJson(day)+",\"numerator\":"+quoteJson(Long.toString(units))+",\"denominator\":\"100000000\",\"rate\":"+quoteJson(ExchangeMarket.price(units))
+                    +",\"sourceAt\":"+quoteJson(sourceAt)+",\"effectiveAt\":"+quoteJson(effectiveAt)+",\"nextCloseAt\":"+quoteJson(LocalDate.parse(day).plusDays(1).atStartOfDay(ZONE).toInstant().toString())
+                    +",\"timeZone\":\"Asia/Ho_Chi_Minh\",\"source\":"+quoteJson(source)+"}";
+            }
+            long base(long amount) {
+                long result=BigDecimal.valueOf(amount).multiply(BigDecimal.valueOf(units)).divide(BigDecimal.valueOf(ExchangeMarket.SCALE),0,RoundingMode.HALF_UP).longValueExact();
+                if(result<0 || result>9007199254740991L)throw new IllegalArgumentException("Giá trị quy đổi vượt giới hạn. Chưa tạo yêu cầu nạp.");
+                return result;
+            }
+            void requireDay(String expected) {
+                if(!day.equals(expected) && (!"legacy_fixed".equals(source) || !isBlank(expected)))throw new TopupRateChanged();
+            }
+        }
+        private Connection connection() throws SQLException {
+            Connection c=DriverManager.getConnection("jdbc:sqlite:"+db.toAbsolutePath());
+            try(Statement s=c.createStatement()){s.execute("PRAGMA busy_timeout=10000");}return c;
+        }
+        private Quote row(Connection c,String day) throws SQLException {
+            try(PreparedStatement p=c.prepareStatement("SELECT * FROM daily_topup_rates WHERE day=?")) {
+                p.setString(1,day);try(ResultSet r=p.executeQuery()) {
+                    return r.next()?new Quote(day,r.getLong("rate_units"),r.getString("source_at"),r.getString("effective_at"),r.getString("source")):null;
+                }
+            }
+        }
+        private void insert(Connection c,Quote q,Instant now) throws SQLException {
+            try(PreparedStatement p=c.prepareStatement("INSERT INTO daily_topup_rates(day,rate_units,source_at,effective_at,source,created_at) VALUES(?,?,?,?,?,?)")) {
+                p.setString(1,q.day);p.setLong(2,q.units);p.setString(3,q.sourceAt);p.setString(4,q.effectiveAt);p.setString(5,q.source);p.setString(6,now.toString());p.executeUpdate();
+            }
+        }
+        synchronized Quote quote(Instant now) {
+            String today=now.atZone(ZONE).toLocalDate().toString();
+            if(!Files.exists(config) && !Files.exists(db))return new Quote(today,125000000L,"",now.atZone(ZONE).toLocalDate().atStartOfDay(ZONE).toInstant().toString(),"legacy_fixed");
+            try {
+                Map<String,String> policy=jsonFields(new String(Files.readAllBytes(config),StandardCharsets.UTF_8).replaceFirst("^\\uFEFF",""));
+                if(!"1".equals(policy.get("version")) || !"Asia/Ho_Chi_Minh".equals(jsonString(policy.get("timeZone")))
+                    || !"last_market_tick_before_midnight".equals(jsonString(policy.get("source"))) || !"created_at".equals(jsonString(policy.get("orderRateLock")))
+                    || !"1.25".equals(jsonString(policy.get("initialRate"))))throw new IllegalStateException("Invalid daily topup rate policy");
+                Instant activated=Instant.parse(jsonString(policy.get("activatedAt")));
+                if(activated.isAfter(now) || activated.isBefore(Instant.parse("2000-01-01T00:00:00Z")))throw new IllegalStateException("Invalid daily rate activation");
+                LocalDate initialDay=activated.atZone(ZONE).toLocalDate();
+                String identity="1|"+activated+"|Asia/Ho_Chi_Minh|125000000|last_market_tick_before_midnight|created_at";
+                Files.createDirectories(db.toAbsolutePath().getParent());
+                try(Connection c=connection()) {
+                    try(Statement s=c.createStatement()){s.execute("PRAGMA journal_mode=WAL");}
+                    c.setAutoCommit(false);
+                    try {
+                        try(Statement s=c.createStatement()) {
+                            s.execute("CREATE TABLE IF NOT EXISTS topup_rate_policy(id INTEGER PRIMARY KEY CHECK(id=1),fingerprint TEXT NOT NULL)");
+                            s.execute("CREATE TABLE IF NOT EXISTS daily_topup_rates(day TEXT PRIMARY KEY,rate_units INTEGER NOT NULL CHECK(rate_units>0 AND rate_units<=9007199254740991),source_at TEXT NOT NULL,effective_at TEXT NOT NULL,source TEXT NOT NULL,created_at TEXT NOT NULL)");
+                            s.execute("CREATE TRIGGER IF NOT EXISTS daily_topup_rates_no_update BEFORE UPDATE ON daily_topup_rates BEGIN SELECT RAISE(ABORT,'Immutable daily topup rate'); END");
+                            s.execute("CREATE TRIGGER IF NOT EXISTS daily_topup_rates_no_delete BEFORE DELETE ON daily_topup_rates BEGIN SELECT RAISE(ABORT,'Immutable daily topup rate'); END");
+                            s.executeUpdate("UPDATE topup_rate_policy SET fingerprint=fingerprint WHERE id=1");
+                        }
+                        try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT fingerprint FROM topup_rate_policy WHERE id=1")) {
+                            if(r.next()) { if(!identity.equals(r.getString(1)))throw new IllegalStateException("Daily rate history and policy disagree"); }
+                            else {
+                                try(PreparedStatement p=c.prepareStatement("INSERT INTO topup_rate_policy VALUES(1,?)")){p.setString(1,identity);p.executeUpdate();}
+                                insert(c,new Quote(initialDay.toString(),125000000L,"",activated.toString(),"initial_fixed"),now);
+                            }
+                        }
+                        try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT MAX(day) FROM daily_topup_rates")) {
+                            r.next();if(r.getString(1).compareTo(today)>0)throw new IllegalStateException("Daily rate clock moved backwards");
+                        }
+                        Quote result=row(c,today);
+                        if(result==null) {
+                            LocalDate last;
+                            try(Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT MAX(day) FROM daily_topup_rates")){r.next();last=LocalDate.parse(r.getString(1));}
+                            ExchangeMarket.Policy sourcePolicy=market.policy(now);
+                            if(!Files.isRegularFile(market.db))throw new IllegalStateException("Missing source market history");
+                            try(Connection source=market.connection(true)) {
+                                source.setAutoCommit(false);ExchangeMarket.verify(source,sourcePolicy);
+                                for(LocalDate day=last.plusDays(1);!day.isAfter(LocalDate.parse(today));day=day.plusDays(1)) {
+                                    Instant boundary=day.atStartOfDay(ZONE).toInstant();
+                                    try(PreparedStatement p=source.prepareStatement("SELECT recorded_at,rate_units FROM market_ticks WHERE minute<? ORDER BY minute DESC LIMIT 1")) {
+                                        p.setLong(1,boundary.getEpochSecond()/60);
+                                        try(ResultSet r=p.executeQuery()) {
+                                            if(!r.next() || !Instant.parse(r.getString(1)).isBefore(boundary))throw new IllegalStateException("No market price before daily close");
+                                            result=new Quote(day.toString(),r.getLong(2),r.getString(1),boundary.toString(),"market_close");insert(c,result,now);
+                                        }
+                                    }
+                                }
+                                source.commit();
+                            }
+                        }
+                        if(result==null)throw new IllegalStateException("Daily rate unavailable");
+                        c.commit();return result;
+                    } catch(Exception failure) { c.rollback();throw failure; }
+                }
+            } catch(Exception failure) { throw new TopupRateUnavailable(failure); }
+        }
+    }
+
+    private void handleAdminExchangeRate(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        ex.getResponseHeaders().set("Cache-Control","no-store");
+        SessionUser su = requireAdmin(ex); if (su == null) return;
+        if (!"/api/admin/exchange-rate".equals(ex.getRequestURI().getPath())) { sendJson(ex,404,"{\"ok\":false}"); return; }
+        if (!"GET".equals(ex.getRequestMethod())) { sendJson(ex,405,"{\"ok\":false}"); return; }
+        Map<String,String> query = parseQuery(ex.getRequestURI().getRawQuery());
+        String range = query.getOrDefault("range","1d");
+        if (!ExchangeMarket.RANGE_SECONDS.containsKey(range) || query.size() > (query.containsKey("range") ? 1 : 0)) {
+            sendJson(ex,400,"{\"ok\":false,\"message\":\"Khoảng thời gian không hợp lệ.\"}"); return;
+        }
+        try {
+            sendJson(ex,200,exchangeMarket.currentReport(su.username,su.account.accountId,range));
+        } catch (RuntimeException | IOException | SQLException failure) { sendJson(ex,503,"{\"ok\":false,\"message\":\"Chưa tải được tỉ giá. Hãy thử lại.\"}"); }
+    }
+
     private void handleAdminUsers(HttpExchange ex) throws IOException {
         ex.getResponseHeaders().set("Cache-Control","no-store");
         if (handleOptions(ex)) return;
@@ -2869,6 +3224,133 @@ public class LottoWebServer {
         } catch (NumberFormatException invalid) { sendJson(ex,400,"{\"ok\":false,\"message\":\"Mốc thông báo không hợp lệ.\"}"); return; }
         try { sendJson(ex,200,repo.financialNotifications(user.username,cursors)); }
         catch (RuntimeException failure) { sendJson(ex,500,"{\"ok\":false,\"message\":\"Chưa tải được thông báo giao dịch.\"}"); }
+    }
+
+    private void handleVipProgress(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        SessionUser user = requireAuth(ex, true); if (user == null) return;
+        if (!"/api/account/vip-progress".equals(ex.getRequestURI().getPath())) { sendJson(ex,404,"{\"ok\":false}"); return; }
+        if (!"GET".equals(ex.getRequestMethod())) { sendJson(ex,405,"{\"ok\":false}"); return; }
+        if (ex.getRequestURI().getRawQuery() != null && !ex.getRequestURI().getRawQuery().isEmpty()) {
+            sendJson(ex,400,"{\"ok\":false,\"message\":\"Tiến trình VIP chỉ dành cho tài khoản đang đăng nhập.\"}"); return;
+        }
+        try { sendJson(ex,200,repo.vipProgress(user.username, VipLevels.load())); }
+        catch (RuntimeException | IOException failure) { sendJson(ex,503,"{\"ok\":false,\"message\":\"Chưa tải được tiến trình VIP. Hãy thử lại.\"}"); }
+    }
+
+    private void handleVipDailyReward(HttpExchange ex) throws IOException {
+        if (handleOptions(ex)) return;
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        SessionUser user = requireAuth(ex, true); if (user == null) return;
+        if (!"/api/account/vip-daily-reward".equals(ex.getRequestURI().getPath())) { sendJson(ex,404,"{\"ok\":false}"); return; }
+        String method = ex.getRequestMethod();
+        if (!"GET".equals(method) && !"POST".equals(method)) { sendJson(ex,405,"{\"ok\":false}"); return; }
+        if (ex.getRequestURI().getRawQuery() != null && !ex.getRequestURI().getRawQuery().isEmpty()) { sendJson(ex,400,"{\"ok\":false}"); return; }
+        String day = null;
+        if ("POST".equals(method)) {
+            Map<String,String> form = parseForm(ex);
+            day = form.get("day");
+            if (form.size() != 1 || day == null || !day.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}")) {
+                sendJson(ex,400,"{\"ok\":false,\"message\":\"Yêu cầu nhận rương không hợp lệ.\"}"); return;
+            }
+            try { LocalDate.parse(day); } catch (DateTimeParseException invalid) { sendJson(ex,400,"{\"ok\":false}"); return; }
+        }
+        try {
+            sendJson(ex,200,repo.vipDailyReward(user.username,user.account.accountId,VipLevels.load(),VipDailyRewards.load(),accountCardCurrency(),day));
+        } catch (IllegalStateException invalid) { sendJson(ex,409,"{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        catch (RuntimeException | IOException failure) { sendJson(ex,503,"{\"ok\":false,\"message\":\"Chưa xác nhận được rương VIP. Hãy tải lại để kiểm tra.\"}"); }
+    }
+
+    private static class VipDailyRewards {
+        static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+        static final long MAX_BALANCE = 9007199254740991L;
+        final long[] amounts = new long[16];
+        boolean enabled;
+
+        static LocalDate dayAt(Instant now) { return now.atZone(ZONE).toLocalDate(); }
+
+        static VipDailyRewards load() throws IOException {
+            Map<String,String> config = jsonFields(new String(Files.readAllBytes(Paths.get("config", "vip-daily-rewards.json")), StandardCharsets.UTF_8).replaceFirst("^\\uFEFF", ""));
+            if (!"1".equals(config.get("version")) || !"PayPal".equals(jsonString(config.get("currency")))
+                    || !"card".equals(jsonString(config.get("destination"))) || !"current_level".equals(jsonString(config.get("claimMode")))
+                    || !ZONE.getId().equals(jsonString(config.get("timezone")))
+                    || !("true".equals(config.get("enabled")) || "false".equals(config.get("enabled"))))
+                throw new IllegalArgumentException("Invalid VIP daily reward configuration");
+            VipDailyRewards policy = new VipDailyRewards(); policy.enabled = "true".equals(config.get("enabled"));
+            Map<String,String> rewards = jsonFields(config.get("rewards"));
+            if (rewards.size() != 16) throw new IllegalArgumentException("VIP rewards require levels 0 through 15");
+            for (int i=0;i<16;i++) {
+                String raw = rewards.get(Integer.toString(i));
+                if (raw == null || !raw.matches("\"[1-9][0-9]{0,15}\"")) throw new IllegalArgumentException("Invalid VIP reward");
+                policy.amounts[i] = Long.parseLong(jsonString(raw));
+                if (policy.amounts[i] > MAX_BALANCE || (i>0 && policy.amounts[i] <= policy.amounts[i-1]))
+                    throw new IllegalArgumentException("VIP rewards must increase within balance limits");
+            }
+            return policy;
+        }
+    }
+
+    // Lifetime loyalty ranks are independent of time-based account entitlements.
+    private static class VipLevels {
+        final BigInteger[] thresholds = new BigInteger[16];
+        final BigInteger pointUnitsPerPayPal;
+        final String paypalPerPoint;
+        boolean draft;
+
+        VipLevels(boolean legacy) {
+            pointUnitsPerPayPal = legacy ? BigInteger.valueOf(80000) : BigInteger.ONE;
+            paypalPerPoint = legacy ? "1.25" : "100000";
+        }
+
+        static VipLevels load() throws IOException {
+            Map<String,String> config = jsonFields(new String(Files.readAllBytes(Paths.get("config", "vip-levels.json")), StandardCharsets.UTF_8).replaceFirst("^\\uFEFF", ""));
+            boolean legacy = "1".equals(config.get("version")) && "\"1.25\"".equals(config.get("paypalPerPoint"));
+            boolean rescaled = "2".equals(config.get("version")) && "\"100000\"".equals(config.get("paypalPerPoint"));
+            if (!(legacy || rescaled) || !"15".equals(config.get("maxLevel"))
+                    || !("true".equals(config.get("draft")) || "false".equals(config.get("draft"))))
+                throw new IllegalArgumentException("Invalid VIP configuration");
+            Map<String,String> values = jsonFields(config.get("thresholds"));
+            if (values.size() != 16) throw new IllegalArgumentException("VIP requires levels 0 through 15");
+            VipLevels levels = new VipLevels(legacy); levels.draft = "true".equals(config.get("draft"));
+            for (int i=0;i<16;i++) {
+                String raw = values.get(Integer.toString(i));
+                if (raw == null || !raw.matches("\"(0|[1-9][0-9]{0,39})(\\.[0-9]{1,5})?\"")) throw new IllegalArgumentException("Invalid VIP threshold");
+                levels.thresholds[i] = new BigDecimal(jsonString(raw)).movePointRight(5).toBigIntegerExact();
+                if (i == 0 ? levels.thresholds[i].signum() != 0 : levels.thresholds[i].compareTo(levels.thresholds[i-1]) <= 0)
+                    throw new IllegalArgumentException("VIP thresholds must increase from zero");
+            }
+            return levels;
+        }
+
+        // One unit is 0.00001 Point. Every spent PayPal remains exact.
+        static String points(BigInteger units) {
+            return new BigDecimal(units, 5).stripTrailingZeros().toPlainString();
+        }
+
+        int levelFor(BigInteger spent) {
+            BigInteger units = spent.multiply(pointUnitsPerPayPal);
+            int level = 0;
+            while (level < 15 && units.compareTo(thresholds[level+1]) >= 0) level++;
+            return level;
+        }
+
+        String progress(String user, String accountId, BigInteger spent) {
+            BigInteger units = spent.multiply(pointUnitsPerPayPal);
+            int level = levelFor(spent);
+            boolean maximum = level == 15;
+            BigInteger remaining = maximum ? BigInteger.ZERO : thresholds[level+1].subtract(units);
+            int basisPoints = maximum ? 10000 : units.subtract(thresholds[level]).multiply(BigInteger.valueOf(10000))
+                    .divide(thresholds[level+1].subtract(thresholds[level])).intValue();
+            StringBuilder rows = new StringBuilder("[");
+            for (int i=0;i<16;i++) { if (i>0) rows.append(','); rows.append("{\"level\":").append(i).append(",\"points\":").append(quoteJson(points(thresholds[i]))).append('}'); }
+            return "{\"ok\":true,\"username\":" + quoteJson(user) + ",\"accountId\":" + quoteJson(accountId)
+                    + ",\"spentPayPal\":" + quoteJson(spent.toString()) + ",\"points\":" + quoteJson(points(units))
+                    + ",\"level\":" + level + ",\"maxLevel\":15,\"currentLevelPoints\":" + quoteJson(points(thresholds[level]))
+                    + ",\"nextLevel\":" + (maximum ? "null" : level+1) + ",\"nextLevelPoints\":" + (maximum ? "null" : quoteJson(points(thresholds[level+1])))
+                    + ",\"remainingPoints\":" + quoteJson(points(remaining)) + ",\"progressBasisPoints\":" + basisPoints
+                    + ",\"paypalPerPoint\":" + quoteJson(paypalPerPoint) + ",\"draft\":" + draft + ",\"thresholds\":" + rows.append(']') + "}";
+        }
     }
 
     private void handleWalletHistory(HttpExchange ex) throws IOException {
@@ -3743,10 +4225,10 @@ public class LottoWebServer {
         if (handleOptions(ex)) return;
         SessionUser user = requireAuth(ex, true);
         if (user == null) return;
-        if ("GET".equals(method) && path.equals("/api/payments/vnpay/config")) {
-            sendJson(ex, 200, "{\"ok\":true,\"configured\":" + (cfg.enabled && cfg.ready()) + ",\"environment\":" + quoteJson(cfg.mode) + ",\"minimum\":1000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"maximum\":" + cfg.maximum + "}"); return;
-        }
         try {
+            if ("GET".equals(method) && path.equals("/api/payments/vnpay/config")) {
+                sendJson(ex, 200, "{\"ok\":true,\"configured\":" + (cfg.enabled && cfg.ready()) + ",\"environment\":" + quoteJson(cfg.mode) + ",\"minimum\":1000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"maximum\":" + cfg.maximum + ",\"topupRate\":"+dailyTopupRates.quote(Instant.now()).json()+"}"); return;
+            }
             if ("GET".equals(method) && path.equals("/api/payments/vnpay/orders")) {
                 sendJson(ex, 200, "{\"ok\":true,\"orders\":" + repo.listVnpay(user.username) + ",\"store\":" + repo.publicWallet(user.username) + "}"); return;
             }
@@ -3756,13 +4238,15 @@ public class LottoWebServer {
                 String raw = form.getOrDefault("amount", ""), request = form.getOrDefault("requestId", "");
                 if (!raw.matches("[0-9]{1,9}") || !request.matches("[A-Za-z0-9_-]{16,64}")) throw new IllegalArgumentException("Số tiền hoặc mã yêu cầu không hợp lệ.");
                 long amount = Long.parseLong(raw);
-                Map<String, String> order = repo.createVnpay(user.username, request, amount, cfg);
+                Map<String, String> order = repo.createVnpay(user.username, request, amount, cfg, form.getOrDefault("rateDay",""));
                 String checkout = "";
                 if (order.get("status").equals("PENDING") && Instant.parse(order.get("expiresAt")).isAfter(Instant.now())) checkout = vnpayPaymentUrl(order, cfg, ex.getRemoteAddress().getAddress().getHostAddress());
                 sendJson(ex, 200, "{\"ok\":true,\"order\":" + paymentOrderJson(order) + ",\"paymentUrl\":" + quoteJson(checkout) + "}"); return;
             }
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Thao tác không được hỗ trợ\"}");
-        } catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        } catch (TopupRateChanged changed) { sendJson(ex, 409, "{\"ok\":false,\"code\":\"RATE_CHANGED\",\"message\":"+quoteJson(changed.getMessage())+"}"); }
+        catch (TopupRateUnavailable unavailable) { sendJson(ex, 503, "{\"ok\":false,\"message\":"+quoteJson(unavailable.getMessage())+"}"); }
+        catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
         catch (RuntimeException failed) { sendJson(ex, 500, "{\"ok\":false,\"message\":\"Chưa xử lý được giao dịch. Hãy thử lại với cùng yêu cầu.\"}"); }
     }
 
@@ -3787,7 +4271,7 @@ public class LottoWebServer {
         if (user == null) return;
         try {
             if ("GET".equals(method) && path.equals("/api/payments/manual")) {
-                sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(null)) + ",\"minimum\":1000000,\"maximum\":100000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"orders\":" + repo.manualTopups(user.username, "all", 0) + ",\"legacyKeys\":" + repo.migratedLegacyKeys(user.username) + ",\"store\":" + repo.publicWallet(user.username) + "}"); return;
+                sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(null)) + ",\"minimum\":1000000,\"maximum\":100000000,\"step\":100000,\"presetAmounts\":[20000,50000,100000,200000,500000],\"orders\":" + repo.manualTopups(user.username, "all", 0) + ",\"legacyKeys\":" + repo.migratedLegacyKeys(user.username) + ",\"store\":" + repo.publicWallet(user.username) + ",\"topupRate\":"+dailyTopupRates.quote(Instant.now()).json()+"}"); return;
             }
             if ("GET".equals(method) && path.equals("/api/admin/deposits")) {
                 Map<String, String> query = parseQuery(ex.getRequestURI().getRawQuery());
@@ -3823,7 +4307,7 @@ public class LottoWebServer {
                         catch (Exception invalid) { throw new IllegalArgumentException("Vui lòng nhập Email để gửi yêu cầu nạp."); }
                       }
                     }
-                    sendJson(ex, 200, "{\"ok\":true,\"order\":" + repo.createManualTopup(user.username, request, amount, details) + "}"); return;
+                    sendJson(ex, 200, "{\"ok\":true,\"order\":" + repo.createManualTopup(user.username, request, amount, details, form.getOrDefault("rateDay","")) + "}"); return;
                 }
                 if (path.equals("/api/admin/deposits/settings")) {
                     sendJson(ex, 200, "{\"ok\":true,\"instructions\":" + quoteJson(repo.manualInstructions(topupText(form, "instructions", 0, 2000))) + "}"); return;
@@ -3837,7 +4321,9 @@ public class LottoWebServer {
                 }
             }
             sendJson(ex, 405, "{\"ok\":false,\"message\":\"Thao tác không được hỗ trợ.\"}");
-        } catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
+        } catch (TopupRateChanged changed) { sendJson(ex,409,"{\"ok\":false,\"code\":\"RATE_CHANGED\",\"message\":"+quoteJson(changed.getMessage())+"}"); }
+        catch (TopupRateUnavailable unavailable) { sendJson(ex,503,"{\"ok\":false,\"message\":"+quoteJson(unavailable.getMessage())+"}"); }
+        catch (IllegalArgumentException invalid) { sendJson(ex, 400, "{\"ok\":false,\"message\":" + quoteJson(invalid.getMessage()) + "}"); }
         catch (RuntimeException failed) { sendJson(ex, 500, "{\"ok\":false,\"message\":\"Chưa xử lý được yêu cầu. Vui lòng kiểm tra trạng thái rồi thử lại.\"}"); }
     }
 
@@ -3846,6 +4332,7 @@ public class LottoWebServer {
         for (String key : Arrays.asList("id", "accountId", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo")) result.put(key, quoteJson(p.getOrDefault(key, "")));
         if (!"manual".equals(p.get("environment")) && "PENDING".equals(p.get("status")) && !Instant.parse(p.get("expiresAt")).isAfter(Instant.now())) result.put("status", quoteJson("EXPIRED"));
         for (String key : Arrays.asList("amount", "baseCredit", "bonusCredit", "credit")) result.put(key, p.get(key));
+        result.put("exchangeRate",isBlank(p.get("exchangeRate"))?"null":p.get("exchangeRate"));
         return fieldsJson(result);
     }
 
@@ -4142,6 +4629,8 @@ public class LottoWebServer {
                 Set<String> paymentColumns = new HashSet<>();
                 try (ResultSet columns = st.executeQuery("PRAGMA table_info(payment_orders)")) { while (columns.next()) paymentColumns.add(columns.getString("name")); }
                 if (!paymentColumns.contains("account_id")) st.execute("ALTER TABLE payment_orders ADD COLUMN account_id TEXT NOT NULL DEFAULT ''");
+                if (!paymentColumns.contains("rate_json")) st.execute("ALTER TABLE payment_orders ADD COLUMN rate_json TEXT NOT NULL DEFAULT ''");
+                st.execute("CREATE TRIGGER IF NOT EXISTS payment_rate_immutable BEFORE UPDATE OF rate_json ON payment_orders WHEN NEW.rate_json<>OLD.rate_json BEGIN SELECT RAISE(ABORT,'Immutable payment quote'); END");
                 st.execute("CREATE INDEX IF NOT EXISTS payment_account_id ON payment_orders(account_id,created_at)");
                 st.execute("CREATE TRIGGER IF NOT EXISTS payment_owner_identity AFTER INSERT ON payment_orders WHEN NEW.account_id='' BEGIN UPDATE payment_orders SET account_id=COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.username),'') WHERE id=NEW.id; END");
                 st.execute("CREATE TRIGGER IF NOT EXISTS gift_recipient_identity AFTER INSERT ON gift_code_redemptions WHEN NEW.account_id='' BEGIN UPDATE gift_code_redemptions SET account_id=COALESCE((SELECT account_id FROM account_identities WHERE username=NEW.username),'') WHERE code=NEW.code AND username=NEW.username; END");
@@ -4383,6 +4872,126 @@ public class LottoWebServer {
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
+        synchronized String vipProgress(String user, VipLevels levels) {
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                String accountId = accountIdOf(c, user);
+                if (accountId.isEmpty()) throw new IllegalStateException("Account unavailable");
+                BigInteger spent = vipSpending(c,user);
+                c.commit();
+                return levels.progress(user, accountId, spent);
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
+        private BigInteger vipSpending(Connection c, String user) throws SQLException {
+                BigInteger spent = BigInteger.ZERO;
+                try (PreparedStatement ps = c.prepareStatement("SELECT pc.paypal_cost FROM personal_tracking_accounts p JOIN prediction_charges pc ON pc.account_id=p.id WHERE p.username=? AND pc.status='charged'")) {
+                    ps.setString(1,user);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            String amount = rs.getString(1);
+                            if (amount == null || !amount.matches("0|[1-9][0-9]*")) throw new IllegalStateException("Invalid charge");
+                            spent = spent.add(new BigInteger(amount));
+                        }
+                    }
+                }
+                try (PreparedStatement ps = c.prepareStatement("SELECT action FROM wallet_events WHERE username=? AND action LIKE 'exchange:%'")) {
+                    ps.setString(1,user);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            String action = rs.getString(1);
+                            if (!action.matches("exchange:[1-9][0-9]*")) throw new IllegalStateException("Invalid exchange");
+                            spent = spent.add(new BigInteger(action.substring(9)).multiply(BigInteger.valueOf(2000)));
+                        }
+                    }
+                }
+                return spent;
+        }
+
+        private String vipDailyReceipt(Connection c, String accountId, String day) throws SQLException {
+            String source = "vip_daily_reward:" + accountId + ":" + day;
+            try (PreparedStatement ps = c.prepareStatement("SELECT event_id,account_id,currency,kind,amount,balance_after,details_json,created_at FROM card_transactions WHERE source_key=?")) {
+                ps.setString(1,source);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return "null";
+                    Map<String,String> details = jsonFields(rs.getString(7));
+                    String level = details.get("rewardLevel");
+                    if (!accountId.equals(rs.getString(2)) || !"PayPal".equals(rs.getString(3)) || !"reward".equals(rs.getString(4))
+                            || rs.getLong(5) <= 0 || !day.equals(jsonString(details.get("businessDate")))
+                            || level == null || !level.matches("[0-9]|1[0-5]")) throw new IllegalStateException("Biên nhận rương VIP không hợp lệ.");
+                    return "{\"eventId\":" + quoteJson(rs.getString(1)) + ",\"day\":" + quoteJson(day) + ",\"level\":" + level
+                            + ",\"amount\":" + quoteJson(Long.toString(rs.getLong(5))) + ",\"currency\":\"PayPal\",\"destination\":\"card\""
+                            + ",\"balanceAfter\":" + quoteJson(Long.toString(rs.getLong(6))) + ",\"claimedAt\":" + quoteJson(rs.getString(8)) + "}";
+                }
+            }
+        }
+
+        synchronized String vipDailyReward(String user, String accountId, VipLevels levels, VipDailyRewards policy, String defaultCurrency, String requestedDay) {
+            try (Connection c = conn()) {
+                c.setAutoCommit(false);
+                try {
+                    // The immutable card ledger is also the daily claim receipt. Lock before any reads
+                    // so concurrent HTTP requests and reward/interest workers cannot lose a credit.
+                    if (requestedDay != null) try (Statement lock = c.createStatement()) { lock.executeUpdate("UPDATE account_cards SET version=version WHERE 0"); }
+                    try (PreparedStatement ps = c.prepareStatement("SELECT 1 FROM users u JOIN account_identities i ON i.username=u.username WHERE u.username=? AND i.account_id=? AND u.enabled=1 AND i.deleted_at=''")) {
+                        ps.setString(1,user); ps.setString(2,accountId);
+                        try (ResultSet rs = ps.executeQuery()) { if (!rs.next()) throw new IllegalStateException("Tài khoản đã thay đổi. Hãy đăng nhập lại."); }
+                    }
+                    Instant now = Instant.now();
+                    LocalDate today = VipDailyRewards.dayAt(now);
+                    String day = today.toString();
+                    BigInteger spent = vipSpending(c,user);
+                    int level = levels.levelFor(spent);
+                    String claim = "null";
+                    boolean replayed = false;
+                    if (requestedDay != null) {
+                        if (LocalDate.parse(requestedDay).isAfter(today)) throw new IllegalStateException("Chưa đến ngày nhận rương này. Hãy tải lại.");
+                        claim = vipDailyReceipt(c,accountId,requestedDay);
+                        replayed = !"null".equals(claim);
+                        if (!replayed) {
+                            if (!day.equals(requestedDay)) throw new IllegalStateException("Đã sang ngày mới. Hãy tải lại rương VIP.");
+                            if (!policy.enabled) throw new IllegalStateException("Rương thưởng VIP đang tạm đóng.");
+                            long balance = 0, version = 0, amount = policy.amounts[level]; String currency = defaultCurrency;
+                            try (PreparedStatement ps = c.prepareStatement("SELECT currency,balance,version FROM account_cards WHERE account_id=?")) {
+                                ps.setString(1,accountId);
+                                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) { currency=rs.getString(1); balance=rs.getLong(2); version=rs.getLong(3); } }
+                            }
+                            if (!"PayPal".equals(currency)) throw new IllegalStateException("Thẻ cần dùng đơn vị PayPal để nhận thưởng VIP.");
+                            if (balance < 0 || balance > VipDailyRewards.MAX_BALANCE - amount || version < 0 || version >= VipDailyRewards.MAX_BALANCE)
+                                throw new IllegalStateException("Số dư hoặc phiên bản thẻ đã đạt giới hạn. Chưa cộng thưởng.");
+                            long after = balance + amount;
+                            String source = "vip_daily_reward:" + accountId + ":" + day;
+                            String details = "{\"label\":" + quoteJson("Thưởng ngày VIP " + level) + ",\"description\":"
+                                    + quoteJson("Rương VIP " + level + " · Ngày " + today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                                    + ",\"businessDate\":" + quoteJson(day) + ",\"rewardLevel\":" + level + ",\"policyVersion\":1,\"paypal\":" + amount
+                                    + ",\"destination\":\"card\",\"cardBefore\":" + balance + ",\"cardAfter\":" + after + "}";
+                            try (PreparedStatement ps = c.prepareStatement("INSERT INTO account_cards VALUES(?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET balance=excluded.balance,version=excluded.version,updated_at=excluded.updated_at")) {
+                                ps.setString(1,accountId); ps.setString(2,"PayPal"); ps.setLong(3,after); ps.setLong(4,version+1); ps.setString(5,now.toString()); ps.setString(6,now.toString()); ps.executeUpdate();
+                            }
+                            try (PreparedStatement ps = c.prepareStatement("INSERT INTO card_transactions VALUES(?,?,?,?,?,?,?,?,?,?)")) {
+                                ps.setString(1,source); ps.setString(2,accountId); ps.setString(3,"PayPal"); ps.setString(4,"reward"); ps.setLong(5,amount); ps.setLong(6,after);
+                                ps.setString(7,day); ps.setString(8,details); ps.setString(9,now.toString()); ps.setString(10,source); ps.executeUpdate();
+                            }
+                            auditAccount(c,user,user,"vip_daily_reward",details);
+                            claim = vipDailyReceipt(c,accountId,day);
+                        }
+                    }
+                    String receipt = vipDailyReceipt(c,accountId,day);
+                    StringBuilder rewards = new StringBuilder("[");
+                    for (int i=0;i<16;i++) { if (i>0) rewards.append(','); rewards.append("{\"level\":").append(i).append(",\"amount\":").append(quoteJson(Long.toString(policy.amounts[i]))).append('}'); }
+                    String progress = levels.progress(user,accountId,spent);
+                    String result = progress.substring(0,progress.length()-1) + ",\"dailyReward\":{\"enabled\":" + policy.enabled
+                            + ",\"day\":" + quoteJson(day) + ",\"timezone\":\"Asia/Ho_Chi_Minh\",\"serverNow\":" + quoteJson(now.toString())
+                            + ",\"nextResetAt\":" + quoteJson(today.plusDays(1).atStartOfDay(VipDailyRewards.ZONE).toInstant().toString())
+                            + ",\"claimMode\":\"current_level\",\"currency\":\"PayPal\",\"destination\":\"card\",\"currentAmount\":" + quoteJson(Long.toString(policy.amounts[level]))
+                            + ",\"nextAmount\":" + (level == 15 ? "null" : quoteJson(Long.toString(policy.amounts[level+1])))
+                            + ",\"claimed\":" + !"null".equals(receipt) + ",\"receipt\":" + receipt + ",\"rewards\":" + rewards.append(']') + "}"
+                            + ",\"claim\":" + claim + ",\"replayed\":" + replayed + "}";
+                    c.commit(); return result;
+                } catch (SQLException | RuntimeException failure) { c.rollback(); throw failure; }
+            } catch (SQLException failure) { throw new RuntimeException(failure); }
+        }
+
         synchronized String walletHistory(String user, String kind, int requestedPage) {
             Account account = getUser(user);
             if (account == null) throw new IllegalStateException("Không tìm thấy tài khoản.");
@@ -4614,19 +5223,23 @@ public class LottoWebServer {
             String[] columns = {"id", "account_id", "environment", "status", "created_at", "expires_at", "paid_at", "transaction_no", "amount", "base_credit", "bonus_credit", "credit"};
             String[] keys = {"id", "accountId", "environment", "status", "createdAt", "expiresAt", "paidAt", "transactionNo", "amount", "baseCredit", "bonusCredit", "credit"};
             for (int i = 0; i < columns.length; i++) p.put(keys[i], nvl(rs.getString(columns[i])));
+            p.put("exchangeRate",nvl(rs.getString("rate_json")));
             return p;
         }
 
-        private long topupBonus(long amount) {
+        private long topupBonus(long amount,long base) {
             // Wallet credits are whole PayPal units; round half up, matching the preview.
-            if (amount >= 1000000 && amount <= 100000000 && amount % 100000 == 0) return ((amount * 5 / 4) * 5 + 50) / 100;
-            return amount == 50000 ? 625 : amount == 100000 ? 1875 : amount == 200000 ? 5000 : amount == 500000 ? 15625 : 0;
+            int bp=amount>=1000000&&amount<=100000000&&amount%100000==0?500:amount==50000?100:amount==100000?150:amount==200000?200:amount==500000?250:0;
+            long bonus=BigDecimal.valueOf(base).multiply(BigDecimal.valueOf(bp)).divide(BigDecimal.valueOf(10000),0,RoundingMode.HALF_UP).longValueExact();
+            if(base+bonus>9007199254740991L)throw new IllegalArgumentException("Tổng PayPal vượt giới hạn. Chưa tạo yêu cầu nạp.");
+            return bonus;
         }
 
-        synchronized Map<String, String> createVnpay(String user, String request, long amount, VnpayConfig cfg) {
+        synchronized Map<String, String> createVnpay(String user, String request, long amount, VnpayConfig cfg,String expectedDay) {
             try (Connection c = conn()) {
                 c.setAutoCommit(false);
                 try {
+                    lockedStore(c,user);
                     try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE username=? AND request_id=?")) {
                         ps.setString(1, user); ps.setString(2, request);
                         try (ResultSet rs = ps.executeQuery()) {
@@ -4642,18 +5255,19 @@ public class LottoWebServer {
                         ps.setString(1, user); ps.setString(2, now.minusSeconds(60).toString()); ps.setString(3, now.toString());
                         try (ResultSet rs = ps.executeQuery()) { if (rs.next() && rs.getInt(1) >= 5) throw new IllegalArgumentException("Bạn đang có nhiều yêu cầu thanh toán. Hãy hoàn tất hoặc chờ đơn cũ hết hạn."); }
                     }
-                    long base = amount * 5 / 4;
-                    long bonus = topupBonus(amount);
+                    DailyTopupRates.Quote rate=dailyTopupRates.quote(now);rate.requireDay(expectedDay);
+                    long base = rate.base(amount);
+                    long bonus = topupBonus(amount,base);
                     String id = UUID.randomUUID().toString().replace("-", "");
-                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,'PENDING',?,?)")) {
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at,rate_json) VALUES(?,?,?,?,?,?,?,?,?,'PENDING',?,?,?)")) {
                         ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setString(4, cfg.mode); ps.setString(5, cfg.tmn);
-                        ps.setLong(6, amount); ps.setLong(7, base); ps.setLong(8, bonus); ps.setLong(9, base + bonus); ps.setString(10, now.toString()); ps.setString(11, now.plusSeconds(900).toString()); ps.executeUpdate();
+                        ps.setLong(6, amount); ps.setLong(7, base); ps.setLong(8, bonus); ps.setLong(9, base + bonus); ps.setString(10, now.toString()); ps.setString(11, now.plusSeconds(900).toString()); ps.setString(12,rate.json()); ps.executeUpdate();
                     }
                     auditAccount(c, user, user, "vnpay_order_created", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + ",\"environment\":" + quoteJson(cfg.mode) + "}");
                     Map<String, String> p;
                     try (PreparedStatement ps = c.prepareStatement("SELECT * FROM payment_orders WHERE id=?")) { ps.setString(1, id); try (ResultSet rs = ps.executeQuery()) { rs.next(); p = paymentRow(rs); } }
                     c.commit(); return p;
-                } catch (Exception invalid) { c.rollback(); if (invalid instanceof IllegalArgumentException) throw (IllegalArgumentException) invalid; throw new RuntimeException(invalid); }
+                } catch (Exception invalid) { c.rollback(); if (invalid instanceof RuntimeException) throw (RuntimeException) invalid; throw new RuntimeException(invalid); }
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
@@ -4797,7 +5411,7 @@ public class LottoWebServer {
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 
-        synchronized String createManualTopup(String user, String request, long amount, Map<String, String> details) {
+        synchronized String createManualTopup(String user, String request, long amount, Map<String, String> details,String expectedDay) {
             try (Connection c = conn()) {
                 c.setAutoCommit(false);
                 try {
@@ -4821,17 +5435,18 @@ public class LottoWebServer {
                     try (PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM payment_orders WHERE username=? AND environment='manual' AND status='PENDING'")) {
                         ps.setString(1, user); try (ResultSet rs = ps.executeQuery()) { rs.next(); if (rs.getInt(1) >= 5) throw new IllegalArgumentException("Bạn có 5 yêu cầu đang chờ duyệt. Vui lòng chờ admin xử lý."); }
                     }
-                    long base = amount * 5 / 4, bonus = topupBonus(amount);
-                    String id = UUID.randomUUID().toString().replace("-", ""), now = Instant.now().toString();
-                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at) VALUES(?,?,?,'manual','',?,?,?,?,'PENDING',?,'')")) {
-                        ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setLong(4, amount); ps.setLong(5, base); ps.setLong(6, bonus); ps.setLong(7, base + bonus); ps.setString(8, now); ps.executeUpdate();
+                    Instant created=Instant.now();DailyTopupRates.Quote rate=dailyTopupRates.quote(created);rate.requireDay(expectedDay);
+                    long base = rate.base(amount), bonus = topupBonus(amount,base);
+                    String id = UUID.randomUUID().toString().replace("-", ""), now = created.toString();
+                    try (PreparedStatement ps = c.prepareStatement("INSERT INTO payment_orders(id,username,request_id,environment,tmn_code,amount,base_credit,bonus_credit,credit,status,created_at,expires_at,rate_json) VALUES(?,?,?,'manual','',?,?,?,?,'PENDING',?,'',?)")) {
+                        ps.setString(1, id); ps.setString(2, user); ps.setString(3, request); ps.setLong(4, amount); ps.setLong(5, base); ps.setLong(6, bonus); ps.setLong(7, base + bonus); ps.setString(8, now); ps.setString(9,rate.json()); ps.executeUpdate();
                     }
                     try (PreparedStatement ps = c.prepareStatement("INSERT INTO manual_topup_details(order_id,sender,channel,reference,transfer_key,transferred_at,note,email,transfer_memo) VALUES(?,?,?,?,?,?,?,?,?)")) {
                         ps.setString(1, id); ps.setString(2, details.get("sender")); ps.setString(3, details.get("channel")); ps.setString(4, details.get("reference")); ps.setString(5, transferKey); ps.setString(6, details.get("transferredAt")); ps.setString(7, details.get("note")); ps.setString(8, details.get("email")); ps.setString(9, details.getOrDefault("transferMemo", "")); ps.executeUpdate();
                     }
                     auditAccount(c, user, user, "manual_topup_requested", "{\"id\":" + quoteJson(id) + ",\"amount\":" + amount + "}");
                     String result = manualTopupById(c, id); c.commit(); return result;
-                } catch (Exception failure) { c.rollback(); if (failure instanceof IllegalArgumentException) throw (IllegalArgumentException) failure; throw new RuntimeException(failure); }
+                } catch (Exception failure) { c.rollback(); if (failure instanceof RuntimeException) throw (RuntimeException) failure; throw new RuntimeException(failure); }
             } catch (SQLException failure) { throw new RuntimeException(failure); }
         }
 

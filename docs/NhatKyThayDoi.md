@@ -1,5 +1,385 @@
 # Nhật Ký Thay Đổi
 
+## 18/11/2026 — Mốc màu cho thanh tần suất
+
+- Thêm vạch vàng tại mốc cao nhất của mỗi thanh, cùng chú giải động Mốc cao nhất: N lượt dưới tiêu đề từng bảng và % trên tổng lượt. Tooltip tách rõ số lượt, mốc so sánh và tỷ trọng tổng lượt. Giữ chuẩn hóa max ở 80% và số đếm/phần trăm hiện có; nhóm 0 không vẽ mốc giả. Vạch/key tương phản Dark/Light, nằm dưới cột sticky và xuất cùng PNG. Đổi cache stats/CSS, không đổi backend/core hoặc dữ liệu.
+- Sao lưu followup_frequency_bar_marker_20261118; hồ sơ runtime/logs/frequency_bar_marker_20261118/. Kiểm chứng đang thực hiện.
+
+## 18/11/2026 — Sắp xếp Độ Trễ và Trễ Trung Bình
+
+- Thêm bấm tiêu đề Độ Trễ/Trễ Trung Bình để xếp số giảm dần và bấm lần hai trở lại kiểu nền. Chỉ một cột tạm hoạt động trong mỗi bảng; đổi qua Chuỗi hoặc Bộ số tắt cột cũ, hai bảng độc lập. Trễ TB — xuống cuối, 0 là số hợp lệ, trễ cận dưới ≥N giữ giá trị hiện có. Cùng số giữ thứ tự nền. Không gọi API/đổi dữ liệu/dấu chọn/vé/tổng; reset tắt cờ, không lưu cờ tạm. Nút và trạng thái chung theme, cache core/stats/CSS mới.
+- Sao lưu followup_delay_sort_20261118; hồ sơ runtime/logs/delay_sort_20261118/. Kiểm chứng Chrome hồi quy đạt (37,586 giây): đối chiếu Python độc lập cho cả hai cột/cả hai bảng, null cuối/0 hợp lệ, khôi phục nền tần suất/số, chuyển cột chỉ một active và tương tác Chuỗi. Dữ liệu/dấu chọn không đổi, 0 API phân tích khi sắp. Đã xem Dark 1440px và Light 320px, hai tiêu đề vừa ô và trạng thái đúng. Node core/stats đạt cú pháp; HTML/core/stats/CSS đang phục vụ khớp.
+
+## 18/11/2026 — Gom màu khi sắp xếp Chuỗi
+
+- Sửa tình trạng lửa đỏ/xanh/xám xen nhau: ưu tiên Đỏ → Xanh lá → Xám → Trống, sau đó giảm dần mức trong từng màu; cùng màu/mức giữ thứ tự nền. Chuỗi xám 7 đứng trong nhóm xám, đỏ mức 1 vẫn liền nhóm đỏ. Tooltip nói rõ thứ tự màu. Giữ bấm lần hai trở lại, hai bảng độc lập, không đổi dấu chọn/dữ liệu/API; đổi cache stats.
+- Sao lưu followup_streak_sort_colors_20261118; hồ sơ runtime/logs/streak_sort_colors_20261118/. Kiểm chứng Chrome hồi quy đạt (34,987 giây): mỗi bảng có 5 đỏ/1 xanh/3 xám, xếp mức đỏ 3/2/1/1/1 liền nhau, rồi xanh, xám 7/2/1, cuối cùng trống. Cả chính/ĐB đúng nhóm; bấm lần hai khôi phục chính xác nền tần suất/số, không sửa nguồn/dấu và không gọi API. Đã xem Dark 1440/Light 320px; Node stats đạt cú pháp, HTML/stats đang phục vụ khớp.
+
+## 18/11/2026 — Bấm Chuỗi để sắp xếp giảm dần và trở lại
+
+- Tiêu đề Chuỗi ở cả hai bảng trở thành nút: bấm xếp mức chuỗi lớn đến nhỏ, ô trống cuối; bấm lại khôi phục đúng kiểu Tần suất/Theo số thứ tự trước đó. Bằng mức giữ thứ tự nền, hai bảng độc lập. Đổi kiểu bằng nút Bộ số tắt Chuỗi riêng bảng; reset phiên tắt cờ tạm. Giữ nguyên nguồn, dấu chọn, vé dự đoán và tổng, không gọi API. Có tooltip/aria và gạch nhấn màu khi bật, đồng bộ Dark/Light; đổi cache core/stats/CSS.
+- Sao lưu followup_streak_sort_20261118; hồ sơ runtime/logs/streak_sort_20261118/. Kiểm chứng Chrome hồi quy đạt (32,257 giây): chuỗi 7/3/2/1/1 rồi ô trống, hai nhóm độc lập, bật/tắt khôi phục chính xác cả nền tần suất lẫn số tăng dần; nút Bộ số tắt Chuỗi đúng nhóm, nguồn/mảng dấu chọn không đổi, 0 API phân tích khi sắp. Đã xem ảnh Dark 1440px và Light 320px, nút trong khung và trạng thái/tooltip/aria đúng. Lượt đầu lỗi biến cục bộ trong helper chụp của kiểm thử đã sửa phạm vi, lượt cuối đạt toàn bộ. Node core/stats đạt cú pháp; HTML/core/stats/CSS đang phục vụ khớp.
+
+## 18/11/2026 — Thông tin phạm vi rõ đậm trên thanh đầu Phân tích
+
+- Đưa phạm vi Tất cả/số kỳ/khoảng ngày và cập nhật vào khoảng trống giữa tiêu đề và bộ lọc, bỏ hai dòng phụ cũ. Dùng dấu • như yêu cầu, Tất cả • N Kỳ; số/ngày/giờ vẫn lấy từ phản hồi thật. Chữ 15px/700 desktop, 14px mobile, lấy màu Dark/Light; xuống dòng khi hẹp để không chồng điều khiển. Giữ hai ID cũ và thông tin trong PNG. Đổi cache stats/CSS, không đổi core/backend/dữ liệu.
+- Sao lưu followup_analysis_header_context_20261118; hồ sơ runtime/logs/analysis_header_context_20261118/. Kiểm chứng: Chrome hồi quy bộ lọc/Tất cả/Khác/giữ dấu/đổi phiên đạt (33,525 giây), Chrome xuất 4 PNG Dark/Light và Vé thường/Bao đạt (25,844 giây), gồm pixel dòng/vé cuối và lỗi/hủy. Đã xem thanh đầu Dark/Light desktop, Khác 1100px và Light 320px; 6 kích thước/chế độ ban đầu không chồng/tràn, bổ sung giữ cả khoảng ngày trên một dòng ở mobile. Bản xem mẫu 1.014 kỳ chỉ ở trình duyệt fixture dùng một lần, không ghi dữ liệu thật; kiểm dữ liệu fixture thật 5 kỳ và thời gian cập nhật lấy đúng API. Node stats kiểm cú pháp đạt, HTML/stats/CSS đang phục vụ khớp.
+
+## 18/11/2026 — Vé thường / Bao và 6 bộ mỗi trang
+
+- Thêm chọn Vé thường/Bao và cấp Bao trong khung Bộ số bạn đã chọn, dùng cùng các cấp hiện có của Loto 5/35, Mega, Power. Tối đa cập nhật theo cấp và pool đã chọn; Power Bao không cần/không nhân theo số ĐB. Hiện nhóm Bao gốc và chú thích Bao 4/5 ghép thêm số theo quy tắc Bao. Keno/Max giữ cấu trúc hiện có. Đổi loại/cấp đóng form và bỏ kết quả cũ, giữ dấu chọn.
+- Chia kết quả 6 bộ/trang, ghi loại/cấp Bao và số thứ tự xuyên trang; 42 bộ có 7 trang. Giữ nhập số lượng, nhảy đầu/cuối, Dark/Light và chụp PNG trang hiện tại. Cập nhật cache core/stats/CSS, sao lưu followup_prediction_bao_six_20261118; hồ sơ runtime/logs/prediction_bao_six_20261118/.
+- Kiểm chứng: 5 ca đạt trong 72,769 giây gồm 3 Node toán/miền/duy nhất và 2 Chrome thao tác/PNG. Đối chiếu mọi cấp Bao với math.comb, Vé thường đủ 42 bộ không trùng qua 7 trang, Bao 6 đúng 6 bộ/trang, Bao thấp/thiếu số và Power Bao không cần ĐB. Đã xem Dark desktop/Light 320px và PNG Bao 2880×2724; kiểm pixel dòng số cuối/vé thứ 6, chụp lỗi/hủy/nhấn lặp đạt. Pager vừa một hàng ở 320px, dấu chọn giữ nguyên. Node core/stats đạt cú pháp, HTML/core/stats/CSS đang phục vụ khớp mã nguồn.
+
+## 18/11/2026 — Số lượng dự đoán theo bộ số đã chọn
+
+- Bỏ mức tối đa 5 vé cố định, badge hiện tổng số bộ hợp lệ khác nhau từ số chính/ĐB đang chọn; tính chính xác cho cả 6 game và Power không trùng chính/ĐB. Bấm Dự Đoán mở form nhập số bộ, Hủy hoặc Tạo; nhập vượt tối đa tự clamp, 0/trống/sai không tạo, giữ số người dùng nhập. Tạo đúng số bộ yêu cầu và chia 20 bộ/trang, có nút nhảy đầu/cuối và thứ tự xuyên trang.
+- Giữ heuristic phủ số cho phần đầu, các bộ sau lấy theo rank/unrank và thứ tự hoán vị không lặp; chỉ giữ mô tả + trang hiện tại nên số lượng lớn không tạo mảng khổng lồ. Đổi bộ số/bậc/loại/phiên xóa kế hoạch, dấu chọn vẫn giữ; không gọi API giao dịch. Chụp ảnh gồm trang kết quả đang xem với tổng số/trang. Cập nhật cache core/stats/CSS, sao lưu followup_prediction_quantity_20261118 trong Bin/session_1_latest; hồ sơ runtime/logs/prediction_quantity_20261118/.
+- Kiểm chứng: 5 ca đạt gồm 2 Node toán/miền/không trùng (1,311 giây), Chrome chọn số/số lượng/form/pager và Chrome tải PNG (lượt cuối 2 ca đạt 42,306 giây), cùng hồi quy Phân tích đạt. Kiểm hết tổ hợp nhỏ của cả 6 game, lấy trang đầu/cuối của không gian Keno C(80,10), Max 1000 số và Power 55 số/55 ĐB mà không duyệt toàn bộ. UI thử 12/42 bộ, quá tối đa/0/Hủy, 42 bộ đủ và không trùng qua 3 trang, giữ dấu chọn và không gọi API/ghi giao dịch. PNG kiểm Dark/Light 5 bộ và trang 20 bộ của yêu cầu 42, pixel dòng cuối/vé cuối đầy đủ; đã xem form 1440/320px, pager và ảnh 2880×4056. Node core/stats kiểm cú pháp đạt, HTML/core/stats/CSS đang phục vụ khớp.
+
+## 18/11/2026 — Thêm Tất cả vào số kỳ Phân tích
+
+- Thêm Tất cả ngay sau 100 kỳ và trước Khác. Phân tích toàn bộ kỳ hiện có của game, hiện Tất cả · N kỳ cùng khoảng ngày; giữ lựa chọn khi đổi loại hoặc tải lại trang, cập nhật tự lấy thêm kỳ mới. Không yêu cầu nhập số kỳ; tận dụng giới hạn drawCount hiện có của API, không đổi backend, dấu chọn hay quy tắc chuỗi. Cập nhật cache core/stats JS. Sao lưu followup_analysis_all_draws_20261118 trong Bin/session_1_latest; hồ sơ runtime/logs/analysis_all_draws_20261118/.
+- Kiểm chứng: 2 ca Java/API/Chrome đạt (31,215 giây): đúng thứ tự menu, Tất cả lấy đủ 120 kỳ/720 lượt chính/120 lượt ĐB, đổi game lấy đúng 5 kỳ, reload giữ preset, thêm kỳ mới tăng từ 5 lên 6 mà giữ dấu chọn. Kiểm hồi quy Khác/giới hạn và lỗi/phản hồi muộn đạt; đã xem ảnh Tất cả trên mobile 320px. Node core/stats kiểm cú pháp đạt, HTML/core/stats đang phục vụ khớp.
+
+## 17/11/2026 — Đếm ô Chuỗi trống
+
+- Bổ sung biểu tượng ô rỗng và Trống trong dòng Tổng của từng bảng. Đếm mọi ô cột Chuỗi không có lửa đỏ/xanh/xám, độc lập với tích chọn; tổng bốn trạng thái bằng số dòng số. Mobile cho vùng đếm xuống dòng gọn để đọc được thêm mục Trống. Giữ dòng tổng ngay sau số cuối, theme và cách chọn; đổi cache JS/CSS. Sao lưu followup_summary_empty_20261117 trong Bin/session_1_latest; hồ sơ runtime/logs/summary_empty_20261117/.
+- Kiểm chứng Chrome hồi quy đạt (24,841 giây): fixture 35 số có 3 đỏ, 1 xanh, 1 xám, 30 trống; ĐB 12 số có 7 trống. Tổng bốn trạng thái khớp số dòng; chọn/bỏ chọn giữ đúng. Kiểm và xem ảnh dòng tổng Dark 1440/Light 320px, mục Trống đọc được và có ô rỗng; Node kiểm cú pháp đạt, HTML/stats/CSS đang phục vụ khớp.
+
+## 17/11/2026 — Biểu tượng cho dòng Tổng
+
+- Thêm ngọn lửa đỏ, xanh lá, xám đúng hình/gradient đang dùng ở cột Chuỗi bên cạnh chữ và số đếm của dòng Tổng; thêm dấu tích nhỏ trước tổng số đã chọn. Dùng chung hàm SVG, ID gradient riêng cho từng nhóm/màu; icon tổng không mang số bội bên trong. Giữ vị trí dòng, cách đếm và theme; thu gọn vừa mobile, đổi cache JS/CSS. Sao lưu followup_summary_icons_20261117 trong Bin/session_1_latest; hồ sơ runtime/logs/summary_icons_20261117/.
+- Kiểm chứng Chrome hồi quy Phân tích đạt (35,067 giây); xem dòng Tổng ở Dark 1440px/Light 320px, xác nhận đủ ba icon lửa và một dấu tích, ID gradient không trùng, số đếm/các dòng giữ nguyên. Node kiểm cú pháp đạt, HTML/stats/CSS đang phục vụ khớp.
+
+## 17/11/2026 — Đưa tổng kết vào dòng cuối mỗi bảng
+
+- Theo chỉnh lại của người dùng, bỏ bảng Tổng kết riêng. Mỗi bảng số có một dòng Tổng liền sau dòng số cuối, ví dụ sau 35 dòng là dòng tổng thứ 36. Ba số đếm lửa đỏ/xanh/xám gọn trong vùng giữa; số đã tích ở ô cuối đúng dưới cột Chọn. Giữ màu, cách đếm, cập nhật tức thì và xuất PNG; không thêm số 36 vào dữ liệu hoặc ô chọn. Đổi cache JS/CSS. Sao lưu followup_summary_table_row_20261117 trong Bin/session_1_latest; hồ sơ runtime/logs/summary_table_row_20261117/.
+- Kiểm chứng: ca Chrome hồi quy và tải PNG đạt 2/2 (44,502 giây); xác nhận tfoot đúng sau tbody, tổng colspan 10, 35 dòng số giữ nguyên và chỉ thêm một dòng tổng. Chọn/bỏ chọn cập nhật ngay, đếm ba màu đúng, không còn panel tổng riêng, PNG có dòng tổng. Kiểm thêm Dark 1440/Light 320px: ba số đếm lửa đọc được ngay ở mé trái khi chưa cuộn, số chọn giữ dưới Chọn; đã xem ảnh cuối. Node kiểm cú pháp đạt, HTML/stats/CSS đang phục vụ khớp.
+
+## 17/11/2026 — Tổng kết chuỗi và ô số đã chọn
+
+- Thêm bảng Tổng kết dưới khối hai bảng/vé: tách Số chính, Số đặc biệt và dòng Tổng, đếm số ô lửa đỏ/xanh/xám cùng số ô đã tích chọn. Mỗi ô lửa tính một chuỗi, không cộng bội lửa; nhóm không có ĐB bỏ dòng ĐB. Dùng cùng hàm trạng thái và dấu chọn đang hiển thị, cập nhật ngay khi chọn/bỏ chọn, đổi bộ lọc hoặc tải dữ liệu; ẩn khi không có dữ liệu. Theme sáng/tối đồng bộ và co gọn trên mobile; phần tổng kết đi cùng PNG chụp toàn bộ. Chỉ sửa frontend, đổi cache JS/CSS.
+- Kiểm chứng: ca Chrome hồi quy Phân tích và ca tải PNG đạt 2/2 (70,549 giây), gồm đếm lửa bội là một ô, tổng riêng/cộng hai nhóm, chọn/bỏ chọn cập nhật ngay, loại không ĐB và PNG có phần tổng kết. Xem ảnh Dark 1440px/Light 320px, sửa viền để dùng đúng màu theme; kiểm bổ sung không tràn và số tổng 6/2/2/4 trên fixture trình bày. Node kiểm cú pháp đạt, HTML/stats/CSS đang phục vụ khớp. Sao lưu followup_analysis_summary_20261117 trong Bin/session_1_latest; hồ sơ runtime/logs/analysis_summary_20261117/.
+
+## 17/11/2026 — Ba trạng thái lửa trong cột Chuỗi
+
+- Giữ ngưỡng và hình lửa đỏ; thêm xanh lá khi còn một kỳ chưa ra sẽ đạt đỏ đầu tiên, thêm xám cho số vừa ra làm mất chuỗi đỏ (giữ số lần vừa mất). Tooltip giải thích từng trạng thái; giữ kích thước icon và số nhỏ tương phản, không thêm cột.
+- Python tính thêm độ trễ/TB ở cùng N kỳ kết thúc tại kỳ trước để khôi phục đúng chuỗi vừa mất sau reload, không lấy TB mới đã chứa lần ra hiện tại. Frontend xác minh trường mới, tách cache API bằng delayVersion=2 và cập nhật cache JS/CSS. Sao lưu followup_streak_states_20261117 trong Bin/session_1_latest; hồ sơ runtime/logs/streak_states_20261117/.
+- Kiểm chứng: 19 ca Python/Java/API/Chrome đạt, gồm ngưỡng số lẻ, đỏ/xanh/xám, chuỗi vừa mất tính theo cửa sổ rolling cũ, không suy đoán thiếu dữ liệu, sự kiện 3D trùng và luồng cập nhật canonical xanh → đỏ → xám → hết xám; reload vẫn giữ xám đúng. Đã xem ảnh Dark desktop/Light 320px trên fixture trình bày (khôi phục API thật sau ảnh); kiểm luồng kỳ mới trên fixture canonical riêng. Node kiểm cú pháp đạt; HTML/stats/CSS đang phục vụ khớp bản sửa.
+
+## 17/11/2026 — Nút chụp chỉ hiện biểu tượng
+
+- Ẩn chữ Chụp hình, giữ camera trong nút vuông 38×38px bên trái Cập nhật ở cả desktop/điện thoại. Giữ tooltip, aria-label và trạng thái đang chụp; đổi cache CSS. Chrome kiểm 1440/390px ở Dark/Light: camera vuông 38px, chữ ẩn, cùng hàng Cập nhật, không tràn. Đã xem ảnh; hồ sơ runtime/logs/capture_icon_only_20261117/.
+
+## 17/11/2026 — Thu gọn nút Chụp hình
+
+- Cho Chụp hình và Cập nhật dùng chung CSS: cao/min-height 38px, line-height 1, đệm ngang 14px, icon 15px, nền xanh và viền/bo góc giống nhau. Khắc phục min-height toàn cục làm nút chụp cao hơn; giữ bố cục hai nút bằng nhau trên điện thoại và chức năng xuất PNG. Đổi cache CSS. Kiểm tra Chrome 1440/390px ở Dark/Light: hai nút cùng cao 38px, rộng bằng nhau, cùng hàng và không tràn; đã xem ảnh desktop. Hồ sơ runtime/logs/capture_button_compact_20261117/.
+
+## 17/11/2026 — Chụp toàn bộ khung Phân tích thành PNG
+
+- Thêm nút camera Chụp hình bên trái Cập nhật, đồng bộ màu sáng/tối và co đều hai nút trên điện thoại. Tải PNG toàn bộ bộ lọc, hai bảng đầy đủ dòng/cột, dấu chọn và tối đa 5 vé đã tạo; bố cục desktop rộng từ 1.440 px, độ nét 2×, tự giảm tỷ lệ khi vượt giới hạn canvas. Không gọi lại API hoặc thay đổi dấu chọn/vé; chống nhấn lặp, báo lỗi và hủy tải khi phiên thay đổi. Tên ảnh ghi game và giờ Việt Nam.
+- Bản sao dựng trong iframe standards mode rồi SVG/canvas cục bộ; giữ đúng giá trị select/input và mở toàn bộ vùng cuộn. Đã kiểm tra PNG thật Dark desktop/Light điện thoại 390px, đủ dòng 35 và 5 vé, không chồng chữ; kiểm tra pixel tại dòng cuối và vé cuối. Ca Chrome tải file, lỗi tạo PNG, nhấn lặp, reset giữa chừng cùng ca hồi quy Phân tích đạt 2/2. Node kiểm cú pháp đạt. Sao lưu tại Bin/session_1_latest/files/followup_analysis_capture_20261117; ảnh và metadata tại runtime/logs/analysis_capture_20261117/.
+
+## 17/11/2026 — Màu số đối với nền lửa
+
+- Đổi số trong lõi lửa sang xanh dương đậm #102a83, đối màu với nền vàng/cam để dễ phân biệt. Giữ Arial 16/700 và kích thước lửa; cập nhật cache CSS.
+- Chrome xem SVG/CSS thực ở Dark/Light, kiểm fill #102a83 và cỡ chữ/độ đậm giữ nguyên; độ tương phản thấp nhất với các màu lõi vàng khoảng 10,95:1. Đã xem ảnh Light, HTML/CSS đang phục vụ khớp. Hồ sơ runtime/logs/streak_contrast_20261117/.
+
+## 17/11/2026 — Thu gọn số trong ngọn lửa Chuỗi
+
+- Giảm số trong SVG lửa từ 20 xuống 16, đổi Arial/Helvetica đậm 700, màu nâu đen #3c2008 và text-rendering geometricPrecision để nét chữ rõ, gọn trong lõi vàng. Cập nhật cache CSS, giữ kích thước lửa và cách tính chuỗi.
+- Ca Chrome hồi quy Chuỗi/bảng Phân tích đạt; đã xem số 2/3 nhỏ trong lõi vàng ở Light 320px, có ảnh desktop đối chiếu, HTML/CSS đang phục vụ khớp. Hồ sơ runtime/logs/streak_font_20261117/.
+
+## 17/11/2026 — Cột Chuỗi với lửa và số lần trễ
+
+- Người dùng chọn cách theo ngưỡng: so Độ Trễ với Trễ TB đang hiển thị, đạt 1 lần hiện lửa, đạt 2/3/... lần có số tương ứng trong lõi. Thêm cột Chuỗi sau Trễ Trung Bình ở cả hai bảng; thiếu TB/TB bằng 0/cận dưới thì trống.
+- SVG gradient đỏ/cam, lõi vàng, số đậm trong lửa và tooltip/nhãn truy cập; xử lý số lẻ bằng đơn vị phần trăm để ngưỡng khớp ô TB. Giữ số kỳ đang lọc và toàn bộ API/logic độ trễ, đánh dấu/dự đoán; bảng mobile vẫn cuộn ngang/giữ Bộ số, cập nhật cache stats/CSS.
+- Ca Java/API/Chrome đạt: các ngưỡng nguyên/lẻ 5,96 và 0,2, trường hợp định dạng 1,005, mức đến 1.200 lần, TB null/0/cận dưới, lửa mức 1 không số và mức 2 có số/nhãn truy cập. Kiểm cả hai bảng bằng fixture hiển thị mức 1/2/3, đã xem Dark 1440px/Light 320px; hồi quy bộ lọc, số kỳ, đánh dấu, phiên và mobile đạt. Không sửa dữ liệu API gốc; mock trình bày chỉ dùng kiểm ảnh rồi khôi phục. HTML/stats/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_streak_20261117/.
+
+## 16/11/2026 — Độ Trễ và Trễ Trung Bình của từng số
+
+- Thêm hai cột sau số lượt ở cả bảng chính/ĐB, mặc định tính theo số kỳ đang chọn. Vừa ra trễ 0, chưa ra trong N kỳ hiện ≥N; trung bình chỉ lấy số kỳ vắng giữa hai lần ra, không tính biên, chưa đủ hai lần hiện —.
+- Python duyệt gọn first/last/hits theo sự kiện mỗi kỳ; JS xác minh dữ liệu, tooltip, định dạng trung bình tối đa 2 số lẻ. Giữ thứ tự/đánh dấu/dự đoán hiện có, bảng cuộn ngang trên mobile và đổi màu Dark/Light. Tách cache API bằng delayVersion=1, cập nhật stats/CSS cache.
+- 14 ca Python/Java/API/Chrome đạt: độ trễ 0/có lần xuất hiện/chưa thấy, trung bình không tính biên, cửa sổ 1/2 kỳ và sự kiện 3D lặp cùng kỳ, miền số/tổng lượt, kiểm dữ liệu sai và hồi quy bộ lọc/đánh dấu/phiên. Hoàn tất cuộn ngang mobile giữ Bộ số bên trái, kiểm Chrome lại đạt; đã xem Dark desktop và Light 320px, HTML/stats/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_delays_20261116/.
+
+## 15/11/2026 — Thưởng vào Thẻ theo tỉ lệ 1:1
+
+- Người dùng xác nhận 1.000.000 tiền thưởng = 1.000.000 PayPal vào Thẻ. Thưởng dự đoán mới định tuyến card dùng v2, lấy đúng rewardVnd làm paypal/cardAmount, ghi hệ số 1/1 và không làm tròn chuyển đổi. Không phụ thuộc tỉ giá nạp/market. Chặn bản tính thẻ cũ 5/4 trước commit; metadata giao dịch/audit lấy đúng hệ số của calculation.
+- Đổi nhãn mặt Thẻ thành Tiền thưởng → Thẻ · 1:1 và version cấu hình. Giữ nhánh ví v1 để tương thích lịch sử, không sửa biên nhận đã trả hoặc tính lại số dư; chuyển thưởng ví cũ giữ nguyên số tiền ledger. Worker Java gọi Python mỗi lượt nên không cần khởi động lại server.
+- 17 ca Python/Java/API/Chrome đạt trên DB thử: Thường/Bao/Keno/Jackpot lẻ 407 nhận đúng 407, metadata 1/1, rollback rồi đồng thời thử lại chỉ cộng một lần, từ chối bản tính 5/4 cũ, chuyển thưởng lịch sử bảo toàn tiền/biên nhận, đổi tên/cách ly/phân trang và chỉ đọc. Chrome hiện thưởng mới +40.000.000 cùng số dư 90.000.000 sau chuyển cũ 50.000.000; đã xem ảnh desktop/390px, HTML đang phục vụ khớp. Không chạy quyết toán thủ công lên tài khoản vận hành. Hồ sơ runtime/logs/card_reward_one_to_one_20261115/.
+
+## 15/11/2026 — Cân đều khung chọn số Power 6/55
+
+- Khung Bộ số bạn đã chọn trải hết chiều ngang dưới hai bảng khi số dòng chính/ĐB bằng nhau (Power 6/55). Hai nhóm số chia đều hai bên trên desktop, mobile xếp dọc. Loto 5/35 vẫn tận dụng chỗ trống dưới bảng ĐB. Cập nhật cache stats/CSS, giữ nguyên thuật toán, dấu chọn và điều kiện dự đoán.
+- Chrome với Java/API thử riêng xác nhận panel bắt đầu từ viền trái bảng chính đến viền phải bảng ĐB và nằm dưới cả hai bảng; hai nhóm có chiều rộng bằng nhau ở 1440px, xếp dọc/không tràn ở 390/320px, Dark/Light đúng. Đã xem ảnh, 5 vé giữ nguyên qua đổi kích thước/theme và Loto giữ bố cục cũ. JS hợp lệ, HTML/stats/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_balanced_panel_20261115/.
+
+## 15/11/2026 — Dự đoán tối đa 5 vé từ bộ số đã chọn
+
+- Thêm khung dưới bảng ĐB hiển thị số chính/đặc biệt và thứ tự đã chọn, nút Dự Đoán, tối đa 5 vé khác nhau cùng số lượng/độ phủ. Ghép đúng loại và chỉ dùng số đã chọn, Keno chọn bậc 1–10; thiếu số/không ghép được thì hướng dẫn.
+- Phối hợp ưu tiên phủ số, hạn chế lặp cặp và cân bằng số lần dùng; tìm kiếm giới hạn cho miền 1.000 số. Kết quả chỉ RAM, không mua vé/thu tiền/API; đổi dấu/bậc làm mất hiệu lực kết quả, giữ dấu bền qua tải lại. Cột phải và Dark/Light/mobile đồng bộ bảng, cập nhật cache core/stats/CSS.
+- 3 ca kiểm tra đạt: Node đối chiếu toán tổ hợp/miền số/độ phủ/không trùng cho cả 6 loại và pool 1.000 số; Chrome với Java/API thật kiểm bố cục, số đã tick, ghép tối đa 5 hoặc chỉ 1 vé, điều kiện Power, chọn bậc Keno, cách ly tài khoản/reset/reload và không có giao dịch. Hồi quy bảng Phân tích cũ đạt; JS hợp lệ, đã xem ảnh Dark/Light desktop/mobile, HTML/core/stats/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_selected_prediction_20261115/.
+
+## 15/11/2026 — Tách cột Hiện Tại và Kỳ Trước trong Phân tích
+
+- Đổi nhãn cột kỳ mới nhất thành Hiện Tại, thêm Kỳ Trước ngay cạnh trước cột Chọn, áp dụng số chính/đặc biệt. Tooltip ghi đúng mã/ngày/giờ; thiếu kỳ trước để trống. Giữ nguyên dấu chọn có thứ tự của người dùng.
+- Python bổ sung previousDraw là kỳ canonical liền trước latestDraw, kể cả khi chỉ xem 1 kỳ; không đưa kỳ này vào tổng tần suất. JS kiểm miền số hai kỳ, query drawMarkers=2 tránh cache phản hồi cũ, cập nhật cache stats/CSS và thu gọn các cột mobile.
+- 11 kiểm thử Python/Java/API/Chrome đạt: kỳ liền trước ngoài cửa sổ 1 kỳ/ngày, hai phiên cùng ngày, thiếu kỳ trước, dấu số chính/đặc biệt, cập nhật kỳ mới và giữ lựa chọn bền. JS hợp lệ; đã xem ảnh Dark/Light 320/1440px, bộ lọc/sắp xếp/lỗi/cách ly phiên hồi quy đạt, HTML/stats/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_previous_draw_20261115/.
+
+## 15/11/2026 — Giữ dấu chọn Phân tích qua tải lại và kỳ mới
+
+- Lưu danh sách/thứ tự số đã chọn trong trình duyệt theo ID tài khoản, loại xổ số và nhóm chính/đặc biệt. Tải lại/reset/đăng xuất rồi đăng nhập lại hoặc sang kỳ mới không xóa dấu; chỉ click Chọn mới thêm/gỡ và dồn thứ tự.
+- Đổi phiên chỉ xóa RAM, tự đọc đúng dữ liệu đã lưu khi tài khoản trở lại. Kiểm định dạng/miền số và loại trùng khi đọc, cập nhật cache core/stats; không đổi dữ liệu kỳ hoặc ví/thẻ.
+- JS hợp lệ; ca Java/Python/Chrome đạt: giữ thứ tự số chính/đặc biệt qua reset, tải lại, đăng xuất/đăng nhập; thêm kỳ mới trong CSV thử chỉ đổi cột Kỳ trước, không đổi lựa chọn; cách ly ID tài khoản và gỡ dấu thủ công rồi reset vẫn giữ thứ tự mới. Các kiểm tra bộ lọc/số kỳ/sắp xếp/lỗi/mobile cũ đạt; HTML/core/stats đang phục vụ khớp. Hồ sơ runtime/logs/analysis_persistent_marks_20261115/.
+
+## 15/11/2026 — Dự toán vé, phí và số dư sau một kỳ
+
+- Cấu hình theo dõi hiện số vé × giá vé, tổng phí 1 kỳ, số dư hiện tại, dự kiến trừ và số dư còn lại ngay khi sửa số lượng. Tính đủ 4 phương pháp, cả 10 bậc Keno và tổ hợp Bao; bộ đã có hiện phí bổ sung 0.
+- Dùng giá/số dư billing hiện có và BigInt; cập nhật ví đúng chủ/phiên bản, báo thiếu tiền hoặc thiếu dữ liệu. Chỉ xem trước, không thu phí khi nhập. Cập nhật cache JS/CSS và theme màu số dư cuối.
+- 2 ca kiểm tra riêng đạt: Chrome đối chiếu giá với personal_tracking.quote cho Thường/Keno và tổ hợp Bao, chỉnh số lượng/số dư/thiếu tiền, cách ly chủ/phiên bản, không POST khi xem trước; Java/API/Chrome thực khóa hai cấp Bao cùng kỳ rồi dùng lại miễn phí đạt. Ảnh sáng/tối 320/390/1440px được xem, HTML/JS/CSS đang phục vụ khớp. Ca Bao cũ được chạy riêng và chuyển đường lưu ảnh vào runtime để không ghi ngoài workspace. Hồ sơ runtime/logs/effectiveness_cost_preview_20261115/.
+
+## 15/11/2026 — Giữ đúng số nhập khi Nạp/Rút thẻ
+
+- Tái hiện lỗi IME: chuỗi 17505 bị nối/lặp sau khi định dạng 1000, dẫn tới tự lên mức tối đa. Giữ nguyên value/vùng thay thế trong lúc soạn, chỉ định dạng sau chốt và hủy frame chờ khi có input cuối.
+- Giữ con trỏ/vùng chọn khi thêm dấu chấm, không ghi lại chuỗi đã đúng; chặn tối đa chỉ khi thật sự vượt số dư nguồn. Đóng form hủy lượt chờ, chặn submit trong khi soạn; khoản đang kiểm tra giữ số tiền gốc. Cập nhật cache wallet JS và kiểm thử bộ gõ cho cả Nạp/Rút thẻ.
+- JS hợp lệ; ca Chrome đạt: IME 100/1000/11000/17505/100000/2211/số 0 đầu, bàn phím thường, sửa vùng chọn giữa số, xóa qua dấu chấm, dán, xóa hết và nhập lại, đúng trần/vượt trần cho cả nạp/rút. Luồng chuyển thật trên DB thử, bấm đôi, mất phản hồi/tải lại và số tiền lớn đạt; snapshot số dư/giao dịch giữ nguyên khi chỉ sửa ô. HTML/wallet JS đang phục vụ khớp. Hồ sơ runtime/logs/card_transfer_exact_input_20261115/.
+
+## 15/11/2026 — Đánh dấu kỳ trước và thứ tự chọn số
+
+- Thêm cột Kỳ trước dùng latestDraw của API hiện có, đánh dấu đúng số chính/đặc biệt và tooltip kỳ. Cột Chọn cho bật/tắt và đánh số theo lần chọn, tự dồn thứ tự khi gỡ; tách theo game/nhóm, giữ qua sắp xếp/cập nhật trong trang và xóa khi đổi phiên.
+- Bổ sung nhãn truy cập, focus sau chọn, màu Dark/Light, độ rộng mobile và cache core/stats/CSS. Không đổi backend hoặc ghi dữ liệu canonical.
+- JS hợp lệ; ca Chrome đạt: đối chiếu dấu kỳ trước với API thật, chọn 09/04/11, gỡ 04 dồn 1/2 rồi chọn lại thành 3, giữ thứ tự qua sắp xếp/cập nhật, độc lập nhóm/game và xóa khi đổi phiên; không phát sinh API khi đánh dấu. Kiểm bộ lọc/số kỳ/lỗi hồi quy, xem ảnh Dark/Light 320/390/1440px và đối chiếu tài nguyên đang phục vụ. Hồ sơ runtime/logs/analysis_markers_20261115/.
+
+## 15/11/2026 — Nền dòng xen kẽ trong bảng Phân tích
+
+- Dòng chẵn ở cả bảng số chính/đặc biệt có nền nhạt hơn nhẹ ở Dark, sắc xanh rất nhẹ ở Light. Áp dụng toàn hàng theo vị trí hiển thị sau sắp xếp, giữ thanh xanh/cam và chữ rõ. Cập nhật cache CSS.
+- Chrome xác nhận toàn bộ ô dòng chẵn đổi nền đúng, dòng lẻ giữ nền gốc và thanh giữ màu ở cả hai theme, 390/1440px. Đã xem ảnh và đối chiếu HTML/CSS đang phục vụ. Hồ sơ runtime/logs/analysis_striped_rows_20261115/.
+
+## 15/11/2026 — Căn mũi tên ô chọn Phân tích
+
+- Đưa mũi tên Loại xổ số/Số kỳ vào trong 12px so với viền phải, căn giữa theo chiều dọc; chừa khoảng chữ 34px và đồng bộ màu Dark/Light. Giữ ô select gốc, cập nhật cache CSS.
+- Chrome xác nhận vị trí/kích thước ở 320/390/900px cho hai theme, chọn bằng bàn phím vẫn hoạt động; đã xem ảnh và đối chiếu HTML/CSS đang phục vụ. Hồ sơ runtime/logs/analysis_select_inset_20261115/.
+
+## 14/11/2026 — Mũi tên chuyển luân phiên kiểu sắp xếp
+
+- Bỏ menu hai lựa chọn, chỉ giữ nút mũi tên cạnh Bộ số. Mỗi lần bấm chuyển Tần suất ↔ Theo số thứ tự; đổi hướng mũi tên, tooltip/nhãn truy cập báo kiểu hiện tại và kế tiếp. Giữ lựa chọn riêng từng bảng, focus và Dark/Light; cập nhật cache core/stats/CSS.
+- JS hợp lệ; kiểm Chrome chuyển qua lại bốn lượt, độc lập hai bảng, không gọi API khi sắp, không còn menu; Enter/Space kích hoạt đúng và giữ focus. Xem ảnh Dark/Light ở 320/1440px, tài nguyên đang phục vụ khớp. Hồ sơ runtime/logs/analysis_sort_cycle_20261114/.
+
+## 14/11/2026 — Chặn số kỳ tùy chọn ở mức hiện có
+
+- Nhập/dán vượt số kỳ hiện có tự trả ngay về tối đa của loại đang chọn, giữ ô trống để chỉnh sửa. Giới hạn lấy từ API, lưu riêng từng loại trong phiên; chưa có tổng thì tải một kỳ để xác định trước khi bật nhập. Áp dụng khi đổi loại, mở lại trang với giá trị cũ và khi dữ liệu giảm.
+- Đồng bộ max/title, cache core/stats và kiểm thử nhập/dán, đổi loại, tải lại từ lựa chọn cũ. Không đổi API hoặc dữ liệu canonical.
+- JS hợp lệ; ca Chrome đạt: nhập 150/dán 2000 về 120 kỳ ngay, đổi loại về 5 kỳ rồi trả đúng trần 120, ô trống vẫn chỉnh được, tải lại giá trị cũ 2000 tự về 120. Hồi quy bộ lọc, lỗi/đổi phiên và mobile đạt; HTML/core/stats đang phục vụ khớp. Hồ sơ runtime/logs/analysis_count_cap_20261114/.
+
+## 14/11/2026 — Menu sắp xếp Bộ số
+
+- Thêm mũi tên cạnh Bộ số ở cả hai bảng: Tần suất giảm dần hoặc Theo số thứ tự tăng dần, có dấu chọn. Lưu lựa chọn riêng từng bảng; đổi thứ tự không gọi API hay đổi số liệu. Menu đồng bộ Dark/Light, hỗ trợ bàn phím/Escape/bấm ngoài và trả focus sau chọn. Cập nhật cache core/stats/CSS.
+- Kiểm cú pháp JS và ca Chrome hiện có đạt; xác minh cả hai thứ tự, độc lập giữa hai bảng, khôi phục lựa chọn đã lưu, không phát sinh API, đóng menu và focus. Xem menu ở 320/390/1440px cho cả hai theme; tài nguyên đang phục vụ khớp. Hồ sơ runtime/logs/analysis_sort_20261114/.
+
+## 14/11/2026 — Đồng bộ màu bảng Phân tích theo Dark/Light
+
+- Bỏ nền trắng cố định của hai bảng; nền bảng cùng màu khung Phân tích, chuyển tức thì theo chế độ sáng/tối. Đồng bộ chữ, tiêu đề, đường viền và nền thanh; giữ màu xanh lá/cam và số liệu. Cập nhật cache CSS và kỳ vọng theme trong ca Chrome hiện có.
+- Ca Chrome hiện có đạt, gồm chuyển Dark → Light trên dữ liệu đã tải, bộ lọc/số kỳ tùy chọn và màn hình 320/390/1440px. Đã xem ảnh hai theme; HTML/CSS đang phục vụ khớp. Hồ sơ runtime/logs/analysis_table_theme_20261114/.
+
+## 14/11/2026 — Thu gọn và đồng bộ thanh Phân tích
+
+- Gom tiêu đề/biểu tượng/thời điểm cập nhật với các bộ lọc trong cùng thanh; đồng bộ ô/nút cao 38px, nút xanh dịu kèm biểu tượng làm mới. Màn hình hẹp xếp hai cột, giữ ô Khác nhập số kỳ.
+- Bỏ gạch trang trí dưới tiêu đề, thu gọn vùng chờ và khoảng trống, hướng dẫn theo bộ lọc; lỗi chỉ hiện một lần. Đồng bộ theme sáng/tối và cache stats/CSS; giữ cách tính và hai bảng tần suất.
+- Kiểm cú pháp JS và ca Chrome bộ lọc/tần suất/lỗi/đổi phiên đạt; kiểm chiều cao 38px, không tràn và xem ảnh ở 320/390/820/960/1440px cho cả theme sáng/tối. Tài nguyên đang phục vụ khớp mã mới. Hồ sơ runtime/logs/analysis_compact_20261114/.
+
+## 13/11/2026 — Bỏ ô Tự làm mới trong Phân tích
+
+- Bỏ checkbox Tự làm mới, xử lý sự kiện, CSS và bộ hẹn giờ 90 giây; không đọc lại tùy chọn đã lưu. Giữ nút Cập nhật và các bộ lọc số kỳ. Đồng bộ cache HTML/core/stats/CSS.
+- Kiểm cú pháp JS đạt; ca Chrome hiện có đạt, gồm bộ lọc, số kỳ tùy chọn, lỗi/đổi phiên và màn hình 320/390/1440px. HTML/JS/CSS đang phục vụ khớp bản mới; không cần khởi động lại backend.
+
+## 13/11/2026 — Phân tích theo số kỳ gần nhất
+
+- Đổi Khoảng thời gian thành Số kỳ: 10, 30, 50, 80, 100 và Khác để nhập số kỳ, xác nhận bằng Enter/Cập nhật. Mặc định 30 kỳ; chọn N kỳ canonical mới nhất theo ngày/giờ/mã kỳ cho cả hai bảng. Nếu chưa đủ lịch sử, hiển thị số kỳ thực tế/yêu cầu.
+- Thêm drawCount/--draw-count qua Java/Python, kiểm số nguyên dương; trả metadata yêu cầu/hiện có/thực tế để frontend đối chiếu. Bỏ lọc ngày ở UI, giữ API ngày cũ tương thích. Cập nhật cache core/stats và UI key v2.
+- 28 ca khác nhau đạt (25 Python, 3 API/Chrome): đủ 5 mốc, số tùy chọn, 2 phiên/ngày, Enter, số không hợp lệ và thiếu lịch sử. Xem ảnh 320/390/1440px và ô Khác; kiểm thêm dữ liệu thực cả 6 game và CLI. Chờ worker xong rồi nạp backend bằng launcher xác minh PID. Hồ sơ `runtime/logs/analysis_draw_count_20261113/verification.json`.
+
+## 13/11/2026 — Xây lại Phân tích theo bảng tần suất mẫu
+
+- Thay phần Phân tích cũ bằng hai bảng thanh ngang: số chính xanh lá và số đặc biệt cam, nền trắng/chữ xanh đậm/viền mảnh. Hiện đủ bộ số, tỷ lệ 2 số lẻ và số lượt; sắp xếp giảm dần, hai cột desktop và xếp dọc mobile. Giữ bộ lọc ngày/loại và cập nhật, bỏ chế độ/Limit/K/Combo/lưu/thẻ chỉ số.
+- Thêm mode frequency chỉ đếm trên cùng tập canonical đã lọc, tổng riêng từng nhóm. Kiểm dữ liệu, hủy tải cũ và xóa bảng khi đổi phiên/lỗi. Cập nhật route CSS và cache core/stats/CSS; giữ các mode API cũ tương thích.
+- 24 ca khác nhau đạt (22 Python và 2 API/Chrome); đã xem ảnh desktop/mobile, kiểm bảng nền trắng, thanh xanh/cam, tỷ lệ/tổng riêng, 0 lượt, lọc ngày, lỗi và loại phản hồi sau đổi phiên. Kiểm thêm dữ liệu canonical thực của cả 6 game. Backend mới nạp bằng launcher xác minh PID/worker; HTML/core/stats/CSS trả đúng nội dung mới, API tiếp tục yêu cầu đăng nhập. Hồ sơ `runtime/logs/analysis_frequency_20261113/verification.json`.
+
+## 09/11/2026 — Viết đầy đủ VIP trong nhãn thưởng hiện tại
+
+- Đổi nhãn thành Hiện Tại · VIP n theo yêu cầu làm rõ (ví dụ Hiện Tại · VIP 14); placeholder dùng VIP —. Cập nhật cache JS, kiểm cú pháp và đối chiếu HTML/JS đang phục vụ.
+
+## 09/11/2026 — Nhãn thưởng hiện tại theo cấp VIP
+
+- Đổi Hiện Tại · Thưởng Ngày thành Hiện Tại · Vn, tự lấy cấp hiện tại từ server (ví dụ V14). Khi xóa dữ liệu/đổi phiên dùng V—. Cập nhật cache JS VIP.
+- Chrome xác nhận Hiện Tại · V14; ca nhận thưởng/lịch sử hiện có đạt. JS hợp lệ, HTML/JS đang phục vụ khớp. Hồ sơ `runtime/logs/vip_current_rank_label_20261109/verification.json`.
+
+## 09/11/2026 — Bỏ chú thích thưởng trong bảng cấp VIP
+
+- Bỏ dòng Thưởng ngày (PayPal) · Nhận theo cấp hiện tại khỏi HTML theo yêu cầu.
+
+## 09/11/2026 — Trạng thái và chấm báo rương thưởng VIP
+
+- Nút quà chưa nhận sáng xanh, có chấm nhỏ góc phải và tooltip +số tiền PayPal vào thẻ. Đã nhận hiện Đã Nhận trên tooltip/nhãn và dòng trạng thái kèm đúng tiền biên nhận. Chấm tắt trong lúc gửi, đã nhận, tạm đóng và khi xóa phiên/lỗi; giữ nút tròn 32px, luồng nhận thưởng và cache VIP JS/CSS mới.
+- Hai ca Chrome nhận thưởng/lịch sử và mất phản hồi/đổi phiên đạt; kiểm tra 320/390/1440px, theme sáng/tối, tooltip đúng tiền, chấm 7px khi chưa nhận và biến mất sau nhận. Đã xem ảnh nút trước/sau, kiểm JS và tài nguyên đang phục vụ khớp. Hồ sơ `runtime/logs/vip_chest_notice_20261109/verification.json`.
+
+## 09/11/2026 — Đồng bộ màu các ô cấp VIP
+
+- Bảng Các cấp VIP dùng chung dải 16 màu với nút V0–V15: tên cấp, quà, thưởng, viền và nền. Cấp hiện tại có viền/nền rõ hơn; bỏ màu xám/vàng cố định của trạng thái đã đạt, chưa đạt và rương khóa. Theme sáng dùng chữ đậm cùng tông. Cập nhật cache VIP JS/CSS.
+- Ca Chrome nhận thưởng/lịch sử hiện có đạt; đo đủ 16 màu khác nhau ở cả hai theme, tên/quà/thưởng khớp màu từng ô, chỉ rương cấp hiện tại được nhận. Xem ảnh sáng/tối và kiểm tra 320/390/1440px; JS hợp lệ, HTML/JS/CSS đang phục vụ khớp. Hồ sơ `runtime/logs/vip_tier_palette_20261109/verification.json`.
+
+## 09/11/2026 — Dải màu sáng 16 cấp VIP theo mẫu
+
+- Đổi màu nhãn V0–V15 thành 16 sắc độ cách đều từ vàng nhạt qua tím nhạt đến xanh ngọc theo ảnh, tăng độ sáng bằng 20% trắng; chữ, viền và nền cùng tông. Cập nhật phiên bản tải VIP CSS và lưu quy tắc màu.
+- Ca Chrome hiện có đạt: đủ 16 màu khác nhau, theme sáng, màn hình 320px và cấp từ server. Đã xem ảnh V0/V15; HTML/CSS đang phục vụ khớp file mới. Hồ sơ `runtime/logs/vip_gradient_palette_20261109/verification.json`.
+
+## 09/11/2026 — Nhãn V0–V15 và màu theo cấp VIP
+
+- Thay logo vương miện bằng cấp tích lũy từ server, 16 màu chữ/viền riêng; giữ khung nút gọn trên desktop/mobile. Xóa SVG và style logo/animation cũ; màu cấp độc lập với hạn gói VIP.
+- Lấy cấp ngay khi đăng nhập kể cả bảng đóng, cập nhật sau chi tiêu; xóa nhãn cũ khi đổi phiên/lỗi và chặn phản hồi muộn. Core cập nhật mô tả truy cập/tooltip theo cấp. Đồng bộ cache các asset liên quan.
+- 5 ca Chrome đạt, kiểm đủ 16 cấp/màu từ API thật trên DB thử, V0/V14/V15, theme sáng, màn hình 320px, rương và đổi phiên/lỗi. Sau khi chặn GET do ví chỉ vẽ lại cùng số dư, chạy lại 2 ca liên quan đạt. HTML và 4 tài nguyên đang phục vụ khớp; không cần nạp lại backend. Hồ sơ `runtime/logs/vip_level_badge_20261109/verification.json`.
+
+## 09/11/2026 — Luôn làm tròn mốc VIP lên Point nguyên
+
+- Theo yêu cầu làm rõ, dùng CEILING: 1,25 → 2; 4,6625 → 5; 17,375 → 18; 64,75 → 65; 241,25 → 242. Đây là ngưỡng lên cấp thực tế, bảng cấp hiển thị số nguyên đầy đủ. Giữ tỷ lệ 100.000 PayPal/Point, phần lẻ Point đã kiếm được, bảng thưởng và biên nhận rương.
+- Kiểm tra cấu hình làm tròn tại server/DB riêng trước khi thay file cấu hình nguyên tử; backend đang chạy nạp mốc theo từng request, không cần khởi động lại.
+- Tổng 23 ca khác nhau đạt sau khi cập nhật dữ liệu thử VIP 1 sang 200.000 PayPal, gồm đủ 16 ngưỡng, Chrome mobile và giữ thưởng đã nhận khi đổi mốc. Xác nhận số dư/giao dịch/bảng thưởng không đổi; xem ảnh bảng cấp hiển thị đủ mốc nguyên. Hồ sơ `runtime/logs/vip_threshold_ceiling_20261109/verification.json`.
+
+## 09/11/2026 — Thu gọn Point VIP theo tỷ lệ 100.000 PayPal
+
+- Đổi 100.000 PayPal đã tiêu = 1 Point, chia toàn bộ mốc Point cũ cho 80.000 chính xác. VIP 1 = 1,25; VIP 14 = 33.500.000; VIP 15 = 125.000.000 Point. Ngưỡng chi tiêu, cấp, tiến trình và thưởng PayPal/ngày giữ nguyên; không sửa số dư/sổ chi tiêu/biên nhận rương.
+- Point dùng số nguyên theo đơn vị 0,00001; backend/frontend hỗ trợ mốc có phần lẻ, cập nhật bảng cấp và nhãn tỷ lệ. Hỗ trợ cặp chính sách cũ trong bước nạp code, kiểm tra bản cấu hình mới riêng trước khi thay cấu hình đang chạy.
+- 22 ca kiểm tra đạt, gồm đủ 16 cấp, phần lẻ, số lớn, nhận rương/đổi đơn vị/nhận lại và Chrome mobile. Nạp backend khi worker kết thúc, bật cấu hình mới nguyên tử. Đối chiếu cấp/tiến trình, phí dự đoán, tiền ví/thẻ, giao dịch, đơn nạp và bảng thưởng trước/sau không đổi. Hồ sơ `runtime/logs/vip_point_scale_20261109/verification.json`.
+
+## 09/11/2026 — Cân lại cụm VIP, Point và quà
+
+- Gom cấp và Point thành một hàng, thanh mảnh bên dưới và quà tròn 32px cạnh phải; bỏ nhãn Trạng thái VIP, chuyển (?) lên đầu bảng. Rút gọn dòng Point còn thiếu, tooltip và aria giữ số chính xác. Đồng bộ cache JS/CSS `vip-compact-v2-20261109`.
+- Ca Chrome nhận thưởng/lịch sử đạt, xem ảnh desktop và 320px xác nhận bố cục gọn, các mục không tràn khung; HTML/JS/CSS đang phục vụ khớp bản mới. Hồ sơ `runtime/logs/vip_compact_v2_20261109/verification.json`.
+
+## 09/11/2026 — Thanh tiến trình VIP và hộp quà gọn theo mẫu
+
+- Gom thanh màu mảnh và nút quà tròn bên phải, phía dưới là cấp VIP và Point hiện có / mốc cấp kế tiếp cạnh sao vàng. Rút gọn số lớn để vừa màn hình nhỏ, tooltip giữ số chính xác. Thông tin thưởng ngày nằm bên dưới.
+- Nút quà giữ luồng nhận thưởng ngày và trạng thái đã nhận/đang gửi; phần trăm tiến trình nằm trong tooltip và aria, không chen vào thanh mảnh. Cập nhật cache HTML/JS/CSS và kiểm tra hình học của bài kiểm tra trình duyệt hiện có.
+- Hai ca Chrome nhận thưởng/lịch sử và mất phản hồi/đổi phiên đạt; đã xem ảnh 1440/390/320 px, theme sáng và trạng thái đã nhận. Kiểm tra tài nguyên đang phục vụ khớp bản mới; không cần khởi động lại backend cho thay đổi giao diện này.
+
+## 09/11/2026 — Bỏ chữ mô phỏng trong giao diện tỉ giá
+
+- Bỏ chữ theo yêu cầu trong ghi chú biểu đồ/quy đổi, lỗi giá và nhãn truy cập; nhãn cột Ghi nhận đổi thành `Cập nhật mỗi phút`. Cập nhật phiên bản tải JS.
+- Kiểm tra API/Chrome tại 1440/390/320 px, 5 dòng và phân trang; nạp bản backend mới bằng launcher xác minh PID/worker. Trang và JS mới trả 200, class hash khớp; đơn nạp, thẻ và giá chốt ngày được đối chiếu không đổi. Bằng chứng `runtime/logs/exchange_labels_20261109/verification.json`.
+
+## 09/11/2026 — Nhãn hoạt động của tỉ giá
+
+- Đổi trạng thái bình thường thành `Đang Hoạt Động`, khi tắt thành `Đang Tạm Ngừng`; đồng bộ nhãn tạm ngừng tại đồng hồ và badge. Giữ nhãn chờ cập nhật khi dữ liệu trễ, cập nhật phiên bản tải JS.
+
+## 09/11/2026 — Đổi tiêu đề thông tin tỉ giá
+
+- Đổi `Thông tin mô phỏng` thành `Thông tin PayPal | VNĐ - DFVL` theo yêu cầu.
+
+## 09/11/2026 — Bỏ dòng phụ dưới tiêu đề PayPal
+
+- Bỏ dòng `VNĐ / PayPal • DVLF` theo yêu cầu.
+
+## 09/11/2026 — Thu gọn ghi chú lịch sử tỉ giá
+
+- Đổi ghi chú thành `Dữ Liệu 50 mốc gần nhất.` theo yêu cầu, cập nhật phiên bản tải JS.
+
+## 09/11/2026 — Đổi tiêu đề biểu đồ PayPal
+
+- Đổi tiêu đề thành `PayPal | VNĐ - DFVL` theo yêu cầu; đồng bộ nhãn truy cập của phần tỉ giá.
+
+## 09/11/2026 — Lịch sử tỉ giá 5 dòng, tự giữ 50 mốc
+
+- Theo yêu cầu người dùng, lịch sử hiện 5 dòng/trang với Trước/Sau; lưu tối đa 50 tick mới nhất và tự xóa tick cũ khi thêm/khởi động. Sao lưu market và daily rates trước thay đổi. Chart chỉ vẽ phần còn giữ, không kéo dài lịch sử đã xóa.
+- Giữ một giá liền trước mốc đầu trong metadata để cột +/− và % không sai khi tick trước đó bị xóa. Giá cuối/seed mô phỏng không bị đặt lại. Chốt đủ tỉ giá nạp theo ngày trước khi dọn tick nguồn; snapshot ngày/đơn và số dư không thuộc phạm vi xóa.
+- 8 ca API/Chrome/component đạt: phân trang đủ 10 trang, 320/390/1024/1440 px không tràn, chênh lệch mốc đầu/restart, báo cáo chỉ đọc và rollback; mô phỏng 720 phút qua 00:00 vẫn dùng đúng giá chốt sau khi tick nguồn bị dọn. Bản mới được nạp qua launcher xác minh PID/worker.
+- Dữ liệu thật từ 414 mốc về 50, tick giá cuối còn nguyên và worker tiếp tục sinh giá trong giới hạn 50; hai bảng giá ngày và toàn bộ đơn/số dư thẻ được đối chiếu không đổi. quick_check đạt, trang/assets 200/hash khớp; API giữ xác thực. File SQLite vẫn 57.344 byte, page trống tái sử dụng, không chạy VACUUM hoặc khẳng định giảm dung lượng vật lý chưa đo. Hồ sơ runtime/logs/exchange_retention_20261109/verification.json.
+
+## 08/11/2026 — Chốt tỉ giá nạp PayPal lúc 00:00 Việt Nam
+
+- Theo yêu cầu mới, lấy giá thị trường cuối trước 00:00 làm tỉ giá nạp cố định cho ngày mới. Ngày bật giữ 1,25, bắt đầu chốt từ ngày kế; lưu giá ngày bất biến trong DB nhỏ riêng, chốt bù sau gián đoạn, chống trùng và rollback.
+- Người dùng chọn khóa giá tại lúc tạo đơn: thêm snapshot cùng số tiền vào đơn mới, giữ nguyên đơn/số dư cũ. Nạp thủ công và VNPAY dùng cùng giá; duyệt/callback muộn vẫn cộng số đã lưu. Giữ % thưởng gói và quy tắc thưởng/thẻ/VIP/lãi; phép quy đổi/bonus dùng số nguyên HALF_UP đến 1 PayPal.
+- Trang nạp và lịch sử hiện giá server/giá đã khóa; qua ngày trả 409 để xem lại trước khi bấm gửi lại, giữ requestId để tránh trùng sau mất phản hồi. Cập nhật phiên bản core/preload/payments và tài liệu quy tắc.
+- Hoàn tất kiểm chứng ngày 09/11: 31 ca khác nhau đạt qua các lượt nạp thủ công/VNPAY, chốt ngày, UI và biểu đồ. Có kiểm 6 JVM chốt cùng ngày, nano giây trước/sau 00:00 VN, gián đoạn/restart/đồng hồ lùi, rollback, lỗi cấu hình, khóa đơn, duyệt/callback trùng và 409 không tự gửi thêm đơn. Sửa fixture đường callback/biểu thức kiểm tra rồi chạy lại ca liên quan; sửa cập nhật số PayPal trên toàn bộ nút gói khi giá đổi, giữ lựa chọn/focus.
+- Sao lưu SQLite bằng snapshot đọc nhất quán, quick_check và SHA-256; bản dở do lượt backup bị khởi động lại bởi ghi đồng thời đã được dọn sau khi bản đầy đủ xác minh. Snapshot tài chính trước thay đổi được giữ nguyên trong Bin và manifest.
+- Server đã được khởi động lại trong thời gian công việc tạm ngắt; đối chiếu toàn bộ 23 class đang chạy khớp bản nguồn cuối nên không ngắt server/worker thêm. Xác nhận bảng giá ngày 09/11 chỉ một dòng, 1,45185743 PayPal/VNĐ, lấy đúng tick 23:59:00.019 ngày 08/11 và hiệu lực 00:00 ngày 09/11 Việt Nam. Ba đơn cũ giữ nguyên số tiền, snapshot legacy không bị gán ngược; ví/thẻ/đơn không đổi trong lượt kiểm cuối. Trang/tài nguyên trả 200, hash và preload khớp; API nạp bảo vệ phiên. Không tạo/thanh toán yêu cầu nạp trên tài khoản vận hành. Hồ sơ runtime/logs/daily_topup_rates_20261108/verification.json.
+
+## 08/11/2026 — Nhãn lịch chốt tỉ giá
+
+- Đổi nhãn bình thường Mô phỏng · 60 giây thành Chốt Tỉ Giá Sau · 00h00 Hàng Ngày trong cả HTML/renderer, cập nhật cache JS. Giữ thông báo tạm dừng/chờ cập nhật; thay đổi chỉ ở nội dung nhãn, không thêm tác vụ chốt ngày hay sửa chu kỳ sinh giá.
+- Kiểm thử Chrome đạt ở 320/390/1024/1440 px, nhãn sau render đúng và không tràn; cú pháp JS đạt, trang/JS đang chạy trả 200 và hash khớp. Hồ sơ runtime/logs/exchange_daily_close_label_20261108/verification.json.
+
+## 08/11/2026 — Giãn khoảng cách đồng hồ và nhãn giá
+
+- Dành khoảng trống riêng phía trên đồ thị: đồng hồ ở top=4px, vùng lưới/nhãn bắt đầu y=44 thay y=20 để tránh dính chữ. Giữ góc phải, cập nhật cache JS/CSS và kiểm khoảng cách thực trên Chrome.
+- Kiểm thử Chrome đạt ở 320/390/1024/1440 px, khoảng cách nhãn–đồng hồ ít nhất 16px; cú pháp JS đạt và asset đang chạy trả 200/hash khớp. Hồ sơ runtime/logs/exchange_countdown_spacing_20261108/verification.json.
+
+## 08/11/2026 — Đồng hồ đổi giá ở góc phải biểu đồ
+
+- Chuyển Đổi giá sau từ chân biểu đồ lên góc trên bên phải trong vùng vẽ; chừa khoảng trước nhãn giá và không chặn tương tác chuột. Giữ ID/cách đếm ngược hiện có, cập nhật cache CSS.
+- Kiểm thử Chrome đạt ở 320/390/1024/1440 px: một đồng hồ đúng top=0/right=12px, không chạm hàng nhãn giá. Trang đang chạy và CSS trả 200/hash khớp, không cần khởi động lại server. Hồ sơ runtime/logs/exchange_countdown_corner_20261108/verification.json.
+
+## 08/11/2026 — Cột chênh lệch PayPal trong lịch sử tỉ giá
+
+- Thêm cột +/− giữa Tỉ giá / 1 VNĐ và Thay đổi (%), hiển thị tối đa 8 số lẻ, màu xanh/đỏ theo dấu. API tính chênh lệch từ hai giá nguyên đã lưu, bao gồm mốc trước dòng cuối danh sách; không suy từ % làm tròn. Cập nhật cache JS, giữ nguyên dữ liệu giá và quy tắc tài chính.
+- 4 ca API/Chrome đạt, đối chiếu chênh lệch với giá nguyên trong DB và màu/cột trên trình duyệt; kiểm bố cục 320/390/1024/1440 px. Đã đóng kết nối SQLite của fixture để dọn file đúng trên Windows và chạy lại thành công. Nạp bằng launcher sau khi worker xong; trang/time/JS trả 200, hash JS khớp nguồn, lịch sử giá trước restart giữ nguyên. Hồ sơ runtime/logs/exchange_history_delta_20261108/verification.json.
+
+## 08/11/2026 — Bỏ bốn nút khoảng phút trên biểu đồ PayPal
+
+- Theo ảnh người dùng, bỏ 1p/5p/15p/30p; giữ 1h/3h/6h/12h/1N/7N/1T/3T/Tất cả, mặc định 1N. Đồng bộ kỳ vọng điều hướng trong kiểm thử Chrome; giữ API và chu kỳ sinh giá hiện tại.
+- Kiểm thử Chrome điều hướng/biểu đồ và bố cục 320/390/1024/1440 px đạt; trang đang chạy đã phục vụ đúng 9 nút còn lại, không cần khởi động lại server. Hồ sơ runtime/logs/exchange_hour_ranges_20261108/verification.json.
+
+## 08/11/2026 — Khoảng phút và giờ cho biểu đồ PayPal
+
+- Bổ sung 1p/5p/15p/30p/1h/3h/6h/12h trước các khoảng ngày/tháng hiện có. 60 phút dùng nút 1h có chú thích; mặc định vẫn 1N. Nút tự xuống hàng trên điện thoại, chân biểu đồ hiện giờ cụ thể cho khoảng ngắn.
+- API dùng cùng bảng khoảng cho kiểm query và truy vấn, cắt đúng số giây tính lùi từ giờ server, giới hạn tại mốc bắt đầu lưu. Giữ lịch sử giá, chu kỳ mô phỏng 60 giây và toàn bộ quy tắc tài chính; cập nhật cache JS/CSS.
+- 4 ca API/Chrome đạt: đủ 13 khoảng, thời gian từ đúng số giây/cắt tại mốc lưu, kiểm quyền/lỗi và snapshot tài chính không đổi. Chrome kiểm từng nút và 320/390/1024/1440 px không tràn; cú pháp JS và biên dịch Java đạt. Đã nạp qua launcher xác minh PID sau khi worker xong; trang/time/asset trả 200, hash asset khớp và lịch sử giá cũ còn nguyên sau restart. Hồ sơ runtime/logs/exchange_ranges_20261108/verification.json.
+
+## 08/11/2026 — Tỉ giá mô phỏng ngẫu nhiên mỗi phút
+
+- Theo lựa chọn người dùng, mô phỏng chỉ áp dụng biểu đồ/quy đổi thử. Mỗi phút random dấu và bước tối đa ±1% so với giá trước, server sinh chung cho mọi trình duyệt; thêm giá/OHLC/nến tăng giảm, đếm ngược và lịch sử động.
+- Lưu tick bất biến và trạng thái trong DB nhỏ riêng, chống ghi trùng cùng phút/nhiều tiến trình và rollback nguyên tử; khởi động lại giữ giá, không tạo bù tick khi server tắt. Giữ mốc cố định cũ và ghi thời điểm bắt đầu mô phỏng mới, không bịa lịch sử trước kích hoạt.
+- API xem tiếp tục chỉ đọc, gom OHLC có giới hạn mà không xóa tick gốc. Cấu hình v2 chỉ cho mô phỏng; không sửa tỉ giá nạp/thu phí/trả thưởng, tiền ví/thẻ, Point/VIP hoặc lãi. Tăng cache asset và cập nhật quy tắc/kiến trúc cho các lần sửa sau.
+- 6 ca component và 4 ca API/Chrome đạt: 20.000 bước/biên số học, 6 JVM cùng ghi chỉ 1 tick, restart/phút lùi/bỏ qua gián đoạn, rollback, read-only/OHLC/cấu hình, quy đổi, nến không chồng, responsive và auth. Sửa giữ tooltip bàn phím khi ResizeObserver vẽ lại. Bản cuối được nạp bằng launcher kiểm PID/worker sau khi phát hiện server đã được khởi động lại giữa lượt làm việc.
+- Quan sát DB thật sau nạp: lịch sử cũ còn nguyên, worker tự sinh mốc tiếp theo mà không có yêu cầu tạo giá/trang admin xác thực; toàn bộ biến động đã lưu đều trong ±1%. Trang/time/assets 200 và asset hash khớp nguồn, API tỉ giá yêu cầu đăng nhập. Không thực hiện thao tác tài chính trên tài khoản vận hành. Hồ sơ runtime/logs/exchange_random_20261108/verification.json.
+
+## 08/11/2026 — Tỉ giá và biểu đồ PayPal nội bộ
+
+- Thêm mục Tỉ giá vào menu admin, trang biểu đồ kiểu thị trường với giá hiện tại, đường/nến, khoảng 1N/7N/1T/3T/Tất cả, trỏ thời điểm, quy đổi nhanh và lịch sử tỉ giá. Tách JS/CSS, hỗ trợ giao diện sáng/tối và điện thoại.
+- Theo lựa chọn người dùng, dùng tỉ giá nội bộ cố định 1 VNĐ = 1,25 PayPal; biểu đồ không tạo dao động/khối lượng giả và lịch sử chỉ bắt đầu từ mốc ghi nhận mới. API admin chỉ đọc, không thay ví/thẻ, cách thu phí hay thưởng; quy đổi thử giữ chính xác phần lẻ.
+- Cập nhật fixture điều hướng admin cũ còn mong đợi Người dùng sang tên Quản Lý Use đã có từ trước thay đổi này; giữ nguyên tên sản phẩm người dùng yêu cầu. Fixture khoảng thời gian dùng UTC Z để tương thích bộ phân tích Instant của Java 8 đang vận hành.
+- Fixture menu chờ phiên admin/khung ứng dụng hiện trước khi kiểm vị trí nút, tránh đo phần tử còn ẩn trong lúc đăng nhập.
+- 4 ca API/Chrome tỉ giá và 1 ca hồi quy điều hướng/tạo Code đạt; snapshot tài chính không đổi khi đọc/quy đổi. Kiểm tra 320/390/1024/1440 px không tràn ngang, dark/light, đường/nến, phím xem điểm, lỗi/thử lại và đổi phiên. Nạp bằng launcher kiểm PID/worker; trang/tài nguyên/time trả 200, API tỉ giá yêu cầu đăng nhập. Hồ sơ runtime/logs/admin_exchange_20261108/verification.json.
+
+## 08/11/2026 — Rương thưởng ngày VIP 0–15
+
+- Thay Point tích lũy và Đã tiêu (PayPal) bằng Hiện Tại · Thưởng Ngày và Cấp Sau; giữ tiến trình lên cấp, thêm rương vàng và bảng đủ 16 rương/mức thưởng, tương thích giao diện sáng/tối và màn hình nhỏ.
+- Theo lựa chọn người dùng, mỗi ngày nhận 1 rương theo cấp hiện tại, mở lại lúc 00:00 Việt Nam. Chọn thưởng PayPal từ 100 ở VIP 0 đến 25 triệu ở VIP 15, trả vào thẻ nội bộ, có lịch sử Thưởng và chuông thông báo.
+- Thêm preview/claim xác thực, cấu hình thưởng riêng và biên nhận bất biến trên sổ thẻ sẵn có. Chống nhận trùng kể cả đổi cấp/bảng thưởng, giữ danh tính khi đổi tên, từ chối ngày sai/tràn thẻ, khóa/rollback cùng giao dịch thẻ và audit. Không thay mốc VIP, quyền theo thời hạn, Point, ví hoặc vé dự đoán.
+- 21 ca VIP/rương và 25 ca hồi quy thẻ/lãi/thông báo đạt trên dữ liệu thử riêng; kiểm tra viewport 320/390/1440, giao diện sáng/tối, rương đã nhận, mất phản hồi và đổi phiên. Lượt kiểm đầu phát hiện lỗi hiển thị lại sau auth boundary, đã sửa và chạy lại toàn bộ 21 ca VIP thành công. Nạp bản mới bằng launcher kiểm PID/worker, asset/trang chủ/time trả 200; hai thao tác rương và tiến trình trả 401 khi chưa đăng nhập. Không thử nhận thưởng trên tài khoản vận hành. Hồ sơ `runtime/logs/vip_daily_20261108/verification.json`.
+
+## 08/11/2026 — Thiết kế lại toàn bộ thẻ VIP
+
+- Thay bố cục nhiều khung bằng một mặt thẻ thống nhất: cấp VIP dạng chữ, vương miện nhỏ, nút (?) cùng hàng; hai cột Point/chi tiêu có khoảng cách và đường phân cách nhẹ. Bỏ nhãn cấp lặp phía trên thanh và các ô số có viền/nền.
+- Dòng Point còn thiếu dùng trọn chiều rộng phía trên thanh; phần trăm nằm trong thanh, đổi màu chữ theo vùng đã tô bằng lớp clip, bỏ nền nhãn đen. Giữ bảng mốc/tỷ lệ, xử lý cấp tối đa và thu gọn trên điện thoại.
+- Giữ dữ liệu/cách tính cấp/Point, xác thực và quyền hiện có. Đặt lại các trường tiến trình khi đóng/đổi phiên, cập nhật cache JS/CSS. Bằng chứng giao diện ở `runtime/logs/vip_redesign_20261108/`.
+- 10 kiểm thử VIP đạt; Chrome xác nhận ở 320/390/1440px không tràn hoặc cắt số, nút mốc/cấp 15/đặt lại trạng thái hoạt động. Ảnh theme tối/sáng và bảng cấp được kiểm tra; trang và JS trên server hiện tại trả 200 với cache version mới.
+
+## 07/11/2026 — Thẻ VIP và tiến trình cấp 0–15
+
+- Thiết kế lại cụm VIP hiện tại → cấp kế: ô vàng cho cấp hiện tại, mũi tên mảnh và ô viền cho cấp kế; giữ chiều cao gọn, hỗ trợ theme sáng và trạng thái cấp 15. Dựng DOM an toàn, giữ text/ID và cập nhật cache JS/CSS.
+- Đổi tiêu đề cạnh vương miện thành VIP hiện tại → cấp kế tiếp, ví dụ VIP 14 → 15. Cấp 15 giữ VIP 15; cập nhật cache JS và kỳ vọng nhãn tương ứng trong kiểm tra trình duyệt.
+- Bỏ toàn bộ khối tóm tắt thời hạn VIP/ngày hết hạn/Quyền quản trị theo ảnh người dùng; dọn markup/CSS/tham chiếu render, đồng bộ cache core/preload/CSS và contract các ID còn dùng. Quyền/gia hạn theo thời hạn vẫn do cơ chế hiện có xử lý.
+- Đưa dòng Còn … Point để lên VIP … vào giữa hàng cấp hiện tại–cấp kế tiếp trên thanh tiến trình; bỏ vị trí dưới thanh, cho phép ô giữa ngắt dòng trên điện thoại để hiển thị đầy đủ.
+- Bỏ dòng Tích lũy từ chi tiêu dưới Thành viên VIP cùng lệnh render trong core; thu gọn header, đồng bộ cache version core/preload/CSS.
+- Thu gọn tổng quan thành một thẻ chung: vương miện/cấp nhỏ, Point tích lũy và Đã tiêu (PayPal) trên hai hàng. Bỏ Cấp độ hiện tại, MAX 15, câu mô tả, các khung con và đơn vị lặp; xóa tham chiếu render caption, cập nhật cache version JS/CSS. Giữ số đầy đủ và cách tính Point/cấp hiện có.
+- Thay nhãn 0–15/mũi tên góc phải Các cấp VIP bằng `1,25 PayPal đã tiêu = 1 Point`, in đậm phần `1 Point`, chuyển tỷ lệ từ dưới lưới lên vị trí này để tránh lặp. Thu gọn CSS mũi tên cũ và cập nhật cache version stylesheet.
+- Điều chỉnh theo yêu cầu tiếp theo: VIP 15 từ 10 tỷ lên 10.000 tỷ Point, giữ VIP 1 ở 100.000; các cấp giữa theo cấp số nhân `10^(4/7) ≈ 3,7276`, làm tròn HALF_UP 3 chữ số có nghĩa. Cấu hình lưu ngưỡng nguyên và công thức; cập nhật fixture ranh giới/Point cực đại/tiến trình 50%, định dạng nhãn mốc gọn hai số lẻ và cache version JS. Tra cấp/tiến trình lại từ tổng chi tiêu hiện có; hồ sơ kiểm chứng ở `runtime/logs/vip_exponential_20261107/`.
+- Theo điều chỉnh tiếp theo, chuyển % vào chính giữa thanh tiến trình; thêm nút (?) bên cạnh cấp kế tiếp/Tối đa để mở/đóng bảng đủ 16 mốc VIP. Bảng mặc định ẩn, nút hỗ trợ bàn phím và đồng bộ trạng thái mở. Cập nhật phiên bản JS/CSS để tải lại nhận bố cục mới; giữ cách tính cấp/Point. Bằng chứng giao diện ở `runtime/logs/vip_progress_controls_20261107/`.
+- Thiết kế lại popover VIP gọn theo tông xanh đậm/vàng: cấp hiện tại, tổng Point, PayPal đã tiêu, thanh tiến trình và Point còn thiếu; mở rộng xem đủ các mốc VIP 0–15. Giữ thời hạn/gia hạn riêng, hỗ trợ lỗi tải/thử lại và màn hình nhỏ.
+- Áp dụng bảng mốc do người dùng duyệt, tỷ lệ 1,25 PayPal chi tiêu = 1 Point. Tính cả lịch sử phí đã xác nhận và mua lượt quay; loại phí hoàn/chờ, chuyển tiền nội bộ, thưởng/lãi/quà/điều chỉnh. Admin không tự nhận cấp tích lũy cao nhất.
+- API chỉ đọc, tính chính xác số lớn, cách ly tài khoản và giữ tiến trình khi đổi tên; không thêm migration/ghi ví/thẻ hoặc thay vé cũ. Tách mã giao diện VIP, khai báo asset và cập nhật cache version core/preload đồng bộ. Lưu quy tắc và cấu hình chính thức cho các lần cập nhật sau.
+- 61 kiểm thử đạt trên server/SQLite/Chrome riêng: mốc cấp, phần lẻ, tổng lớn, hoàn phí, quyền chủ tài khoản, đổi tên/xóa–đăng ký lại, lỗi cấu hình và phản hồi đến muộn; gồm hồi quy quyền/VIP thời hạn, quà tặng, số dư và lịch sử ví. Cập nhật ba fixture/contract cũ: chấp nhận cache version nhưng buộc preload/script khớp, kiểm launcher PowerShell hiện hành, làm mới phiên member sau restart và chờ UI đăng nhập xong trước kiểm focus. Không thay logic sản phẩm để đáp ứng assertion cũ.
+- Ảnh và số đo Chrome xác nhận viewport 320/390/1440px, bảng VIP không tràn; VIP 15 đầy thanh vẫn giữ Point tăng thêm, quyền admin tách khỏi cấp tích lũy. Bản mới đã được nạp bằng launcher xác minh PID sau khi worker xong; asset/trang chủ/time trả 200, API VIP bảo vệ phiên trả 401 khi chưa đăng nhập. Hồ sơ tại `runtime/logs/vip_progress_20261107/Verification.md`.
+
 ## 06/11/2026 — Chính sách và công cụ tối ưu dung lượng bảo toàn dữ liệu
 
 - Theo ủy quyền người dùng, lưu quy tắc ưu tiên toàn vẹn dữ liệu/vận hành; giữ vé, seed, checksum, tài chính, lịch sử và mốc xử lý. Phân biệt dung lượng logic với cấp phát vật lý, thử trên dữ liệu riêng và lưu bằng chứng trước áp dụng.

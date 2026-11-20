@@ -14071,6 +14071,7 @@ body.light-theme .predict-root-stats .stats-modern-number {
 }
 
 .vip-membership-btn {
+  --vip-badge-rgb: 136, 153, 170;
   position: relative;
   display: inline-flex !important;
   align-items: center;
@@ -14082,92 +14083,39 @@ body.light-theme .predict-root-stats .stats-modern-number {
   margin: 0 !important;
   padding: 3px !important;
   overflow: hidden;
-  border: 1px solid rgba(251, 191, 36, .28) !important;
+  border: 1px solid rgba(var(--vip-badge-rgb), .64) !important;
   border-radius: 8px !important;
   background:
-    radial-gradient(circle at 50% 20%, rgba(251, 191, 36, .14), transparent 62%),
+    radial-gradient(circle at 50% 12%, rgba(var(--vip-badge-rgb), .22), transparent 72%),
     rgba(7, 18, 32, .86) !important;
+  color: rgb(var(--vip-badge-rgb)) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
   cursor: pointer;
   transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease, filter .2s ease, opacity .2s ease;
 }
 
-.vip-membership-logo {
+.vip-membership-level {
   display: block;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  overflow: visible;
-}
-
-.vip-membership-logo-frame {
-  stroke-width: 2;
-}
-
-.vip-membership-logo-crown {
-  stroke-width: .8;
-  stroke-linejoin: round;
-}
-
-.vip-membership-logo-line {
-  fill: none;
-  stroke: #ffd761;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.vip-membership-logo-text {
-  fill: #ffe88e;
   font-family: "Bahnschrift", "Segoe UI", sans-serif;
-  font-size: 8px;
+  font-size: 14px;
   font-weight: 900;
-  letter-spacing: .6px;
-}
-
-.vip-membership-wrap.is-active .vip-membership-btn {
-  border-color: rgba(255, 215, 92, .76) !important;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(255, 220, 93, .3), transparent 62%),
-    linear-gradient(145deg, rgba(72, 50, 8, .82), rgba(15, 24, 38, .94)) !important;
-  box-shadow:
-    0 0 18px rgba(251, 191, 36, .32),
-    inset 0 1px 0 rgba(255, 250, 214, .18) !important;
-  animation: vip-membership-active-glow 2.4s ease-in-out infinite;
-}
-
-.vip-membership-wrap.is-active .vip-membership-logo {
-  filter: drop-shadow(0 0 5px rgba(255, 214, 73, .66));
-}
-
-.vip-membership-wrap.is-expired .vip-membership-btn {
-  border-color: rgba(125, 146, 166, .2) !important;
-  background: rgba(7, 17, 29, .78) !important;
-  filter: grayscale(1);
-  opacity: .76;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.4px;
+  line-height: 1;
 }
 
 .vip-membership-btn:hover,
 .vip-membership-btn[aria-expanded="true"] {
-  border-color: rgba(255, 215, 92, .82) !important;
-  filter: grayscale(0) brightness(1.12) !important;
+  border-color: rgba(var(--vip-badge-rgb), .94) !important;
+  filter: brightness(1.12) !important;
   opacity: 1 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 8px 20px rgba(251, 191, 36, .2), inset 0 1px 0 rgba(255, 255, 255, .12) !important;
+  box-shadow: 0 6px 14px rgba(var(--vip-badge-rgb), .18), inset 0 1px 0 rgba(255, 255, 255, .12) !important;
 }
 
 .vip-membership-btn:focus-visible {
-  outline: 2px solid rgba(255, 215, 92, .88);
+  outline: 2px solid rgba(var(--vip-badge-rgb), .88);
   outline-offset: 2px;
-}
-
-@keyframes vip-membership-active-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 12px rgba(251, 191, 36, .2), inset 0 1px 0 rgba(255, 250, 214, .16);
-  }
-  50% {
-    box-shadow: 0 0 23px rgba(251, 191, 36, .48), inset 0 1px 0 rgba(255, 250, 214, .24);
-  }
 }
 
 .vip-membership-wrap::after {
@@ -14839,18 +14787,6 @@ body.light-theme .header-icon-btn[aria-expanded="true"] {
   color: #075b7e !important;
 }
 
-body.light-theme .vip-membership-btn {
-  border-color: #d7c27c !important;
-  background: #fffdf3 !important;
-  box-shadow: inset 0 1px 0 #fff !important;
-}
-
-body.light-theme .vip-membership-wrap.is-active .vip-membership-btn {
-  border-color: #d9a91e !important;
-  background: linear-gradient(145deg, #fff8cf, #fff) !important;
-  box-shadow: 0 0 16px rgba(217, 169, 30, .2), inset 0 1px 0 #fff !important;
-}
-
 body.light-theme .vip-membership-wrap::after {
   border-color: #d9ba53;
   background: #fffdf5;
@@ -15037,17 +14973,6 @@ body.light-theme .side-account-card strong {
     min-height: 32px !important;
   }
 
-  .vip-membership-logo {
-    flex-basis: 26px;
-    width: 26px;
-    height: 26px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vip-membership-wrap.is-active .vip-membership-btn {
-    animation: none;
-  }
 }
 
 body.light-theme .predict-root-stats .stats-modern-number-value,
@@ -18657,6 +18582,13 @@ body.light-theme .effectiveness-board :is(.effectiveness-toolbar, .effectiveness
 .effectiveness-ticket-quote strong { color: var(--ink); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .effectiveness-ticket-quote strong small { color: var(--effectiveness-muted); font-size: 9px; font-weight: 400; }
 .effectiveness-ticket-quote .effectiveness-quote-total { padding-top: 8px; border-top: 1px solid var(--effectiveness-border); }
+.effectiveness-ticket-quote .effectiveness-quote-scope { color: var(--effectiveness-muted); line-height: 1.5; }
+.effectiveness-ticket-quote .effectiveness-quote-deduction strong { color: var(--effectiveness-muted); }
+.effectiveness-ticket-quote .effectiveness-quote-remaining { padding-top: 8px; border-top: 1px solid var(--effectiveness-border); }
+.effectiveness-ticket-quote .effectiveness-quote-remaining strong { color: #6ee7b7; }
+.effectiveness-ticket-quote .effectiveness-quote-remaining.is-negative strong { color: #fda4af; }
+body.light-theme .effectiveness-ticket-quote .effectiveness-quote-remaining strong { color: #147d57; }
+body.light-theme .effectiveness-ticket-quote .effectiveness-quote-remaining.is-negative strong { color: #b4233d; }
 .effectiveness-quote-total strong { color: var(--effectiveness-accent); font-size: 13px; }
 .effectiveness-ticket-quote .effectiveness-quote-insufficient { color: #fda4af; line-height: 1.5; }
 body.light-theme .effectiveness-ticket-quote .effectiveness-quote-insufficient { color: #b4233d; }
