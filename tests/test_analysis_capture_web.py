@@ -24,7 +24,7 @@ class AnalysisCaptureWebTests(unittest.TestCase):
     def test_full_png_download_theme_mobile_failure_and_cancel(self):
         browser = Browser(CHROME, self.work / 'analysis-capture-browser')
         self.addCleanup(browser.close)
-        output = ROOT / 'runtime/logs/prediction_bao_six_20261118'
+        output = ROOT / 'runtime/logs/analysis_capture_toast_20261120'
         output.mkdir(parents=True, exist_ok=True)
         downloads = self.work / 'downloads'
         downloads.mkdir()
@@ -53,6 +53,7 @@ class AnalysisCaptureWebTests(unittest.TestCase):
         browser.value("document.getElementById('analysisPredictSelectedBtn').click();document.getElementById('analysisPredictionCountConfirm').click()")
         saved = browser.value("JSON.stringify({marks:analysisState.marksByType,tickets:analysisState.predictionTickets})")
         browser.value("window.captureCreateUrl=URL.createObjectURL;window.captureBlobs=[];window.captureApi=0;window.captureFetch=fetch;window.fetch=(...args)=>{if(String(args[0]).includes('/api/analysis?'))captureApi++;return captureFetch(...args)};URL.createObjectURL=function(blob){if(blob.type==='image/png'){const doc=document.querySelector('iframe[aria-hidden=true]').contentDocument,root=doc.getElementById('predictRootAnalysis');const rr=root.getBoundingClientRect(),anchors=[root.querySelector('[data-frequency-group=main] tbody tr:last-child th'),[...root.querySelectorAll('.frequency-ticket')].at(-1).querySelector('.frequency-ticket-number:last-child')].map(el=>{const r=el.getBoundingClientRect();return {x:r.x-rr.x,y:r.y-rr.y,width:r.width,height:r.height}});captureBlobs.push({anchors,selectedCount:doc.getElementById('analysisDrawCountSelect').textContent,width:root.getBoundingClientRect().width,height:root.getBoundingClientRect().height,rows:root.querySelectorAll('[data-frequency-group=main] tbody tr').length,specialRows:root.querySelectorAll('[data-frequency-group=special] tbody tr').length,tickets:root.querySelectorAll('.frequency-ticket').length,text:root.textContent,size:blob.size,background:getComputedStyle(root).backgroundColor});}return captureCreateUrl.call(URL,blob)}")
+        browser.value("window.captureToastEvents=[];window.captureToastSamples=[];window.captureToastObserver=new MutationObserver(()=>{const t=document.getElementById('analysisCaptureToast'),fading=t.classList.contains('is-fading');captureToastEvents.push({time:performance.now(),hidden:t.hidden,fading,opacity:getComputedStyle(t).opacity});if(!t.hidden)setTimeout(()=>captureToastSamples.push({stage:fading?'fade':'hold',hidden:t.hidden,opacity:getComputedStyle(t).opacity}),fading?150:750)});captureToastObserver.observe(document.getElementById('analysisCaptureToast'),{attributes:true,attributeFilter:['hidden','class']})")
         metadata = []
         for index, (width, theme, quantity, visible, mode) in enumerate([(1440, 'dark', 5, 5, 'normal'), (390, 'light', 5, 5, 'normal'), (1440, 'dark', 42, 6, 'normal'), (390, 'light', 42, 6, 'bao')], 1):
             if mode == 'bao':
@@ -61,8 +62,35 @@ class AnalysisCaptureWebTests(unittest.TestCase):
                 browser.value(f"document.getElementById('analysisPredictSelectedBtn').click();document.getElementById('analysisPredictionCountInput').value='{quantity}';document.getElementById('analysisPredictionCountInput').dispatchEvent(new Event('input'));document.getElementById('analysisPredictionCountConfirm').click()")
                 saved = browser.value("JSON.stringify({marks:analysisState.marksByType,tickets:analysisState.predictionTickets})")
             browser.call('Emulation.setDeviceMetricsOverride', dict(width=width, height=850, deviceScaleFactor=1, mobile=width < 500), page=True)
+            browser.value("captureToastEvents=[];captureToastSamples=[]")
             browser.value(f"document.body.classList.toggle('light-theme',{str(theme=='light').lower()});document.querySelector('.frequency-table-wrap').scrollLeft=200;document.getElementById('analysisCaptureBtn').click();document.getElementById('analysisCaptureBtn').click()")
-            wait("!analysisState.captureBusy && document.getElementById('analysisCaptureStatus').textContent.startsWith('Đã tải ảnh:')")
+            wait("!analysisState.captureBusy && !document.getElementById('analysisCaptureToast').hidden && document.getElementById('analysisCaptureToast').textContent==='Đã Tải Xong'")
+            self.assertTrue(browser.value("document.getElementById('analysisCaptureStatus').hidden && document.getElementById('analysisCaptureStatus').textContent===''"))
+            toast = browser.value("(()=>{const t=document.getElementById('analysisCaptureToast'),r=t.getBoundingClientRect(),s=getComputedStyle(t);return {x:r.x+r.width/2,y:r.y+r.height/2,width:document.documentElement.clientWidth,height:document.documentElement.clientHeight,opacity:s.opacity,pointerEvents:s.pointerEvents}})()")
+            self.assertAlmostEqual(toast['x'], toast['width']/2, delta=1)
+            self.assertAlmostEqual(toast['y'], toast['height']/2, delta=1)
+            self.assertEqual(toast['opacity'], '1')
+            self.assertEqual(toast['pointerEvents'], 'none')
+            if index <= 2:
+                shot=browser.call('Page.captureScreenshot',dict(format='png'),page=True)
+                (output / f'toast-{theme}-{width}.png').write_bytes(__import__('base64').b64decode(shot['data']))
+            wait("document.getElementById('analysisCaptureToast').hidden")
+            toast_events=browser.value('captureToastEvents')
+            toast_samples=browser.value('captureToastSamples')
+            hold_sample=next(s for s in toast_samples if s['stage']=='hold')
+            fade_sample=next(s for s in toast_samples if s['stage']=='fade')
+            self.assertFalse(hold_sample['hidden'])
+            self.assertEqual(hold_sample['opacity'], '1')
+            self.assertLess(float(fade_sample['opacity']), 1)
+
+            shown=next(e for e in toast_events if not e['hidden'] and not e['fading'])
+            fading=next(e for e in toast_events if not e['hidden'] and e['fading'])
+            hidden=next(e for e in toast_events if e['hidden'] and e['time']>fading['time'])
+            self.assertGreaterEqual(fading['time']-shown['time'], 950)
+            self.assertLess(fading['time']-shown['time'], 1600)
+            self.assertGreaterEqual(hidden['time']-fading['time'], 300)
+            self.assertLess(hidden['time']-fading['time'], 1000)
+
             self.assertEqual(browser.value('captureBlobs.length'), index)
             meta = browser.value('captureBlobs[captureBlobs.length-1]')
             self.assertEqual((meta['rows'], meta['specialRows'], meta['tickets']), (35, 12, visible))
@@ -81,6 +109,8 @@ class AnalysisCaptureWebTests(unittest.TestCase):
             self.assertIn('Xám', meta['text'])
             self.assertEqual(meta['selectedCount'], '30 kỳ')
             self.assertNotIn('Đang chụp', meta['text'])
+            self.assertNotIn('Đã Tải Xong', meta['text'])
+            self.assertNotIn('Đã tải ảnh:', meta['text'])
             self.assertNotIn('DVLF BANK', meta['text'])
             self.assertGreater(meta['size'], 100000)
             for _ in range(100):
@@ -103,13 +133,19 @@ class AnalysisCaptureWebTests(unittest.TestCase):
                        int((anchor['x'] + anchor['width'] - 3) * 2), int((anchor['y'] + anchor['height'] - 3) * 2))
                 pixels = png.crop(box).getdata()
                 self.assertGreater(sum(max(abs(c - target) for c, target in zip(pixel, ink)) < 30 for pixel in pixels), 20)
-            metadata.append(dict(mode=mode,theme=theme,sourceWidth=width,pngDimensions=dimensions,**meta))
+            metadata.append(dict(mode=mode,theme=theme,sourceWidth=width,pngDimensions=dimensions,toastEvents=toast_events,toastSamples=toast_samples,**meta))
             self.assertEqual(browser.value("JSON.stringify({marks:analysisState.marksByType,tickets:analysisState.predictionTickets})"), saved)
             self.assertEqual(browser.value("document.querySelectorAll('iframe[aria-hidden=true]').length"), 0)
             self.assertFalse(browser.value("document.getElementById('analysisCaptureBtn').disabled"))
+        # Restarting the toast cancels the previous dismissal instead of hiding the new one early.
+        browser.value("showAnalysisCaptureToast();setTimeout(showAnalysisCaptureToast,700);window.toastRestartCheckpoint=null;setTimeout(()=>{const t=document.getElementById('analysisCaptureToast');toastRestartCheckpoint=!t.hidden && !t.classList.contains('is-fading') && getComputedStyle(t).opacity==='1'},1400)")
+        wait("toastRestartCheckpoint!==null")
+        self.assertTrue(browser.value('toastRestartCheckpoint'))
+        wait("document.getElementById('analysisCaptureToast').hidden")
         self.assertEqual(browser.value('captureApi'), 0)
         browser.value("window.captureToBlob=HTMLCanvasElement.prototype.toBlob;HTMLCanvasElement.prototype.toBlob=function(callback){callback(null)};document.getElementById('analysisCaptureBtn').click()")
         wait("!analysisState.captureBusy && document.getElementById('analysisCaptureStatus').textContent.includes('Chưa lưu được ảnh PNG')")
+        self.assertTrue(browser.value("document.getElementById('analysisCaptureToast').hidden"))
         self.assertEqual(browser.value('captureBlobs.length'), 4)
         self.assertEqual(browser.value("document.querySelectorAll('iframe[aria-hidden=true]').length"), 0)
         self.assertFalse(browser.value("document.getElementById('analysisCaptureBtn').disabled"))
@@ -120,6 +156,7 @@ class AnalysisCaptureWebTests(unittest.TestCase):
         self.assertEqual(browser.value('captureBlobs.length'), 4)
         self.assertTrue(browser.value("document.getElementById('analysisCaptureBtn').disabled"))
         self.assertTrue(browser.value("document.getElementById('analysisCaptureStatus').hidden"))
+        self.assertTrue(browser.value("document.getElementById('analysisCaptureToast').hidden"))
         (output / 'capture-metadata.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding='utf-8')
 
 

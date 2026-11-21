@@ -2,7 +2,7 @@
   "type": "LOTO_5_35",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-19T21:41:01",
+  "lastSyncAt": "2026-11-21T16:10:29",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "29/06/2025",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-19T21:41:01",
+    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
     "complete": true,
-    "totalRows": 1018,
-    "completeRows": 1018,
+    "totalRows": 1021,
+    "completeRows": 1021,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -22,8 +22,8 @@
     "amountMeaning": "Advertised draw prize pool, before division among winners"
   },
   "dataQuality": {
-    "inputRows": 925,
-    "outputRows": 925,
+    "inputRows": 1021,
+    "outputRows": 1021,
     "removedColumns": [],
     "outputColumns": [
       "Kỳ",
@@ -34,7 +34,8 @@
       "ĐB",
       "Link cập nhật",
       "Ngày cập nhật",
-      "Giải Đặc biệt (VNĐ)"
+      "Giải Đặc biệt (VNĐ)",
+      "Nổ"
     ],
     "duplicateRowsRemoved": 0,
     "changedCells": 0,
@@ -42,33 +43,42 @@
     "internalGaps": [],
     "missingDrawsInsideRange": 0,
     "earliestKy": "1",
-    "latestKy": "925",
-    "sourceVerifiedDraws": 0,
+    "latestKy": "1021",
+    "sourceVerifiedDraws": 1021,
     "warnings": 0,
     "errors": 0,
-    "checkedAt": "2026-10-04T15:02:45",
+    "checkedAt": "2026-11-21T16:10:28.983614+07:00",
     "valid": true,
     "structuralValid": true,
     "warningDetails": [],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
-    "scope": "Existing canonical draws; no history extrapolation"
+    "reportFile": "runtime/logs/history_refresh_20261120/report.json",
+    "scope": "Full history from official first draw through latest verified draw"
   },
   "prizeHits": {
-    "rows": 925,
-    "verifiedRows": 925,
+    "rows": 1021,
+    "verifiedRows": 1021,
     "missingDraws": [],
     "hitCounts": {
-      "ĐB": 42
+      "ĐB": 50,
+      "Chia Giải": 17
     },
-    "checkedAt": "2026-10-04T15:28:24",
+    "checkedAt": "2026-11-21T16:10:28.983614+07:00",
     "complete": true,
     "meaning": "At least one winning ticket in the top-prize table",
-    "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
+    "evidenceFile": "runtime/logs/history_refresh_20261120/report.json"
   },
   "prizeSharing": {
-    "updatedAt": "2026-11-19T21:41:01",
+    "updatedAt": "2026-11-21T16:06:14",
     "rule": "Confirmed zero special-prize winners and a lower positive pool in the immediate next draw; mark the preceding draw",
     "winnerEvidenceByDraw": {
+      "1020": {
+        "identity": "20/11/2026|21:00|7,9,16,27,31|2",
+        "count": 0
+      },
+      "1019": {
+        "identity": "20/11/2026|13:00|10,21,24,30,32|8",
+        "count": 0
+      },
       "1018": {
         "identity": "19/11/2026|21:00|19,28,31,32,34|4",
         "count": 0
@@ -4140,6 +4150,10 @@
       "1": {
         "identity": "29/06/2025|13:00|7,9,10,16,19|9",
         "count": 0
+      },
+      "1021": {
+        "identity": "21/11/2026|13:00|2,6,8,10,21|12",
+        "count": 0
       }
     },
     "sharedDraws": [
@@ -4163,7 +4177,7 @@
     ]
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-19T21:41:01",
+    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
     "countsByDraw": {
       "925": {
         "identity": "04/10/2026|13:00|2,19,22,32,35|4",
@@ -18416,7 +18430,62 @@
         },
         "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-19-11-2026.html",
         "checkedAt": ""
+      },
+      "1020": {
+        "identity": "20/11/2026|21:00|7,9,16,27,31|2",
+        "counts": {
+          "specialPrize": 0,
+          "first": 1,
+          "second": 12,
+          "third": 125,
+          "fourth": 280,
+          "fifth": 3354,
+          "consolation": 18119
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-20-11-2026.html",
+        "checkedAt": ""
+      },
+      "1019": {
+        "identity": "20/11/2026|13:00|10,21,24,30,32|8",
+        "counts": {
+          "specialPrize": 0,
+          "first": 0,
+          "second": 10,
+          "third": 89,
+          "fourth": 184,
+          "fifth": 2062,
+          "consolation": 15060
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-20-11-2026.html",
+        "checkedAt": ""
+      },
+      "1021": {
+        "identity": "21/11/2026|13:00|2,6,8,10,21|12",
+        "counts": {
+          "specialPrize": 0,
+          "first": 0,
+          "second": 6,
+          "third": 70,
+          "fourth": 192,
+          "fifth": 2223,
+          "consolation": 12000
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-lotto-535-ket-qua-lotto-535-ngay-21-11-2026.html",
+        "checkedAt": ""
       }
     }
+  },
+  "historyAudit": {
+    "verifiedAt": "2026-11-21T16:10:28.983614+07:00",
+    "report": "runtime/logs/history_refresh_20261120/report.json",
+    "firstKy": 1,
+    "lastKy": 1021,
+    "totalRows": 1021,
+    "missingKy": 0,
+    "duplicateKy": 0,
+    "duplicateSlots": 0,
+    "bulkMatches": 1020,
+    "directOfficialDraws": 8,
+    "rejectedBulkRows": 0
   }
 }

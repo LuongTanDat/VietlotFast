@@ -4391,13 +4391,15 @@
       analysisState.type = normalizeAnalysisType(saved?.type);
       analysisState.drawPreset = normalizeAnalysisDrawPreset(saved?.drawPreset);
       analysisState.customCount = String(saved?.customCount || "");
+      analysisState.dateFrom = String(saved?.dateFrom || "");
+      analysisState.dateTo = String(saved?.dateTo || "");
       analysisState.sortMain = saved?.sortMain === "number" ? "number" : "frequency";
       analysisState.sortSpecial = saved?.sortSpecial === "number" ? "number" : "frequency";
     }
 
     function saveAnalysisUiState() {
-      const { type, drawPreset, customCount, sortMain, sortSpecial } = analysisState;
-      writeJsonLocal(ANALYSIS_UI_KEY, { type, drawPreset, customCount, sortMain, sortSpecial });
+      const { type, drawPreset, customCount, dateFrom, dateTo, sortMain, sortSpecial } = analysisState;
+      writeJsonLocal(ANALYSIS_UI_KEY, { type, drawPreset, customCount, dateFrom, dateTo, sortMain, sortSpecial });
     }
 
     function getAnalysisMaxDrawCount() {
@@ -4433,6 +4435,10 @@
       }
       const customInput = document.getElementById("analysisCustomCountInput");
       const maximum = getAnalysisMaxDrawCount();
+      const countLabel = document.getElementById("analysisDrawCountLabel");
+      const available = analysisState.availableDrawsByType[normalizeAnalysisType(analysisState.type)];
+      if (countLabel) countLabel.textContent = analysisState.drawPreset === "all" && Number.isSafeInteger(available) && available >= 0
+        ? `Số kỳ • ${available.toLocaleString("vi-VN")} Kỳ` : "Số kỳ";
       clampAnalysisCustomCount();
       customInput.max = maximum === null ? "2147483647" : String(maximum);
       customInput.disabled = maximum === null;
@@ -4440,6 +4446,7 @@
       customInput.title = maximum === null ? "Đang xác định số kỳ hiện có" : `Tối đa ${maximum.toLocaleString("vi-VN")} kỳ`;
       if (customInput.value !== analysisState.customCount) customInput.value = analysisState.customCount;
       document.getElementById("analysisCustomCountField").hidden = analysisState.drawPreset !== "custom";
+      syncAnalysisDateNavigation();
       const refreshButton = document.getElementById("analysisRefreshBtn");
       refreshButton.disabled = analysisState.loading;
       refreshButton.setAttribute("aria-busy", String(analysisState.loading));
@@ -4451,6 +4458,30 @@
       }
     }
 
+    let analysisCaptureToastTimer = null;
+
+    function hideAnalysisCaptureToast() {
+      clearTimeout(analysisCaptureToastTimer);
+      analysisCaptureToastTimer = null;
+      const toast = document.getElementById("analysisCaptureToast");
+      if (!toast) return;
+      toast.hidden = true;
+      toast.classList.remove("is-fading");
+      toast.querySelector("strong").textContent = "";
+    }
+
+    function showAnalysisCaptureToast() {
+      hideAnalysisCaptureToast();
+      const toast = document.getElementById("analysisCaptureToast");
+      if (!toast) return;
+      toast.hidden = false;
+      toast.querySelector("strong").textContent = "Đã Tải Xong";
+      analysisCaptureToastTimer = setTimeout(() => {
+        toast.classList.add("is-fading");
+        analysisCaptureToastTimer = setTimeout(hideAnalysisCaptureToast, 350);
+      }, 1000);
+    }
+
     async function captureAnalysisImage() {
       const source = document.getElementById("predictRootAnalysis");
       if (!source || source.hidden || !currentUser || analysisState.captureBusy || analysisState.loading ||
@@ -4458,15 +4489,16 @@
       const owner = analysisSessionKey(), serial = ++analysisState.captureSerial;
       const type = normalizeAnalysisType(analysisState.type);
       const themeClass = document.body.className;
-      const clone = source.cloneNode(true), controls = [...source.querySelectorAll("select,input")];
+      const clone = source.cloneNode(true), controls = [...source.querySelectorAll("select,input")].filter(field => !field.closest("[data-analysis-export-ignore]"));
       const controlText = controls.map(field => field.tagName === "SELECT" ? field.selectedOptions[0]?.textContent || "" : field.value);
-      clone.querySelectorAll("select,input").forEach((field, i) => {
+      [...clone.querySelectorAll("select,input")].filter(field => !field.closest("[data-analysis-export-ignore]")).forEach((field, i) => {
         if (field.tagName === "SELECT") field.value = controls[i].value;
         else field.setAttribute("value", controls[i].value);
       });
       clone.querySelectorAll("[data-analysis-export-ignore],script").forEach(node => node.remove());
       clone.hidden = false;
       const status = document.getElementById("analysisCaptureStatus");
+      hideAnalysisCaptureToast();
       analysisState.captureBusy = true;
       status.hidden = false; status.textContent = "Đang tạo ảnh toàn bộ Phân tích…";
       initAnalysisPanel();
@@ -4542,7 +4574,8 @@
         downloadUrl = URL.createObjectURL(blob);
         const link = document.createElement("a"); link.href = downloadUrl; link.download = filename;
         document.body.appendChild(link); link.click(); link.remove();
-        status.textContent = "Đã tải ảnh: " + filename;
+        status.hidden = true; status.textContent = "";
+        showAnalysisCaptureToast();
         const releaseUrl = downloadUrl; downloadUrl = "";
         setTimeout(() => URL.revokeObjectURL(releaseUrl), 60000);
       } catch (error) {
@@ -4557,7 +4590,124 @@
       }
     }
 
+    function getAnalysisDateError(from, to) {
+      const valid = value => /^\d{4}-\d{2}-\d{2}$/.test(value)
+        && Number.isFinite(Date.parse(`${value}T00:00:00Z`))
+        && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+      if (!valid(from) || !valid(to)) return "Vui lòng nhập đầy đủ ngày bắt đầu và ngày kết thúc hợp lệ.";
+      return from > to ? "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc." : "";
+    }
+
+    function getAnalysisDateBounds() {
+      return analysisState.availableDatesByType[normalizeAnalysisType(analysisState.type)] || null;
+    }
+
+    function getAnalysisDateBoundsError(from, to) {
+      const bounds = getAnalysisDateBounds();
+      if (!bounds) return "Chưa xác định được giới hạn ngày của loại xổ số này. Hãy bấm Cập nhật.";
+      if (from < bounds.from || to > bounds.to) return `Chỉ được chọn ngày từ ${bounds.from} đến ${bounds.to}.`;
+      return "";
+    }
+
+    function syncAnalysisDateNavigation(payload = analysisState.lastPayload) {
+      const bounds = getAnalysisDateBounds();
+      for (const [id, direction] of [["analysisDatePrev", -1], ["analysisDateNext", 1]]) {
+        const button = document.getElementById(id);
+        if (!button) continue;
+        const target = payload && getAnalysisShiftedDates(bounds?.from || payload.fromDate, payload.toDate, direction);
+        button.hidden = !payload;
+        button.disabled = !target || !bounds || !!getAnalysisDateBoundsError(target.from, target.to)
+          || analysisState.loading || analysisState.captureBusy || !document.getElementById("analysisDateForm").hidden;
+      }
+      for (const id of ["analysisDateFrom", "analysisDateTo"]) {
+        const input = document.getElementById(id);
+        if (!input) continue;
+        input.min = bounds?.from || "";
+        input.max = bounds?.to || "";
+      }
+    }
+
+    function getAnalysisShiftedDates(from, to, direction) {
+      if (getAnalysisDateError(from, to) || ![-1, 1].includes(direction)) return null;
+      const shift = value => {
+        const day = new Date(`${value}T00:00:00Z`);
+        day.setUTCDate(day.getUTCDate() + direction);
+        return day.toISOString().slice(0, 10);
+      };
+      const dates = { from, to: shift(to) };
+      return getAnalysisDateError(dates.from, dates.to) ? null : dates;
+    }
+
+    async function shiftAnalysisDates(direction) {
+      const payload = analysisState.lastPayload;
+      if (!payload || analysisState.loading || analysisState.captureBusy || !document.getElementById("analysisDateForm").hidden) return;
+      const dates = getAnalysisShiftedDates(getAnalysisDateBounds()?.from || payload.fromDate, payload.toDate, direction);
+      if (!dates || getAnalysisDateBoundsError(dates.from, dates.to)) return;
+      const previous = { drawPreset: analysisState.drawPreset, dateFrom: analysisState.dateFrom, dateTo: analysisState.dateTo };
+      const owner = analysisSessionKey();
+      const token = analysisState.refreshToken + 1;
+      Object.assign(analysisState, { drawPreset: "dates", dateFrom: dates.from, dateTo: dates.to });
+      saveAnalysisUiState();
+      await loadAnalysis({ force: true, silent: false });
+      if (owner !== analysisSessionKey() || token !== analysisState.refreshToken) return;
+      if (!analysisState.lastPayload) {
+        Object.assign(analysisState, previous, { lastPayload: payload });
+        saveAnalysisUiState();
+        renderAnalysis(payload);
+      }
+      document.getElementById(direction < 0 ? "analysisDatePrev" : "analysisDateNext").focus();
+    }
+
+    function openAnalysisDateEditor() {
+      const payload = analysisState.lastPayload;
+      const form = document.getElementById("analysisDateForm");
+      document.getElementById("analysisDateFrom").value = getAnalysisDateBounds()?.from || "";
+      document.getElementById("analysisDateTo").value = analysisState.drawPreset === "dates" ? analysisState.dateTo : payload?.toDate || "";
+      document.getElementById("analysisDateError").hidden = true;
+      form.hidden = false;
+      syncAnalysisDateNavigation();
+      document.querySelector("[data-analysis-edit-dates]")?.setAttribute("aria-expanded", "true");
+      document.getElementById("analysisDateTo").focus();
+    }
+
+    function closeAnalysisDateEditor() {
+      document.getElementById("analysisDateForm").hidden = true;
+      syncAnalysisDateNavigation();
+      document.querySelector("[data-analysis-edit-dates]")?.setAttribute("aria-expanded", "false");
+    }
+
+    function applyAnalysisDates(event) {
+      event?.preventDefault();
+      const form = document.getElementById("analysisDateForm");
+      const from = getAnalysisDateBounds()?.from || "";
+      document.getElementById("analysisDateFrom").value = from;
+      const to = document.getElementById("analysisDateTo").value;
+      const message = getAnalysisDateError(from, to) || getAnalysisDateBoundsError(from, to);
+      const error = document.getElementById("analysisDateError");
+      error.textContent = message;
+      error.hidden = !message;
+      if (message || !form.reportValidity()) return;
+      analysisState.dateFrom = from;
+      analysisState.dateTo = to;
+      analysisState.drawPreset = "dates";
+      saveAnalysisUiState();
+      closeAnalysisDateEditor();
+      void loadAnalysis({ force: true, silent: false });
+      document.getElementById("analysisRefreshBtn").focus();
+    }
+
     function buildAnalysisQuery() {
+      if (analysisState.drawPreset === "dates") {
+        const firstDate = getAnalysisDateBounds()?.from;
+        if (firstDate && analysisState.dateFrom !== firstDate) {
+          analysisState.dateFrom = firstDate;
+          saveAnalysisUiState();
+        }
+        const message = getAnalysisDateError(analysisState.dateFrom, analysisState.dateTo) || getAnalysisDateBoundsError(analysisState.dateFrom, analysisState.dateTo);
+        if (message) throw new Error(message);
+        return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "custom", mode: "frequency",
+          from: analysisState.dateFrom, to: analysisState.dateTo, drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" });
+      }
       clampAnalysisCustomCount();
       // Request the full available range, including draws added after this page was opened.
       const raw = analysisState.drawPreset === "all" ? "2147483647"
@@ -4566,7 +4716,7 @@
       if (!/^[0-9]+$/.test(raw) || !Number.isSafeInteger(drawCount) || drawCount < 1 || drawCount > 2147483647) {
         throw new Error("Nhập số kỳ là số nguyên dương hợp lệ.");
       }
-      return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "all", mode: "frequency", drawCount: String(drawCount), drawMarkers: "2", delayVersion: "2" });
+      return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "all", mode: "frequency", drawCount: String(drawCount), drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" });
     }
 
     function analysisSessionKey() {
@@ -4577,8 +4727,13 @@
       if (!payload || payload.ok !== true || payload.type !== type || payload.mode !== "frequency"
         || !Number.isSafeInteger(payload.totalDraws) || payload.totalDraws < 1
         || payload.requestedDrawCount !== drawCount || !Number.isSafeInteger(payload.availableDraws)
-        || payload.totalDraws !== Math.min(drawCount, payload.availableDraws)) {
+        || payload.availableDraws < payload.totalDraws
+        || (drawCount !== null && payload.totalDraws !== Math.min(drawCount, payload.availableDraws))
+        || (drawCount === null && payload.period !== "custom")) {
         throw new Error("Dữ liệu tần suất chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+      }
+      if (getAnalysisDateError(payload.availableFromDate, payload.availableToDate)) {
+        throw new Error("Giới hạn ngày dữ liệu chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
       }
       const cfg = TYPES[type];
       const latest = payload.latestDraw;
@@ -4615,7 +4770,7 @@
               || row.averageDelay > Math.max(0, payload.totalDraws - 2) || row.count < 2))) {
             throw new Error("Dữ liệu độ trễ chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
           }
-          const previousCount = Math.min(drawCount, payload.availableDraws - 1);
+          const previousCount = drawCount === null ? payload.totalDraws - 1 : Math.min(drawCount, payload.availableDraws - 1);
           if ((row.previousDelay !== null && (!Number.isSafeInteger(row.previousDelay) || row.previousDelay < 0 || row.previousDelay >= previousCount))
             || (row.previousAverageDelay !== null && (!Number.isFinite(row.previousAverageDelay) || row.previousAverageDelay < 0
               || row.previousAverageDelay > Math.max(0, previousCount - 2) || row.previousDelay === null || previousCount < 2))) {
@@ -4632,7 +4787,11 @@
       const response = await fetch(`/api/analysis?${params}`, { credentials: "same-origin", cache: "no-store", signal });
       const payload = await response.json();
       if (!response.ok || payload?.ok === false) throw new Error(payload?.message || "Không tải được dữ liệu tần suất.");
-      return validateAnalysisFrequency(payload, params.get("type"), Number(params.get("drawCount")));
+      const result = validateAnalysisFrequency(payload, params.get("type"), params.has("drawCount") ? Number(params.get("drawCount")) : null);
+      if (!params.has("drawCount") && (result.fromDate !== params.get("from") || result.toDate !== params.get("to"))) {
+        throw new Error("Khoảng ngày trả về chưa khớp yêu cầu. Hãy bấm Cập nhật để thử lại.");
+      }
+      return result;
     }
 
     async function loadAnalysis({ force = false, silent = true } = {}) {
@@ -4650,17 +4809,25 @@
       let timedOut = false;
       const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 45000);
       try {
-        if (analysisState.drawPreset === "custom" && getAnalysisMaxDrawCount() === null) {
+        if ((analysisState.drawPreset === "custom" && getAnalysisMaxDrawCount() === null)
+          || (analysisState.drawPreset === "dates" && !getAnalysisDateBounds())) {
           const type = normalizeAnalysisType(analysisState.type);
-          const probe = await fetchAnalysisFrequency(new URLSearchParams({ type, period: "all", mode: "frequency", drawCount: "1", drawMarkers: "2", delayVersion: "2" }), controller.signal);
+          const probe = await fetchAnalysisFrequency(new URLSearchParams({ type, period: "all", mode: "frequency", drawCount: "1", drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" }), controller.signal);
           if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
           analysisState.availableDrawsByType[type] = probe.availableDraws;
+          analysisState.availableDatesByType[type] = { from: probe.availableFromDate, to: probe.availableToDate };
           initAnalysisPanel();
         }
         const params = buildAnalysisQuery();
         const payload = await fetchAnalysisFrequency(params, controller.signal);
         if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
         analysisState.availableDrawsByType[payload.type] = payload.availableDraws;
+        analysisState.availableDatesByType[payload.type] = { from: payload.availableFromDate, to: payload.availableToDate };
+        if (analysisState.drawPreset === "dates" && analysisState.dateFrom !== payload.availableFromDate) {
+          analysisState.dateFrom = payload.availableFromDate;
+          saveAnalysisUiState();
+          return loadAnalysis({ force, silent });
+        }
         clampAnalysisCustomCount();
         if (analysisState.drawPreset === "custom" && payload.requestedDrawCount > payload.availableDraws) {
           return loadAnalysis({ force, silent });
@@ -4824,7 +4991,7 @@
         const pickLabel = `${order ? "Bỏ đánh dấu" : "Đánh dấu"} số ${row.number}${order ? `, thứ tự ${order}` : ""}`;
         return `<tr data-number="${row.number}" data-count="${row.count}">
           <th scope="row">${row.number}</th>
-          <td class="frequency-bar-cell"><span class="frequency-track" title="${escapeHtml(`Số ${row.number}: ${row.count.toLocaleString("vi-VN")} lượt. ${maximum ? `Thanh so với mốc cao nhất ${maximumLabel} lượt (vạch vàng).` : "Chưa có lượt để so sánh thanh."} Tỷ trọng trên tổng lượt: ${row.count.toLocaleString("vi-VN")} / ${group.totalOccurrences.toLocaleString("vi-VN")} = ${share}.`)}" aria-hidden="true"><span class="frequency-fill" style="width:${width.toFixed(4)}%"></span>${maximum ? `<span class="frequency-max-marker" title="Mốc cao nhất: ${maximumLabel} lượt"></span>` : ""}</span></td>
+          <td class="frequency-bar-cell"><span class="frequency-track" title="${escapeHtml(`Số ${row.number}: ${row.count.toLocaleString("vi-VN")} lượt. ${maximum ? `Thanh so với mốc cao nhất ${maximumLabel} lượt (vạch vàng).` : "Chưa có lượt để so sánh thanh."} ${group.totalOccurrences ? `Tỷ trọng trên tổng lượt: ${row.count.toLocaleString("vi-VN")} / ${group.totalOccurrences.toLocaleString("vi-VN")} = ${share}.` : "Chưa có tổng lượt để tính tỷ trọng."}`)}" aria-hidden="true"><span class="frequency-fill" style="width:${width.toFixed(4)}%"></span>${maximum ? `<span class="frequency-max-marker" title="Mốc cao nhất: ${maximumLabel} lượt"></span>` : ""}</span></td>
           <td class="frequency-percent">${share}</td><td class="frequency-count">${row.count.toLocaleString("vi-VN")} lượt</td>
           <td class="frequency-delay" title="${escapeHtml(delayLabel)}">${row.delayLowerBound ? "≥" : ""}${row.currentDelay.toLocaleString("vi-VN")}</td>
           <td class="frequency-average-delay" title="${escapeHtml(averageLabel)}">${row.averageDelay === null ? "—" : row.averageDelay.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}</td>
@@ -5072,9 +5239,10 @@
       status.hidden = !analysisState.error;
       status.textContent = analysisState.error;
       out.setAttribute("aria-busy", String(analysisState.loading));
-      document.getElementById("analysisUpdatedAt").textContent = payload?.generatedAt ? formatStatsV2UpdatedAt(payload.generatedAt) : analysisState.loading ? "Đang tải dữ liệu…" : "Chưa có dữ liệu";
+      document.getElementById("analysisUpdatedAt").textContent = payload?.generatedAt ? formatStatsV2UpdatedAt(payload.generatedAt).replace(/^Cập nhật /, "Cập nhật lúc ") : analysisState.loading ? "Đang tải dữ liệu…" : "Chưa có dữ liệu";
       const scope = document.getElementById("analysisScope");
       scope.textContent = "";
+      syncAnalysisDateNavigation(payload);
       if (!payload) {
         out.innerHTML = analysisState.error ? "" : `<div class="frequency-empty">${analysisState.loading ? "Đang tổng hợp tần suất xuất hiện…" : analysisState.drawPreset === "custom" ? "Nhập số kỳ cần phân tích, rồi bấm Cập nhật." : "Chọn loại xổ số và số kỳ, rồi bấm Cập nhật."}</div>`;
         return;
@@ -5082,10 +5250,16 @@
       const drawLabel = payload.totalDraws < payload.requestedDrawCount
         ? `${payload.totalDraws.toLocaleString("vi-VN")} / ${payload.requestedDrawCount.toLocaleString("vi-VN")}`
         : payload.totalDraws.toLocaleString("vi-VN");
-      scope.textContent = analysisState.drawPreset === "all"
-        ? `Tất cả • ${payload.totalDraws.toLocaleString("vi-VN")} Kỳ • `
+      scope.textContent = ["all", "dates"].includes(analysisState.drawPreset)
+        ? ""
         : `${drawLabel} kỳ gần nhất • `;
-      const dates = document.createElement("span");
+      const dates = document.createElement("button");
+      dates.type = "button";
+      dates.dataset.analysisEditDates = "";
+      dates.title = "Chỉnh sửa khoảng ngày phân tích";
+      dates.setAttribute("aria-label", `Chỉnh sửa khoảng ngày ${payload.fromDate} đến ${payload.toDate}`);
+      dates.setAttribute("aria-controls", "analysisDateForm");
+      dates.setAttribute("aria-expanded", String(!document.getElementById("analysisDateForm").hidden));
       dates.className = "frequency-scope-dates";
       dates.textContent = `${payload.fromDate} → ${payload.toDate}`;
       scope.append(dates);
@@ -5195,6 +5369,8 @@
     }
 
     function resetAnalysisSession() {
+      closeAnalysisDateEditor();
+      hideAnalysisCaptureToast();
       analysisState.captureSerial++;
       analysisState.captureBusy = false;
       const captureStatus = document.getElementById("analysisCaptureStatus");
@@ -5206,6 +5382,7 @@
       analysisState.lastPayload = null;
       analysisState.error = "";
       analysisState.availableDrawsByType = {};
+      analysisState.availableDatesByType = {};
       analysisState.marksByType = {};
       analysisState.marksOwner = "";
       analysisState.sortStreakMain = false;

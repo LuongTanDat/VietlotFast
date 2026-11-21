@@ -297,6 +297,7 @@
       { value: "100", label: "100 kỳ" },
       { value: "all", label: "Tất cả" },
       { value: "custom", label: "Khác" },
+      { value: "dates", label: "Khoảng ngày" },
     ];
     const DASHBOARD_LOTTO_TYPES = ["KENO", "LOTO_5_35", "LOTO_6_45", "LOTO_6_55", "MAX_3D", "MAX_3D_PRO"];
     const DASHBOARD_ACTIVITY_VIEW_OPTIONS = ["day", "week", "month"];
@@ -634,11 +635,12 @@
     let dashboardPanelError = "";
     let dashboardPanelRefreshToken = 0;
     const analysisState = {
-      type: "LOTO_5_35", drawPreset: "30", customCount: "",
+      type: "LOTO_5_35", drawPreset: "30", customCount: "", dateFrom: "", dateTo: "",
       sortMain: "frequency", sortSpecial: "frequency",
       sortStreakMain: false, sortStreakSpecial: false,
       sortMetricMain: "", sortMetricSpecial: "",
       availableDrawsByType: {},
+      availableDatesByType: {},
       marksByType: {},
       marksOwner: "",
       predictionKey: "", predictionTickets: [], predictionKenoSize: 5,
@@ -5462,6 +5464,7 @@
     if (analysisTypeSelect) {
       analysisTypeSelect.addEventListener("change", () => {
         analysisState.type = normalizeAnalysisType(analysisTypeSelect.value);
+        closeAnalysisDateEditor();
         saveAnalysisUiState();
         loadAnalysis({ force: true, silent: true });
       });
@@ -5469,6 +5472,13 @@
     const analysisDrawCountSelect = document.getElementById("analysisDrawCountSelect");
     if (analysisDrawCountSelect) {
       analysisDrawCountSelect.addEventListener("change", () => {
+        if (analysisDrawCountSelect.value === "dates") {
+          openAnalysisDateEditor();
+          analysisDrawCountSelect.value = analysisState.drawPreset;
+          analysisDrawCountSelect.__syncCustomSelect?.();
+          return;
+        }
+        closeAnalysisDateEditor();
         analysisState.drawPreset = normalizeAnalysisDrawPreset(analysisDrawCountSelect.value);
         saveAnalysisUiState();
         loadAnalysis({ force: true, silent: true });
@@ -5493,7 +5503,26 @@
       });
     }
     const analysisRefreshBtn = document.getElementById("analysisRefreshBtn");
-    if (analysisRefreshBtn) analysisRefreshBtn.addEventListener("click", () => loadAnalysis({ force: true, silent: false }));
+    if (analysisRefreshBtn) analysisRefreshBtn.addEventListener("click", () => {
+      if (!document.getElementById("analysisDateForm").hidden) {
+        document.getElementById("analysisDateForm").requestSubmit();
+        return;
+      }
+      loadAnalysis({ force: true, silent: false });
+    });
+    document.getElementById("analysisDatePrev")?.addEventListener("click", () => void shiftAnalysisDates(-1));
+    document.getElementById("analysisDateNext")?.addEventListener("click", () => void shiftAnalysisDates(1));
+    document.getElementById("analysisScope")?.addEventListener("click", event => {
+      if (event.target.closest("[data-analysis-edit-dates]")) openAnalysisDateEditor();
+    });
+    document.getElementById("analysisDateForm")?.addEventListener("submit", applyAnalysisDates);
+    document.getElementById("analysisDateForm")?.addEventListener("keydown", event => {
+      if (event.key === "Escape") { event.preventDefault(); closeAnalysisDateEditor(); document.querySelector("[data-analysis-edit-dates]")?.focus(); }
+    });
+    document.getElementById("analysisDateCancel")?.addEventListener("click", () => {
+      closeAnalysisDateEditor();
+      document.querySelector("[data-analysis-edit-dates]")?.focus();
+    });
     document.getElementById("analysisCaptureBtn")?.addEventListener("click", captureAnalysisImage);
     window.addEventListener("dvlf:auth-changed", resetAnalysisSession);
     const chartStatsTypeSelect = document.getElementById("chartStatsTypeSelect");

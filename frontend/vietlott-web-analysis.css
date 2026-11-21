@@ -8,10 +8,10 @@
 #predictRootAnalysis h2 { margin: 0; padding: 0; border: 0; font-size: 18px; line-height: 1.25; letter-spacing: 0; text-shadow: none; }
 #predictRootAnalysis h2::after, #predictRootAnalysis h2::before { display: none; }
 #predictRootAnalysis .frequency-context { flex: 1 1 300px; min-width: 0; margin: 0; color: var(--frequency-table-ink); font-size: 15px; font-weight: 700; line-height: 1.65; text-align: center; }
-#predictRootAnalysis .frequency-updated { display: inline-block; color: inherit; font: inherit; }
-#predictRootAnalysis .frequency-scope:not(:empty) + .frequency-updated::before { content: " • "; white-space: pre; }
+#predictRootAnalysis .frequency-action-group { display: grid; gap: 6px; min-width: 0; }
+#predictRootAnalysis .frequency-updated { display: block; color: var(--frequency-table-ink); font-size: 11px; font-weight: 600; line-height: 1.3; text-align: center; white-space: nowrap; }
 #predictRootAnalysis .frequency-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
-#predictRootAnalysis .frequency-actions { display: flex; align-items: center; gap: 10px; }
+#predictRootAnalysis .frequency-actions { display: flex; align-items: center; justify-content: center; gap: 10px; }
 #predictRootAnalysis #analysisCaptureBtn[aria-busy=true] { cursor: wait; }
 #predictRootAnalysis .frequency-capture-status { margin: 0 0 12px; color: var(--frequency-table-ink); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 #predictRootAnalysis .frequency-field { display: grid; gap: 6px; width: 150px; min-width: 0; margin: 0; color: #a9bdcd; font-size: 11px; line-height: 1.3; }
@@ -29,8 +29,28 @@
 #predictRootAnalysis #analysisRefreshBtn:disabled { opacity: .6; cursor: wait; }
 #predictRootAnalysis #analysisCaptureBtn svg,
 #predictRootAnalysis #analysisRefreshBtn svg { width: 15px; height: 15px; flex: none; }
+#predictRootAnalysis .frequency-range-navigation { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+#predictRootAnalysis .frequency-range-navigation .frequency-scope { min-width: 0; }
+#predictRootAnalysis .frequency-date-arrow { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; min-width: 28px; height: 32px; min-height: 32px; margin: 0; padding: 2px; border: 0; border-radius: 6px; background: transparent; color: var(--frequency-table-ink); box-shadow: none; cursor: pointer; }
+#predictRootAnalysis .frequency-date-arrow svg { display: block; width: 22px; height: 22px; }
+#predictRootAnalysis .frequency-date-arrow:hover:not(:disabled) { background: var(--frequency-table-head); transform: none; }
+#predictRootAnalysis .frequency-date-arrow:disabled { opacity: .3; cursor: default; }
+@media (max-width: 540px) { #predictRootAnalysis .frequency-range-navigation { gap: 2px; } #predictRootAnalysis .frequency-date-arrow { flex-basis: 22px; width: 22px; min-width: 22px; } #predictRootAnalysis .frequency-range-navigation .frequency-scope-dates { font-size: 12px; } }
 #predictRootAnalysis .frequency-scope { margin: 0; color: inherit; font: inherit; }
-#predictRootAnalysis .frequency-scope-dates { display: inline-block; white-space: nowrap; }
+#predictRootAnalysis .frequency-scope-dates { display: inline-block; width: auto; min-height: 0; margin: 0; padding: 2px 0; border: 0; border-bottom: 1px dashed var(--frequency-table-line); border-radius: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; white-space: nowrap; cursor: pointer; box-shadow: none; }
+#predictRootAnalysis .frequency-scope-dates::after { content: "✎"; margin-left: 6px; font-size: 13px; opacity: .75; }
+#predictRootAnalysis .frequency-scope-dates:hover { color: var(--frequency-table-ink); border-bottom-color: currentColor; transform: none; }
+#predictRootAnalysis .frequency-date-form { box-sizing: border-box; width: 100%; max-width: 350px; margin: 8px auto 0; padding: 10px; border: 1px solid var(--frequency-table-line); border-radius: 8px; background: var(--frequency-track); color: var(--frequency-table-ink); font-size: 12px; font-weight: 600; text-align: left; }
+#predictRootAnalysis .frequency-date-fields { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: end; gap: 6px; }
+#predictRootAnalysis .frequency-date-fields > span { align-self: center; padding-top: 18px; }
+#predictRootAnalysis .frequency-date-fields label { display: grid; gap: 4px; min-width: 0; margin: 0; color: inherit; font: inherit; }
+#predictRootAnalysis .frequency-date-fields input { box-sizing: border-box; display: block; width: 100%; min-width: 0; height: 36px; margin: 0; padding: 0 5px; border: 1px solid var(--frequency-table-line); border-radius: 6px; background: var(--frequency-surface); color: inherit; font: inherit; color-scheme: dark; }
+body.light-theme #predictRootAnalysis .frequency-date-fields input { color-scheme: light; }
+#predictRootAnalysis .frequency-date-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+#predictRootAnalysis .frequency-date-actions button { width: auto; min-height: 30px; margin: 0; padding: 5px 12px; border: 1px solid var(--frequency-table-line); border-radius: 6px; background: var(--frequency-surface); color: inherit; font: inherit; box-shadow: none; }
+#predictRootAnalysis .frequency-date-actions button[type=submit] { background: #285e9d; border-color: #467dc0; color: #f3f8ff; }
+#predictRootAnalysis #analysisDateError { margin: 6px 0 0; color: #ffb59f; font-size: 12px; }
+body.light-theme #predictRootAnalysis #analysisDateError { color: #a33824; }
 #predictRootAnalysis .frequency-scope:empty { display: none; }
 #predictRootAnalysis .frequency-status { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #755141; border-radius: 7px; background: #35251e; color: #ffc0a4; font-size: 12px; line-height: 1.5; }
 #predictRootAnalysis .frequency-empty { display: flex; align-items: center; justify-content: center; min-height: 56px; box-sizing: border-box; padding: 14px 16px; border: 1px dashed #2a4052; border-radius: 8px; background: #0a1723; color: #9fb4c4; font-size: 12px; line-height: 1.6; text-align: center; }
@@ -187,7 +207,7 @@ body.light-theme #predictRootAnalysis .frequency-status { background: #fff4e9; c
   #predictRootAnalysis .frequency-ticket-number { min-width: 27px; height: 27px; font-size: 11px; }
   #predictRootAnalysis .frequency-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   #predictRootAnalysis .frequency-field { width: auto; min-width: 0; }
-  #predictRootAnalysis .frequency-actions { grid-column: 1 / -1; min-width: 0; }
+  #predictRootAnalysis .frequency-action-group { grid-column: 1 / -1; min-width: 0; }
   #predictRootAnalysis #analysisRefreshBtn { min-width: 0; width: 100% !important; flex: 1; }
   #predictRootAnalysis .frequency-table { font-size: 11px; }
   #predictRootAnalysis .frequency-table .frequency-number-col { width: 50px; }
@@ -204,3 +224,12 @@ body.light-theme #predictRootAnalysis .frequency-status { background: #fff4e9; c
   #predictRootAnalysis .frequency-table td { padding: 5px 3px; }
   #predictRootAnalysis .frequency-table thead th { font-size: 11px; }
 }
+
+/* A brief viewport-centered confirmation, excluded from the exported panel. */
+#analysisCaptureToast { position: fixed; left: 50%; top: 50%; z-index: 12000; display: flex; align-items: center; justify-content: center; gap: 12px; box-sizing: border-box; max-width: calc(100vw - 32px); margin: 0; padding: 17px 25px; border: 1px solid #397b6b; border-radius: 13px; background: #102c29; color: #e7fff4; box-shadow: 0 14px 45px #0005; font-size: 18px; line-height: 1.4; text-align: center; transform: translate(-50%, -50%); opacity: 1; transition: none; pointer-events: none; }
+#analysisCaptureToast strong { color: inherit; font: inherit; font-weight: 700; white-space: nowrap; }
+#analysisCaptureToast svg { flex: none; width: 25px; height: 25px; color: #69dbad; }
+#analysisCaptureToast.is-fading { opacity: 0; transition: opacity 350ms ease; }
+#analysisCaptureToast[hidden] { display: none !important; }
+body.light-theme #analysisCaptureToast { border-color: #a8d6c1; background: #f5fff9; color: #174b3a; box-shadow: 0 12px 40px #173b3129; }
+body.light-theme #analysisCaptureToast svg { color: #16855a; }

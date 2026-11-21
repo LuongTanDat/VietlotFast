@@ -5,7 +5,7 @@ import io
 import tempfile
 import unittest
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from ai.analysis import analysis as an
@@ -170,6 +170,8 @@ class AnalysisFrequencyTests(unittest.TestCase):
                 selected = source[:count]
                 self.assertEqual(result['requestedDrawCount'], count)
                 self.assertEqual(result['availableDraws'], 120)
+                self.assertEqual(result['availableFromDate'], datetime.strptime(source[-1]['Ngày'], '%d/%m/%Y').date().isoformat())
+                self.assertEqual(result['availableToDate'], datetime.strptime(source[0]['Ngày'], '%d/%m/%Y').date().isoformat())
                 self.assertEqual(result['totalDraws'], min(count, 120))
                 self.assertEqual(result['period'], 'draws')
                 self.assertEqual(result['latestDraw']['drawId'], '120')

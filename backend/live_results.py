@@ -969,6 +969,10 @@ def write_canonical_meta(type_key, meta):
                 item = {**item, "counts": {**previous.get("counts", {}), **item.get("counts", {})}}
             combined[ky] = item
         payload["prizeWinners"] = {**incoming, "countsByDraw": combined}
+    # Preserve audited corrections if a sync started before the history repair.
+    verified = read_canonical_meta(type_key).get("verifiedSourceCorrections")
+    if isinstance(verified, dict) and verified:
+        payload["verifiedSourceCorrections"] = {**payload.get("verifiedSourceCorrections", {}), **verified}
     payload["type"] = type_key
     if not payload.get("requestedStartMode"):
         payload["requestedStartMode"] = FULL_HISTORY_REQUESTED_START_MODE
@@ -3184,6 +3188,26 @@ def fetch_live_result(session, cache, type_key):
     return result
 
 
+def apply_verified_history_correction(result, corrections):
+    # Corrections are keyed by the entire observed identity, never by ID alone.
+    if not str(result.get("sourceUrl", "")).startswith("https://www.minhchinh.com/"):
+        return result
+    main = ",".join(str(int(n)) for n in result.get("main", []))
+    special = "" if result.get("special") is None else str(result["special"])
+    identity = "|".join((str(result.get("date", "")), str(result.get("time", "")), main, special))
+    evidence = corrections.get(identity) if isinstance(corrections, dict) else None
+    if not isinstance(evidence, dict) or str(result.get("ky")) != evidence.get("sourceKy"):
+        return result
+    canonical_ky = evidence.get("canonicalKy", "")
+    if not str(canonical_ky).isdigit() or int(canonical_ky) < 1 or evidence.get("verifiedBy") != "vietlott.vn":
+        return result
+    corrected = {**result, "ky": str(canonical_ky), "sourceUrl": evidence["sourceUrl"]}
+    for key in ("jackpot", "jackpot1", "jackpot2", "prizeHit", "prizeHitKnown", "prizeWinnerCounts"):
+        if key in evidence:
+            corrected[key] = evidence[key]
+    return corrected
+
+
 def parse_history_results(cfg, lines, source_url, source_date):
     parser = parse_numeric_section
     if cfg.kind == "max3d":
@@ -3191,6 +3215,7 @@ def parse_history_results(cfg, lines, source_url, source_date):
     elif cfg.kind == "max3dpro":
         parser = parse_max3dpro_section
 
+    corrections = read_canonical_meta(cfg.key).get("verifiedSourceCorrections", {})
     results = []
     for section_lines in extract_draw_sections(lines):
         if not section_matches_cfg(cfg, section_lines):
@@ -3202,7 +3227,7 @@ def parse_history_results(cfg, lines, source_url, source_date):
         if result_date != source_date:
             continue
         result["sourceDate"] = source_date.strftime("%d/%m/%Y")
-        results.append(result)
+        results.append(apply_verified_history_correction(result, corrections))
     return results
 
 

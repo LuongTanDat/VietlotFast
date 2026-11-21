@@ -1,9 +1,61 @@
 # Nhật Ký Thay Đổi
 
-## 18/11/2026 — Mốc màu cho thanh tần suất
+## 21/11/2026 — Khóa ngày kỳ đầu tiên theo xác nhận người dùng
+
+- Ngày bắt đầu chỉ đọc, cố định theo game; chỉ cho sửa ngày kết thúc. Hai caret chỉ đổi ngày cuối ±1 và giữ ngày đầu. Ở Tất cả cho lùi ngày cuối, chặn tiến vượt mới nhất; chặn lùi trước ngày kỳ đầu. Chuẩn hóa lựa chọn ngày cũ khi tải lại/đổi game và không dùng giá trị ngày đầu bị gán bằng script. Preset số kỳ giữ đúng cách lọc, dấu chọn/dự đoán không đổi.
+- Sao lưu 6 file tại followup_analysis_fixed_start_20261121 trước khi sửa. Hai luồng Chrome bộ lọc và ngày đạt (53,926 giây); sau bổ sung tình huống cache ngày đầu cũ, luồng ngày kiểm lại đạt (23,642 giây). Kiểm readonly và chặn gán ngày đầu, chỉ đổi ngày cuối, chặn biên, tải lại/đổi game, nguồn bổ sung kỳ đầu và giữ dấu chọn. Đã xem ảnh Light 320px; Node stats và git diff --check đạt. Hồ sơ runtime/logs/analysis_fixed_start_20261121/. Cập nhật luồng Chrome để kiểm readonly, can thiệp input đầu, giữ mốc đầu khi lùi/tiến, khôi phục lựa chọn cũ, chặn biên và đổi game.
+
+## 21/11/2026 — Chặn sửa và điều hướng ngày vượt lịch sử
+
+- Sửa lỗi hai caret cộng/trừ ngày không xét biên. Lấy ngày đầu/cuối thật từ toàn bộ canonical qua API, lưu riêng theo game và cập nhật khi tải mới. Ở toàn bộ lịch sử khóa cả hai nút; ở biên tương ứng khóa lùi/tiến. Hai ô lịch có min/max, apply/query chặn ngoài phạm vi, kể cả gọi điều hướng trực tiếp; giữ dịch cả khoảng 1 ngày đã xác nhận và giữ dấu chọn.
+- Sao lưu 9 file tại followup_analysis_date_bounds_20261121 trước khi sửa. Kiểm 15 bài phân tích/biên đầy đủ và hồi quy Chrome bộ lọc/đổi game/reset/mobile đạt; kiểm Chrome luồng ngày, ô min/max, toàn lịch sử khóa hai nút, không request khi vượt biên, và dịch trong biên đạt (21,695 giây). Node stats và git diff --check đạt; đã xem trạng thái caret bị khóa trên Light 320px. Hồ sơ runtime/logs/analysis_date_bounds_20261121/. Thêm trường API/cache version và cập nhật các kiểm tra hiện có cho biên dữ liệu khác phạm vi lọc, không request khi vượt, và thao tác trong biên. Không sửa CSV/canonical, ví/vé hoặc model.
+
+## 21/11/2026 — Thêm hai nút tam giác hai bên khoảng ngày
+
+- Thêm caret viền trái/phải phía ngoài khoảng ngày, màu Dark/Light và co gọn trên mobile. Người dùng xác nhận mỗi lần dịch cả khoảng 1 ngày; giữ nút chỉnh ngày ở giữa. Tải lại theo khoảng mới, giữ dấu chọn và kết quả dự đoán, tránh thao tác lặp khi đang tải/chụp/sửa ngày. Khoảng mới không có dữ liệu/lỗi giữ lại khoảng cũ và báo lỗi. Hai nút không xuất trong ảnh PNG.
+- Sao lưu 8 file tại followup_analysis_date_arrows_20261121 trước khi sửa; bổ sung kiểm tra vào luồng date hiện có. Chrome kiểm luồng sửa ngày/lùi/tiến ±1, qua tháng/năm/ngày nhuận, rollback khoảng không có kỳ và giữ dấu chọn đạt (26,998 giây). Đã xem ảnh Dark 1440/Light 320px, caret nằm hai bên và không tràn. Node kiểm cú pháp core/stats và git diff --check đạt. Hồ sơ runtime/logs/analysis_date_arrows_20261121/.
+
+## 21/11/2026 — Hoàn chỉnh lịch sử và làm sạch 5/35, Mega, Power
+
+- 5/35 giữ dữ liệu hợp lệ và nhận kỳ mới 1021 ngày 21/11 trong lúc làm việc; đủ 1–1021 từ 29/06/2025. Mega sửa lịch sử mã kỳ đầu theo Vietlott, đủ 1–1591 từ 20/07/2016 tới 20/11/2026 (trước 1590 dòng). Power sửa các mã đầu/bổ sung phần bị mất do lệch mã, đủ 1–1426 từ 01/08/2017 tới 19/11/2026 (trước 1422 dòng). Không tự thêm kỳ chưa công bố.
+- Tải 263 phản hồi Vietlott trực tiếp và đối chiếu kho JSONL toàn bộ: 1020 dòng 5/35, 1394 Mega, 1425 Power khớp; loại một dòng Power #944 sai cấu trúc trong kho phụ, dùng bản Vietlott đúng. Kiểm 4038 dòng: không thiếu mã từ 1, không trùng mã/ngày-giờ, không số sai miền hoặc lặp trong kỳ. Không xóa kết quả hợp lệ chỉ vì trùng tổ hợp ở kỳ khác.
+- Thêm chặn tái nhập lỗi nguồn cho 245 identity đã xác minh trong backend/live_results.py và 2 kiểm tra tại tests/test_verified_history.py. 11 kiểm tra guard/live-results cùng 15 kiểm tra phân tích đạt. Chạy loader phân tích thật, đối chiếu mọi số lượt với CSV ở cả ba game đều khớp. Snapshot thay đổi trong lúc chạy đã dừng ghi; sao lưu bổ sung before_apply_20261121 giữ kỳ mới.
+- Sao lưu 10 file tại Bin/session_1_latest/files/followup_history_refresh_20261120, giữ các phiên cũ; báo cáo nguồn/hash/thay đổi và kiểm chứng tại runtime/logs/history_refresh_20261120/. Không sửa DB/ví/vé hoặc model.
+
+## 20/11/2026 — Cho chỉnh sửa khoảng ngày Phân tích
+
+- Bấm khoảng ngày để mở hai ô ngày, Áp dụng/Hủy; thêm lựa chọn Khoảng ngày ở bộ lọc. Dùng API ngày hiện có để lọc đầy đủ các kỳ trong khoảng, không gửi giới hạn số kỳ cùng lúc. Kiểm ngày hợp lệ/thứ tự, báo khoảng không có dữ liệu, giữ dấu chọn và lưu ngày khi tải lại. Cập nhật validation cho phản hồi lọc ngày; preset số kỳ giữ hành vi trước. Form gọn theo Dark/Light/mobile, không vào PNG; sửa ánh xạ control khi loại form khỏi bản xuất để các nhãn bộ lọc vẫn đúng.
+- Sao lưu 8 file tại followup_analysis_edit_dates_20261120 trước khi sửa. Node kiểm cú pháp core/stats và git diff --check đạt. Hồi quy bộ lọc/bảng/đổi loại/mobile đạt; kiểm mới chỉnh ngày/giới hạn ngày/không dữ liệu/tải lại/giữ dấu và hồi quy tải 4 PNG đạt (2 bài, 69,206 giây). Đã xem ảnh editor Dark 1440px và Light 320px, không tràn khung. Hồ sơ runtime/logs/analysis_edit_dates_20261120/.
+
+## 20/11/2026 — Bỏ tiền tố Tất cả và số kỳ ở dòng phạm vi
+
+- Khi chọn Tất cả, dòng giữa chỉ còn ngày đầu → ngày cuối. Giữ nhãn Số kỳ • N Kỳ ở bộ lọc, thời gian trên cụm nút và tiền tố các mốc lọc khác. Không đổi dữ liệu/API; PNG dùng cùng nội dung. Cập nhật cache stats trong HTML và kỳ vọng hồi quy hiện có.
+- Sao lưu followup_analysis_scope_dates_20261120 trước khi sửa. Chrome hồi quy bộ lọc/đổi loại/tải lại/cập nhật kỳ mới/mobile đạt (33,366 giây), xác nhận dòng Tất cả khớp đúng khoảng ngày. Node kiểm cú pháp và git diff --check đạt.
+
+## 20/11/2026 — Chỉ hiện tổng số kỳ khi chọn Tất cả
+
+- Điều chỉnh nhãn Số kỳ • N Kỳ chỉ xuất hiện ở lựa chọn Tất cả. Các mốc 10/30/50/80/100 và Khác chỉ ghi Số kỳ. Giữ tổng availableDraws đúng loại xổ số, chưa biết tổng không hiện hậu tố; không đổi bộ lọc hoặc gọi API thêm. Cập nhật cache stats trong HTML.
+- Sao lưu followup_analysis_draw_total_all_20261120 trước khi sửa. Kiểm chứng 49 trường hợp nhãn (Tất cả/các mốc/Khác/tổng chưa biết hoặc không hợp lệ), Node kiểm cú pháp và git diff --check đạt. Chrome hồi quy bảng/bộ lọc/đổi loại/reset/sắp xếp/mobile đạt (34,390 giây).
+
+## 20/11/2026 — Tổng số kỳ cạnh nhãn bộ lọc
+
+- Thêm • N Kỳ bên cạnh Số kỳ theo availableDraws của loại đang chọn, định dạng 1.020 bằng vi-VN. Giữ tổng hiện có khi chỉ đổi số kỳ lọc; chưa biết tổng không đoán số, đổi game/reset không dùng tổng nhóm khác. Không gọi API mới, không sửa giới hạn nhập/dữ liệu; PNG giữ nhãn. Đổi cache HTML/stats, CSS/core giữ nguyên.
+- Sao lưu followup_analysis_draw_total_label_20261120; hồ sơ runtime/logs/analysis_draw_total_label_20261120/. Kiểm chứng Chrome hồi quy bộ lọc/sắp xếp/giữ dấu/đổi phiên đạt (32,525 giây). QA riêng dùng snapshot canonical thật 1.020 kỳ: đang lọc 30 vẫn hiện Số kỳ • 1.020 Kỳ, Dark 1440/Light 320px vừa khung; đổi Power hiện 120 kỳ, lọc 10 vẫn 120, reset chưa biết tổng chỉ còn Số kỳ. Đã tải PNG thật và đối chiếu nhãn trong bản xuất khớp; dữ liệu nguồn không bị sửa. Node stats đạt cú pháp, HTML/stats đang phục vụ khớp.
+
+## 20/11/2026 — Thời gian cập nhật trên cụm nút Phân tích
+
+- Chuyển Cập nhật lúc HH:mm • DD/MM từ giữa phạm vi lên trên cụm máy ảnh/Cập nhật; canh giữa, hàng nút giữ thẳng với ô lọc, mobile chiếm cả hàng. Giữ generatedAt thực tế và định dạng ngày/giờ, chỉ đổi tiền tố riêng Phân tích, không đổi các trang khác. Phạm vi ở giữa chỉ còn số kỳ/khoảng ngày; Dark/Light và PNG cùng vị trí mới. Đổi cache stats/CSS, core/backend không đổi.
+- Sao lưu followup_analysis_updated_actions_20261120; hồ sơ runtime/logs/analysis_updated_actions_20261120/. Kiểm chứng 5 bố cục 1440 Dark/Light, 1100 Khác, 960 Dark, 320 Light: thời gian trong action-group, nằm trên hàng hai nút, canh giữa, không tràn; lấy generatedAt thật. Đã xem ảnh desktop/mobile. Chrome tải 4 PNG và hồi quy toast/giữ dấu/vé/lỗi/hủy đạt (40,324 giây), mọi PNG có Cập nhật lúc ở vị trí mới. Node stats đạt cú pháp; HTML/stats/CSS đang phục vụ khớp.
+
+## 20/11/2026 — Thông báo Đã Tải Xong ở giữa màn hình
+
+- Thay dòng thành công chứa tên PNG dưới bộ lọc bằng toast Đã Tải Xong giữa viewport. Hiện rõ 1 giây, mờ 350ms rồi ẩn và xóa chữ; không lấy focus/chặn click, Dark/Light và mobile đồng bộ. Node nằm ngoài Phân tích nên không vào ảnh; dữ liệu/ảnh/tên tệp giữ nguyên. Tải mới hoặc reset hủy timer/thông báo cũ, lỗi không báo thành công. Cache stats/CSS mới, không đổi core/backend.
+- Sao lưu followup_analysis_capture_toast_20261120; hồ sơ runtime/logs/analysis_capture_toast_20261120/. Kiểm chứng Chrome tải 4 PNG Dark/Light, Vé thường/Bao đạt (47,318 giây): toast ở giữa viewport hữu dụng, dòng tên ảnh ẩn/xóa; theo dõi mutation và opacity xác nhận giữ khoảng 1.000ms, rồi mờ khoảng 350ms và tự ẩn. Ảnh PNG không chứa toast/dòng thành công; pixel dòng/vé cuối vẫn đủ. Tải/thông báo lặp hủy timer cũ, lỗi và hủy khi reset không báo thành công; không có API phân tích mới hoặc đổi dấu/vé. Đã xem toast Dark 1440px và Light 390px; Node stats đạt cú pháp, HTML/stats/CSS đang phục vụ khớp.
+
+## 20/11/2026 — Mốc màu cho thanh tần suất
 
 - Thêm vạch vàng tại mốc cao nhất của mỗi thanh, cùng chú giải động Mốc cao nhất: N lượt dưới tiêu đề từng bảng và % trên tổng lượt. Tooltip tách rõ số lượt, mốc so sánh và tỷ trọng tổng lượt. Giữ chuẩn hóa max ở 80% và số đếm/phần trăm hiện có; nhóm 0 không vẽ mốc giả. Vạch/key tương phản Dark/Light, nằm dưới cột sticky và xuất cùng PNG. Đổi cache stats/CSS, không đổi backend/core hoặc dữ liệu.
-- Sao lưu followup_frequency_bar_marker_20261118; hồ sơ runtime/logs/frequency_bar_marker_20261118/. Kiểm chứng đang thực hiện.
+- Sao lưu followup_frequency_bar_marker_20261118; hồ sơ runtime/logs/frequency_bar_marker_20261118/. Hoàn tất 20/11: 2 kiểm tra Chrome hồi quy và xuất 4 PNG đạt (84,538 giây), gồm bộ lọc/sắp xếp/dấu chọn và pixel dòng/vé cuối, lỗi/hủy. Đã xem marker và chú giải ở Dark/Light 1440px, Light 320px và PNG đầy đủ. Kiểm hình học mốc ≈80%, đầu thanh lớn nhất khớp vạch, riêng chính 171/ĐB 92 lượt; mẫu 08 giữ 148 / 5.075 = 2,92%. Nhóm không có lượt không vẽ mốc, tooltip không ghi phép chia 0/0. Node kiểm cú pháp và kiểm trực tiếp tooltip mẫu/nhóm 0 đạt; HTML/stats/CSS đang phục vụ khớp. Dữ liệu canonical không bị sửa.
 
 ## 18/11/2026 — Sắp xếp Độ Trễ và Trễ Trung Bình
 

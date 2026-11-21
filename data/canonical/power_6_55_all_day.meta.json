@@ -2,18 +2,18 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-19T21:41:07",
+  "lastSyncAt": "2026-11-21T16:10:34",
   "lastBootstrapAt": "2026-03-17T19:34:02",
-  "effectiveEarliestKy": "5",
+  "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "01/08/2017",
-  "sourceLimited": true,
+  "sourceLimited": false,
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-19T21:41:07",
+    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
     "complete": true,
-    "totalRows": 1422,
-    "completeRows": 1422,
+    "totalRows": 1426,
+    "completeRows": 1426,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -23,8 +23,8 @@
     "amountMeaning": "Advertised draw prize pool, before division among winners"
   },
   "dataQuality": {
-    "inputRows": 1402,
-    "outputRows": 1402,
+    "inputRows": 1422,
+    "outputRows": 1426,
     "removedColumns": [],
     "outputColumns": [
       "Kỳ",
@@ -36,41 +36,54 @@
       "Link cập nhật",
       "Ngày cập nhật",
       "Jackpot 1 (VNĐ)",
-      "Jackpot 2 (VNĐ)"
+      "Jackpot 2 (VNĐ)",
+      "Nổ"
     ],
     "duplicateRowsRemoved": 0,
-    "changedCells": 0,
-    "changesByColumn": {},
+    "changedCells": 213,
+    "changesByColumn": {
+      "Kỳ": 4,
+      "Thứ": 22,
+      "Ngày": 24,
+      "Giờ": 4,
+      "Bộ Số": 24,
+      "ĐB": 24,
+      "Link cập nhật": 32,
+      "Ngày cập nhật": 24,
+      "Jackpot 1 (VNĐ)": 24,
+      "Jackpot 2 (VNĐ)": 25,
+      "Nổ": 6
+    },
     "internalGaps": [],
     "missingDrawsInsideRange": 0,
-    "earliestKy": "5",
-    "latestKy": "1406",
-    "sourceVerifiedDraws": 0,
+    "earliestKy": "1",
+    "latestKy": "1426",
+    "sourceVerifiedDraws": 1426,
     "warnings": 0,
     "errors": 0,
-    "checkedAt": "2026-10-04T15:02:45",
+    "checkedAt": "2026-11-21T16:10:28.983614+07:00",
     "valid": true,
     "structuralValid": true,
     "warningDetails": [],
-    "reportFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\data_cleaning_2026-10-04\\runs\\150241_050931\\report.json",
-    "scope": "Existing canonical draws; no history extrapolation"
+    "reportFile": "runtime/logs/history_refresh_20261120/report.json",
+    "scope": "Full history from official first draw through latest verified draw"
   },
   "prizeHits": {
-    "rows": 1402,
-    "verifiedRows": 1402,
+    "rows": 1426,
+    "verifiedRows": 1426,
     "missingDraws": [],
     "hitCounts": {
-      "Jackpot 2": 330,
-      "Jackpot 1": 40,
+      "Jackpot 2": 338,
+      "Jackpot 1": 42,
       "Jackpot 1, 2": 18
     },
-    "checkedAt": "2026-10-04T15:28:24",
+    "checkedAt": "2026-11-21T16:10:28.983614+07:00",
     "complete": true,
     "meaning": "At least one winning ticket in the top-prize table",
-    "evidenceFile": "C:\\Users\\Luong Tan Dat\\OneDrive\\Vsuacode\\Dự Án\\Lotto\\runtime\\prize_hits_2026-10-04\\verified_draws.json"
+    "evidenceFile": "runtime/logs/history_refresh_20261120/report.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-19T21:41:07",
+    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
     "countsByDraw": {
       "1406": {
         "identity": "03/10/2026||7,11,13,16,18,54|41",
@@ -5625,8 +5638,8 @@
           "second": 1231,
           "third": 25555
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-14-10-2023.html",
-        "checkedAt": "2026-10-14T19:35:23"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00944&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "943": {
         "identity": "12/10/2023||5,8,9,20,36,50|35",
@@ -16593,8 +16606,8 @@
           "second": 258,
           "third": 5963
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-17-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:28"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00030&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "29": {
         "identity": "05/10/2017||1,3,14,19,35,41|20",
@@ -16605,8 +16618,8 @@
           "second": 377,
           "third": 7866
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00029&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "28": {
         "identity": "03/10/2017||21,31,35,41,46,50|23",
@@ -16617,8 +16630,8 @@
           "second": 305,
           "third": 6654
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00028&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "27": {
         "identity": "30/09/2017||4,17,23,25,34,46|24",
@@ -16629,8 +16642,8 @@
           "second": 418,
           "third": 8170
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00027&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "26": {
         "identity": "28/09/2017||20,27,28,31,39,47|10",
@@ -16641,8 +16654,8 @@
           "second": 284,
           "third": 6634
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00026&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "25": {
         "identity": "26/09/2017||14,15,18,30,36,49|19",
@@ -16653,248 +16666,8 @@
           "second": 379,
           "third": 8369
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-10-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "24": {
-        "identity": "21/09/2017||9,12,16,24,43,51|39",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 1,
-          "first": 9,
-          "second": 501,
-          "third": 8634
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "23": {
-        "identity": "19/09/2017||3,32,36,41,44,53|45",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 15,
-          "second": 504,
-          "third": 8611
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "22": {
-        "identity": "14/09/2017||22,23,32,43,44,51|15",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 7,
-          "second": 308,
-          "third": 6987
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "21": {
-        "identity": "12/09/2017||6,10,12,47,48,51|35",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 3,
-          "second": 393,
-          "third": 8626
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "20": {
-        "identity": "07/09/2017||4,18,22,31,32,40|8",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 7,
-          "second": 325,
-          "third": 7245
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:29"
-      },
-      "19": {
-        "identity": "05/09/2017||1,2,8,13,23,39|9",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 7,
-          "second": 464,
-          "third": 9585
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:30"
-      },
-      "18": {
-        "identity": "31/08/2017||8,20,27,35,36,47|18",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 9,
-          "second": 409,
-          "third": 8324
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:30"
-      },
-      "17": {
-        "identity": "29/08/2017||4,12,15,23,24,41|44",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 10,
-          "second": 485,
-          "third": 10671
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:30"
-      },
-      "16": {
-        "identity": "26/08/2017||17,25,30,31,36,41|20",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 5,
-          "second": 317,
-          "third": 7387
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:30"
-      },
-      "15": {
-        "identity": "24/08/2017||5,16,18,37,42,46|10",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 9,
-          "second": 389,
-          "third": 8152
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-05-09-2017.html",
-        "checkedAt": "2026-10-14T19:37:30"
-      },
-      "14": {
-        "identity": "22/08/2017||10,24,31,32,38,44|14",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 5,
-          "second": 461,
-          "third": 9029
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "13": {
-        "identity": "19/08/2017||7,11,13,15,26,51|36",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 5,
-          "second": 460,
-          "third": 8777
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "12": {
-        "identity": "17/08/2017||11,12,20,30,32,34|53",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 9,
-          "second": 340,
-          "third": 7337
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "11": {
-        "identity": "15/08/2017||7,11,19,32,33,51|30",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 10,
-          "second": 508,
-          "third": 8966
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "10": {
-        "identity": "12/08/2017||6,16,20,32,38,51|34",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 6,
-          "second": 330,
-          "third": 6598
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-22-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "9": {
-        "identity": "10/08/2017||10,11,19,41,50,54|3",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 3,
-          "second": 285,
-          "third": 6252
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "8": {
-        "identity": "08/08/2017||19,36,39,41,46,51|38",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 1,
-          "second": 273,
-          "third": 6438
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "7": {
-        "identity": "05/08/2017||1,5,11,32,40,45|43",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 7,
-          "second": 336,
-          "third": 6756
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "6": {
-        "identity": "03/08/2017||4,9,24,25,27,45|40",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 12,
-          "second": 378,
-          "third": 7264
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
-      },
-      "5": {
-        "identity": "01/08/2017||5,10,14,23,24,38|35",
-        "counts": {
-          "jackpot1": 0,
-          "jackpot2": 0,
-          "first": 3,
-          "second": 170,
-          "third": 4024
-        },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-10-08-2017.html",
-        "checkedAt": "2026-10-14T19:37:31"
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00025&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "1409": {
         "identity": "10/10/2026||14,17,21,23,24,39|30",
@@ -17133,9 +16906,669 @@
           "second": 1216,
           "third": 19984
         },
-        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-19-11-2026.html",
-        "checkedAt": ""
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=01426&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "1": {
+        "identity": "01/08/2017||5,10,14,23,24,38|35",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 3,
+          "second": 170,
+          "third": 4024
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00001&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "2": {
+        "identity": "03/08/2017||4,9,24,25,27,45|40",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 12,
+          "second": 378,
+          "third": 7264
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00002&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "3": {
+        "identity": "05/08/2017||1,5,11,32,40,45|43",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 7,
+          "second": 336,
+          "third": 6756
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00003&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "4": {
+        "identity": "08/08/2017||19,36,39,41,46,51|38",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 1,
+          "second": 273,
+          "third": 6438
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00004&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "5": {
+        "identity": "10/08/2017||10,11,19,41,50,54|3",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 3,
+          "second": 285,
+          "third": 6252
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00005&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "6": {
+        "identity": "12/08/2017||6,16,20,32,38,51|34",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 6,
+          "second": 330,
+          "third": 6598
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00006&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "7": {
+        "identity": "15/08/2017||7,11,19,32,33,51|30",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 10,
+          "second": 508,
+          "third": 8966
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00007&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "8": {
+        "identity": "17/08/2017||11,12,20,30,32,34|53",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 9,
+          "second": 340,
+          "third": 7337
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00008&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "9": {
+        "identity": "19/08/2017||7,11,13,15,26,51|36",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 5,
+          "second": 460,
+          "third": 8777
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00009&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "10": {
+        "identity": "22/08/2017||10,24,31,32,38,44|14",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 5,
+          "second": 461,
+          "third": 9029
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00010&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "11": {
+        "identity": "24/08/2017||5,16,18,37,42,46|10",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 9,
+          "second": 389,
+          "third": 8152
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00011&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "12": {
+        "identity": "26/08/2017||17,25,30,31,36,41|20",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 5,
+          "second": 317,
+          "third": 7387
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00012&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "13": {
+        "identity": "29/08/2017||4,12,15,23,24,41|44",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 10,
+          "second": 485,
+          "third": 10671
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00013&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "14": {
+        "identity": "31/08/2017||8,20,27,35,36,47|18",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 9,
+          "second": 409,
+          "third": 8324
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00014&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "15": {
+        "identity": "02/09/2017||5,9,11,18,19,37|50",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 10,
+          "second": 643,
+          "third": 11392
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00015&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "16": {
+        "identity": "05/09/2017||1,2,8,13,23,39|9",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 7,
+          "second": 464,
+          "third": 9585
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00016&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "17": {
+        "identity": "07/09/2017||4,18,22,31,32,40|8",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 7,
+          "second": 325,
+          "third": 7245
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00017&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "18": {
+        "identity": "09/09/2017||1,15,23,36,43,54|12",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 6,
+          "second": 342,
+          "third": 7771
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00018&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "19": {
+        "identity": "12/09/2017||6,10,12,47,48,51|35",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 3,
+          "second": 393,
+          "third": 8626
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00019&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "20": {
+        "identity": "14/09/2017||22,23,32,43,44,51|15",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 7,
+          "second": 308,
+          "third": 6987
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00020&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "21": {
+        "identity": "16/09/2017||9,12,21,26,29,52|24",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 10,
+          "second": 459,
+          "third": 9145
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00021&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "22": {
+        "identity": "19/09/2017||3,32,36,41,44,53|45",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 15,
+          "second": 504,
+          "third": 8611
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00022&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "23": {
+        "identity": "21/09/2017||9,12,16,24,43,51|39",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 1,
+          "first": 9,
+          "second": 501,
+          "third": 8634
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00023&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "24": {
+        "identity": "23/09/2017||7,8,27,36,44,53|49",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 6,
+          "second": 408,
+          "third": 8526
+        },
+        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00024&nocatche=1",
+        "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       }
     }
+  },
+  "verifiedSourceCorrections": {
+    "01/08/2017||5,10,14,23,24,38|35": {
+      "sourceKy": "5",
+      "canonicalKy": "1",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00001&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 3,
+        "second": 170,
+        "third": 4024
+      },
+      "jackpot1": 30528493950,
+      "jackpot2": 3058721550
+    },
+    "03/08/2017||4,9,24,25,27,45|40": {
+      "sourceKy": "6",
+      "canonicalKy": "2",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00002&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 12,
+        "second": 378,
+        "third": 7264
+      },
+      "jackpot1": 31024813350,
+      "jackpot2": 3113868150
+    },
+    "05/08/2017||1,5,11,32,40,45|43": {
+      "sourceKy": "7",
+      "canonicalKy": "3",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00003&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 7,
+        "second": 336,
+        "third": 6756
+      },
+      "jackpot1": 31903413600,
+      "jackpot2": 3211490400
+    },
+    "08/08/2017||19,36,39,41,46,51|38": {
+      "sourceKy": "8",
+      "canonicalKy": "4",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00004&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 1,
+        "second": 273,
+        "third": 6438
+      },
+      "jackpot1": 33415353750,
+      "jackpot2": 3379483750
+    },
+    "10/08/2017||10,11,19,41,50,54|3": {
+      "sourceKy": "9",
+      "canonicalKy": "5",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00005&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 3,
+        "second": 285,
+        "third": 6252
+      },
+      "jackpot1": 34588091550,
+      "jackpot2": 3509787950
+    },
+    "12/08/2017||6,16,20,32,38,51|34": {
+      "sourceKy": "10",
+      "canonicalKy": "6",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00006&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 6,
+        "second": 330,
+        "third": 6598
+      },
+      "jackpot1": 35666199750,
+      "jackpot2": 3629577750
+    },
+    "15/08/2017||7,11,19,32,33,51|30": {
+      "sourceKy": "11",
+      "canonicalKy": "7",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00007&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 10,
+        "second": 508,
+        "third": 8966
+      },
+      "jackpot1": 36713676000,
+      "jackpot2": 3745964000
+    },
+    "17/08/2017||11,12,20,30,32,34|53": {
+      "sourceKy": "12",
+      "canonicalKy": "8",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00008&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 9,
+        "second": 340,
+        "third": 7337
+      },
+      "jackpot1": 37754634900,
+      "jackpot2": 3861626100
+    },
+    "19/08/2017||7,11,13,15,26,51|36": {
+      "sourceKy": "13",
+      "canonicalKy": "9",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00009&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 5,
+        "second": 460,
+        "third": 8777
+      },
+      "jackpot1": 38842141350,
+      "jackpot2": 3982460150
+    },
+    "22/08/2017||10,24,31,32,38,44|14": {
+      "sourceKy": "14",
+      "canonicalKy": "10",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00010&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 5,
+        "second": 461,
+        "third": 9029
+      },
+      "jackpot1": 40231270200,
+      "jackpot2": 4136807800
+    },
+    "24/08/2017||5,16,18,37,42,46|10": {
+      "sourceKy": "15",
+      "canonicalKy": "11",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00011&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 9,
+        "second": 389,
+        "third": 8152
+      },
+      "jackpot1": 41355943950,
+      "jackpot2": 4261771550
+    },
+    "26/08/2017||17,25,30,31,36,41|20": {
+      "sourceKy": "16",
+      "canonicalKy": "12",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00012&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 5,
+        "second": 317,
+        "third": 7387
+      },
+      "jackpot1": 42705608250,
+      "jackpot2": 4411734250
+    },
+    "29/08/2017||4,12,15,23,24,41|44": {
+      "sourceKy": "17",
+      "canonicalKy": "13",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00013&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 10,
+        "second": 485,
+        "third": 10671
+      },
+      "jackpot1": 43925548800,
+      "jackpot2": 4547283200
+    },
+    "31/08/2017||8,20,27,35,36,47|18": {
+      "sourceKy": "18",
+      "canonicalKy": "14",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00014&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 9,
+        "second": 409,
+        "third": 8324
+      },
+      "jackpot1": 45086515950,
+      "jackpot2": 4676279550
+    },
+    "05/09/2017||1,2,8,13,23,39|9": {
+      "sourceKy": "19",
+      "canonicalKy": "16",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00016&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 7,
+        "second": 464,
+        "third": 9585
+      },
+      "jackpot1": 46972594200,
+      "jackpot2": 4885843800
+    },
+    "07/09/2017||4,18,22,31,32,40|8": {
+      "sourceKy": "20",
+      "canonicalKy": "17",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00017&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 7,
+        "second": 325,
+        "third": 7245
+      },
+      "jackpot1": 48190895850,
+      "jackpot2": 5021210650
+    },
+    "12/09/2017||6,10,12,47,48,51|35": {
+      "sourceKy": "21",
+      "canonicalKy": "19",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00019&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 3,
+        "second": 393,
+        "third": 8626
+      },
+      "jackpot1": 51063730500,
+      "jackpot2": 5340414500
+    },
+    "14/09/2017||22,23,32,43,44,51|15": {
+      "sourceKy": "22",
+      "canonicalKy": "20",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00020&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 7,
+        "second": 308,
+        "third": 6987
+      },
+      "jackpot1": 52263240150,
+      "jackpot2": 5473693350
+    },
+    "19/09/2017||3,32,36,41,44,53|45": {
+      "sourceKy": "23",
+      "canonicalKy": "22",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00022&nocatche=1",
+      "prizeHit": "",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 0,
+        "first": 15,
+        "second": 504,
+        "third": 8611
+      },
+      "jackpot1": 54239944350,
+      "jackpot2": 5693327150
+    },
+    "21/09/2017||9,12,16,24,43,51|39": {
+      "sourceKy": "24",
+      "canonicalKy": "23",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00023&nocatche=1",
+      "prizeHit": "Jackpot 2",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 1,
+        "first": 9,
+        "second": 501,
+        "third": 8634
+      },
+      "jackpot1": 55150230000,
+      "jackpot2": 5794470000
+    },
+    "19/11/2026||3,13,21,23,38,43|16": {
+      "sourceKy": "1426",
+      "canonicalKy": "1426",
+      "verifiedBy": "vietlott.vn",
+      "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=01426&nocatche=1",
+      "prizeHit": "Jackpot 2",
+      "prizeHitKnown": true,
+      "prizeWinnerCounts": {
+        "jackpot1": 0,
+        "jackpot2": 2,
+        "first": 22,
+        "second": 1216,
+        "third": 19984
+      },
+      "jackpot1": 42887095500,
+      "jackpot2": 1606421250
+    }
+  },
+  "historyAudit": {
+    "verifiedAt": "2026-11-21T16:10:28.983614+07:00",
+    "report": "runtime/logs/history_refresh_20261120/report.json",
+    "firstKy": 1,
+    "lastKy": 1426,
+    "totalRows": 1426,
+    "missingKy": 0,
+    "duplicateKy": 0,
+    "duplicateSlots": 0,
+    "bulkMatches": 1425,
+    "directOfficialDraws": 32,
+    "rejectedBulkRows": 1
   }
 }

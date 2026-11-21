@@ -1209,6 +1209,8 @@ def build_analysis_payload(
         "totalDraws": len(filtered),
         "requestedDrawCount": draw_count,
         "availableDraws": len(draws),
+        "availableFromDate": date_iso(draws[0]["date"]),
+        "availableToDate": date_iso(draws[-1]["date"]),
         "latestDraw": draw_to_json(filtered[-1]),
         "previousDraw": draw_to_json(draws[latest_index - 1]) if latest_index > 0 else None,
         "sourceFile": Path(source_path).name,

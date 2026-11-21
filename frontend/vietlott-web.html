@@ -11,12 +11,12 @@
     <link rel="stylesheet" href="/vietlott-web-extra.css?v=cycle-cost-preview-20261115" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="stylesheet" href="/vietlott-web-wallet.css?v=card-daily-interest-20261104" />
-  <link rel="preload" href="/vietlott-web-stats.js?v=frequency-bar-marker-20261118" as="script" />
+  <link rel="preload" href="/vietlott-web-stats.js?v=analysis-fixed-start-20261121" as="script" />
   <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
-  <link rel="stylesheet" href="/vietlott-web-analysis.css?v=frequency-bar-marker-20261118" />
+  <link rel="stylesheet" href="/vietlott-web-analysis.css?v=analysis-fixed-start-20261121" />
   <link rel="stylesheet" href="/vietlott-web-vip.css?v=vip-chest-notice-20261109" />
   <link rel="stylesheet" href="/vietlott-web-exchange.css?v=retention-50-20261109" />
-  <link rel="preload" href="/vietlott-web-core.js?v=frequency-delay-sort-20261118" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=analysis-fixed-start-20261121" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -1500,12 +1500,17 @@
             <span class="frequency-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/></svg></span>
             <div class="frequency-heading"><h2 id="analysisTitle">Phân tích</h2></div>
           </div>
-          <p class="frequency-context" aria-live="polite"><span id="analysisScope" class="frequency-scope"></span><span id="analysisUpdatedAt" class="frequency-updated">Chưa có dữ liệu</span></p>
+          <div class="frequency-context"><div class="frequency-range-navigation"><button id="analysisDatePrev" class="frequency-date-arrow" type="button" aria-label="Lùi khoảng ngày một ngày" title="Lùi khoảng ngày 1 ngày" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"><path d="M16 4 6 12l10 8z"/></svg></button><span id="analysisScope" class="frequency-scope" aria-live="polite"></span><button id="analysisDateNext" class="frequency-date-arrow" type="button" aria-label="Tiến khoảng ngày một ngày" title="Tiến khoảng ngày 1 ngày" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"><path d="m8 4 10 8-10 8z"/></svg></button></div>
+            <form id="analysisDateForm" class="frequency-date-form" data-analysis-export-ignore hidden>
+              <div class="frequency-date-fields"><label>Ngày đầu (cố định)<input id="analysisDateFrom" type="date" required readonly title="Cố định ở ngày kỳ đầu tiên của game" aria-label="Ngày kỳ đầu tiên, không thể chỉnh sửa"></label><span aria-hidden="true">→</span><label>Đến ngày<input id="analysisDateTo" type="date" required aria-label="Ngày kết thúc phân tích"></label></div>
+              <p id="analysisDateError" role="alert" hidden></p><div class="frequency-date-actions"><button type="button" id="analysisDateCancel">Hủy</button><button type="submit">Áp dụng</button></div>
+            </form>
+          </div>
           <div class="frequency-filters">
           <label class="frequency-field"><span>Loại xổ số</span><select id="analysisTypeSelect" aria-label="Loại xổ số phân tích"></select></label>
-          <label class="frequency-field"><span>Số kỳ</span><select id="analysisDrawCountSelect" aria-label="Số kỳ gần nhất để phân tích"></select></label>
+          <label class="frequency-field"><span id="analysisDrawCountLabel">Số kỳ</span><select id="analysisDrawCountSelect" aria-label="Số kỳ gần nhất để phân tích"></select></label>
           <label id="analysisCustomCountField" class="frequency-field" hidden><span>Số kỳ tùy chọn</span><input id="analysisCustomCountInput" type="number" min="1" max="2147483647" step="1" inputmode="numeric" placeholder="Nhập số kỳ" aria-label="Nhập số kỳ gần nhất"></label>
-          <div class="frequency-actions"><button id="analysisCaptureBtn" aria-label="Chụp hình" class="frequency-capture" type="button" data-analysis-export-ignore disabled title="Lưu toàn bộ Phân tích thành ảnh PNG rõ nét"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/></svg><span hidden>Chụp hình</span></button><button id="analysisRefreshBtn" class="frequency-refresh" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/></svg><span>Cập nhật</span></button></div>
+          <div class="frequency-action-group"><span id="analysisUpdatedAt" class="frequency-updated" aria-live="polite">Chưa có dữ liệu</span><div class="frequency-actions"><button id="analysisCaptureBtn" aria-label="Chụp hình" class="frequency-capture" type="button" data-analysis-export-ignore disabled title="Lưu toàn bộ Phân tích thành ảnh PNG rõ nét"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="4"/></svg><span hidden>Chụp hình</span></button><button id="analysisRefreshBtn" class="frequency-refresh" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/></svg><span>Cập nhật</span></button></div></div>
           </div>
         </div>
         <p id="analysisStatus" class="frequency-status" role="status" hidden></p>
@@ -1719,13 +1724,14 @@
       <p class="wallet-history-note">Tiền thưởng được trả trực tiếp vào thẻ sau khi quyết toán.</p>
     </div>
   </dialog>
+  <div id="analysisCaptureToast" class="frequency-download-toast" role="status" aria-live="polite" aria-atomic="true" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><strong></strong></div>
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
-  <script defer src="/vietlott-web-stats.js?v=frequency-bar-marker-20261118"></script>
+  <script defer src="/vietlott-web-stats.js?v=analysis-fixed-start-20261121"></script>
   <script defer src="/vietlott-web-data.js?v=recovery-bao-v2-20261101"></script>
   <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
     <script defer src="/vietlott-web-effectiveness.js?v=cycle-cost-preview-20261115"></script>
   <script defer src="/vietlott-web-payments.js?v=daily-topup-rate-v2-20261109"></script>
-  <script defer src="/vietlott-web-core.js?v=frequency-delay-sort-20261118"></script>
+  <script defer src="/vietlott-web-core.js?v=analysis-fixed-start-20261121"></script>
   <script defer src="/vietlott-web-vip.js?v=vip-current-full-rank-20261109"></script>
   <script defer src="/vietlott-web-wallet.js?v=card-exact-input-20261115"></script>
   <script defer src="/vietlott-web-notifications.js?v=finance-notifications-20261105"></script>
