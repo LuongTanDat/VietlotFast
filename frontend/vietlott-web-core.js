@@ -465,16 +465,16 @@
     const LUCKY_WHEEL_TOPUP_MAX_PER_ACTION = 50;
     const LUCKY_WHEEL_TOPUP_MAX_PER_DAY = 1000;
     const LUCKY_WHEEL_SEGMENTS = [
-      { label: "5 Kim cương + 100 PayPal", short: "5 KC + 100 PP", desc: "Phần thưởng", color: "#f4d35e", weight: 28, reward: { diamond: 5, paypal: 100 } },
+      { label: "5 Kim cương + 100 PayPal", short: "5 KC + 100 PP", desc: "Phần thưởng", color: "#f4d35e", weight: 25, reward: { diamond: 5, paypal: 100 } },
       { label: "Thêm 1 lượt", short: "+1 Lượt", desc: "Lượt quay", color: "#ffd166", weight: 10, reward: { bonusSpins: 1 } },
       { label: "Thêm 3 lượt", short: "+3 Lượt", desc: "Lượt quay", color: "#ffb347", weight: 5, reward: { bonusSpins: 3 } },
-      { label: "+100 Kim cương", short: "100 KC", desc: "Kim cương", color: "#ff8c42", weight: 1, reward: { diamond: 100 } },
-      { label: "Thêm 50 lượt", short: "+50 Lượt", desc: "Lượt quay", color: "#ff5f6d", weight: 0.3, reward: { bonusSpins: 50 } },
-      { label: "+10.000 PayPal", short: "10K PP", desc: "PayPal", color: "#7f6bff", weight: 0.4, reward: { paypal: 10000 } },
-      { label: "+1.000 PayPal", short: "1K PP", desc: "PayPal", color: "#5867ff", weight: 5, reward: { paypal: 1000 } },
-      { label: "+500 PayPal", short: "500 PP", desc: "PayPal", color: "#10b6dd", weight: 45, reward: { paypal: 500 } },
-      { label: "+1.000 Kim cương", short: "1K KC", desc: "Kim cương", color: "#21c59a", weight: 0.3, reward: { diamond: 1000 } },
-      { label: "+10 Kim cương", short: "10 KC", desc: "Kim cương", color: "#d95ef2", weight: 10, reward: { diamond: 10 } }
+      { label: "+100 Kim cương", short: "100 KC", desc: "Kim cương", color: "#ff8c42", weight: 2, reward: { diamond: 100 } },
+      { label: "Thêm 50 lượt", short: "+50 Lượt", desc: "Lượt quay", color: "#ff5f6d", weight: 0.5, reward: { bonusSpins: 50 } },
+      { label: "+10.000 PayPal", short: "10K PP", desc: "PayPal", color: "#7f6bff", weight: 1, reward: { paypal: 10000 } },
+      { label: "+1.000 PayPal", short: "1K PP", desc: "PayPal", color: "#5867ff", weight: 6, reward: { paypal: 1000 } },
+      { label: "+500 PayPal", short: "500 PP", desc: "PayPal", color: "#10b6dd", weight: 38, reward: { paypal: 500 } },
+      { label: "+1.000 Kim cương", short: "1K KC", desc: "Kim cương", color: "#21c59a", weight: 0.5, reward: { diamond: 1000 } },
+      { label: "+10 Kim cương", short: "10 KC", desc: "Kim cương", color: "#d95ef2", weight: 12, reward: { diamond: 10 } }
     ];
 
     const emptyStore = () => ({
@@ -635,7 +635,7 @@
     let dashboardPanelError = "";
     let dashboardPanelRefreshToken = 0;
     const analysisState = {
-      type: "LOTO_5_35", drawPreset: "30", customCount: "", dateFrom: "", dateTo: "",
+      type: "LOTO_5_35", drawPreset: "30", customCount: "", dateFrom: "", dateTo: "", dateToTime: "",
       sortMain: "frequency", sortSpecial: "frequency",
       sortStreakMain: false, sortStreakSpecial: false,
       sortMetricMain: "", sortMetricSpecial: "",
@@ -3297,9 +3297,9 @@
     function renderLuckyWheelTicks() {
       const host = document.getElementById("spTicks");
       if (!host) return;
-      const size = Math.max(host.clientWidth || 0, host.clientHeight || 0, 360);
+      const size = Math.max(host.clientWidth || 0, host.clientHeight || 0) || 360;
       const center = size / 2;
-      const radius = Math.max(120, center - (size * 0.058));
+      const radius = Math.max(0, center - (size * 0.058));
       const tickHtml = [];
       for (let index = 0; index < 60; index++) {
         const angle = index * 6;
@@ -3467,6 +3467,8 @@
     function renderLuckyWheelPrizeGrid() {
       const grid = document.getElementById("luckyWheelPrizeGrid");
       if (!grid) return;
+      const prizeCount = document.getElementById("luckyWheelPrizeCount");
+      if (prizeCount) prizeCount.textContent = `${LUCKY_WHEEL_SEGMENTS.length} phần quà`;
       const totalWeight = LUCKY_WHEEL_SEGMENTS.reduce((sum, segment) => sum + Number(segment.weight || 0), 0) || 1;
       const displaySegments = LUCKY_WHEEL_SEGMENTS
         .map(segment => buildLuckyWheelDisplaySegment(segment))
@@ -3479,11 +3481,12 @@
       grid.innerHTML = displaySegments.map(segment => {
         const percent = (Number(segment.weight || 0) / totalWeight) * 100;
         const rarity = getLuckyWheelRarityMeta(percent);
+        const chance = percent.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
         return `
         <div class="lucky-wheel-prize-card" style="--lucky-prize-color:${segment.color};">
           <div class="lucky-wheel-prize-title">${escapeHtml(segment.label)}</div>
           <div class="lucky-wheel-prize-desc type-${escapeHtml(segment.descVariant || "combo")}">${escapeHtml(segment.desc)}</div>
-          <span class="lucky-wheel-prize-weight ${escapeHtml(rarity.className)}">${escapeHtml(rarity.label)}</span>
+          <span class="lucky-wheel-prize-weight ${escapeHtml(rarity.className)}">${escapeHtml(rarity.label)} · ${escapeHtml(chance)}%</span>
         </div>
       `;
       }).join("");
@@ -3499,12 +3502,17 @@
         list.innerHTML = `<div class="lucky-wheel-empty">Chưa có lịch sử quay. Lượt đầu tiên sẽ xuất hiện ở đây.</div>`;
         return;
       }
+      const formatTime = value => {
+        const text = String(value || "");
+        const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(text);
+        return match ? `${match[4]}:${match[5]} · ${match[3]}/${match[2]}/${match[1]}` : text;
+      };
       list.innerHTML = store.luckyWheelHistory.slice(0, MAX_LUCKY_WHEEL_HISTORY).map(entry => `
         <div class="lucky-wheel-history-item">
           <strong>${escapeHtml(entry.label || "Vòng quay")}</strong>
           <div class="lucky-wheel-history-reward">${escapeHtml(entry.rewardText || "")}</div>
           <div class="lucky-wheel-history-time">
-            ${escapeHtml(entry.timeText || "")}
+            ${escapeHtml(formatTime(entry.timeText || ""))}
           </div>
         </div>
       `).join("");
@@ -5515,6 +5523,7 @@
     document.getElementById("analysisScope")?.addEventListener("click", event => {
       if (event.target.closest("[data-analysis-edit-dates]")) openAnalysisDateEditor();
     });
+    document.getElementById("analysisDateTo")?.addEventListener("change", syncAnalysisSessionInput);
     document.getElementById("analysisDateForm")?.addEventListener("submit", applyAnalysisDates);
     document.getElementById("analysisDateForm")?.addEventListener("keydown", event => {
       if (event.key === "Escape") { event.preventDefault(); closeAnalysisDateEditor(); document.querySelector("[data-analysis-edit-dates]")?.focus(); }

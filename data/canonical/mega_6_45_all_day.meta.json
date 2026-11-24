@@ -2,7 +2,7 @@
   "type": "LOTO_6_45",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-21T16:10:33",
+  "lastSyncAt": "2026-11-24T20:20:46",
   "lastBootstrapAt": "2026-03-16T23:59:00",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "20/07/2016",
@@ -13,10 +13,10 @@
     },
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
+    "updatedAt": "2026-11-24T20:20:46",
     "complete": true,
-    "totalRows": 1591,
-    "completeRows": 1591,
+    "totalRows": 1592,
+    "completeRows": 1592,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -79,7 +79,7 @@
     "evidenceFile": "runtime/logs/history_refresh_20261120/report.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
+    "updatedAt": "2026-11-24T20:20:46",
     "countsByDraw": {
       "1570": {
         "identity": "02/10/2026||1,6,20,27,31,41|",
@@ -15104,7 +15104,7 @@
           "second": 1289,
           "third": 20978
         },
-        "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/645?id=01591&nocatche=1",
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-20-11-2026.html",
         "checkedAt": "2026-11-21T16:10:28.983614+07:00"
       },
       "1": {
@@ -17581,6 +17581,17 @@
         },
         "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/645?id=00225&nocatche=1",
         "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "1592": {
+        "identity": "22/11/2026||1,13,14,18,23,39|",
+        "counts": {
+          "jackpot": 0,
+          "first": 20,
+          "second": 1213,
+          "third": 19633
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-mega-645-ket-qua-mega-645-ngay-22-11-2026.html",
+        "checkedAt": ""
       }
     }
   },

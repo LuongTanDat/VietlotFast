@@ -4393,13 +4393,14 @@
       analysisState.customCount = String(saved?.customCount || "");
       analysisState.dateFrom = String(saved?.dateFrom || "");
       analysisState.dateTo = String(saved?.dateTo || "");
+      analysisState.dateToTime = String(saved?.dateToTime || "");
       analysisState.sortMain = saved?.sortMain === "number" ? "number" : "frequency";
       analysisState.sortSpecial = saved?.sortSpecial === "number" ? "number" : "frequency";
     }
 
     function saveAnalysisUiState() {
-      const { type, drawPreset, customCount, dateFrom, dateTo, sortMain, sortSpecial } = analysisState;
-      writeJsonLocal(ANALYSIS_UI_KEY, { type, drawPreset, customCount, dateFrom, dateTo, sortMain, sortSpecial });
+      const { type, drawPreset, customCount, dateFrom, dateTo, dateToTime, sortMain, sortSpecial } = analysisState;
+      writeJsonLocal(ANALYSIS_UI_KEY, { type, drawPreset, customCount, dateFrom, dateTo, dateToTime, sortMain, sortSpecial });
     }
 
     function getAnalysisMaxDrawCount() {
@@ -4609,15 +4610,67 @@
       return "";
     }
 
+    function isAnalysis535() {
+      return normalizeAnalysisType(analysisState.type) === "LOTO_5_35";
+    }
+
+    function getAnalysisCutoffError(from, to, time = "") {
+      const message = getAnalysisDateBoundsError(from, to);
+      if (message || !isAnalysis535()) return message;
+      const bounds = getAnalysisDateBounds();
+      if (!["13:00", "21:00"].includes(time)) return "Chọn kỳ quay 13:00 hoặc 21:00.";
+      if ((to === bounds.from && time < bounds.fromTime) || (to === bounds.to && time > bounds.toTime)) {
+        return `Chỉ chọn đến kỳ mới nhất ${bounds.to} ${bounds.toTime}.`;
+      }
+      return "";
+    }
+
+    function isAnalysisAtLatestDraw(payload) {
+      if (!payload || !payload.availableToDate || !payload.toDate) return false;
+      if (payload.toDate !== payload.availableToDate) return payload.toDate > payload.availableToDate;
+      return !isAnalysis535() || payload.toTime >= payload.availableToTime;
+    }
+
+    function getAnalysisNavigationTarget(payload, direction) {
+      const bounds = getAnalysisDateBounds();
+      if (!payload || !bounds || (direction > 0 && isAnalysisAtLatestDraw(payload))) return null;
+      if (!isAnalysis535()) return getAnalysisShiftedDates(bounds.from, payload.toDate, direction);
+      const time = payload.toTime;
+      if (!["13:00", "21:00"].includes(time)) return null;
+      if ((direction < 0 && time === "21:00") || (direction > 0 && time === "13:00")) {
+        return { from: bounds.from, to: payload.toDate, time: direction < 0 ? "13:00" : "21:00" };
+      }
+      const dates = getAnalysisShiftedDates(bounds.from, payload.toDate, direction);
+      return dates && { ...dates, time: direction < 0 ? "21:00" : "13:00" };
+    }
+
+    function syncAnalysisSessionInput() {
+      const field = document.getElementById("analysisDateSessionField");
+      field.hidden = !isAnalysis535();
+      if (!isAnalysis535()) return;
+      const bounds = getAnalysisDateBounds();
+      const end = document.getElementById("analysisDateTo").value;
+      const select = document.getElementById("analysisDateToTime");
+      for (const option of select.options) option.disabled = !bounds || !!getAnalysisCutoffError(bounds.from, end, option.value);
+      if (!select.selectedOptions.length || select.selectedOptions[0].disabled) {
+        select.value = [...select.options].filter(option => !option.disabled).at(-1)?.value || "";
+      }
+      document.getElementById("analysisDateFirstTime").textContent = bounds ? `Kỳ đầu: ${bounds.fromTime}` : "";
+    }
+
     function syncAnalysisDateNavigation(payload = analysisState.lastPayload) {
       const bounds = getAnalysisDateBounds();
       for (const [id, direction] of [["analysisDatePrev", -1], ["analysisDateNext", 1]]) {
         const button = document.getElementById(id);
         if (!button) continue;
-        const target = payload && getAnalysisShiftedDates(bounds?.from || payload.fromDate, payload.toDate, direction);
+        const target = getAnalysisNavigationTarget(payload, direction);
+        button.title = `${direction < 0 ? "Lùi" : "Tiến"} ${isAnalysis535() ? "1 kỳ quay" : "ngày kết thúc 1 ngày"}`;
+        if (direction > 0 && isAnalysisAtLatestDraw(payload)) button.title = "Đã ở kỳ hiện tại (kỳ mới nhất có kết quả)";
+        button.setAttribute("aria-label", button.title);
         button.hidden = !payload;
-        button.disabled = !target || !bounds || !!getAnalysisDateBoundsError(target.from, target.to)
+        button.disabled = !target || !bounds || !!getAnalysisCutoffError(target.from, target.to, target.time)
           || analysisState.loading || analysisState.captureBusy || !document.getElementById("analysisDateForm").hidden;
+        button.setAttribute("aria-disabled", String(button.disabled));
       }
       for (const id of ["analysisDateFrom", "analysisDateTo"]) {
         const input = document.getElementById(id);
@@ -4641,12 +4694,12 @@
     async function shiftAnalysisDates(direction) {
       const payload = analysisState.lastPayload;
       if (!payload || analysisState.loading || analysisState.captureBusy || !document.getElementById("analysisDateForm").hidden) return;
-      const dates = getAnalysisShiftedDates(getAnalysisDateBounds()?.from || payload.fromDate, payload.toDate, direction);
-      if (!dates || getAnalysisDateBoundsError(dates.from, dates.to)) return;
-      const previous = { drawPreset: analysisState.drawPreset, dateFrom: analysisState.dateFrom, dateTo: analysisState.dateTo };
+      const dates = getAnalysisNavigationTarget(payload, direction);
+      if (!dates || getAnalysisCutoffError(dates.from, dates.to, dates.time)) return;
+      const previous = { drawPreset: analysisState.drawPreset, dateFrom: analysisState.dateFrom, dateTo: analysisState.dateTo, dateToTime: analysisState.dateToTime };
       const owner = analysisSessionKey();
       const token = analysisState.refreshToken + 1;
-      Object.assign(analysisState, { drawPreset: "dates", dateFrom: dates.from, dateTo: dates.to });
+      Object.assign(analysisState, { drawPreset: "dates", dateFrom: dates.from, dateTo: dates.to, dateToTime: dates.time || "" });
       saveAnalysisUiState();
       await loadAnalysis({ force: true, silent: false });
       if (owner !== analysisSessionKey() || token !== analysisState.refreshToken) return;
@@ -4663,6 +4716,8 @@
       const form = document.getElementById("analysisDateForm");
       document.getElementById("analysisDateFrom").value = getAnalysisDateBounds()?.from || "";
       document.getElementById("analysisDateTo").value = analysisState.drawPreset === "dates" ? analysisState.dateTo : payload?.toDate || "";
+      document.getElementById("analysisDateToTime").value = analysisState.drawPreset === "dates" ? analysisState.dateToTime || payload?.toTime || "21:00" : payload?.toTime || "21:00";
+      syncAnalysisSessionInput();
       document.getElementById("analysisDateError").hidden = true;
       form.hidden = false;
       syncAnalysisDateNavigation();
@@ -4682,13 +4737,15 @@
       const from = getAnalysisDateBounds()?.from || "";
       document.getElementById("analysisDateFrom").value = from;
       const to = document.getElementById("analysisDateTo").value;
-      const message = getAnalysisDateError(from, to) || getAnalysisDateBoundsError(from, to);
+      const time = isAnalysis535() ? document.getElementById("analysisDateToTime").value : "";
+      const message = getAnalysisDateError(from, to) || getAnalysisCutoffError(from, to, time);
       const error = document.getElementById("analysisDateError");
       error.textContent = message;
       error.hidden = !message;
       if (message || !form.reportValidity()) return;
       analysisState.dateFrom = from;
       analysisState.dateTo = to;
+      analysisState.dateToTime = time;
       analysisState.drawPreset = "dates";
       saveAnalysisUiState();
       closeAnalysisDateEditor();
@@ -4703,10 +4760,14 @@
           analysisState.dateFrom = firstDate;
           saveAnalysisUiState();
         }
-        const message = getAnalysisDateError(analysisState.dateFrom, analysisState.dateTo) || getAnalysisDateBoundsError(analysisState.dateFrom, analysisState.dateTo);
+        if (isAnalysis535() && !analysisState.dateToTime) {
+          analysisState.dateToTime = analysisState.dateTo === getAnalysisDateBounds()?.to ? getAnalysisDateBounds().toTime : "21:00";
+          saveAnalysisUiState();
+        }
+        const message = getAnalysisDateError(analysisState.dateFrom, analysisState.dateTo) || getAnalysisCutoffError(analysisState.dateFrom, analysisState.dateTo, analysisState.dateToTime);
         if (message) throw new Error(message);
         return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "custom", mode: "frequency",
-          from: analysisState.dateFrom, to: analysisState.dateTo, drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" });
+          from: analysisState.dateFrom, to: analysisState.dateTo, ...(isAnalysis535() ? { toTime: analysisState.dateToTime } : {}), drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "2" });
       }
       clampAnalysisCustomCount();
       // Request the full available range, including draws added after this page was opened.
@@ -4716,7 +4777,7 @@
       if (!/^[0-9]+$/.test(raw) || !Number.isSafeInteger(drawCount) || drawCount < 1 || drawCount > 2147483647) {
         throw new Error("Nhập số kỳ là số nguyên dương hợp lệ.");
       }
-      return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "all", mode: "frequency", drawCount: String(drawCount), drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" });
+      return new URLSearchParams({ type: normalizeAnalysisType(analysisState.type), period: "all", mode: "frequency", drawCount: String(drawCount), drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "2" });
     }
 
     function analysisSessionKey() {
@@ -4734,6 +4795,9 @@
       }
       if (getAnalysisDateError(payload.availableFromDate, payload.availableToDate)) {
         throw new Error("Giới hạn ngày dữ liệu chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
+      }
+      if (type === "LOTO_5_35" && [payload.availableFromTime, payload.availableToTime, payload.fromTime, payload.toTime].some(time => !["13:00", "21:00"].includes(time))) {
+        throw new Error("Giờ các kỳ 5/35 chưa hợp lệ. Hãy bấm Cập nhật để thử lại.");
       }
       const cfg = TYPES[type];
       const latest = payload.latestDraw;
@@ -4791,6 +4855,7 @@
       if (!params.has("drawCount") && (result.fromDate !== params.get("from") || result.toDate !== params.get("to"))) {
         throw new Error("Khoảng ngày trả về chưa khớp yêu cầu. Hãy bấm Cập nhật để thử lại.");
       }
+      if (params.has("toTime") && result.toTime !== params.get("toTime")) throw new Error("Kỳ kết thúc trả về chưa khớp yêu cầu.");
       return result;
     }
 
@@ -4812,17 +4877,17 @@
         if ((analysisState.drawPreset === "custom" && getAnalysisMaxDrawCount() === null)
           || (analysisState.drawPreset === "dates" && !getAnalysisDateBounds())) {
           const type = normalizeAnalysisType(analysisState.type);
-          const probe = await fetchAnalysisFrequency(new URLSearchParams({ type, period: "all", mode: "frequency", drawCount: "1", drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "1" }), controller.signal);
+          const probe = await fetchAnalysisFrequency(new URLSearchParams({ type, period: "all", mode: "frequency", drawCount: "1", drawMarkers: "2", delayVersion: "2", dateBoundsVersion: "2" }), controller.signal);
           if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
           analysisState.availableDrawsByType[type] = probe.availableDraws;
-          analysisState.availableDatesByType[type] = { from: probe.availableFromDate, to: probe.availableToDate };
+          analysisState.availableDatesByType[type] = { from: probe.availableFromDate, to: probe.availableToDate, fromTime: probe.availableFromTime, toTime: probe.availableToTime };
           initAnalysisPanel();
         }
         const params = buildAnalysisQuery();
         const payload = await fetchAnalysisFrequency(params, controller.signal);
         if (token !== analysisState.refreshToken || owner !== analysisSessionKey()) return;
         analysisState.availableDrawsByType[payload.type] = payload.availableDraws;
-        analysisState.availableDatesByType[payload.type] = { from: payload.availableFromDate, to: payload.availableToDate };
+        analysisState.availableDatesByType[payload.type] = { from: payload.availableFromDate, to: payload.availableToDate, fromTime: payload.availableFromTime, toTime: payload.availableToTime };
         if (analysisState.drawPreset === "dates" && analysisState.dateFrom !== payload.availableFromDate) {
           analysisState.dateFrom = payload.availableFromDate;
           saveAnalysisUiState();
@@ -5261,7 +5326,8 @@
       dates.setAttribute("aria-controls", "analysisDateForm");
       dates.setAttribute("aria-expanded", String(!document.getElementById("analysisDateForm").hidden));
       dates.className = "frequency-scope-dates";
-      dates.textContent = `${payload.fromDate} → ${payload.toDate}`;
+      const rangeEndpoint = (date, time, label) => `<span class="frequency-range-endpoint" data-label="${label}"><span class="frequency-range-date">${escapeHtml(date)}</span>${isAnalysis535() ? ` <span class="frequency-range-time">${escapeHtml(time)}</span>` : ""}</span>`;
+      dates.innerHTML = `${rangeEndpoint(payload.fromDate, payload.fromTime, "Từ kỳ")} <span class="frequency-range-divider" aria-hidden="true">→</span> ${rangeEndpoint(payload.toDate, payload.toTime, "Đến kỳ ✎")}`;
       scope.append(dates);
       const { main, special } = payload.data;
       const balancedTables = special.supported && main.items.length === special.items.length;

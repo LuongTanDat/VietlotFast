@@ -19977,3 +19977,58 @@ body.light-theme #adminPanelSection .admin-users-metrics [data-status="idle"] st
 .effectiveness-board .effectiveness-ticket-label .effectiveness-seed-copy { display: block; max-width: 100%; min-height: 0; margin: 3px 0 0; padding: 2px; overflow: hidden; border: 1px solid var(--effectiveness-border); border-radius: 4px; background: var(--effectiveness-surface); color: var(--effectiveness-muted); box-shadow: none; font: 8px/1.3 ui-monospace, Consolas, monospace; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .effectiveness-board .effectiveness-seed-copy:hover, .effectiveness-board .effectiveness-seed-copy:focus-visible { color: var(--ink); border-color: var(--effectiveness-accent, #85b7ff); }
 .effectiveness-board .effectiveness-seed-copy[data-copied] { color: #8ee3bf; }
+
+/* Lucky wheel: clear controls and visible reward catalog. */
+#luckyWheelSection.lucky-wheel-board { max-width: 1360px; gap: 18px; padding: 18px; background: radial-gradient(600px 360px at 15% 0%, rgba(30, 151, 180, .16), transparent 70%), #081825; }
+#luckyWheelSection .lucky-wheel-main { padding: 22px; }
+#luckyWheelSection .sp-content { grid-template-areas: "heading" "layout" "prizes"; grid-template-rows: auto auto auto; gap: 22px; }
+#luckyWheelSection .sp-heading { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "mark title" "mark subtitle"; padding-bottom: 18px; }
+#luckyWheelSection .sp-title { font-size: 24px; }
+#luckyWheelSection .sp-subtitle { margin-top: 4px; font-size: 13px; font-weight: 500; }
+#luckyWheelSection .sp-layout { grid-template-columns: minmax(290px, .8fr) minmax(0, 1.2fr); gap: 30px; }
+#luckyWheelSection .sp-energy, #luckyWheelSection .sp-milestone, #luckyWheelSection .sp-controls { padding: 16px 18px; }
+#luckyWheelSection .sp-energy::before, #luckyWheelSection .sp-controls::before, #luckyWheelSection .sp-milestone-head { font-size: 12px; }
+#luckyWheelSection .sp-energy-count, #luckyWheelSection .sp-milestone-meta, #luckyWheelSection .sp-energy-next { font-size: 11px; }
+#luckyWheelSection .sp-milestone-value, #luckyWheelSection .sp-milestone-next { font-size: 10px; }
+#luckyWheelSection .sp-multiplier-btn { min-height: 40px; font-size: 13px; }
+#luckyWheelSection .sp-spin-row > button, #luckyWheelSection .sp-spin-row #luckyWheelSpinBtn { min-height: 44px; font-size: 12px; }
+#luckyWheelSection .lucky-wheel-prize-panel { grid-area: prizes; display: grid; gap: 14px; padding: 18px; box-shadow: none; background: rgba(10, 31, 48, .6); }
+#luckyWheelSection .lucky-wheel-section-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+#luckyWheelSection .lucky-wheel-section-title { margin: 0; font-size: 15px; text-transform: none; letter-spacing: 0; }
+#luckyWheelSection .lucky-wheel-prize-intro { margin: 5px 0 0; color: #a5bdcb; font-size: 12px; line-height: 1.45; }
+#luckyWheelSection .lucky-wheel-section-note, #luckyWheelSection .lucky-wheel-history-count { font-size: 11px; }
+#luckyWheelSection .lucky-wheel-prize-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 1fr; gap: 10px; }
+#luckyWheelSection .lucky-wheel-prize-card { min-width: 0; min-height: 105px; padding: 13px 10px 11px 14px; }
+#luckyWheelSection .lucky-wheel-prize-title { font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+#luckyWheelSection .lucky-wheel-prize-desc, #luckyWheelSection .lucky-wheel-prize-weight { font-size: 10px; }
+#luckyWheelSection .lucky-wheel-history-box { padding: 18px; }
+#luckyWheelSection .lucky-wheel-history-item strong { font-size: 12px; }
+#luckyWheelSection .lucky-wheel-history-reward, #luckyWheelSection .lucky-wheel-history-time { font-size: 11px; }
+body.light-theme #luckyWheelSection.lucky-wheel-board { background: #edf5f7; }
+body.light-theme #luckyWheelSection .lucky-wheel-prize-intro { color: #496779; }
+body.light-theme #luckyWheelSection .lucky-wheel-prize-weight { background: #eaf1f5; color: #365264; }
+@media (max-width: 1000px) { #luckyWheelSection .lucky-wheel-prize-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { #luckyWheelSection .sp-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) {
+  #luckyWheelSection.lucky-wheel-board { padding: 10px; }
+  #luckyWheelSection .lucky-wheel-main { padding: 14px; }
+  #luckyWheelSection .sp-heading { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mark" "title" "subtitle"; }
+  #luckyWheelSection .sp-title { font-size: 19px; }
+  #luckyWheelSection .sp-content { gap: 18px; }
+  #luckyWheelSection .lucky-wheel-prize-panel, #luckyWheelSection .lucky-wheel-history-box { padding: 12px; }
+  #luckyWheelSection .lucky-wheel-prize-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #luckyWheelSection .lucky-wheel-prize-card { min-height: 100px; }
+}
+
+#luckyWheelSection .sp-milestone-scroll { min-width: 0; overflow-x: auto; }
+body.light-theme #luckyWheelSection .sp-auto-btn { color: #075c3f; background: #ccecdf; border-color: #84c7aa; }
+body.light-theme #luckyWheelSection .sp-energy-next { color: #075c3f; background: #d9f3e7; }
+@media (max-width: 520px) {
+  #luckyWheelSection .sp-milestone-track { min-width: 460px; }
+  #luckyWheelSection .sp-spin-row { grid-template-columns: minmax(0, 1fr); }
+  #luckyWheelSection .sp-spin-row > button { width: 100%; white-space: normal; }
+}
+
+#luckyWheelSection .sp-milestone-scroll-hint { display: none; color: #8ba6b8; font-size: 10px; }
+@media (max-width: 520px) { #luckyWheelSection .sp-milestone-scroll-hint { display: block; } }
+body.light-theme #luckyWheelSection .sp-milestone-scroll-hint { color: #496779; }

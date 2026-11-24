@@ -183,6 +183,22 @@ class AnalysisFrequencyTests(unittest.TestCase):
                 self.assertEqual(result['data']['main']['totalOccurrences'], len(selected) * 5)
                 self.assertEqual(result['data']['special']['totalOccurrences'], len(selected))
 
+    def test_535_cutoff_session_includes_only_published_draws_up_to_that_time(self):
+        fixture = frequency_draw_fixture(count=5)
+        for slot, count, latest in [('13:00',3,'3'),('21:00',4,'4')]:
+            result = self.payload(fixture, period='custom', from_date='2026-01-01', to_date='2026-01-02', to_time=slot)
+            self.assertTrue(result['ok'])
+            self.assertEqual(result['totalDraws'],count)
+            self.assertEqual(result['data']['main']['totalOccurrences'], count*5)
+            self.assertEqual(result['latestDraw']['drawId'],latest)
+            self.assertEqual(result['previousDraw']['drawId'],str(int(latest)-1))
+            self.assertEqual(result['toTime'],slot)
+            self.assertEqual(result['fromTime'],'13:00')
+            self.assertEqual(result['availableToTime'],'13:00')
+        self.assertFalse(self.payload(fixture, period='custom', from_date='2026-01-01', to_date='2026-01-03', to_time='21:00')['ok'])
+        self.assertFalse(self.payload(fixture, period='custom', from_date='2026-01-01', to_date='2026-01-02', to_time='18:00')['ok'])
+        self.assertFalse(self.payload(fixture, period='custom', from_date='2026-01-01', to_date='2026-01-02', to_time='13:00', draw_count=2)['ok'])
+
     def test_two_sessions_on_same_day_are_two_draws(self):
         result = self.payload(frequency_draw_fixture(), draw_count=2)
         self.assertEqual(result['totalDraws'], 2)

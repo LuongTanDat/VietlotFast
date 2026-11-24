@@ -31,21 +31,39 @@
 #predictRootAnalysis #analysisRefreshBtn svg { width: 15px; height: 15px; flex: none; }
 #predictRootAnalysis .frequency-range-navigation { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
 #predictRootAnalysis .frequency-range-navigation .frequency-scope { min-width: 0; }
-#predictRootAnalysis .frequency-date-arrow { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; min-width: 28px; height: 32px; min-height: 32px; margin: 0; padding: 2px; border: 0; border-radius: 6px; background: transparent; color: var(--frequency-table-ink); box-shadow: none; cursor: pointer; }
+#predictRootAnalysis .frequency-date-arrow { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; min-width: 28px; height: 32px; min-height: 32px; margin: 24px 0 0; padding: 2px; border: 0; border-radius: 6px; background: transparent; color: var(--frequency-table-ink); box-shadow: none; cursor: pointer; }
 #predictRootAnalysis .frequency-date-arrow svg { display: block; width: 22px; height: 22px; }
 #predictRootAnalysis .frequency-date-arrow:hover:not(:disabled) { background: var(--frequency-table-head); transform: none; }
 #predictRootAnalysis .frequency-date-arrow:disabled { opacity: .3; cursor: default; }
 @media (max-width: 540px) { #predictRootAnalysis .frequency-range-navigation { gap: 2px; } #predictRootAnalysis .frequency-date-arrow { flex-basis: 22px; width: 22px; min-width: 22px; } #predictRootAnalysis .frequency-range-navigation .frequency-scope-dates { font-size: 12px; } }
 #predictRootAnalysis .frequency-scope { margin: 0; color: inherit; font: inherit; }
-#predictRootAnalysis .frequency-scope-dates { display: inline-block; width: auto; min-height: 0; margin: 0; padding: 2px 0; border: 0; border-bottom: 1px dashed var(--frequency-table-line); border-radius: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; white-space: nowrap; cursor: pointer; box-shadow: none; }
-#predictRootAnalysis .frequency-scope-dates::after { content: "✎"; margin-left: 6px; font-size: 13px; opacity: .75; }
-#predictRootAnalysis .frequency-scope-dates:hover { color: var(--frequency-table-ink); border-bottom-color: currentColor; transform: none; }
+#predictRootAnalysis .frequency-scope-dates { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: auto; max-width: 100%; min-height: 0; margin: 24px 0 0; padding: 8px 10px; border: 1px solid var(--frequency-table-line); border-radius: 9px; background: var(--frequency-track); color: inherit; font: inherit; line-height: 1.35; cursor: pointer; box-shadow: none; }
+#predictRootAnalysis .frequency-scope-dates:hover { border-color: currentColor; transform: none; }
+#predictRootAnalysis .frequency-range-endpoint { position: relative; display: inline-flex; align-items: baseline; gap: 5px; text-align: left; white-space: nowrap; }
+#predictRootAnalysis .frequency-range-endpoint::before { content: attr(data-label); position: absolute; left: 0; bottom: calc(100% + 13px); font-size: 11px; font-weight: 500; opacity: .7; }
+#predictRootAnalysis .frequency-range-date { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#predictRootAnalysis .frequency-range-time { font-size: 11px; font-weight: 600; opacity: .8; font-variant-numeric: tabular-nums; }
+#predictRootAnalysis .frequency-range-time::before { content: "·"; margin-right: 4px; opacity: .6; }
+#predictRootAnalysis .frequency-range-divider { font-size: 14px; font-weight: 400; opacity: .5; }
+@media (max-width: 540px) {
+  #predictRootAnalysis .frequency-scope-dates { gap: 4px; padding: 8px 4px; }
+  #predictRootAnalysis .frequency-range-endpoint { gap: 3px; }
+  #predictRootAnalysis .frequency-range-time::before { margin-right: 2px; }
+  #predictRootAnalysis .frequency-range-date { font-size: 10px; }
+  #predictRootAnalysis .frequency-range-time { font-size: 10px; }
+  #predictRootAnalysis .frequency-range-divider { font-size: 12px; }
+}
 #predictRootAnalysis .frequency-date-form { box-sizing: border-box; width: 100%; max-width: 350px; margin: 8px auto 0; padding: 10px; border: 1px solid var(--frequency-table-line); border-radius: 8px; background: var(--frequency-track); color: var(--frequency-table-ink); font-size: 12px; font-weight: 600; text-align: left; }
 #predictRootAnalysis .frequency-date-fields { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: end; gap: 6px; }
 #predictRootAnalysis .frequency-date-fields > span { align-self: center; padding-top: 18px; }
 #predictRootAnalysis .frequency-date-fields label { display: grid; gap: 4px; min-width: 0; margin: 0; color: inherit; font: inherit; }
 #predictRootAnalysis .frequency-date-fields input { box-sizing: border-box; display: block; width: 100%; min-width: 0; height: 36px; margin: 0; padding: 0 5px; border: 1px solid var(--frequency-table-line); border-radius: 6px; background: var(--frequency-surface); color: inherit; font: inherit; color-scheme: dark; }
 body.light-theme #predictRootAnalysis .frequency-date-fields input { color-scheme: light; }
+#predictRootAnalysis .frequency-date-session { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; }
+#predictRootAnalysis .frequency-date-session small { font-size: 11px; color: inherit; opacity: .8; }
+#predictRootAnalysis .frequency-date-session label { display: flex; align-items: center; gap: 6px; margin: 0; font: inherit; color: inherit; }
+#predictRootAnalysis .frequency-date-session select { box-sizing: border-box; width: 85px; min-width: 0; height: 32px; min-height: 32px; margin: 0; padding: 0 8px; border: 1px solid var(--frequency-table-line); border-radius: 6px; background: var(--frequency-surface); color: var(--frequency-table-ink); font: inherit; color-scheme: dark; }
+body.light-theme #predictRootAnalysis .frequency-date-session select { color-scheme: light; }
 #predictRootAnalysis .frequency-date-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
 #predictRootAnalysis .frequency-date-actions button { width: auto; min-height: 30px; margin: 0; padding: 5px 12px; border: 1px solid var(--frequency-table-line); border-radius: 6px; background: var(--frequency-surface); color: inherit; font: inherit; box-shadow: none; }
 #predictRootAnalysis .frequency-date-actions button[type=submit] { background: #285e9d; border-color: #467dc0; color: #f3f8ff; }

@@ -2,7 +2,7 @@
   "type": "LOTO_6_55",
   "bootstrapComplete": true,
   "requestedStartMode": "full_history",
-  "lastSyncAt": "2026-11-21T16:10:34",
+  "lastSyncAt": "2026-11-24T20:20:49",
   "lastBootstrapAt": "2026-03-17T19:34:02",
   "effectiveEarliestKy": "1",
   "effectiveEarliestDate": "01/08/2017",
@@ -10,10 +10,10 @@
   "prizeAmounts": {
     "unit": "VND",
     "source": "https://www.minhchinh.com/",
-    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
+    "updatedAt": "2026-11-24T20:20:49",
     "complete": true,
-    "totalRows": 1426,
-    "completeRows": 1426,
+    "totalRows": 1428,
+    "completeRows": 1428,
     "missingRows": 0,
     "missingDraws": [],
     "columns": [
@@ -83,7 +83,7 @@
     "evidenceFile": "runtime/logs/history_refresh_20261120/report.json"
   },
   "prizeWinners": {
-    "updatedAt": "2026-11-21T16:10:28.983614+07:00",
+    "updatedAt": "2026-11-24T20:20:50",
     "countsByDraw": {
       "1406": {
         "identity": "03/10/2026||7,11,13,16,18,54|41",
@@ -17196,6 +17196,30 @@
         },
         "sourceUrl": "https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/655?id=00024&nocatche=1",
         "checkedAt": "2026-11-21T16:10:28.983614+07:00"
+      },
+      "1427": {
+        "identity": "21/11/2026||7,29,44,45,50,54|39",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 12,
+          "second": 624,
+          "third": 15204
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-21-11-2026.html",
+        "checkedAt": ""
+      },
+      "1428": {
+        "identity": "24/11/2026||36,40,43,46,50,55|15",
+        "counts": {
+          "jackpot1": 0,
+          "jackpot2": 0,
+          "first": 12,
+          "second": 628,
+          "third": 13871
+        },
+        "sourceUrl": "https://www.minhchinh.com/xs-power-655-ket-qua-power-655-ngay-24-11-2026.html",
+        "checkedAt": ""
       }
     }
   },

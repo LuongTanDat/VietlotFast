@@ -1245,6 +1245,14 @@ public class LottoWebServer {
             }
         }
 
+        String toTime = nvl(query.get("toTime")).trim();
+        if (!isBlank(toTime) && (!"LOTO_5_35".equals(type) || !"frequency".equals(mode)
+                || !"custom".equals(period) || drawCount > 0 || isBlank(to)
+                || !("13:00".equals(toTime) || "21:00".equals(toTime)))) {
+            sendJson(ex, 400, "{\"ok\":false,\"message\":\"Giờ kết thúc Loto 5/35 phải là 13:00 hoặc 21:00 trong bộ lọc ngày.\",\"warnings\":[]}");
+            return;
+        }
+
         String cacheKey = heavyApiCacheKey("analysis", ex, type);
         if (sendHeavyApiCacheHit(ex, cacheKey)) return;
 
@@ -1283,6 +1291,10 @@ public class LottoWebServer {
         if (pick > 0) {
             command.add("--pick");
             command.add(String.valueOf(pick));
+        }
+        if (!isBlank(toTime)) {
+            command.add("--to-time");
+            command.add(toTime);
         }
         command.add("--max-tickets");
         command.add(String.valueOf(maxTickets));
@@ -5667,7 +5679,7 @@ public class LottoWebServer {
                         paypal -= cost; spins += count; exchanged += count;
                     } else if ("spin".equals(action)) {
                         if (spins < count) throw new IllegalArgumentException("Không đủ lượt quay");
-                        double[] weights = {28,10,5,1,.3,.4,5,45,.3,10};
+                        double[] weights = {25,10,5,2,.5,1,6,38,.5,12};
                         int[] diamonds = {5,0,0,100,0,0,0,0,1000,10};
                         int[] paypals = {100,0,0,0,0,10000,1000,500,0,0};
                         int[] bonuses = {0,1,3,0,50,0,0,0,0,0};

@@ -8,15 +8,15 @@
   <!-- ---abc--- Shared Styles --- -->
   <link rel="stylesheet" href="/vietlott-web.css?v=game-prize-filters-20261017" />
   <link rel="stylesheet" href="/vietlott-web-admin.css?v=code-edit-mode-20261014" />
-    <link rel="stylesheet" href="/vietlott-web-extra.css?v=cycle-cost-preview-20261115" />
+    <link rel="stylesheet" href="/vietlott-web-extra.css?v=lucky-wheel-design-20261123" />
   <link rel="stylesheet" href="/vietlott-web-auth.css?v=social-auth-20261014" />
   <link rel="stylesheet" href="/vietlott-web-wallet.css?v=card-daily-interest-20261104" />
-  <link rel="preload" href="/vietlott-web-stats.js?v=analysis-fixed-start-20261121" as="script" />
+  <link rel="preload" href="/vietlott-web-stats.js?v=analysis-next-current-lock-20261121" as="script" />
   <link rel="preload" href="/vietlott-web-data.js?v=recovery-bao-v2-20261101" as="script" />
-  <link rel="stylesheet" href="/vietlott-web-analysis.css?v=analysis-fixed-start-20261121" />
+  <link rel="stylesheet" href="/vietlott-web-analysis.css?v=analysis-next-current-lock-20261121" />
   <link rel="stylesheet" href="/vietlott-web-vip.css?v=vip-chest-notice-20261109" />
   <link rel="stylesheet" href="/vietlott-web-exchange.css?v=retention-50-20261109" />
-  <link rel="preload" href="/vietlott-web-core.js?v=analysis-fixed-start-20261121" as="script" />
+  <link rel="preload" href="/vietlott-web-core.js?v=lucky-wheel-rewards-20261123" as="script" />
   <link rel="preload" href="/vietlott-web-chatbot.js" as="script" />
 </head>
 <body>
@@ -619,20 +619,7 @@
             <span class="sp-heading-mark">LUCKY DRAW</span>
             <h2 class="sp-title"><span aria-hidden="true">✦</span> Quay thưởng mỗi ngày</h2>
             <p class="sp-subtitle">Chọn số lượt, quay và nhận quà ngay vào tài khoản</p>
-            <details class="lucky-wheel-side">
-              <summary class="lucky-wheel-prize-trigger" title="Xem kho phần thưởng" aria-label="Xem kho phần thưởng">
-                <span aria-hidden="true">?</span>
-              </summary>
-              <div class="lucky-wheel-prize-popover">
-                <div class="lucky-wheel-prize-panel">
-                  <div class="lucky-wheel-section-head">
-                    <span class="lucky-wheel-section-title">Kho phần thưởng</span>
-                    <span class="lucky-wheel-section-note">8 phần quà</span>
-                  </div>
-                  <div id="luckyWheelPrizeGrid" class="lucky-wheel-prize-grid"></div>
-                </div>
-              </div>
-            </details>
+
           </div>
 
           <div class="sp-layout">
@@ -678,12 +665,13 @@
                   <span>Mốc Hộp Quà</span>
                   <span id="spinMilestoneMeta" class="sp-milestone-meta">Còn 80 lượt để mở mốc 80</span>
                 </div>
-                <div class="sp-milestone-track">
+                <div class="sp-milestone-scroll"><div class="sp-milestone-track">
                   <div class="sp-milestone-bar">
                     <div id="spinMilestoneFill" class="sp-milestone-fill"></div>
                   </div>
                   <div id="spinMilestoneMarkers" class="sp-milestone-markers"></div>
-                </div>
+                </div></div>
+                <small class="sp-milestone-scroll-hint">Vuốt ngang để xem các mốc tiếp theo</small>
                 <div id="spinMilestoneNext" class="sp-milestone-next">Reset sau 24:00:00 • 1 ngày reset lại</div>
               </div>
               <div class="sp-controls">
@@ -700,6 +688,13 @@
               </div>
             </div>
           </div>
+          <section class="lucky-wheel-prize-panel" aria-labelledby="luckyWheelPrizeTitle">
+            <div class="lucky-wheel-section-head">
+              <div><h3 id="luckyWheelPrizeTitle" class="lucky-wheel-section-title">Phần thưởng có thể nhận</h3><p class="lucky-wheel-prize-intro">Giá trị thay đổi theo số lượt bạn chọn. Kho lượt tối đa 60.</p></div>
+              <span id="luckyWheelPrizeCount" class="lucky-wheel-section-note"></span>
+            </div>
+            <div id="luckyWheelPrizeGrid" class="lucky-wheel-prize-grid"></div>
+          </section>
         </div>
         </div>
 
@@ -1503,6 +1498,7 @@
           <div class="frequency-context"><div class="frequency-range-navigation"><button id="analysisDatePrev" class="frequency-date-arrow" type="button" aria-label="Lùi khoảng ngày một ngày" title="Lùi khoảng ngày 1 ngày" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"><path d="M16 4 6 12l10 8z"/></svg></button><span id="analysisScope" class="frequency-scope" aria-live="polite"></span><button id="analysisDateNext" class="frequency-date-arrow" type="button" aria-label="Tiến khoảng ngày một ngày" title="Tiến khoảng ngày 1 ngày" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"><path d="m8 4 10 8-10 8z"/></svg></button></div>
             <form id="analysisDateForm" class="frequency-date-form" data-analysis-export-ignore hidden>
               <div class="frequency-date-fields"><label>Ngày đầu (cố định)<input id="analysisDateFrom" type="date" required readonly title="Cố định ở ngày kỳ đầu tiên của game" aria-label="Ngày kỳ đầu tiên, không thể chỉnh sửa"></label><span aria-hidden="true">→</span><label>Đến ngày<input id="analysisDateTo" type="date" required aria-label="Ngày kết thúc phân tích"></label></div>
+              <div id="analysisDateSessionField" class="frequency-date-session" hidden><small id="analysisDateFirstTime"></small><label>Kỳ kết thúc <select id="analysisDateToTime" aria-label="Kỳ kết thúc 5/35"><option value="13:00">13:00</option><option value="21:00">21:00</option></select></label></div>
               <p id="analysisDateError" role="alert" hidden></p><div class="frequency-date-actions"><button type="button" id="analysisDateCancel">Hủy</button><button type="submit">Áp dụng</button></div>
             </form>
           </div>
@@ -1726,12 +1722,12 @@
   </dialog>
   <div id="analysisCaptureToast" class="frequency-download-toast" role="status" aria-live="polite" aria-atomic="true" data-analysis-export-ignore hidden><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><strong></strong></div>
   <script defer src="/vietlott-web-music.js?v=volume-label-20261011"></script>
-  <script defer src="/vietlott-web-stats.js?v=analysis-fixed-start-20261121"></script>
+  <script defer src="/vietlott-web-stats.js?v=analysis-next-current-lock-20261121"></script>
   <script defer src="/vietlott-web-data.js?v=recovery-bao-v2-20261101"></script>
   <script defer src="/vietlott-web-numeric.js?v=project-audit-20261023"></script>
-    <script defer src="/vietlott-web-effectiveness.js?v=cycle-cost-preview-20261115"></script>
+    <script defer src="/vietlott-web-effectiveness.js?v=lucky-wheel-design-20261123"></script>
   <script defer src="/vietlott-web-payments.js?v=daily-topup-rate-v2-20261109"></script>
-  <script defer src="/vietlott-web-core.js?v=analysis-fixed-start-20261121"></script>
+  <script defer src="/vietlott-web-core.js?v=lucky-wheel-rewards-20261123"></script>
   <script defer src="/vietlott-web-vip.js?v=vip-current-full-rank-20261109"></script>
   <script defer src="/vietlott-web-wallet.js?v=card-exact-input-20261115"></script>
   <script defer src="/vietlott-web-notifications.js?v=finance-notifications-20261105"></script>

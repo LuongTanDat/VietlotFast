@@ -1,5 +1,34 @@
 # Nhật Ký Thay Đổi
 
+## 23/11/2026 — Cơ cấu thưởng vòng quay đã duyệt
+
+Theo cơ cấu người dùng duyệt (x1): 500 PP 38%, 5 KC + 100 PP 25%, 10 KC 12%, 1 lượt 10%, 1.000 PP 6%, 3 lượt 5%, 100 KC 2%, 10.000 PP 1%, 50 lượt 0,5%, 1.000 KC 0,5%. Tổng 100%. Backend chọn phần thưởng theo trọng số, frontend hiển thị cùng tỷ lệ theo đúng thứ tự ô; x3/x5/x10 dùng một kết quả nhân hệ số và kho tối đa 60 lượt.
+
+## 23/11/2026 — Thiết kế vòng quay
+
+Thiết kế lại trang vòng quay: danh sách phần thưởng hiển thị trực tiếp theo số lượt đã chọn, đếm đúng số phần quà và hiển thị tỷ lệ theo trọng số hiện hành; làm rõ khu vực lượt, thao tác và lịch sử, hỗ trợ giao diện sáng/tối và màn hình nhỏ. Chưa thay đổi giá trị hoặc tỷ lệ thưởng trong backend.
+
+## 21/11/2026 — Khóa Next ở kỳ hiện tại
+
+Khóa Next khi ngày/phiên kết thúc đã đạt kỳ mới nhất trong payload (5/35 so cả 13:00/21:00). Guard dùng chung cho hiển thị và hành động, không gửi API khi đã ở kỳ hiện tại; tooltip báo rõ, aria-disabled đồng bộ. Lùi về kỳ cũ tự mở lại Next. Kiểm tra Chrome gồm bấm nút và gọi hành động trực tiếp ở kỳ cuối.
+
+## 21/11/2026 — Khoảng kỳ gọn một hàng
+
+Gom ngày và giờ của mỗi đầu khoảng trên cùng một hàng, phân cách bằng dấu chấm giữa; thu gọn cỡ chữ và khoảng cách. Hai nhãn vẫn ở phía trên ngoài khung, hai caret căn giữa với khung. Giữ nguyên định dạng ngày đầy đủ, phiên quay và thao tác chỉnh/lùi/tiến.
+
+## 21/11/2026 — Đưa nhãn kỳ lên ngoài khung
+
+Hai nhãn Từ kỳ / Đến kỳ nằm phía trên và ngoài đường viền khung ngày giờ, thẳng hàng với ngày tương ứng. CSS chừa khoảng trên để nhãn không đè nội dung khác; giữ nguyên giờ, thao tác chỉnh sửa và điều hướng.
+
+## 21/11/2026 — Khoảng ngày giờ dễ đọc
+
+Làm gọn khoảng phân tích: hai nhãn Từ kỳ / Đến kỳ, ngày đậm, giờ riêng bên dưới; giảm độ rối của dòng ngày giờ và biểu tượng sửa. Giữ hai mũi tên bên ngoài, hỗ trợ giao diện sáng/tối và màn hình nhỏ. Cập nhật cache asset.
+
+## 21/11/2026 — Lọc và điều hướng đúng hai kỳ 5/35 mỗi ngày
+
+- Thêm giờ kết thúc 13:00/21:00 riêng 5/35; hiển thị giờ hai đầu, khóa kỳ bắt đầu và biên mới nhất cả ngày/giờ. Hai caret chuyển một kỳ mỗi lần, kể cả 21h hôm trước ↔ 13h hôm sau. Lọc Python và Java bridge hỗ trợ toTime để số liệu thực sự dừng ở kỳ được chọn, không chỉ đổi chữ. Giữ cách lọc/điều hướng các game khác, dấu chọn và dự đoán.
+- Sao lưu 11 file tại followup_analysis_535_sessions_20261121 trước khi sửa. 18 bài kiểm Python/Java/Chrome đạt (77,844 giây), hồi quy tải 4 PNG và toast đạt sau khi tác vụ nền hoàn tất (56,926 giây); ảnh đủ dòng/vé, có ngày-giờ đúng và không có form sửa. Đã xem Dark 1440/Light 320px. JDK hiện hành biên dịch đạt, đợi worker cũ kết thúc rồi nạp server mới PID 11240 qua launcher xác minh. Dữ liệu thật 21/11: 13:00 có 1021 kỳ, 21:00 có 1022 kỳ. Hồ sơ runtime/logs/analysis_535_sessions_20261121/. Bổ sung kiểm tra 5 kỳ hai phiên/ngày, cắt trưa/tối, chuyển phiên trong ngày/qua ngày, chặn phiên chưa công bố, ngày đầu readonly, khôi phục/đổi game, API Java thật và hình Dark/Light.
+
 ## 21/11/2026 — Khóa ngày kỳ đầu tiên theo xác nhận người dùng
 
 - Ngày bắt đầu chỉ đọc, cố định theo game; chỉ cho sửa ngày kết thúc. Hai caret chỉ đổi ngày cuối ±1 và giữ ngày đầu. Ở Tất cả cho lùi ngày cuối, chặn tiến vượt mới nhất; chặn lùi trước ngày kỳ đầu. Chuẩn hóa lựa chọn ngày cũ khi tải lại/đổi game và không dùng giá trị ngày đầu bị gán bằng script. Preset số kỳ giữ đúng cách lọc, dấu chọn/dự đoán không đổi.

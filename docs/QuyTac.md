@@ -1,5 +1,33 @@
 # Quy Tắc
 
+## 23/11/2026 — Cơ cấu thưởng vòng quay đã duyệt
+
+Theo cơ cấu người dùng duyệt (x1): 500 PP 38%, 5 KC + 100 PP 25%, 10 KC 12%, 1 lượt 10%, 1.000 PP 6%, 3 lượt 5%, 100 KC 2%, 10.000 PP 1%, 50 lượt 0,5%, 1.000 KC 0,5%. Tổng 100%. Backend chọn phần thưởng theo trọng số, frontend hiển thị cùng tỷ lệ theo đúng thứ tự ô; x3/x5/x10 dùng một kết quả nhân hệ số và kho tối đa 60 lượt.
+
+## 23/11/2026 — Thiết kế vòng quay
+
+Thiết kế lại trang vòng quay: danh sách phần thưởng hiển thị trực tiếp theo số lượt đã chọn, đếm đúng số phần quà và hiển thị tỷ lệ theo trọng số hiện hành; làm rõ khu vực lượt, thao tác và lịch sử, hỗ trợ giao diện sáng/tối và màn hình nhỏ. Chưa thay đổi giá trị hoặc tỷ lệ thưởng trong backend.
+
+## 21/11/2026 — Khóa Next ở kỳ hiện tại
+
+Khóa Next khi ngày/phiên kết thúc đã đạt kỳ mới nhất trong payload (5/35 so cả 13:00/21:00). Guard dùng chung cho hiển thị và hành động, không gửi API khi đã ở kỳ hiện tại; tooltip báo rõ, aria-disabled đồng bộ. Lùi về kỳ cũ tự mở lại Next. Kiểm tra Chrome gồm bấm nút và gọi hành động trực tiếp ở kỳ cuối.
+
+## 21/11/2026 — Khoảng kỳ gọn một hàng
+
+Gom ngày và giờ của mỗi đầu khoảng trên cùng một hàng, phân cách bằng dấu chấm giữa; thu gọn cỡ chữ và khoảng cách. Hai nhãn vẫn ở phía trên ngoài khung, hai caret căn giữa với khung. Giữ nguyên định dạng ngày đầy đủ, phiên quay và thao tác chỉnh/lùi/tiến.
+
+## 21/11/2026 — Đưa nhãn kỳ lên ngoài khung
+
+Hai nhãn Từ kỳ / Đến kỳ nằm phía trên và ngoài đường viền khung ngày giờ, thẳng hàng với ngày tương ứng. CSS chừa khoảng trên để nhãn không đè nội dung khác; giữ nguyên giờ, thao tác chỉnh sửa và điều hướng.
+
+## 21/11/2026 — Khoảng ngày giờ dễ đọc
+
+Khoảng phân tích hiển thị thành hai cụm Từ kỳ / Đến kỳ: ngày đậm, giờ ở dòng nhỏ bên dưới; hai nút điều hướng nằm ngoài khung. Giữ nguyên logic khóa ngày đầu và chuyển phiên 13:00/21:00.
+
+## Phân tích 5/35 theo hai phiên quay (21/11/2026)
+
+- Riêng Loto 5/35: khoảng dữ liệu hiển thị cả ngày và giờ 13:00/21:00. Ngày/giờ bắt đầu khóa ở kỳ canonical đầu tiên; người dùng chọn ngày và phiên kết thúc. Caret chuyển từng kỳ 13:00 → 21:00 → 13:00 ngày sau và ngược lại, không dịch một ngày như game quay một phiên. Không chọn/tiến quá phiên mới nhất đã có kết quả; ví dụ mới có 13:00 thì 21:00 cùng ngày bị khóa. Không tính lẫn kỳ 21:00 khi dừng ở 13:00. Số lượt, tỷ lệ, trễ, chuỗi, Hiện Tại/Kỳ Trước dùng đúng phần lịch sử đã cắt; dấu chọn giữ nguyên. Các game khác giữ điều hướng ngày cuối ±1 ngày.
+
 ## Khóa ngày đầu, chỉ sửa ngày kết thúc Phân tích (21/11/2026)
 
 - Theo xác nhận người dùng: ở thao tác lọc ngày, ngày bắt đầu cố định ở ngày kỳ đầu tiên của game, không được sửa. Chỉ nhập ngày kết thúc trong giới hạn từ ngày kỳ đầu đến ngày kỳ mới nhất. Hai caret chỉ lùi/tiến ngày kết thúc đúng 1 ngày, giữ ngày đầu. Vì vậy ở toàn lịch sử, nút trái vẫn được dùng để rút ngắn ngày kết thúc, nút phải khóa ở kỳ mới nhất; khi ngày kết thúc về ngày đầu thì khóa trái. Quy tắc này thay cách dịch cả khoảng và khóa cả hai nút ở Tất cả trước đó. Các preset N kỳ vẫn tính đúng N kỳ; chuyển sang chỉnh ngày/caret sẽ dùng ngày đầu canonical cố định. Không đổi dấu chọn/dự đoán.

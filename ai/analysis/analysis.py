@@ -1130,6 +1130,7 @@ def build_analysis_payload(
     max_tickets=20,
     csv_path=None,
     draw_count=None,
+    to_time="",
 ):
     normalized_type = normalize_type(type_key)
     if normalized_type not in SUPPORTED_TYPES:
@@ -1157,6 +1158,9 @@ def build_analysis_payload(
             "message": "Chức năng này chưa hỗ trợ đầy đủ cho loại vé hiện tại.",
             "warnings": ["CSV hiện tại chưa có đủ dữ liệu 3 chữ số trong cột Hiển thị."],
         }
+    if to_time and (normalized_type != "LOTO_5_35" or mode != "frequency" or period != "custom"
+                    or draw_count is not None or to_time not in ("13:00", "21:00")):
+        return {"ok": False, "message": "Giờ kết thúc chỉ hỗ trợ 13:00 hoặc 21:00 cho bộ lọc ngày Loto 5/35.", "warnings": []}
     if draw_count is not None:
         filtered = draws[-draw_count:]
         from_dt = min((draw["date"] for draw in filtered), default=None)
@@ -1164,6 +1168,11 @@ def build_analysis_payload(
         period = "draws"
     else:
         filtered, from_dt, to_dt = filter_draws_by_period(draws, period, from_date, to_date)
+    if to_time:
+        cutoff = parse_time_minutes(to_time)
+        filtered = [draw for draw in filtered if draw["date"] < to_dt or draw["timeMinutes"] <= cutoff]
+        if not any(draw["date"] == to_dt and draw["time"] == to_time for draw in filtered):
+            return {"ok": False, "message": "Kỳ quay được chọn chưa có dữ liệu.", "warnings": []}
     if not filtered:
         return {"ok": False, "message": "Không đủ dữ liệu để phân tích.", "warnings": []}
     if mode == "special" and not GAME_CONFIGS[normalized_type].get("has_special"):
@@ -1211,6 +1220,10 @@ def build_analysis_payload(
         "availableDraws": len(draws),
         "availableFromDate": date_iso(draws[0]["date"]),
         "availableToDate": date_iso(draws[-1]["date"]),
+        "availableFromTime": draws[0]["time"],
+        "availableToTime": draws[-1]["time"],
+        "fromTime": filtered[0]["time"],
+        "toTime": filtered[-1]["time"],
         "latestDraw": draw_to_json(filtered[-1]),
         "previousDraw": draw_to_json(draws[latest_index - 1]) if latest_index > 0 else None,
         "sourceFile": Path(source_path).name,
@@ -1230,6 +1243,7 @@ def parse_args(argv):
     analysis.add_argument("--mode", default="overview", choices=sorted(MODE_KEYS))
     analysis.add_argument("--from", dest="from_date", default="")
     analysis.add_argument("--to", dest="to_date", default="")
+    analysis.add_argument("--to-time", default="")
     analysis.add_argument("--limit", type=int, default=20)
     analysis.add_argument("--draw-count", type=int, default=None)
     analysis.add_argument("--k", type=int, default=5)
@@ -1257,6 +1271,7 @@ def main(argv=None):
             mode=args.mode,
             from_date=args.from_date,
             to_date=args.to_date,
+            to_time=args.to_time,
             limit=args.limit,
             k=args.k,
             combo_size=args.combo_size,

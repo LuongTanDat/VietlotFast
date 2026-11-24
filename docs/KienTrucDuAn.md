@@ -1,5 +1,34 @@
 # Kiến Trúc Dự Án
 
+## 23/11/2026 — Cơ cấu thưởng vòng quay đã duyệt
+
+Theo cơ cấu người dùng duyệt (x1): 500 PP 38%, 5 KC + 100 PP 25%, 10 KC 12%, 1 lượt 10%, 1.000 PP 6%, 3 lượt 5%, 100 KC 2%, 10.000 PP 1%, 50 lượt 0,5%, 1.000 KC 0,5%. Tổng 100%. Backend chọn phần thưởng theo trọng số, frontend hiển thị cùng tỷ lệ theo đúng thứ tự ô; x3/x5/x10 dùng một kết quả nhân hệ số và kho tối đa 60 lượt.
+
+## 23/11/2026 — Thiết kế vòng quay
+
+Thiết kế lại trang vòng quay: danh sách phần thưởng hiển thị trực tiếp theo số lượt đã chọn, đếm đúng số phần quà và hiển thị tỷ lệ theo trọng số hiện hành; làm rõ khu vực lượt, thao tác và lịch sử, hỗ trợ giao diện sáng/tối và màn hình nhỏ. Chưa thay đổi giá trị hoặc tỷ lệ thưởng trong backend.
+
+## 21/11/2026 — Khóa Next ở kỳ hiện tại
+
+Khóa Next khi ngày/phiên kết thúc đã đạt kỳ mới nhất trong payload (5/35 so cả 13:00/21:00). Guard dùng chung cho hiển thị và hành động, không gửi API khi đã ở kỳ hiện tại; tooltip báo rõ, aria-disabled đồng bộ. Lùi về kỳ cũ tự mở lại Next. Kiểm tra Chrome gồm bấm nút và gọi hành động trực tiếp ở kỳ cuối.
+
+## 21/11/2026 — Khoảng kỳ gọn một hàng
+
+Gom ngày và giờ của mỗi đầu khoảng trên cùng một hàng, phân cách bằng dấu chấm giữa; thu gọn cỡ chữ và khoảng cách. Hai nhãn vẫn ở phía trên ngoài khung, hai caret căn giữa với khung. Giữ nguyên định dạng ngày đầy đủ, phiên quay và thao tác chỉnh/lùi/tiến.
+
+## 21/11/2026 — Đưa nhãn kỳ lên ngoài khung
+
+Hai nhãn Từ kỳ / Đến kỳ nằm phía trên và ngoài đường viền khung ngày giờ, thẳng hàng với ngày tương ứng. CSS chừa khoảng trên để nhãn không đè nội dung khác; giữ nguyên giờ, thao tác chỉnh sửa và điều hướng.
+
+## 21/11/2026 — Khoảng ngày giờ dễ đọc
+
+renderAnalysis dựng hai endpoint ngày/giờ trong nút chỉnh khoảng; CSS bố trí hai cột, nhãn nhỏ và giờ xuống dòng, thu gọn trên điện thoại. Không thay đổi dữ liệu, bộ lọc hay API.
+
+## Mốc kết thúc có giờ cho 5/35 (21/11/2026)
+
+- API analysis nhận toTime chỉ cho LOTO_5_35/frequency/custom, không kèm drawCount, bắt buộc to và giờ 13:00/21:00. Java kiểm tham số rồi chuyển --to-time cho Python. build_analysis_payload lọc ngày rồi loại phiên sau mốc giờ ở ngày cuối; mốc kỳ chưa tồn tại trả lỗi. Bổ sung availableFromTime/availableToTime/fromTime/toTime từ canonical. Bộ lọc cũ không gửi giờ vẫn giữ cách gộp ngày; các tham số khác không đổi.
+- dateToTime lưu cùng UI; getAnalysisNavigationTarget tính phiên liền trước/sau, getAnalysisCutoffError kiểm cả ngày/giờ biên. Cache per-game chứa từ/đến có giờ, dateBoundsVersion=2 tránh payload cũ. Session selector chỉ hiện cho 5/35, khóa option vượt phiên mới nhất và tự đồng bộ khi đổi ngày; đọc/khôi phục dữ liệu cũ thiếu giờ dùng phiên cuối đã công bố của ngày hiện tại hoặc 21:00 cho ngày trước. Scope tách span ngày-giờ để wrap trên mobile, PNG giữ mốc đã áp dụng và không gồm form. HTML/core/stats/CSS cache analysis-535-sessions-20261121.
+
 ## Ngày đầu readonly và điều hướng ngày cuối (21/11/2026)
 
 - analysisDateFrom có readonly, nhãn Ngày đầu (cố định); openAnalysisDateEditor lấy bounds.from và focus input ngày cuối. applyAnalysisDates bỏ qua mọi giá trị tự gán vào input đầu, đọc bounds.from làm nguồn duy nhất. buildAnalysisQuery chuẩn hóa dateFrom của dates về ngày canonical đầu và lưu lại UI; response có ngày đầu mới sẽ cập nhật cache rồi tải lại đúng ngày đầu mới. Duy trì probe/owner/token và min/max trước đó.
